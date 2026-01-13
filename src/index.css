@@ -1,1 +1,656 @@
 @import "tailwindcss";
+
+/* ==========================================
+   CUSTOM DARK MODE VARIANT
+   ========================================== */
+
+/* Active dark mode avec la classe .dark sur le html */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ==========================================
+   THEME VARIABLES - Tailwind v4
+   ========================================== */
+
+@theme {
+  /* ==========================================
+     COULEURS DARK MODE (basé sur la maquette Weeb)
+     ========================================== */
+
+  /* Backgrounds dark */
+  --color-dark-bg-primary: oklch(
+    0.15 0.01 250
+  ); /* #0F172A - Fond principal très sombre */
+  --color-dark-bg-secondary: oklch(
+    0.22 0.02 250
+  ); /* #1E293B - Sections/cards */
+  --color-dark-bg-tertiary: oklch(
+    0.3 0.02 250
+  ); /* #334155 - Hover/interactif */
+  --color-dark-bg-input: oklch(0.22 0.02 250); /* #1E293B - Inputs formulaire */
+
+  /* Textes dark */
+  --color-dark-text-primary: oklch(1 0 0); /* #FFFFFF - Titres, labels */
+  --color-dark-text-secondary: oklch(
+    0.91 0.01 250
+  ); /* #E2E8F0 - Descriptions */
+  --color-dark-text-tertiary: oklch(
+    0.68 0.02 250
+  ); /* #94A3B8 - Hints, placeholders */
+  --color-dark-text-muted: oklch(0.52 0.03 250); /* #64748B - Désactivé */
+
+  /* Bordures dark */
+  --color-dark-border-primary: oklch(0.3 0.02 250); /* #334155 */
+  --color-dark-border-secondary: oklch(0.38 0.02 250); /* #475569 */
+  --color-dark-border-input: oklch(0.38 0.02 250); /* #475569 */
+
+  /* Accents dark */
+  --color-dark-accent-primary: oklch(
+    0.7 0.27 305
+  ); /* #A855F7 - Violet principal */
+  --color-dark-accent-hover: oklch(0.64 0.29 305); /* #9333EA - Hover */
+  --color-dark-accent-light: oklch(0.76 0.23 305); /* #C084FC - Highlights */
+  --color-dark-accent-secondary: oklch(
+    0.64 0.14 215
+  ); /* #06B6D4 - Cyan liens */
+
+  /* États dark */
+  --color-dark-success: oklch(0.68 0.18 155); /* #10B981 */
+  --color-dark-error: oklch(0.63 0.24 25); /* #EF4444 */
+  --color-dark-warning: oklch(0.75 0.19 75); /* #F59E0B */
+  --color-dark-info: oklch(0.6 0.2 260); /* #3B82F6 */
+
+  /* ==========================================
+     COULEURS LIGHT MODE (inversé pour light)
+     ========================================== */
+
+  /* Backgrounds light */
+  --color-light-bg-primary: oklch(1 0 0); /* #FFFFFF - Blanc */
+  --color-light-bg-secondary: oklch(0.99 0 0); /* #F8FAFC */
+  --color-light-bg-tertiary: oklch(0.97 0 0); /* #F1F5F9 */
+  --color-light-bg-input: oklch(1 0 0); /* #FFFFFF */
+
+  /* Textes light */
+  --color-light-text-primary: oklch(0.15 0.01 250); /* #0F172A - Sombre */
+  --color-light-text-secondary: oklch(0.3 0.02 250); /* #334155 */
+  --color-light-text-tertiary: oklch(0.52 0.03 250); /* #64748B */
+  --color-light-text-muted: oklch(0.68 0.02 250); /* #94A3B8 */
+
+  /* Bordures light */
+  --color-light-border-primary: oklch(0.91 0.01 250); /* #E2E8F0 */
+  --color-light-border-secondary: oklch(0.85 0.01 250); /* #CBD5E1 */
+  --color-light-border-input: oklch(0.85 0.01 250); /* #CBD5E1 */
+
+  /* Accents light (plus foncés pour contraste) */
+  --color-light-accent-primary: oklch(0.64 0.29 305); /* #9333EA - Plus foncé */
+  --color-light-accent-hover: oklch(0.56 0.3 305); /* #7E22CE */
+  --color-light-accent-light: oklch(0.7 0.27 305); /* #A855F7 */
+  --color-light-accent-secondary: oklch(0.55 0.15 215); /* #0891B2 - Cyan */
+
+  /* États light (plus foncés pour contraste) */
+  --color-light-success: oklch(0.58 0.18 155); /* #059669 */
+  --color-light-error: oklch(0.55 0.24 25); /* #DC2626 */
+  --color-light-warning: oklch(0.65 0.19 75); /* #D97706 */
+  --color-light-info: oklch(0.54 0.22 260); /* #2563EB */
+
+  /* ==========================================
+     TYPOGRAPHIE CUSTOM
+     ========================================== */
+
+  --text-hero: 3rem;
+  --text-hero--line-height: 1.2;
+
+  --text-h1: 2.25rem;
+  --text-h1--line-height: 1.2;
+
+  --text-h2: 1.875rem;
+  --text-h2--line-height: 1.3;
+
+  --text-h3: 1.5rem;
+  --text-h3--line-height: 1.4;
+
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.6;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.6;
+
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.5;
+
+  /* ==========================================
+     BORDER RADIUS CUSTOM
+     ========================================== */
+
+  --radius-card: 0.75rem; /* 12px pour cards */
+  --radius-input: 0.5rem; /* 8px pour inputs */
+  --radius-button: 0.5rem; /* 8px pour boutons */
+
+  /* ==========================================
+     SHADOWS CUSTOM
+     ========================================== */
+
+  /* Shadows pour dark mode */
+  --shadow-dark-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+  --shadow-dark-md: 0 4px 6px -1px rgb(0 0 0 / 0.5);
+  --shadow-dark-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
+  --shadow-dark-xl: 0 20px 25px -5px rgb(0 0 0 / 0.5);
+
+  /* Focus states */
+  --shadow-focus-primary: 0 0 0 3px rgb(168 85 247 / 0.15);
+  --shadow-focus-error: 0 0 0 3px rgb(239 68 68 / 0.15);
+  --shadow-focus-success: 0 0 0 3px rgb(16 185 129 / 0.15);
+
+  /* Glow effects */
+  --shadow-glow-primary: 0 0 20px rgb(168 85 247 / 0.3);
+  --shadow-glow-secondary: 0 0 20px rgb(6 182 212 / 0.3);
+
+  /* ==========================================
+     ANIMATIONS CUSTOM
+     ========================================== */
+
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-up: slide-up 0.3s ease-out;
+  --animate-slide-down: slide-down 0.3s ease-out;
+
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-up {
+    0% {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-down {
+    0% {
+      transform: translateY(-10px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+}
+
+/* ==========================================
+   BASE STYLES
+   ========================================== */
+
+@layer base {
+  body {
+    background-color: var(--color-light-bg-primary);
+    color: var(--color-light-text-primary);
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  .dark body {
+    background-color: var(--color-dark-bg-primary);
+    color: var(--color-dark-text-primary);
+  }
+
+  /* Focus visible pour accessibilité */
+  *:focus-visible {
+    outline: 2px solid var(--color-light-accent-primary);
+    outline-offset: 2px;
+  }
+
+  .dark *:focus-visible {
+    outline-color: var(--color-dark-accent-primary);
+  }
+}
+
+/* ==========================================
+   COMPONENTS - Formulaire
+   ========================================== */
+
+@layer components {
+  /* Labels */
+  .form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: var(--text-body);
+    font-weight: 500;
+    color: var(--color-light-text-primary);
+  }
+
+  .dark .form-label {
+    color: var(--color-dark-text-primary);
+  }
+
+  .form-label-required::after {
+    content: " *";
+    color: var(--color-light-error);
+  }
+
+  .dark .form-label-required::after {
+    color: var(--color-dark-error);
+  }
+
+  /* Inputs & Textarea */
+  .form-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: var(--color-light-bg-input);
+    border: 2px solid var(--color-light-border-input);
+    border-radius: var(--radius-input);
+    font-size: var(--text-body);
+    color: var(--color-light-text-primary);
+    transition: all 0.2s;
+  }
+
+  .dark .form-input {
+    background-color: var(--color-dark-bg-input);
+    border-color: var(--color-dark-border-input);
+    color: var(--color-dark-text-primary);
+  }
+
+  .form-input::placeholder {
+    color: var(--color-light-text-tertiary);
+  }
+
+  .dark .form-input::placeholder {
+    color: var(--color-dark-text-tertiary);
+  }
+
+  .form-input:hover {
+    border-color: var(--color-light-border-secondary);
+  }
+
+  .dark .form-input:hover {
+    border-color: var(--color-dark-border-secondary);
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: var(--color-light-accent-primary);
+    box-shadow: var(--shadow-focus-primary);
+    background-color: #fff;
+  }
+
+  .dark .form-input:focus {
+    border-color: var(--color-dark-accent-primary);
+    background-color: var(--color-dark-bg-tertiary);
+  }
+
+  .form-input.error {
+    border-color: var(--color-light-error);
+    box-shadow: var(--shadow-focus-error);
+  }
+
+  .dark .form-input.error {
+    border-color: var(--color-dark-error);
+  }
+
+  .form-input.success {
+    border-color: var(--color-light-success);
+    box-shadow: var(--shadow-focus-success);
+  }
+
+  .dark .form-input.success {
+    border-color: var(--color-dark-success);
+  }
+
+  .form-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--color-light-bg-tertiary);
+  }
+
+  .dark .form-input:disabled {
+    background-color: var(--color-dark-bg-tertiary);
+  }
+
+  /* Textarea spécifique */
+  .form-textarea {
+    min-height: 120px;
+    resize: vertical;
+  }
+
+  /* Messages */
+  .form-error-message {
+    margin-top: 0.25rem;
+    font-size: var(--text-body-sm);
+    color: var(--color-light-error);
+  }
+
+  .dark .form-error-message {
+    color: var(--color-dark-error);
+  }
+
+  .form-helper-text {
+    margin-top: 0.25rem;
+    font-size: var(--text-body-sm);
+    color: var(--color-light-text-tertiary);
+  }
+
+  .dark .form-helper-text {
+    color: var(--color-dark-text-tertiary);
+  }
+
+  /* ==========================================
+     COMPONENTS - Boutons
+     ========================================== */
+
+  /* Bouton primaire */
+  .btn-primary {
+    padding: 0.75rem 1.5rem;
+    background-color: var(--color-light-accent-primary);
+    color: #fff;
+    font-weight: 500;
+    border-radius: var(--radius-button);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dark .btn-primary {
+    background-color: var(--color-dark-accent-primary);
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-light-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-glow-primary);
+  }
+
+  .dark .btn-primary:hover {
+    background-color: var(--color-dark-accent-hover);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-primary:focus {
+    outline: 2px solid var(--color-light-accent-primary);
+    outline-offset: 2px;
+  }
+
+  .dark .btn-primary:focus {
+    outline-color: var(--color-dark-accent-primary);
+  }
+
+  /* Bouton secondaire (outline) */
+  .btn-secondary {
+    padding: 0.75rem 1.5rem;
+    background-color: transparent;
+    color: var(--color-light-accent-primary);
+    font-weight: 500;
+    border: 2px solid var(--color-light-accent-primary);
+    border-radius: var(--radius-button);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dark .btn-secondary {
+    color: var(--color-dark-accent-primary);
+    border-color: var(--color-dark-accent-primary);
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--color-light-accent-primary);
+    color: #fff;
+  }
+
+  .dark .btn-secondary:hover {
+    background-color: var(--color-dark-accent-primary);
+  }
+
+  /* Bouton ghost */
+  .btn-ghost {
+    padding: 0.5rem 1rem;
+    background-color: transparent;
+    color: var(--color-light-text-primary);
+    border: none;
+    border-radius: var(--radius-button);
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .dark .btn-ghost {
+    color: var(--color-dark-text-primary);
+  }
+
+  .btn-ghost:hover {
+    background-color: var(--color-light-bg-tertiary);
+  }
+
+  .dark .btn-ghost:hover {
+    background-color: var(--color-dark-bg-tertiary);
+  }
+
+  /* Tailles */
+  .btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: var(--text-body-sm);
+  }
+
+  .btn-lg {
+    padding: 1rem 2rem;
+    font-size: var(--text-body-lg);
+  }
+
+  /* ==========================================
+     COMPONENTS - Cards
+     ========================================== */
+
+  .card {
+    background-color: var(--color-light-bg-secondary);
+    border: 1px solid var(--color-light-border-primary);
+    border-radius: var(--radius-card);
+    padding: 1.5rem;
+    transition: all 0.2s;
+  }
+
+  .dark .card {
+    background-color: var(--color-dark-bg-secondary);
+    border-color: var(--color-dark-border-primary);
+  }
+
+  .card-hover {
+    cursor: pointer;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .dark .card-hover:hover {
+    box-shadow: var(--shadow-dark-lg);
+  }
+
+  /* ==========================================
+     COMPONENTS - Navigation
+     ========================================== */
+
+  .nav-link {
+    padding: 0.5rem 1rem;
+    color: var(--color-light-text-secondary);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .dark .nav-link {
+    color: var(--color-dark-text-secondary);
+  }
+
+  .nav-link:hover {
+    color: var(--color-light-text-primary);
+  }
+
+  .dark .nav-link:hover {
+    color: var(--color-dark-text-primary);
+  }
+
+  .nav-link.active {
+    color: var(--color-light-accent-primary);
+    font-weight: 500;
+  }
+
+  .dark .nav-link.active {
+    color: var(--color-dark-accent-primary);
+  }
+
+  /* ==========================================
+     COMPONENTS - Sections
+     ========================================== */
+
+  .section {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+
+  @media (min-width: 768px) {
+    .section {
+      padding-top: 5rem;
+      padding-bottom: 5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .section {
+      padding-top: 6rem;
+      padding-bottom: 6rem;
+    }
+  }
+
+  .section-secondary {
+    background-color: var(--color-light-bg-secondary);
+  }
+
+  .dark .section-secondary {
+    background-color: var(--color-dark-bg-secondary);
+  }
+
+  .container-custom {
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container-custom {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container-custom {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+
+  /* ==========================================
+     COMPONENTS - Footer
+     ========================================== */
+
+  .footer {
+    background-color: var(--color-light-bg-secondary);
+    border-top: 1px solid var(--color-light-border-primary);
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+
+  .dark .footer {
+    background-color: var(--color-dark-bg-secondary);
+    border-color: var(--color-dark-border-primary);
+  }
+
+  .footer-link {
+    color: var(--color-light-text-tertiary);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .dark .footer-link {
+    color: var(--color-dark-text-tertiary);
+  }
+
+  .footer-link:hover {
+    color: var(--color-light-accent-primary);
+  }
+
+  .dark .footer-link:hover {
+    color: var(--color-dark-accent-primary);
+  }
+}
+
+/* ==========================================
+   UTILITIES - Classes utilitaires custom
+   ========================================== */
+
+@layer utilities {
+  /* Touch targets minimum (accessibilité) */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Smooth scroll */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Focus ring */
+  .focus-ring-primary:focus {
+    outline: 2px solid var(--color-light-accent-primary);
+    outline-offset: 2px;
+  }
+
+  .dark .focus-ring-primary:focus {
+    outline-color: var(--color-dark-accent-primary);
+  }
+}
+
+/* ==========================================
+   PRINT STYLES
+   ========================================== */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
