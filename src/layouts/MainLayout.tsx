@@ -1,7 +1,11 @@
-import React from "react";
+import NavBar from "../components/common/NavBar";
 
 const MainLayout = () => {
-  return <div>MainLayout</div>;
+  return (
+    <div>
+      <NavBar />
+    </div>
+  );
 };
 
 export default MainLayout;

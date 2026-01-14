@@ -1,14 +1,7 @@
-import NavBar from "../components/common/NavBar";
+import MainLayout from "../layouts/MainLayout";
 
 const home = () => {
-  return (
-    <div>
-      <div>
-        <NavBar />
-      </div>
-      <div>Home</div>
-    </div>
-  );
+  return <MainLayout></MainLayout>;
 };
 
 export default home;
