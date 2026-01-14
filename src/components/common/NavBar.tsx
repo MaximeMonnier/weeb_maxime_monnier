@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Sun, Moon, Menu, X } from "lucide-react";
+import MainButton from "../ui/MainButton";
+
 type NavLink = { href: string; label: string };
 
 function NavBar() {
@@ -57,7 +59,7 @@ function NavBar() {
   };
 
   const navLinks: NavLink[] = [
-    { href: "#accueil", label: "About Us" },
+    { href: "#accueil", label: "À Propos de Nous" },
     { href: "#contact", label: "Contact" },
   ];
 
@@ -119,11 +121,12 @@ function NavBar() {
 
                 {/* CTA Button */}
                 <a className="nav-link" href="#login">
-                  Log in
-                </a>
-                <a href="#contact" className="btn-primary">
                   Se connecter
                 </a>
+                <MainButton className="btn-primary">
+                  {" "}
+                  <a href="#contact">Nous Rejoindre</a>
+                </MainButton>
               </div>
             </div>
 
