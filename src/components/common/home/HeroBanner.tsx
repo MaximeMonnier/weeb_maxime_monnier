@@ -3,7 +3,7 @@ import MainTitle from "../../ui/MainTitle";
 
 const HeroBanner = () => {
   return (
-    <div className="container-custom my-32">
+    <div className="container-custom mt-32">
       <div className="flex flex-col items-center justify-center">
         <div className="py-6">
           <MainTitle
