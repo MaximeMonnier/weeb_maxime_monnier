@@ -2,6 +2,9 @@ import HeroBanner from "../components/common/home/HeroBanner";
 import MainLayout from "../layouts/MainLayout";
 import ImageBanner from "../assets/img/img1.png";
 import BrandBanner from "../components/common/home/BrandBanner";
+import FeatureBlock from "../components/common/home/FeatureBlock";
+import Image1 from "../assets/img/img1.png";
+import Image2 from "../assets/img/img2.png";
 
 const home = () => {
   return (
@@ -18,6 +21,39 @@ const home = () => {
           />
         </div>
         <BrandBanner />
+        <div>
+          <FeatureBlock
+            eyebrow="Des ressources pour tous les niveaux"
+            titleLine1={
+              <>
+                <span className="text-accent">Apprenez</span> et
+              </>
+            }
+            titleLine2="progressez"
+            description="Que vous débutiez en développement web ou que vous soyez un expert..."
+            ctaLabel="Explorer les ressources"
+            ctaHref="#ressources"
+            imageSrc={Image1}
+            imageAlt="Aperçu interface"
+            reverse={false}
+          />
+
+          <FeatureBlock
+            eyebrow="Le web, un écosystème en constante évolution"
+            titleLine1={
+              <>
+                Restez informé des <br />
+                dernières <span className="text-accent">tendances</span>
+              </>
+            }
+            description="Chaque semaine, nous analysons les nouveautés du web..."
+            ctaLabel="Lire les articles récents"
+            ctaHref="#articles"
+            imageSrc={Image2}
+            imageAlt="Illustration tendances"
+            reverse={true}
+          />
+        </div>
       </main>
     </MainLayout>
   );
