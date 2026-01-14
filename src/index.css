@@ -18,11 +18,10 @@
 
   /* Backgrounds dark */
   --color-dark-bg-primary: oklch(
-    0.15 0.01 250
+    0.18 0.07 250
   ); /* #0F172A - Fond principal très sombre */
-  --color-dark-bg-secondary: oklch(
-    0.22 0.02 250
-  ); /* #1E293B - Sections/cards */
+  --color-dark-bg-secondary: oklch(0.25 0.033 264);
+  /* #1E293B - Sections/cards */
   --color-dark-bg-tertiary: oklch(
     0.3 0.02 250
   ); /* #334155 - Hover/interactif */
@@ -65,7 +64,7 @@
 
   /* Backgrounds light */
   --color-light-bg-primary: oklch(1 0 0); /* #FFFFFF - Blanc */
-  --color-light-bg-secondary: oklch(0.99 0 0); /* #F8FAFC */
+  --color-light-bg-secondary: oklch(0.97 0.014 264); /* #F3F6FF */
   --color-light-bg-tertiary: oklch(0.97 0 0); /* #F1F5F9 */
   --color-light-bg-input: oklch(1 0 0); /* #FFFFFF */
 
@@ -642,6 +641,91 @@
 
   .dark .focus-ring-primary:focus {
     outline-color: var(--color-dark-accent-primary);
+  }
+  /* ==========================================
+     DESIGN TOKENS - Background / Text / Border
+     (évite les classes arbitraires)
+     ========================================== */
+
+  /* Backgrounds */
+  .bg-primary {
+    background-color: var(--color-light-bg-primary);
+  }
+  .dark .bg-primary {
+    background-color: var(--color-dark-bg-primary);
+  }
+
+  .bg-secondary {
+    background-color: var(--color-light-bg-secondary);
+  }
+  .dark .bg-secondary {
+    background-color: var(--color-dark-bg-secondary);
+  }
+
+  .bg-tertiary {
+    background-color: var(--color-light-bg-tertiary);
+  }
+  .dark .bg-tertiary {
+    background-color: var(--color-dark-bg-tertiary);
+  }
+
+  /* Text colors */
+  .text-primary {
+    color: var(--color-light-text-primary);
+  }
+  .dark .text-primary {
+    color: var(--color-dark-text-primary);
+  }
+
+  .text-secondary {
+    color: var(--color-light-text-secondary);
+  }
+  .dark .text-secondary {
+    color: var(--color-dark-text-secondary);
+  }
+
+  .text-tertiary {
+    color: var(--color-light-text-tertiary);
+  }
+  .dark .text-tertiary {
+    color: var(--color-dark-text-tertiary);
+  }
+
+  .text-muted {
+    color: var(--color-light-text-muted);
+  }
+  .dark .text-muted {
+    color: var(--color-dark-text-muted);
+  }
+
+  /* Borders */
+  .border-primary {
+    border-color: var(--color-light-border-primary);
+  }
+  .dark .border-primary {
+    border-color: var(--color-dark-border-primary);
+  }
+
+  .border-secondary {
+    border-color: var(--color-light-border-secondary);
+  }
+  .dark .border-secondary {
+    border-color: var(--color-dark-border-secondary);
+  }
+
+  /* Accent helpers (optionnel mais pratique) */
+  .text-accent {
+    color: var(--color-light-accent-primary);
+  }
+  .dark .text-accent {
+    color: var(--color-dark-accent-primary);
+  }
+
+  .text-accent-secondary {
+    color: var(--color-light-accent-secondary);
+  }
+  .dark .text-accent-secondary {
+    color: var(--color-dark-accent-secondary);
   }
 }
 
