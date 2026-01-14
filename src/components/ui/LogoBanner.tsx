@@ -1,28 +1,34 @@
+import svg1 from "../../assets/svg/1.svg";
+import svg2 from "../../assets/svg/2.svg";
+import svg3 from "../../assets/svg/3.svg";
+import svg4 from "../../assets/svg/4.svg";
+import svg5 from "../../assets/svg/5.svg";
+
 type Brand = {
   name: string;
-  src: string; // chemin vers ton svg/png (ex: /brands/smartfinder.svg)
+  src: string;
   href?: string;
 };
 
 const brands: Brand[] = [
-  { name: "SmartFinder", src: "/brands/smartfinder.svg", href: "#" },
-  { name: "Zoomerr", src: "/brands/zoomerr.svg", href: "#" },
-  { name: "SHELLS", src: "/brands/shells.svg", href: "#" },
-  { name: "WAVES", src: "/brands/waves.svg", href: "#" },
-  { name: "ArtVenue", src: "/brands/artvenue.svg", href: "#" },
+  { name: "SmartFinder", src: `${svg1}`, href: "#" },
+  { name: "Zoomerr", src: `${svg2}`, href: "#" },
+  { name: "SHELLS", src: `${svg3}`, href: "#" },
+  { name: "WAVES", src: `${svg4}`, href: "#" },
+  { name: "ArtVenue", src: `${svg5}`, href: "#" },
 ];
 
 export default function LogoBanner() {
   return (
-    <section className="border-t border-primary py-10">
-      <div className="container-custom">
-        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-6 md:gap-x-14">
+    <section className=" py-10">
+      <div className="w-full">
+        <div className="flex items-center justify-between gap-30">
           {brands.map((b) => {
             const content = (
               <img
                 src={b.src}
                 alt={b.name}
-                className="h-5 w-auto opacity-70 transition-opacity duration-200 hover:opacity-100"
+                className="h-14 w-auto opacity-70 transition-opacity duration-200 hover:opacity-100"
                 loading="lazy"
               />
             );
@@ -32,9 +38,10 @@ export default function LogoBanner() {
                 key={b.name}
                 href={b.href}
                 aria-label={b.name}
-                className="focus-ring-primary rounded"
+                className="focus-ring-primary rounded flex justify-center items-center gap-2"
               >
                 {content}
+                {b.name}
               </a>
             ) : (
               <div key={b.name} aria-label={b.name}>
