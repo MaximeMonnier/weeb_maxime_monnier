@@ -4,7 +4,7 @@ import MainLayout from "../layouts/MainLayout";
 const home = () => {
   return (
     <MainLayout>
-      <header className="h-screen">
+      <header>
         <HeroBanner />
       </header>
     </MainLayout>
