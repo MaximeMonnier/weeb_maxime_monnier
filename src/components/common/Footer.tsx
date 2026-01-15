@@ -13,12 +13,12 @@ type FooterColumn = {
 
 const columns: FooterColumn[] = [
   {
-    title: "PRODUCT",
+    title: "PRODUIT",
     links: [
-      { label: "Pricing", href: "/pricing" },
-      { label: "Overview", href: "/overview" },
-      { label: "Browse", href: "/browse" },
-      { label: "Accessibility", href: "/accessibility" },
+      { label: "Tarifs", href: "/pricing" },
+      { label: "Aperçu", href: "/overview" },
+      { label: "Explorer", href: "/browse" },
+      { label: "Accessibilité", href: "/accessibility" },
       { label: "Five", href: "/five" },
     ],
   },
@@ -26,29 +26,30 @@ const columns: FooterColumn[] = [
     title: "SOLUTIONS",
     links: [
       { label: "Brainstorming", href: "/solutions/brainstorming" },
-      { label: "Ideation", href: "/solutions/ideation" },
+      { label: "Idéation", href: "/solutions/ideation" },
       { label: "Wireframing", href: "/solutions/wireframing" },
-      { label: "Research", href: "/solutions/research" },
+      { label: "Recherche", href: "/solutions/research" },
     ],
   },
   {
-    title: "RESOURCES",
+    title: "RESSOURCES",
     links: [
-      { label: "Help Center", href: "/help" },
+      { label: "Centre d’aide", href: "/help" },
       { label: "Blog", href: "/blog" },
-      { label: "Tutorials", href: "/tutorials" },
+      { label: "Tutoriels", href: "/tutorials" },
     ],
   },
   {
-    title: "COMPANY",
+    title: "ENTREPRISE",
     links: [
-      { label: "About", href: "/about" },
-      { label: "Press", href: "/press" },
-      { label: "Events", href: "/events" },
-      { label: "Careers", href: "/careers" },
+      { label: "À propos", href: "/about" },
+      { label: "Presse", href: "/press" },
+      { label: "Événements", href: "/events" },
+      { label: "Carrières", href: "/careers" },
     ],
   },
 ];
+
 
 const Footer = () => {
   const year = new Date().getFullYear();

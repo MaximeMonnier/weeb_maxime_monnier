@@ -44,7 +44,7 @@ export default function FeatureBlock({
           {/* Texte */}
           <div className={reverse ? "md:order-2" : "md:order-1"}>
             {eyebrow ? (
-              <p className="text-muted text-[11px] font-semibold tracking-[0.14em] uppercase">
+              <p className=" text-[12px] font-semibold tracking-[0.14em] uppercase">
                 {eyebrow}
               </p>
             ) : null}
@@ -59,7 +59,7 @@ export default function FeatureBlock({
             </div>
 
             {description ? (
-              <p className="mt-4 max-w-prose text-tertiary text-sm sm:text-base leading-relaxed">
+              <p className="mt-4 max-w-prose text-secondary text-sm sm:text-base leading-relaxed">
                 {description}
               </p>
             ) : null}
@@ -83,7 +83,7 @@ export default function FeatureBlock({
                 src={imageSrc}
                 alt={imageAlt}
                 loading="lazy"
-                className="w-full max-w-[560px] h-auto rounded-[var(--radius-card)] border border-primary bg-secondary"
+                className="w-full rounded-lg h-100"
               />
             </div>
           </div>
