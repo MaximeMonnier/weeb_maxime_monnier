@@ -1,6 +1,6 @@
 import React from "react";
-import SecondTitle from "../../ui/SecondTitle";
-import LinkTitle from "../../ui/LinkTitle";
+import SecondTitle from "../../ui/Title/SecondTitle";
+import LinkTitle from "../../ui/Title/LinkTitle";
 
 type FeatureBlockProps = {
   eyebrow?: string;

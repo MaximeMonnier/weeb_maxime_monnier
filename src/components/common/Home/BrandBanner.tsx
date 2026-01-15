@@ -1,5 +1,5 @@
-import LogoBanner from "../../ui/LogoBanner";
-import SecondTitle from "../../ui/SecondTitle";
+import LogoBanner from "../../ui/Logo/LogoBanner";
+import SecondTitle from "../../ui/Title/SecondTitle";
 const BrandBanner = () => {
   return (
     <div className="flex flex-col items-center justifiy-center my-30">

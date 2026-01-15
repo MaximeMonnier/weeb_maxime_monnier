@@ -1,8 +1,8 @@
-import HeroBanner from "../components/common/home/HeroBanner";
+import HeroBanner from "../components/common/Home/HeroBanner";
 import MainLayout from "../layouts/MainLayout";
 import ImageBanner from "../assets/img/img1.png";
-import BrandBanner from "../components/common/home/BrandBanner";
-import FeatureBlock from "../components/common/home/FeatureBlock";
+import BrandBanner from "../components/common/Home/BrandBanner";
+import FeatureBlock from "../components/common/Home/FeatureBlock";
 import Image1 from "../assets/img/img1.png";
 import Image2 from "../assets/img/img2.png";
 

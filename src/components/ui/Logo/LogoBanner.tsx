@@ -1,8 +1,8 @@
-import svg1 from "../../assets/svg/1.svg";
-import svg2 from "../../assets/svg/2.svg";
-import svg3 from "../../assets/svg/3.svg";
-import svg4 from "../../assets/svg/4.svg";
-import svg5 from "../../assets/svg/5.svg";
+import svg1 from "../../../assets/svg/1.svg";
+import svg2 from "../../../assets/svg/2.svg";
+import svg3 from "../../../assets/svg/3.svg";
+import svg4 from "../../../assets/svg/4.svg";
+import svg5 from "../../../assets/svg/5.svg";
 
 type Brand = {
   name: string;
