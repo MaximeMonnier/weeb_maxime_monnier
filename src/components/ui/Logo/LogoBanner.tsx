@@ -4,9 +4,13 @@ import svg3 from "../../../assets/svg/3.svg";
 import svg4 from "../../../assets/svg/4.svg";
 import svg5 from "../../../assets/svg/5.svg";
 
+/** Represents a brand/partner logo in the banner */
 type Brand = {
+  /** Brand name (used for alt text and aria-label) */
   name: string;
+  /** Path to the brand logo image */
   src: string;
+  /** Optional link URL for the brand */
   href?: string;
 };
 

@@ -1,13 +1,18 @@
-import React from "react";
 import Logo from "../ui/Logo/Logo";
 
+/** Represents a single link in the footer */
 type FooterLink = {
+  /** Display text for the link */
   label: string;
+  /** URL for the link */
   href: string;
 };
 
+/** Represents a column of links in the footer */
 type FooterColumn = {
+  /** Column heading */
   title: string;
+  /** Array of links in this column */
   links: FooterLink[];
 };
 

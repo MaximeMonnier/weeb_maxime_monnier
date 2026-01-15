@@ -1,17 +1,26 @@
-import React from "react";
-
 type SectionTitleSize = "md" | "lg";
 
+/**
+ * Props for the SecondTitle (Section Title) component
+ * Used for section headings throughout the application
+ */
 type SectionTitleProps = {
+  /** First line of the title (can include JSX for styling) */
   line1: React.ReactNode;
+
+  /** Optional second line of the title */
   line2?: React.ReactNode;
 
+  /** HTML heading tag to use (default: h2) */
   as?: "h2" | "h3";
 
+  /** Text alignment (default: center) */
   align?: "center" | "left";
 
+  /** Size variant of the title (default: md) */
   size?: SectionTitleSize;
 
+  /** Additional CSS classes */
   className?: string;
 };
 
