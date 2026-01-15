@@ -30,7 +30,7 @@ const home = () => {
               </>
             }
             titleLine2="progressez"
-            description="Que vous débutiez en développement web ou que vous soyez un expert..."
+            description="Que vous débutiez en développement web ou que vous soyez un expert cherchant à approfondir vos connaissances, nous vous proposons des tutoriels, guides et bonnes pratiques pour apprendre efficacement."
             ctaLabel="Explorer les ressources"
             ctaHref="#ressources"
             imageSrc={Image1}
