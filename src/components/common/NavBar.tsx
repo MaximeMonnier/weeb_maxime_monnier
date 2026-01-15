@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Sun, Moon, Menu, X } from "lucide-react";
-import MainButton from "../ui/MainButton";
+import MainButton from "../ui/Button/MainButton";
+import Logo from "../ui/Logo/Logo";
 
 type NavLink = { href: string; label: string };
 
@@ -60,7 +61,7 @@ function NavBar() {
 
   const navLinks: NavLink[] = [
     { href: "#accueil", label: "À Propos de Nous" },
-    { href: "#contact", label: "Contact" },
+    { href: "/contact", label: "Contact" },
   ];
 
   return (
@@ -80,15 +81,7 @@ function NavBar() {
           <div className="flex items-center p-4 rounded-2xl bg-dark-bg-secondary bg-secondary justify-between">
             <div className="flex items-center justify-center">
               {/* Logo */}
-              <a
-                href="#accueil"
-                className="flex items-center gap-2 text-2xl font-bold focus-ring-primary"
-                aria-label="Retour à l'accueil"
-              >
-                <span className="text-light-text-primary dark:text-dark-text-primary">
-                  weeb
-                </span>
-              </a>
+              <Logo href="#accueil" size="md" />
 
               {/* Navigation Desktop */}
               <div className="hidden md:flex items-center gap-1">
