@@ -1,16 +1,23 @@
-import React from "react";
 import { ArrowRight } from "lucide-react";
 
+/**
+ * Props for the LinkTitle (Text CTA Link) component
+ * Used for text links with an arrow icon
+ */
 type TextCtaLinkProps = {
+  /** URL for the link */
   href: string;
+
+  /** Link text content */
   children: React.ReactNode;
 
-  /** Optionnel : ouvre dans un nouvel onglet */
+  /** If true, opens the link in a new tab */
   external?: boolean;
 
-  /** Optionnel : style plus “accent” (violet) au hover */
+  /** If true, applies accent color on hover */
   hoverAccent?: boolean;
 
+  /** Additional CSS classes */
   className?: string;
 };
 
