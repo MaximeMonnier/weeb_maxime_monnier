@@ -87,7 +87,7 @@ function NavBar() {
                 Se connecter
               </Link>
 
-              <Link to="/contact" className="btn-primary">
+              <Link to="/login" className="btn-primary">
                 Nous rejoindre
               </Link>
             </div>
