@@ -1,5 +1,5 @@
 import React from "react";
-import Logo from "../ui/Logo";
+import Logo from "../ui/Logo/Logo";
 
 type FooterLink = {
   label: string;
@@ -49,7 +49,6 @@ const columns: FooterColumn[] = [
     ],
   },
 ];
-
 
 const Footer = () => {
   const year = new Date().getFullYear();

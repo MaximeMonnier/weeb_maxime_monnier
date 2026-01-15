@@ -1,6 +1,6 @@
 import MainLayout from "../layouts/MainLayout";
-import Form from "../components/common/contact/Form";
-import MainTitle from "../components/ui/MainTitle";
+import Form from "../components/common/Contact/FormContact";
+import MainTitle from "../components/ui/Title/MainTitle";
 // import MainButton from "../components/ui/MainButton";
 
 const Contact = () => {

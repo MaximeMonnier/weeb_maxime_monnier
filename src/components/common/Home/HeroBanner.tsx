@@ -1,5 +1,5 @@
-import MainButton from "../../ui/MainButton";
-import MainTitle from "../../ui/MainTitle";
+import MainButton from "../../ui/Button/MainButton";
+import MainTitle from "../../ui/Title/MainTitle";
 
 const HeroBanner = () => {
   return (

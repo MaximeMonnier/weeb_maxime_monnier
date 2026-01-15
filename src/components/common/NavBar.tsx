@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Sun, Moon, Menu, X } from "lucide-react";
-import MainButton from "../ui/MainButton";
-import Logo from "../ui/Logo";
+import MainButton from "../ui/Button/MainButton";
+import Logo from "../ui/Logo/Logo";
 
 type NavLink = { href: string; label: string };
 
