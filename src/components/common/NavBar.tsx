@@ -61,7 +61,7 @@ function NavBar() {
 
   const navLinks: NavLink[] = [
     { href: "#accueil", label: "À Propos de Nous" },
-    { href: "#contact", label: "Contact" },
+    { href: "/contact", label: "Contact" },
   ];
 
   return (
