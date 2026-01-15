@@ -1,32 +1,31 @@
 import { useState } from "react";
-import { Input, Textarea } from "../../ui/Input";
+import { Link } from "react-router-dom";
+import { Input } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
 
 type FormData = {
   name: string;
   surname: string;
   email: string;
-  subject: string;
-  message: string;
+  password: string;
+  confirmPassword: string;
 };
 
 type FormErrors = Partial<Record<keyof FormData, string>>;
 
-const FormContact = () => {
+const FormSubscribe = () => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
     surname: "",
     email: "",
-    subject: "",
-    message: "",
+    password: "",
+    confirmPassword: "",
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     // Clear error when user starts typing
@@ -52,14 +51,19 @@ const FormContact = () => {
       newErrors.email = "L'email n'est pas valide";
     }
 
-    if (!formData.subject.trim()) {
-      newErrors.subject = "Le sujet est requis";
+    if (!formData.password.trim()) {
+      newErrors.password = "Le mot de passe est requis";
+    } else if (formData.password.length < 8) {
+      newErrors.password = "Le mot de passe doit contenir au moins 8 caractères";
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+      newErrors.password =
+        "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre";
     }
 
-    if (!formData.message.trim()) {
-      newErrors.message = "Le message est requis";
-    } else if (formData.message.trim().length < 10) {
-      newErrors.message = "Le message doit contenir au moins 10 caractères";
+    if (!formData.confirmPassword.trim()) {
+      newErrors.confirmPassword = "La confirmation du mot de passe est requise";
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
     }
 
     setErrors(newErrors);
@@ -78,10 +82,22 @@ const FormContact = () => {
     // Simuler un appel API
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    console.log("Form submitted:", formData);
+    console.log("Subscribe submitted:", {
+      name: formData.name,
+      surname: formData.surname,
+      email: formData.email,
+      // Ne jamais logger le mot de passe en production
+    });
 
+    // TODO: Gérer l'inscription réelle
     // Reset form
-    setFormData({ name: "", surname: "", email: "", subject: "", message: "" });
+    setFormData({
+      name: "",
+      surname: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    });
     setIsSubmitting(false);
   };
 
@@ -91,6 +107,7 @@ const FormContact = () => {
       className="w-full max-w-2xl my-8 border border-primary p-6 rounded-lg"
     >
       <div className="space-y-6">
+        {/* Nom et Prénom */}
         <div className="flex gap-4">
           <Input
             label="Nom"
@@ -130,31 +147,51 @@ const FormContact = () => {
           fullWidth
         />
 
-        {/* Sujet */}
+        {/* Password */}
         <Input
-          label="Sujet"
-          name="subject"
-          type="text"
-          placeholder="Objet de votre message"
-          value={formData.subject}
+          label="Mot de passe"
+          name="password"
+          type="password"
+          placeholder="••••••••"
+          value={formData.password}
           onChange={handleChange}
-          error={errors.subject}
+          error={errors.password}
+          helperText="Au moins 8 caractères avec majuscule, minuscule et chiffre"
           required
           fullWidth
         />
 
-        {/* Message */}
-        <Textarea
-          label="Message"
-          name="message"
-          placeholder="Écrivez votre message ici..."
-          value={formData.message}
+        {/* Confirm Password */}
+        <Input
+          label="Confirmer le mot de passe"
+          name="confirmPassword"
+          type="password"
+          placeholder="••••••••"
+          value={formData.confirmPassword}
           onChange={handleChange}
-          error={errors.message}
-          minRows={5}
+          error={errors.confirmPassword}
           required
           fullWidth
         />
+
+        {/* Terms and Conditions */}
+        <div className="text-sm text-secondary">
+          En vous inscrivant, vous acceptez nos{" "}
+          <Link
+            to="/terms"
+            className="text-accent hover:underline focus-ring-primary rounded"
+          >
+            conditions d'utilisation
+          </Link>{" "}
+          et notre{" "}
+          <Link
+            to="/privacy"
+            className="text-accent hover:underline focus-ring-primary rounded"
+          >
+            politique de confidentialité
+          </Link>
+          .
+        </div>
 
         {/* Submit Button */}
         <div className="flex justify-center">
@@ -163,13 +200,25 @@ const FormContact = () => {
             variant="primary"
             size="lg"
             disabled={isSubmitting}
+            fullWidth
           >
-            {isSubmitting ? "Envoi en cours..." : "Envoyer le message"}
+            {isSubmitting ? "Création du compte..." : "Créer mon compte"}
           </MainButton>
+        </div>
+
+        {/* Login link */}
+        <div className="text-center text-sm text-secondary">
+          Vous avez déjà un compte ?{" "}
+          <Link
+            to="/login"
+            className="text-accent hover:underline focus-ring-primary rounded"
+          >
+            Se connecter
+          </Link>
         </div>
       </div>
     </form>
   );
 };
 
-export default FormContact;
+export default FormSubscribe;
