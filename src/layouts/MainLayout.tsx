@@ -1,19 +1,15 @@
-import React from "react";
 import NavBar from "../components/common/NavBar";
 import Footer from "../components/common/Footer";
+import { Outlet } from "react-router-dom";
 
-type MainLayoutProps = {
-  children: React.ReactNode;
-};
-
-const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+export default function MainLayout() {
   return (
     <div>
       <NavBar />
-      {children}
+      <main>
+        <Outlet />
+      </main>
       <Footer />
     </div>
   );
-};
-
-export default MainLayout;
+}

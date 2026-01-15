@@ -10,16 +10,12 @@ const sizes: Record<NonNullable<LogoProps["size"]>, string> = {
   lg: "text-3xl",
 };
 
-export default function Logo({
-  href = "#accueil",
-  size = "md",
-  className,
-}: LogoProps) {
+export default function Logo({ href, size = "md", className }: LogoProps) {
   const content = (
     <span
       className={[
         "font-bold tracking-tight leading-none",
-        "text-primary", // ta classe token (light/dark)
+        "text-primary",
         sizes[size],
         className ?? "",
       ].join(" ")}
@@ -28,7 +24,9 @@ export default function Logo({
     </span>
   );
 
-  return href ? (
+  if (!href) return content;
+
+  return (
     <a
       href={href}
       aria-label="Retour à l'accueil"
@@ -36,7 +34,5 @@ export default function Logo({
     >
       {content}
     </a>
-  ) : (
-    <div className="inline-flex items-center">{content}</div>
   );
 }
