@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { Link, NavLink as RRNavLink, useLocation } from "react-router-dom";
 import { Sun, Moon, Menu, X } from "lucide-react";
-import MainButton from "../ui/Button/MainButton";
 import Logo from "../ui/Logo/Logo";
 
-type NavLink = { href: string; label: string };
+type NavItem =
+  | { type: "hash"; href: string; label: string } // ex: "#accueil"
+  | { type: "route"; to: string; label: string }; // ex: "/contact"
 
 function NavBar() {
+  const location = useLocation();
+
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -23,11 +27,9 @@ function NavBar() {
 
   // Détection du scroll pour effet sticky
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
+    handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -44,88 +46,135 @@ function NavBar() {
   }, []);
 
   const toggleTheme = () => {
-    const newTheme = !isDark;
-    setIsDark(newTheme);
-    updateTheme(newTheme);
+    setIsDark((prev) => {
+      const next = !prev;
+      updateTheme(next);
+      return next;
+    });
   };
 
-  // Toggle menu mobile
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
+  const toggleMobileMenu = () => setIsMobileMenuOpen((v) => !v);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
+  // Ferme le menu mobile au changement de route
+  useEffect(() => {
+    closeMobileMenu();
+  }, [location.pathname]);
+
+  // Helpers
+  const scrollToHash = (hash: string) => {
+    const id = hash.replace("#", "");
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // Fermer le menu mobile lors du clic sur un lien
-  const closeMobileMenu = () => {
-    setIsMobileMenuOpen(false);
+  const handleHashClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    hash: string
+  ) => {
+    e.preventDefault();
+    scrollToHash(hash);
+    closeMobileMenu();
   };
 
-  const navLinks: NavLink[] = [
-    { href: "#accueil", label: "À Propos de Nous" },
-    { href: "/contact", label: "Contact" },
+  // Navigation
+  const navItems: NavItem[] = [
+    { type: "hash", href: "#accueil", label: "À propos de nous" },
+    { type: "route", to: "/contact", label: "Contact" },
   ];
 
   return (
     <>
       <nav
-        className={`
-          fixed top-0 left-0 right-0 z-50
-          transition-all duration-300
-          ${
-            isScrolled
-              ? "bg-light-bg-primary/95 dark:bg-dark-bg-primary/95 backdrop-blur-md shadow-md dark:shadow-dark-md"
-              : "bg-transparent"
-          }
-        `}
+        className={[
+          "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+          isScrolled
+            ? "bg-primary shadow-md dark:shadow-dark-md"
+            : "bg-transparent",
+        ].join(" ")}
       >
         <div className="container-custom py-6">
-          <div className="flex items-center p-4 rounded-2xl bg-dark-bg-secondary bg-secondary justify-between">
-            <div className="flex items-center justify-center">
-              {/* Logo */}
-              <Logo href="#accueil" size="md" />
+          <div className="flex items-center justify-between rounded-2xl bg-secondary p-4">
+            <div className="flex items-center gap-6">
+              <Link
+                to="/"
+                className="focus-ring-primary rounded inline-flex items-center"
+                aria-label="Retour à l'accueil"
+                onClick={() => {
+                  closeMobileMenu?.();
+                }}
+              >
+                <Logo size="md" />
+              </Link>
 
               {/* Navigation Desktop */}
               <div className="hidden md:flex items-center gap-1">
-                {navLinks.map((link) => (
-                  <a key={link.href} href={link.href} className="nav-link">
-                    {link.label}
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center">
-              {/* Actions Desktop */}
-              <div className="hidden md:flex items-center">
-                {/* Theme Toggle */}
-                <button
-                  onClick={toggleTheme}
-                  className="btn-ghost touch-target rounded-full"
-                  aria-label={
-                    isDark ? "Activer le mode clair" : "Activer le mode sombre"
+                {navItems.map((item) => {
+                  if (item.type === "route") {
+                    return (
+                      <RRNavLink
+                        key={item.to}
+                        to={item.to}
+                        className={({ isActive }) =>
+                          `nav-link ${isActive ? "active" : ""}`
+                        }
+                      >
+                        {item.label}
+                      </RRNavLink>
+                    );
                   }
-                  title={isDark ? "Mode clair" : "Mode sombre"}
-                >
-                  {isDark ? (
-                    <Sun className="h-5 w-5" />
-                  ) : (
-                    <Moon className="h-5 w-5" />
-                  )}
-                </button>
 
-                {/* CTA Button */}
-                <a className="nav-link" href="#login">
-                  Se connecter
-                </a>
-                <MainButton className="btn-primary">
-                  {" "}
-                  <a href="#contact">Nous Rejoindre</a>
-                </MainButton>
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      onClick={(e) => handleHashClick(e, item.href)}
+                      className="nav-link"
+                    >
+                      {item.label}
+                    </a>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Mobile Menu Button + Theme Toggle */}
+            {/* Actions Desktop */}
+            <div className="hidden md:flex items-center">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="btn-ghost touch-target rounded-full"
+                aria-label={
+                  isDark ? "Activer le mode clair" : "Activer le mode sombre"
+                }
+                title={isDark ? "Mode clair" : "Mode sombre"}
+              >
+                {isDark ? (
+                  <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
+              </button>
+
+              <Link className="nav-link" to="/login">
+                Se connecter
+              </Link>
+
+              {/* IMPORTANT : pas de <a> dans un <button> */}
+              <Link to="/contact" className="btn-primary">
+                Nous rejoindre
+              </Link>
+
+              {/* Si tu veux absolument utiliser MainButton, il faut qu'il supporte "asChild".
+                  Sinon préfère <Link className="btn-primary" ...> */}
+              {/* <MainButton className="btn-primary" onClick={() => {}}>
+                  Nous rejoindre
+                </MainButton> */}
+            </div>
+
+            {/* Mobile Buttons */}
             <div className="flex md:hidden items-center gap-2">
-              {/* Theme Toggle Mobile */}
               <button
                 onClick={toggleTheme}
                 className="btn-ghost touch-target rounded-full p-2"
@@ -140,7 +189,6 @@ function NavBar() {
                 )}
               </button>
 
-              {/* Hamburger Button */}
               <button
                 onClick={toggleMobileMenu}
                 className="btn-ghost touch-target p-2"
@@ -161,46 +209,66 @@ function NavBar() {
 
         {/* Mobile Menu */}
         <div
-          className={`
-            px-6
-            md:hidden
-            overflow-hidden
-            transition-all duration-300 ease-in-out
-            ${isMobileMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"}
-          `}
+          className={[
+            "px-6 md:hidden overflow-hidden transition-all duration-300 ease-in-out",
+            isMobileMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0",
+          ].join(" ")}
         >
-          <div className=" bg-light-bg-secondary dark:bg-dark-bg-secondary border-t border-light-border-primary dark:border-dark-border-primary">
+          <div className="bg-secondary border-t border-primary">
             <div className="container-custom py-4">
               <div className="flex flex-col gap-2">
-                {navLinks.map((link) => (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    onClick={closeMobileMenu}
-                    className="nav-link block py-3 px-4 rounded-lg hover:bg-light-bg-tertiary dark:hover:bg-dark-bg-tertiary"
-                  >
-                    {link.label}
-                  </a>
-                ))}
+                {navItems.map((item) => {
+                  if (item.type === "route") {
+                    return (
+                      <RRNavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={closeMobileMenu}
+                        className={({ isActive }) =>
+                          `nav-link block py-3 px-4 rounded-lg hover:bg-tertiary ${
+                            isActive ? "active" : ""
+                          }`
+                        }
+                      >
+                        {item.label}
+                      </RRNavLink>
+                    );
+                  }
 
-                {/* CTA Mobile */}
-                <a className="nav-link" href="#login">
-                  Log In
-                </a>
-                <a
-                  href="#contact"
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      onClick={(e) => handleHashClick(e, item.href)}
+                      className="nav-link block py-3 px-4 rounded-lg hover:bg-tertiary"
+                    >
+                      {item.label}
+                    </a>
+                  );
+                })}
+
+                <RRNavLink
+                  to="/login"
+                  onClick={closeMobileMenu}
+                  className="nav-link block py-3 px-4 rounded-lg hover:bg-tertiary"
+                >
+                  Se connecter
+                </RRNavLink>
+
+                <Link
+                  to="/contact"
                   onClick={closeMobileMenu}
                   className="btn-primary w-full mt-4"
                 >
-                  Se connecter
-                </a>
+                  Nous rejoindre
+                </Link>
               </div>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Spacer pour éviter que le contenu passe sous la navbar fixe */}
+      {/* Spacer */}
       <div className="h-16 md:h-20" />
     </>
   );
