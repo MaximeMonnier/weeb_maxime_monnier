@@ -3,28 +3,21 @@ import React from "react";
 type SectionTitleSize = "md" | "lg";
 
 type SectionTitleProps = {
-  /** Contenu ligne 1 (tu peux passer du texte ou des spans) */
   line1: React.ReactNode;
-  /** Contenu ligne 2 (optionnel) */
   line2?: React.ReactNode;
 
-  /** h2 par défaut (tu peux mettre h3 si besoin) */
   as?: "h2" | "h3";
 
-  /** Centré (ex: "Ils nous font confiance") ou à gauche (ex: bloc avec image) */
   align?: "center" | "left";
 
-  /** Taille : md (section standard) / lg (section plus mise en avant) */
   size?: SectionTitleSize;
 
   className?: string;
 };
 
 const sizeClasses: Record<SectionTitleSize, string> = {
-  // "Ils nous font confiance"
-  md: "text-2xl sm:text-3xl",
-  // "Apprenez et progressez"
-  lg: "text-3xl sm:text-4xl",
+  md: "text-4xl sm:text-4xl",
+  lg: "text-5xl sm:text-5xl",
 };
 
 export default function SectionTitle({

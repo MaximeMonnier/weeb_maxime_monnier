@@ -29,8 +29,8 @@ export default function TextCtaLink({
     <a
       href={href}
       className={cx(
-        "group inline-flex items-center gap-2 text-sm font-medium focus-ring-primary",
-        "link-soft", // vient du CSS (ou remplace par footer-link si tu préfères)
+        "group inline-flex items-center gap-2 text-lg font-medium focus-ring-primary",
+        "link-soft",
         hoverAccent && "hover:text-accent",
         className
       )}
