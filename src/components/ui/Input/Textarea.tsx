@@ -1,29 +1,32 @@
 import { forwardRef } from "react";
 
-type InputVariant = "default" | "error" | "success";
+type TextareaVariant = "default" | "error" | "success";
 
 /**
- * Props for the Input component
- * Supports text, email, and password input types
+ * Props for the Textarea component
+ * Multi-line text input with auto-resizing capabilities
  */
-type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
-  /** Label text displayed above the input */
+type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  /** Label text displayed above the textarea */
   label?: string;
 
-  /** Error message displayed below the input */
+  /** Error message displayed below the textarea */
   error?: string;
 
-  /** Helper text displayed below the input */
+  /** Helper text displayed below the textarea */
   helperText?: string;
 
   /** If true, shows an asterisk (*) next to the label */
   required?: boolean;
 
-  /** Visual variant of the input */
-  variant?: InputVariant;
+  /** Visual variant of the textarea */
+  variant?: TextareaVariant;
 
-  /** If true, input takes full width of container */
+  /** If true, textarea takes full width of container */
   fullWidth?: boolean;
+
+  /** Minimum number of rows (default: 3) */
+  minRows?: number;
 };
 
 function cx(...classes: Array<string | false | undefined | null>) {
@@ -31,10 +34,10 @@ function cx(...classes: Array<string | false | undefined | null>) {
 }
 
 /**
- * Input component for text, email, and password fields
- * Uses form-input classes from global CSS
+ * Textarea component for multi-line text input
+ * Uses form-input and form-textarea classes from global CSS
  */
-const Input = forwardRef<HTMLInputElement, InputProps>(
+const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   (
     {
       label,
@@ -43,14 +46,16 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       required = false,
       variant = "default",
       fullWidth = false,
+      minRows = 3,
       className,
       id,
-      type = "text",
+      rows,
       ...props
     },
     ref
   ) => {
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const textareaId =
+      id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
     const hasError = !!error || variant === "error";
     const hasSuccess = variant === "success";
 
@@ -58,19 +63,20 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       <div className={cx(fullWidth && "w-full")}>
         {label && (
           <label
-            htmlFor={inputId}
+            htmlFor={textareaId}
             className={cx("form-label", required && "form-label-required")}
           >
             {label}
           </label>
         )}
 
-        <input
+        <textarea
           ref={ref}
-          id={inputId}
-          type={type}
+          id={textareaId}
+          rows={rows || minRows}
           className={cx(
             "form-input",
+            "form-textarea",
             hasError && "error",
             hasSuccess && "success",
             className
@@ -78,22 +84,22 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           aria-invalid={hasError}
           aria-describedby={
             error
-              ? `${inputId}-error`
+              ? `${textareaId}-error`
               : helperText
-                ? `${inputId}-helper`
+                ? `${textareaId}-helper`
                 : undefined
           }
           {...props}
         />
 
         {error && (
-          <p id={`${inputId}-error`} className="form-error-message">
+          <p id={`${textareaId}-error`} className="form-error-message">
             {error}
           </p>
         )}
 
         {helperText && !error && (
-          <p id={`${inputId}-helper`} className="form-helper-text">
+          <p id={`${textareaId}-helper`} className="form-helper-text">
             {helperText}
           </p>
         )}
@@ -102,6 +108,6 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
   }
 );
 
-Input.displayName = "Input";
+Textarea.displayName = "Textarea";
 
-export default Input;
+export default Textarea;
