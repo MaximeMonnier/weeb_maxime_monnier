@@ -1,7 +1,7 @@
-import FormLogin from "../components/common/Login/FormLogin";
+import FormSubscribe from "../components/common/Subscribe/FormSubscribe";
 import MainTitle from "../components/ui/Title/MainTitle";
 
-const Login = () => {
+const Subscribe = () => {
   return (
     <div className="container-custom mt-32">
       <div className="flex flex-col items-center justify-center">
@@ -9,17 +9,17 @@ const Login = () => {
           <MainTitle
             line1={
               <>
-                Bienvenue sur <span className="text-accent">Weeb</span>
+                Rejoignez <span className="text-accent">Weeb</span>
               </>
             }
-            line2="Connectez-vous pour continuer"
+            line2="Créez votre compte gratuitement"
           />
         </div>
 
-        <FormLogin />
+        <FormSubscribe />
       </div>
     </div>
   );
 };
 
-export default Login;
+export default Subscribe;

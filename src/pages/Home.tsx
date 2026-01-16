@@ -5,7 +5,7 @@ import FeatureBlock from "../components/common/Home/FeatureBlock";
 import Image1 from "../assets/img/img1.png";
 import Image2 from "../assets/img/img2.png";
 
-const home = () => {
+const Home = () => {
   return (
     <>
       <header>
@@ -58,4 +58,4 @@ const home = () => {
   );
 };
 
-export default home;
+export default Home;

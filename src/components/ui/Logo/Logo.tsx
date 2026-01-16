@@ -1,5 +1,4 @@
 type LogoProps = {
-  href?: string;
   size?: "sm" | "md" | "lg";
   className?: string;
 };
@@ -10,8 +9,13 @@ const sizes: Record<NonNullable<LogoProps["size"]>, string> = {
   lg: "text-3xl",
 };
 
-export default function Logo({ href, size = "md", className }: LogoProps) {
-  const content = (
+/**
+ * Logo component - displays the brand name "weeb"
+ * This component only renders the logo text. Wrap it in a Link or anchor tag
+ * for navigation functionality.
+ */
+export default function Logo({ size = "md", className }: LogoProps) {
+  return (
     <span
       className={[
         "font-bold tracking-tight leading-none",
@@ -22,17 +26,5 @@ export default function Logo({ href, size = "md", className }: LogoProps) {
     >
       weeb
     </span>
-  );
-
-  if (!href) return content;
-
-  return (
-    <a
-      href={href}
-      aria-label="Retour à l'accueil"
-      className="inline-flex items-center focus-ring-primary rounded"
-    >
-      {content}
-    </a>
   );
 }

@@ -1,9 +1,18 @@
-import React from "react";
-
+/**
+ * Props for the MainTitle (Hero Title) component
+ * Used for large, prominent headings typically at the top of pages
+ */
 type HeroTitleProps = {
+  /** First line of the title (can include JSX for styling) */
   line1: React.ReactNode;
+
+  /** Optional second line of the title */
   line2?: React.ReactNode;
+
+  /** HTML heading tag to use (default: h1) */
   as?: "h1" | "h2";
+
+  /** Whether to center the title (default: true) */
   center?: boolean;
 };
 
