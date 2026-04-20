@@ -5,6 +5,10 @@ import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Subscribe from "./pages/Subscribe";
 import NotFound from "./pages/NotFound";
+import About from "./pages/About";
+import Blog from "./pages/Blog/Blog";
+import AddArticles from "./pages/Blog/AddArticles";
+
 import "./index.css";
 
 function App() {
@@ -16,6 +20,9 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/subscribe" element={<Subscribe />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/add-article" element={<AddArticles />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

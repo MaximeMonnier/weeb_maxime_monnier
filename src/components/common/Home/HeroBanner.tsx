@@ -27,10 +27,10 @@ const HeroBanner = () => {
         </div>
         <div className="flex items-center justify-center py-6 gap-4">
           <MainButton variant="primary" size="lg" className="cursor-pointer">
-            Découvrir les Offrres
+            Découvrir les articles
           </MainButton>
           <MainButton variant="outline" size="lg" className="cursor-pointer">
-            Découvrir les Offrres
+            S'abonner à la newsletter
           </MainButton>
         </div>
       </div>

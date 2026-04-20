@@ -194,7 +194,9 @@
   body {
     background-color: var(--color-light-bg-primary);
     color: var(--color-light-text-primary);
-    transition: background-color 0.3s, color 0.3s;
+    transition:
+      background-color 0.3s,
+      color 0.3s;
   }
 
   .dark body {
@@ -726,6 +728,57 @@
   }
   .dark .text-accent-secondary {
     color: var(--color-dark-accent-secondary);
+  }
+}
+/* ==========================================
+   SLDIER
+   ========================================== */
+
+.embla__viewport {
+  overflow: hidden;
+}
+
+.embla__container {
+  display: flex;
+  touch-action: pan-y pinch-zoom;
+}
+
+.embla__slide {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+/* ==========================================
+   ANNIMLATIONS BANNER
+   ========================================== */
+.marquee-mask {
+  overflow: hidden;
+  width: 100%;
+  max-width: 70rem;
+  margin: 0 auto;
+  position: relative;
+}
+
+.marquee-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  animation: marquee-scroll 18s linear infinite;
+  animation-delay: -9s;
+  will-change: transform;
+}
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
   }
 }
 
