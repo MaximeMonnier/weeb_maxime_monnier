@@ -1,9 +1,9 @@
 import HeroBanner from "../components/common/Home/HeroBanner";
-import ImageBanner from "../assets/img/img1.png";
 import BrandBanner from "../components/common/Home/BrandBanner";
 import FeatureBlock from "../components/common/Home/FeatureBlock";
 import Image1 from "../assets/img/img1.png";
 import Image2 from "../assets/img/img2.png";
+import Slider from "../components/common/Home/Slider";
 
 const Home = () => {
   return (
@@ -13,11 +13,7 @@ const Home = () => {
       </header>
       <main>
         <div className="container-custom flex justify-center py-30">
-          <img
-            src={ImageBanner}
-            alt="Image de présentation"
-            className="rounded-lg"
-          />
+          <Slider />
         </div>
         <BrandBanner />
         <div>
