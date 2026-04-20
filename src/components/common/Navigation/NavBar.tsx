@@ -41,7 +41,7 @@ function NavBar() {
 
   const handleHashClick = (
     e: React.MouseEvent<HTMLAnchorElement>,
-    hash: string
+    hash: string,
   ) => {
     e.preventDefault();
     scrollToHash(hash);
@@ -50,6 +50,7 @@ function NavBar() {
 
   // Navigation
   const navItems: NavItem[] = [
+    { type: "route", to: "/blog", label: "Blog" },
     { type: "hash", href: "#accueil", label: "À propos de nous" },
     { type: "route", to: "/contact", label: "Contact" },
   ];
