@@ -194,7 +194,9 @@
   body {
     background-color: var(--color-light-bg-primary);
     color: var(--color-light-text-primary);
-    transition: background-color 0.3s, color 0.3s;
+    transition:
+      background-color 0.3s,
+      color 0.3s;
   }
 
   .dark body {
@@ -727,6 +729,23 @@
   .dark .text-accent-secondary {
     color: var(--color-dark-accent-secondary);
   }
+}
+/* ==========================================
+   SLDIER
+   ========================================== */
+
+.embla__viewport {
+  overflow: hidden;
+}
+
+.embla__container {
+  display: flex;
+  touch-action: pan-y pinch-zoom;
+}
+
+.embla__slide {
+  flex: 0 0 100%;
+  min-width: 0;
 }
 
 /* ==========================================
