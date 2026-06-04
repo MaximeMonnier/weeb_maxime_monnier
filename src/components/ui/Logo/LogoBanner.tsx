@@ -4,55 +4,59 @@ import svg3 from "../../../assets/svg/3.svg";
 import svg4 from "../../../assets/svg/4.svg";
 import svg5 from "../../../assets/svg/5.svg";
 
-/** Represents a brand/partner logo in the banner */
 type Brand = {
-  /** Brand name (used for alt text and aria-label) */
   name: string;
-  /** Path to the brand logo image */
   src: string;
-  /** Optional link URL for the brand */
   href?: string;
 };
 
 const brands: Brand[] = [
-  { name: "SmartFinder", src: `${svg1}`, href: "#" },
-  { name: "Zoomerr", src: `${svg2}`, href: "#" },
-  { name: "SHELLS", src: `${svg3}`, href: "#" },
-  { name: "WAVES", src: `${svg4}`, href: "#" },
-  { name: "ArtVenue", src: `${svg5}`, href: "#" },
+  { name: "SmartFinder", src: svg1, href: "#" },
+  { name: "Zoomerr", src: svg2, href: "#" },
+  { name: "SHELLS", src: svg3, href: "#" },
+  { name: "WAVES", src: svg4, href: "#" },
+  { name: "ArtVenue", src: svg5, href: "#" },
 ];
+
+const LogoItem = ({ brand }: { brand: Brand }) => {
+  const content = (
+    <>
+      <img
+        src={brand.src}
+        alt={brand.name}
+        className="h-14 w-auto opacity-70 transition-opacity duration-200 hover:opacity-100"
+        loading="lazy"
+      />
+      <span className="text-secondary text-sm">{brand.name}</span>
+    </>
+  );
+
+  return brand.href ? (
+    <a
+      href={brand.href}
+      aria-label={brand.name}
+      className="flex min-w-max items-center gap-2 px-6 py-2"
+    >
+      {content}
+    </a>
+  ) : (
+    <div
+      aria-label={brand.name}
+      className="flex min-w-max items-center gap-2 px-6 py-2"
+    >
+      {content}
+    </div>
+  );
+};
 
 export default function LogoBanner() {
   return (
-    <section className=" py-10">
-      <div className="w-full">
-        <div className="flex items-center justify-between gap-30">
-          {brands.map((b) => {
-            const content = (
-              <img
-                src={b.src}
-                alt={b.name}
-                className="h-14 w-auto opacity-70 transition-opacity duration-200 hover:opacity-100"
-                loading="lazy"
-              />
-            );
-
-            return b.href ? (
-              <a
-                key={b.name}
-                href={b.href}
-                aria-label={b.name}
-                className="focus-ring-primary rounded flex justify-center items-center gap-2"
-              >
-                {content}
-                {b.name}
-              </a>
-            ) : (
-              <div key={b.name} aria-label={b.name}>
-                {content}
-              </div>
-            );
-          })}
+    <section className="w-full py-6">
+      <div className="marquee-mask">
+        <div className="marquee-track">
+          {[...brands, ...brands].map((brand, index) => (
+            <LogoItem key={`${brand.name}-${index}`} brand={brand} />
+          ))}
         </div>
       </div>
     </section>
