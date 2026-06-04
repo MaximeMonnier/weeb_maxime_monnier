@@ -50,6 +50,7 @@ function NavBar() {
 
   // Navigation
   const navItems: NavItem[] = [
+    { type: "route", to: "/blog", label: "Blog" },
     { type: "route", to: "/about", label: "À propos de nous" },
     { type: "route", to: "/contact", label: "Contact" },
   ];
