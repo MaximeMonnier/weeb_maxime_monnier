@@ -10,7 +10,7 @@ type FormData = {
 
 type FormErrors = Partial<Record<keyof FormData, string>>;
 
-const FormContact = () => {
+const FormArticle = () => {
   const [formData, setFormData] = useState<FormData>({
     title: "",
     content: "",
@@ -43,9 +43,9 @@ const FormContact = () => {
     }
 
     if (!formData.content.trim()) {
-      newErrors.content = "Le content est requis";
+      newErrors.content = "Le contenu est requis";
     } else if (formData.content.trim().length < 10) {
-      newErrors.content = "Le content doit contenir au moins 10 caractères";
+      newErrors.content = "Le contenu doit contenir au moins 10 caractères";
     }
 
     setErrors(newErrors);
@@ -135,4 +135,4 @@ const FormContact = () => {
   );
 };
 
-export default FormContact;
+export default FormArticle;
