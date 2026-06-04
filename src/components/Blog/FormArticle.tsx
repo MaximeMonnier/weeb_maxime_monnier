@@ -1,24 +1,20 @@
 import { useState } from "react";
-import { Input, Textarea } from "../../ui/Input";
-import MainButton from "../../ui/Button/MainButton";
+import { Input, Textarea } from "../ui/Input";
+import MainButton from "../ui/Button/MainButton";
 
 type FormData = {
-  name: string;
-  surname: string;
-  email: string;
-  subject: string;
-  message: string;
+  title: string;
+  content: string;
+  author: string;
 };
 
 type FormErrors = Partial<Record<keyof FormData, string>>;
 
 const FormContact = () => {
   const [formData, setFormData] = useState<FormData>({
-    name: "",
-    surname: "",
-    email: "",
-    subject: "",
-    message: "",
+    title: "",
+    content: "",
+    author: "",
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -38,28 +34,18 @@ const FormContact = () => {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = "Le nom est requis";
+    if (!formData.title.trim()) {
+      newErrors.title = "Le titre est requis";
     }
 
-    if (!formData.surname.trim()) {
-      newErrors.surname = "Le prénom est requis";
+    if (!formData.content.trim()) {
+      newErrors.content = "Le contenu est requis";
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = "L'email est requis";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "L'email n'est pas valide";
-    }
-
-    if (!formData.subject.trim()) {
-      newErrors.subject = "Le sujet est requis";
-    }
-
-    if (!formData.message.trim()) {
-      newErrors.message = "Le message est requis";
-    } else if (formData.message.trim().length < 10) {
-      newErrors.message = "Le message doit contenir au moins 10 caractères";
+    if (!formData.content.trim()) {
+      newErrors.content = "Le content est requis";
+    } else if (formData.content.trim().length < 10) {
+      newErrors.content = "Le content doit contenir au moins 10 caractères";
     }
 
     setErrors(newErrors);
@@ -81,7 +67,11 @@ const FormContact = () => {
     console.log("Form submitted:", formData);
 
     // Reset form
-    setFormData({ name: "", surname: "", email: "", subject: "", message: "" });
+    setFormData({
+      title: "",
+      content: "",
+      author: "",
+    });
     setIsSubmitting(false);
   };
 
@@ -93,64 +83,37 @@ const FormContact = () => {
       <div className="space-y-6">
         <div className="flex gap-4">
           <Input
-            label="Nom"
-            name="name"
+            label="Titre de l'article"
+            name="title"
             type="text"
-            placeholder="Dupont"
-            value={formData.name}
+            placeholder="Titre de votre article"
+            value={formData.title}
             onChange={handleChange}
-            error={errors.name}
+            error={errors.title}
             required
             fullWidth
           />
           <Input
-            label="Prénom"
-            name="surname"
+            label="Auteur"
+            name="author"
             type="text"
             placeholder="Jean"
-            value={formData.surname}
+            value={formData.author}
             onChange={handleChange}
-            error={errors.surname}
+            error={errors.author}
             required
             fullWidth
           />
         </div>
 
-        {/* Email */}
-        <Input
-          label="Adresse email"
-          name="email"
-          type="email"
-          placeholder="jean.dupont@example.com"
-          value={formData.email}
-          onChange={handleChange}
-          error={errors.email}
-          helperText="Nous ne partagerons jamais votre email"
-          required
-          fullWidth
-        />
-
-        {/* Sujet */}
-        <Input
-          label="Sujet"
-          name="subject"
-          type="text"
-          placeholder="Objet de votre message"
-          value={formData.subject}
-          onChange={handleChange}
-          error={errors.subject}
-          required
-          fullWidth
-        />
-
         {/* Message */}
         <Textarea
-          label="Message"
-          name="message"
-          placeholder="Écrivez votre message ici..."
-          value={formData.message}
+          label="Description de votre article"
+          name="content"
+          placeholder="Écrivez votre description ici..."
+          value={formData.content}
           onChange={handleChange}
-          error={errors.message}
+          error={errors.content}
           minRows={5}
           required
           fullWidth

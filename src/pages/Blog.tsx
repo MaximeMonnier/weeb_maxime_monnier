@@ -4,6 +4,7 @@ import Card from "../components/Blog/Card.tsx";
 import ArticleData from "../data/articles.ts";
 import { useRef } from "react";
 import Input from "../components/ui/Input/Input.tsx";
+import FormArticle from "../components/Blog/FormArticle.tsx";
 
 const Blog = () => {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -53,25 +54,7 @@ const Blog = () => {
 
         {/* Placeholder — le vrai formulaire viendra ici */}
         <div className="flex flex-col items-center justify-center">
-          <Input
-            label="Titre de l'article"
-            placeholder="Entrez le titre de votre article"
-            className="w-full mb-4"
-            error="Le titre est requis"
-          />
-          <Input
-            label="Contenu de l'article"
-            placeholder="Entrez le contenu de votre article"
-            className="w-full mb-4"
-            error="Le contenu est requis"
-          />
-          <Input
-            label="Auteur de l'article"
-            placeholder="Entrez le nom de l'auteur"
-            className="w-full mb-4"
-            error="Le nom de l'auteur est requis"
-          />
-          <Button variant="primary">Créer l'article</Button>
+          <FormArticle />
         </div>
       </dialog>
     </div>
