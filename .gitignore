@@ -1,0 +1,33 @@
+# ============================================
+#  Backend — Python / Django
+# ============================================
+
+# Environnement virtuel : propre à ta machine, ne doit JAMAIS être versionné.
+# (chacun le recrée avec : python3 -m venv venv + pip install -r requirements.txt)
+venv/
+backend/venv/
+
+# Fichiers compilés par Python (cache), régénérés automatiquement.
+__pycache__/
+*.py[cod]
+
+# Base de données SQLite locale : contient des données de test, pas du code.
+*.sqlite3
+db.sqlite3
+
+# Secrets : SECRET_KEY Django, identifiants de base de données, etc.
+# NE JAMAIS committer un .env (sécurité).
+.env
+*.env
+
+# Fichiers statiques/médias collectés par Django (générés).
+backend/staticfiles/
+backend/media/
+
+# ============================================
+#  Divers / OS / IDE
+# ============================================
+.DS_Store
+*.log
+.idea/
+.vscode/
