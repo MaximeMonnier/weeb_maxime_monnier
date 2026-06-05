@@ -45,6 +45,7 @@ INSTALLED_APPS = [
 
     # --- Applications ---
     'accounts',
+    'articles',
 ]
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
