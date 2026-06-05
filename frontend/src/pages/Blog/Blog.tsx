@@ -1,10 +1,9 @@
-import Button from "../components/ui/Button/MainButton";
-import MainTitle from "../components/ui/Title/MainTitle";
-import Card from "../components/Blog/Card.tsx";
-import ArticleData from "../data/articles.ts";
+import Button from "../../components/ui/Button/MainButton";
+import MainTitle from "../../components/ui/Title/MainTitle";
+import Card from "../../components/Blog/Card.tsx";
+import ArticleData from "../../data/articles.json";
 import { useRef } from "react";
-import Input from "../components/ui/Input/Input.tsx";
-import FormArticle from "../components/Blog/FormArticle.tsx";
+import FormArticle from "../../components/Blog/FormArticle.tsx";
 
 const Blog = () => {
   const dialogRef = useRef<HTMLDialogElement>(null);
