@@ -1,0 +1,92 @@
+[
+  {
+    "id": 1,
+    "title": "Sample Article",
+    "content": "This is a sample article. It introduces the basics of content management and demonstrates how articles can be structured with metadata such as author information, publication dates, and cover images.",
+    "author": "Author Name",
+    "createdAt": "2026-05-20",
+    "updatedAt": "2026-05-20",
+    "coverImg": "https://picsum.photos/seed/article1/600/400"
+  },
+  {
+    "id": 2,
+    "title": "Another Article",
+    "content": "This is another sample article. It explores the importance of writing clear and engaging content for readers while maintaining a consistent publishing workflow.",
+    "author": "Another Author",
+    "createdAt": "2026-05-28",
+    "updatedAt": "2026-05-28",
+    "coverImg": "https://picsum.photos/seed/article2/600/400"
+  },
+  {
+    "id": 3,
+    "title": "Third Article",
+    "content": "This is the third sample article. It discusses how modern web applications can consume JSON APIs to display articles dynamically across multiple devices.",
+    "author": "Third Author",
+    "createdAt": "2026-06-02",
+    "updatedAt": "2026-06-02",
+    "coverImg": "https://picsum.photos/seed/article3/600/400"
+  },
+  {
+    "id": 4,
+    "title": "Getting Started with JavaScript",
+    "content": "JavaScript is one of the most popular programming languages in the world. It powers interactive web applications and is used both on the client side and the server side. Learning JavaScript opens the door to frameworks such as React, Vue, and Node.js.",
+    "author": "Emma Wilson",
+    "createdAt": "2026-06-05",
+    "updatedAt": "2026-06-05",
+    "coverImg": "https://picsum.photos/seed/article4/600/400"
+  },
+  {
+    "id": 5,
+    "title": "Understanding REST APIs",
+    "content": "REST APIs allow applications to communicate with each other over HTTP. They provide endpoints for creating, reading, updating, and deleting resources. Understanding API design is essential for modern web developers.",
+    "author": "Lucas Martin",
+    "createdAt": "2026-06-08",
+    "updatedAt": "2026-06-08",
+    "coverImg": "https://picsum.photos/seed/article5/600/400"
+  },
+  {
+    "id": 6,
+    "title": "The Future of Web Development",
+    "content": "Web development continues to evolve rapidly with advances in AI, edge computing, and modern frameworks. Developers must stay informed about emerging technologies to build scalable and maintainable applications.",
+    "author": "Sophia Turner",
+    "createdAt": "2026-06-10",
+    "updatedAt": "2026-06-10",
+    "coverImg": "https://picsum.photos/seed/article6/600/400"
+  },
+  {
+    "id": 7,
+    "title": "Why TypeScript Matters",
+    "content": "TypeScript extends JavaScript by adding static typing. This helps developers catch errors earlier in the development process, improve code readability, and maintain larger codebases more effectively.",
+    "author": "David Brown",
+    "createdAt": "2026-06-12",
+    "updatedAt": "2026-06-12",
+    "coverImg": "https://picsum.photos/seed/article7/600/400"
+  },
+  {
+    "id": 8,
+    "title": "Building Responsive Websites",
+    "content": "Responsive design ensures that websites look and function correctly on desktops, tablets, and smartphones. Techniques such as CSS Grid, Flexbox, and media queries are key tools for achieving responsiveness.",
+    "author": "Olivia Garcia",
+    "createdAt": "2026-06-15",
+    "updatedAt": "2026-06-15",
+    "coverImg": "https://picsum.photos/seed/article8/600/400"
+  },
+  {
+    "id": 9,
+    "title": "Introduction to PHP Frameworks",
+    "content": "PHP frameworks like Laravel and Symfony provide developers with tools to build secure and scalable applications. They offer routing, authentication, database abstraction, and many other features out of the box.",
+    "author": "Thomas Bernard",
+    "createdAt": "2026-06-18",
+    "updatedAt": "2026-06-18",
+    "coverImg": "https://picsum.photos/seed/article9/600/400"
+  },
+  {
+    "id": 10,
+    "title": "Deploying Applications to the Cloud",
+    "content": "Cloud platforms make it easier than ever to deploy and scale applications. Services such as managed databases, container orchestration, and serverless functions help teams focus on delivering value instead of managing infrastructure.",
+    "author": "Sarah Johnson",
+    "createdAt": "2026-06-20",
+    "updatedAt": "2026-06-20",
+    "coverImg": "https://picsum.photos/seed/article10/600/400"
+  }
+]
