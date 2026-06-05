@@ -43,9 +43,12 @@ INSTALLED_APPS = [
     'rest_framework',   # Django REST Framework : la couche qui transforme Django en API JSON
     'corsheaders',      # Autorise le front React (:5173) à appeler l'API (:8000)
 
-    # --- Nos applications (à créer ensuite) ---
-    # 'accounts',       # Phase 1 : utilisateurs, auth, rôles — on décommentera après l'avoir créée
+    # --- Applications ---
+    'accounts',
 ]
+
+AUTH_USER_MODEL = 'accounts.CustomUser'
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
