@@ -26,13 +26,42 @@ Langue de travail : **français**.
 ## 1. Contexte du projet
 
 **Weeb** est un blog sur le web (thème : « explorer le web sous toutes ses facettes »).
-C'est un projet scolaire (cursus *Software Engineer*) découpé en **6 étapes/semaines**.
+C'est un projet scolaire (cursus *Software Engineer*, **difficulté 6/10**) découpé en
+plusieurs étapes/semaines.
 
-- **Semaine 1 (FAIT)** : Frontend — React/TypeScript. Landing page, design system,
-  routing, formulaires (validation côté client uniquement, pas encore branchés).
+- **Semaine 1 (FAIT — vérifiée le 2026-06-05)** : Frontend React/TypeScript, partie
+  **vitrine**. Pages **Home, Contact, Login** + design system, routing, formulaires
+  (validation côté client uniquement, pas encore branchés). Les 3 interfaces "à anticiper"
+  (Blog, détail article, ajout article) ont également été amorcées.
 - **Semaine 2 (EN COURS — étape actuelle)** : Backend — **API REST avec Django**,
-  testée avec **Postman**. + 4 interfaces frontend à finaliser.
-- Semaines 3 à 6 : non communiquées pour l'instant.
+  testée avec **Postman**. + finaliser les 4 interfaces frontend.
+- Semaines suivantes : non communiquées pour l'instant.
+
+### Énoncé officiel Semaine 1 (partie vitrine)
+Objectif : développer les premières interfaces du site (partie vitrine), à partir d'une
+**maquette Figma** fournie par le client (Weeb).
+
+- **Pages imposées** : Home · Contact · Login.
+- **Contraintes techniques imposées** : **React** + **Git** (IDE libre).
+  Repo nommé `weeb_prenom_nom`.
+- **Livrable supplémentaire — un rapport** expliquant les choix : architecture des
+  dossiers, bibliothèques installées, fonctionnement global de l'app, prise en main du code.
+- **Interfaces à anticiper (design libre)** : page **Blog** (liste des articles depuis
+  une BDD / API — un JSON local est accepté « dans un premier temps »), page **template**
+  d'affichage d'un article, page **d'ajout** d'un article.
+
+**Critères de validation du jury (Semaine 1)** :
+- Pages Home/Contact/Login fonctionnelles ; tous les éléments de la maquette intégrés.
+- Contraintes techniques respectées (React + Git).
+- Code propre : indentation cohérente, commentaires pertinents, conventions de nommage
+  (variables, fonctions, composants).
+- **Git** : commits conventionnels (ex. `feat: add login form`) + workflow
+  issue → branche → modifs → Pull Request → validation → suppression de la branche.
+- **Responsive** : parfaitement consultable sur mobile, tablette, desktop.
+- **Animations/interactions** : hover, focus sur les champs de formulaire, transitions
+  fluides.
+- **Initiatives bonus valorisées** : slider, bande défilante, autre type d'input, ou tout
+  élément cohérent avec l'univers du projet.
 
 ### ⚠️ Piège dans l'énoncé à signaler
 La section « Livrables et Documentation » de l'énoncé parle de **machine learning**
@@ -42,6 +71,47 @@ c'est un blog CRUD classique. C'est très probablement un **copier-coller du tem
 de l'école** issu d'un autre sujet. → À confirmer avec le formateur ; ne pas perdre de
 temps à inventer un modèle ML. Le rapport doit en revanche bien couvrir : prise en main,
 décomposition de l'app, structure du projet Django.
+
+### ✅ Résultat de la vérification Semaine 1 (2026-06-05)
+
+**Conforme / OK :**
+- Pages Home / Contact / Login présentes et fonctionnelles.
+- `npm run build` **passe** (TypeScript strict OK, build Vite OK).
+- **Responsive** : NavBar + menu mobile (`md:hidden`, transition `max-h`), grille Blog
+  `grid-cols-1 sm:2 lg:3`, `.container-custom` avec breakpoints 640/1024.
+- **Animations/interactions** : hover (`.btn-primary`, `.card-hover`, `.nav-link`),
+  focus (`.form-input:focus`, `.focus-ring-primary`, `*:focus-visible`), transitions
+  (thème, menu). Bonus accessibilité : `prefers-reduced-motion` respecté.
+- **Initiatives bonus** présentes : **slider** (Embla autoplay), **bande défilante**
+  (marquee `BrandBanner`), **dark mode** persisté, page **À propos**.
+- **3 interfaces anticipées** présentes : Blog (liste depuis `data/articles.json`),
+  détail (`ArticleDetails`), ajout (modale `<dialog>` + `FormArticle`).
+- **Workflow Git exemplaire** : issues → branches `N-description` → PR → preprod → main,
+  commits `feat:` / `fix:`.
+
+**⚠️ À corriger (par ordre d'importance) :**
+1. **`npm run lint` ÉCHOUE → 4 erreurs.** Le build ne lance PAS le lint : elles sont
+   invisibles tant qu'on ne tape pas `npm run lint`. Un jury évaluant la propreté du code
+   peut le lancer. Détail :
+   - `Input.tsx:53` & `Textarea.tsx:58` → `Math.random()` dans le rendu
+     (`react-hooks/purity`). **Fix** : utiliser le hook `useId()` de React.
+   - `useTheme.ts:24` & `NavBar.tsx:31` → `setState` synchrone dans un `useEffect`
+     (`react-hooks/set-state-in-effect`). **Fix** : init via lazy `useState`, ou ajuster.
+2. **`RAPPORT_TECHNIQUE.md` manquant** : le README y renvoie mais le fichier n'existe pas.
+   Or le rapport est un **livrable obligatoire**. → à créer (le README en couvre déjà ~80 %).
+3. **Lien "Mot de passe oublié ?"** (`FormLogin`) → `/forgot-password` = **404** (route
+   absente ; reset mdp = Semaine 2).
+4. **Incohérence inscription** : NavBar "Nous rejoindre" → `/subscribe`, mais `FormLogin`
+   "Nous rejoindre" → `/contact`. À uniformiser sur `/subscribe`.
+5. **`FormArticle`** : validation du `content` dupliquée (3 `if`, 1 mort) + bouton libellé
+   "Envoyer le message" (copié de Contact) → devrait être "Publier l'article".
+6. **Couleurs en dur** dans `Card.tsx` / `ArticleDetails` (`bg-white`, `text-gray-*`) au
+   lieu des tokens du design system → rendu cassé en dark mode (pages "design libre", non
+   bloquant mais à harmoniser).
+7. **Code mort / incohérences de structure** : `components/ui/Card/Card.tsx` jamais
+   importé ; `components/Blog/` (Card, FormArticle) vit hors de `components/common/` ;
+   dossiers `src/lib/` et `src/routes/` toujours vides ; typos `justifiy-center`
+   (`BrandBanner`), "SLDIER", "ANNIMLATIONS" (`index.css`).
 
 ---
 
@@ -109,29 +179,38 @@ src/
 ├── App.tsx                 # Routes (BrowserRouter + Routes/Route)
 ├── main.tsx                # Point d'entrée React
 ├── index.css               # Tailwind + design system (variables CSS, classes custom)
+├── data/articles.json      # Données de test (articles du blog) — en attendant l'API
 ├── layouts/
 │   └── MainLayout.tsx      # NavBar + <Outlet/> + Footer (layout commun)
 ├── pages/                  # 1 fichier = 1 page
 │   ├── Home.tsx  About.tsx  Contact.tsx  Login.tsx  Subscribe.tsx  NotFound.tsx
+│   └── Blog/
+│       ├── Blog.tsx            # liste des articles + modale d'ajout (<dialog>)
+│       └── ArticleDetails.tsx  # template détail d'un article (/articles/:id)
 ├── components/
+│   ├── Blog/               # ⚠️ hors common/ : Card.tsx, FormArticle.tsx
 │   ├── common/             # Composants métier
 │   │   ├── Navigation/     # NavBar, DesktopNav, MobileMenu
-│   │   ├── Home/           # HeroBanner, FeatureBlock, BrandBanner
+│   │   ├── Home/           # HeroBanner, FeatureBlock, BrandBanner, Slider
 │   │   ├── Contact/FormContact.tsx
 │   │   ├── Login/FormLogin.tsx
 │   │   ├── Subscribe/FormSubscribe.tsx
 │   │   ├── Footer.tsx  ThemeToggle.tsx
-│   │   └── ui/             # Composants UI génériques (Button, Input, Logo, Title)
+│   └── ui/                 # Composants UI génériques (Button, Card*, Input, Logo, Title)
 ├── hooks/useTheme.ts       # Dark mode + persistance localStorage
-├── types/navigation.ts     # type NavItem (hash | route)
+├── types/                  # navigation.ts (NavItem) · article.ts (Article)
 ├── routes/   lib/          # DOSSIERS VIDES (prévus, pas encore utilisés)
 └── assets/                 # img/, svg/
 ```
+> `*` `components/ui/Card/Card.tsx` n'est **jamais importé** (code mort à supprimer ou
+> à brancher) : la page Blog utilise `components/Blog/Card.tsx`.
 
 ### Routes actuelles (`App.tsx`)
-`/` `/contact` `/login` `/subscribe` `/about` `*`(404).
-**Manquantes (à ajouter)** : `/blog`, `/blog/:id` (détail), `/articles/new` (ajout),
-`/forgot-password` (le lien existe déjà dans `FormLogin` mais la route n'existe pas !).
+`/` `/contact` `/login` `/subscribe` `/about` `/blog` `/articles/:id` (détail) `*`(404).
+- L'**ajout d'article** n'est PAS une route : c'est une **`<dialog>` modale** ouverte
+  depuis la page Blog (bouton "Crée un article" → `FormArticle`).
+- **Toujours manquante** : `/forgot-password` — le lien existe dans `FormLogin` mais
+  mène à une 404 (réinitialisation mdp = Semaine 2).
 
 ### ⚠️ État des formulaires (à brancher au backend)
 Les 3 formulaires **simulent** l'appel API : `await new Promise(setTimeout 1500)` +
@@ -141,6 +220,8 @@ l'API Django (`fetch`/`axios`).
 - `FormContact` → champs : `name, surname, email, subject, message` → POST `/api/contact/`
 - `FormLogin` → `email, password` → POST `/api/auth/login/`
 - `FormSubscribe` → `name, surname, email, password, confirmPassword` → POST `/api/auth/register/`
+- `FormArticle` → `title, author, content` → POST `/api/articles/` (auth + compte validé).
+  ⚠️ Bug actuel : validation `content` dupliquée + bouton libellé "Envoyer le message".
 
 > Note : le front utilise `name`/`surname`. En base Django on aura sûrement
 > `first_name`/`last_name` → prévoir le mapping côté API ou côté front.
@@ -276,4 +357,6 @@ python backend/manage.py createsuperuser
 
 ---
 
-*Dernière mise à jour : 2026-06-04 — création initiale (analyse projet, avant tout code backend).*
+*Dernière mise à jour : 2026-06-05 — intégration de l'énoncé officiel Semaine 1 +
+vérification de la partie vitrine (build OK, 4 erreurs de lint, rapport manquant,
+petits correctifs listés en §1).*
