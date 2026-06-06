@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import Logo from "../../ui/Logo/Logo";
 import ThemeToggle from "../ThemeToggle";
@@ -9,7 +9,6 @@ import { useTheme } from "../../../hooks/useTheme";
 import type { NavItem } from "../../../types/navigation";
 
 function NavBar() {
-  const location = useLocation();
   const { isDark, toggleTheme } = useTheme();
 
   const [isScrolled, setIsScrolled] = useState(false);
@@ -25,11 +24,6 @@ function NavBar() {
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((v) => !v);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
-
-  // Ferme le menu mobile au changement de route
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
 
   // Helpers
   const scrollToHash = (hash: string) => {

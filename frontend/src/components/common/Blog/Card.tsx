@@ -8,7 +8,7 @@ type ArticleCardProps = {
 export default function ArticleCard({ article }: ArticleCardProps) {
   return (
     <Link to={`/articles/${article.id}`}>
-      <div className="bg-white rounded-lg shadow-xl overflow-hidden border border-gray-200">
+      <div className="bg-secondary rounded-lg shadow-xl overflow-hidden border border-primary">
         {article.coverImg && (
           <img
             src={article.coverImg}
@@ -18,11 +18,11 @@ export default function ArticleCard({ article }: ArticleCardProps) {
         )}
         <div className="p-4">
           <h3 className="text-lg font-semibold mb-2">{article.title}</h3>
-          <p className="text-gray-600 text-sm mb-4">
-            By {article.author} on{" "}
+          <p className="text-tertiary text-sm mb-4">
+            Par {article.author} le{" "}
             {new Date(article.created_at).toLocaleDateString()}
           </p>
-          <p className="text-gray-800">{article.content.slice(0, 100)}...</p>
+          <p className="text-secondary">{article.content.slice(0, 100)}...</p>
         </div>
       </div>
     </Link>
