@@ -142,7 +142,7 @@ const FormLogin = () => {
         <div className="text-center text-sm text-secondary">
           Pas encore de compte ?{" "}
           <Link
-            to="/contact"
+            to="/subscribe"
             className="text-accent hover:underline focus-ring-primary rounded"
           >
             Nous rejoindre

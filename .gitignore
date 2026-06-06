@@ -31,3 +31,11 @@ backend/media/
 *.log
 .idea/
 .vscode/
+
+# ============================================
+#  Documents de travail internes — NE PAS committer
+# ============================================
+CLAUDE.md
+GUIDE_RAPPORT.md
+PROMPT_REECRITURE_RAPPORT.md
+.claude/

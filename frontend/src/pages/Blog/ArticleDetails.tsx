@@ -14,18 +14,14 @@ const ArticleDetails = () => {
   if (!article)
     return <div className="container-custom mt-32">Chargement…</div>;
 
-  if (!article) {
-    return <div>Article not found</div>;
-  }
-
   return (
     <div className="container-custom mt-32">
       <h1 className="text-2xl font-bold mb-4">{article.title}</h1>
-      <p className="text-gray-600 text-sm mb-4">
-        By {article.author} on{" "}
+      <p className="text-tertiary text-sm mb-4">
+        Par {article.author} le{" "}
         {new Date(article.created_at).toLocaleDateString()}
       </p>
-      <p className="text-gray-800">{article.content}</p>
+      <p className="text-secondary">{article.content}</p>
     </div>
   );
 };
