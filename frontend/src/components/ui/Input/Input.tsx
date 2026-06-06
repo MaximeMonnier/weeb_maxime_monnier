@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useId } from "react";
 
 type InputVariant = "default" | "error" | "success";
 
@@ -50,7 +50,8 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     },
     ref
   ) => {
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId(); // id stable généré par React (remplace Math.random)
+    const inputId = id || generatedId;
     const hasError = !!error || variant === "error";
     const hasSuccess = variant === "success";
 

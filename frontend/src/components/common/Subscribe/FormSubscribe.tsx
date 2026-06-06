@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
+import { apiFetch } from "../../../lib/api";
+import { useNavigate } from "react-router-dom";
 
 type FormData = {
-  name: string;
-  surname: string;
+  first_name: string;
+  last_name: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -15,12 +17,14 @@ type FormErrors = Partial<Record<keyof FormData, string>>;
 
 const FormSubscribe = () => {
   const [formData, setFormData] = useState<FormData>({
-    name: "",
-    surname: "",
+    first_name: "",
+    last_name: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+
+  const navigate = useNavigate();
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,12 +41,12 @@ const FormSubscribe = () => {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = "Le nom est requis";
+    if (!formData.first_name.trim()) {
+      newErrors.first_name = "Le nom est requis";
     }
 
-    if (!formData.surname.trim()) {
-      newErrors.surname = "Le prénom est requis";
+    if (!formData.last_name.trim()) {
+      newErrors.last_name = "Le prénom est requis";
     }
 
     if (!formData.email.trim()) {
@@ -54,7 +58,8 @@ const FormSubscribe = () => {
     if (!formData.password.trim()) {
       newErrors.password = "Le mot de passe est requis";
     } else if (formData.password.length < 8) {
-      newErrors.password = "Le mot de passe doit contenir au moins 8 caractères";
+      newErrors.password =
+        "Le mot de passe doit contenir au moins 8 caractères";
     } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
       newErrors.password =
         "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre";
@@ -79,26 +84,22 @@ const FormSubscribe = () => {
 
     setIsSubmitting(true);
 
-    // Simuler un appel API
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    console.log("Subscribe submitted:", {
-      name: formData.name,
-      surname: formData.surname,
-      email: formData.email,
-      // Ne jamais logger le mot de passe en production
-    });
-
-    // TODO: Gérer l'inscription réelle
-    // Reset form
-    setFormData({
-      name: "",
-      surname: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    });
-    setIsSubmitting(false);
+    try {
+      await apiFetch("/auth/register/", {
+        method: "POST",
+        body: JSON.stringify({
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+      navigate("/login"); // compte créé mais INACTIF → on l'envoie vers la connexion
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -111,23 +112,23 @@ const FormSubscribe = () => {
         <div className="flex gap-4">
           <Input
             label="Nom"
-            name="name"
+            name="first_name"
             type="text"
             placeholder="Dupont"
-            value={formData.name}
+            value={formData.first_name}
             onChange={handleChange}
-            error={errors.name}
+            error={errors.first_name}
             required
             fullWidth
           />
           <Input
             label="Prénom"
-            name="surname"
+            name="last_name"
             type="text"
             placeholder="Jean"
-            value={formData.surname}
+            value={formData.last_name}
             onChange={handleChange}
-            error={errors.surname}
+            error={errors.last_name}
             required
             fullWidth
           />

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
+import { apiFetch } from "../../../lib/api";
+import { useNavigate } from "react-router-dom";
 
 type FormData = {
   email: string;
@@ -15,6 +17,8 @@ const FormLogin = () => {
     email: "",
     password: "",
   });
+
+  const navigate = useNavigate();
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,7 +44,8 @@ const FormLogin = () => {
     if (!formData.password.trim()) {
       newErrors.password = "Le mot de passe est requis";
     } else if (formData.password.length < 8) {
-      newErrors.password = "Le mot de passe doit contenir au moins 8 caractères";
+      newErrors.password =
+        "Le mot de passe doit contenir au moins 8 caractères";
     }
 
     setErrors(newErrors);
@@ -56,13 +61,25 @@ const FormLogin = () => {
 
     setIsSubmitting(true);
 
-    // Simuler un appel API
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    console.log("Login submitted:", formData);
-
-    // TODO: Gérer l'authentification réelle
-    setIsSubmitting(false);
+    try {
+      const data = await apiFetch<{ access: string; refresh: string }>(
+        "/auth/login/",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
+        },
+      );
+      localStorage.setItem("access", data.access); // 🔑 le token que apiFetch réutilisera
+      localStorage.setItem("refresh", data.refresh);
+      navigate("/");
+    } catch (err) {
+      console.error(err); // 401 = mauvais identifiants OU compte non validé
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -125,7 +142,7 @@ const FormLogin = () => {
         <div className="text-center text-sm text-secondary">
           Pas encore de compte ?{" "}
           <Link
-            to="/contact"
+            to="/subscribe"
             className="text-accent hover:underline focus-ring-primary rounded"
           >
             Nous rejoindre
