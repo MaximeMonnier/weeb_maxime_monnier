@@ -3,7 +3,7 @@ export type Article = {
   title: string;
   content: string;
   author: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
   coverImg?: string;
 };
