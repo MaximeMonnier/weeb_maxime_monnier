@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Input, Textarea } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
+import { apiFetch } from "../../../lib/api";
 
 type FormData = {
-  name: string;
-  surname: string;
+  first_name: string;
+  last_name: string;
   email: string;
   subject: string;
   message: string;
@@ -14,8 +15,8 @@ type FormErrors = Partial<Record<keyof FormData, string>>;
 
 const FormContact = () => {
   const [formData, setFormData] = useState<FormData>({
-    name: "",
-    surname: "",
+    first_name: "",
+    last_name: "",
     email: "",
     subject: "",
     message: "",
@@ -38,12 +39,12 @@ const FormContact = () => {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = "Le nom est requis";
+    if (!formData.first_name.trim()) {
+      newErrors.first_name = "Le nom est requis";
     }
 
-    if (!formData.surname.trim()) {
-      newErrors.surname = "Le prénom est requis";
+    if (!formData.last_name.trim()) {
+      newErrors.last_name = "Le prénom est requis";
     }
 
     if (!formData.email.trim()) {
@@ -73,16 +74,29 @@ const FormContact = () => {
       return;
     }
 
-    setIsSubmitting(true);
-
-    // Simuler un appel API
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    console.log("Form submitted:", formData);
-
-    // Reset form
-    setFormData({ name: "", surname: "", email: "", subject: "", message: "" });
-    setIsSubmitting(false);
+    try {
+      await apiFetch("/contact/", {
+        method: "POST",
+        body: JSON.stringify({
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          email: formData.email,
+          subject: formData.subject,
+          message: formData.message,
+        }),
+      });
+      setFormData({
+        first_name: "",
+        last_name: "",
+        email: "",
+        subject: "",
+        message: "",
+      }); // reset
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -94,23 +108,23 @@ const FormContact = () => {
         <div className="flex gap-4">
           <Input
             label="Nom"
-            name="name"
+            name="first_name"
             type="text"
             placeholder="Dupont"
-            value={formData.name}
+            value={formData.first_name}
             onChange={handleChange}
-            error={errors.name}
+            error={errors.first_name}
             required
             fullWidth
           />
           <Input
             label="Prénom"
-            name="surname"
+            name="last_name"
             type="text"
             placeholder="Jean"
-            value={formData.surname}
+            value={formData.last_name}
             onChange={handleChange}
-            error={errors.surname}
+            error={errors.last_name}
             required
             fullWidth
           />
