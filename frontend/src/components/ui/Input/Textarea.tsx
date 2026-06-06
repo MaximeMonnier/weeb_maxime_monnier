@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useId } from "react";
 
 type TextareaVariant = "default" | "error" | "success";
 
@@ -54,8 +54,8 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     },
     ref
   ) => {
-    const textareaId =
-      id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId(); // id stable généré par React (remplace Math.random)
+    const textareaId = id || generatedId;
     const hasError = !!error || variant === "error";
     const hasSuccess = variant === "success";
 

@@ -1,37 +1,27 @@
 import { useEffect, useState } from "react";
 
 export function useTheme() {
-  const [isDark, setIsDark] = useState(false);
+  // État initial calculé UNE seule fois (lazy initializer) → pas de setState dans un effet
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    const savedTheme = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches;
+    return savedTheme === "dark" || (!savedTheme && prefersDark);
+  });
 
-  const updateTheme = (dark: boolean) => {
-    if (dark) {
+  // À chaque changement de isDark (et au montage) : synchronise <html> + localStorage
+  useEffect(() => {
+    if (isDark) {
       document.documentElement.classList.add("dark");
       localStorage.setItem("theme", "dark");
     } else {
       document.documentElement.classList.remove("dark");
       localStorage.setItem("theme", "light");
     }
-  };
+  }, [isDark]);
 
-  // Initialisation du thème
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches;
-    const shouldBeDark = savedTheme === "dark" || (!savedTheme && prefersDark);
-
-    setIsDark(shouldBeDark);
-    updateTheme(shouldBeDark);
-  }, []);
-
-  const toggleTheme = () => {
-    setIsDark((prev) => {
-      const next = !prev;
-      updateTheme(next);
-      return next;
-    });
-  };
+  const toggleTheme = () => setIsDark((prev) => !prev);
 
   return { isDark, toggleTheme };
 }
