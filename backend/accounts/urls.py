@@ -1,3 +1,4 @@
+# Routes d'authentification (montées sous /api/auth/ par config/urls.py)
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import (
