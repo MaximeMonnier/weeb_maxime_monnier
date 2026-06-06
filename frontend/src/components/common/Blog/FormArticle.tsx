@@ -1,20 +1,22 @@
 import { useState } from "react";
-import { Input, Textarea } from "../ui/Input";
-import MainButton from "../ui/Button/MainButton";
+import { Input, Textarea } from "../../ui/Input";
+import MainButton from "../../ui/Button/MainButton";
+import { apiFetch } from "../../../lib/api";
 
 type FormData = {
   title: string;
   content: string;
-  author: string;
 };
 
 type FormErrors = Partial<Record<keyof FormData, string>>;
 
-const FormArticle = () => {
+// Le parent (Blog) passe une fonction appelée après une création réussie
+type FormArticleProps = { onCreated?: () => void };
+
+const FormArticle = ({ onCreated }: FormArticleProps) => {
   const [formData, setFormData] = useState<FormData>({
     title: "",
     content: "",
-    author: "",
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -40,10 +42,6 @@ const FormArticle = () => {
 
     if (!formData.content.trim()) {
       newErrors.content = "Le contenu est requis";
-    }
-
-    if (!formData.content.trim()) {
-      newErrors.content = "Le contenu est requis";
     } else if (formData.content.trim().length < 10) {
       newErrors.content = "Le contenu doit contenir au moins 10 caractères";
     }
@@ -60,19 +58,23 @@ const FormArticle = () => {
     }
 
     setIsSubmitting(true);
-
-    // Simuler un appel API
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    console.log("Form submitted:", formData);
-
-    // Reset form
-    setFormData({
-      title: "",
-      content: "",
-      author: "",
-    });
-    setIsSubmitting(false);
+    try {
+      // Le token (utilisateur connecté) est ajouté automatiquement par apiFetch.
+      // L'auteur est défini côté serveur (perform_create) → on n'envoie que titre + contenu.
+      await apiFetch("/articles/", {
+        method: "POST",
+        body: JSON.stringify({
+          title: formData.title,
+          content: formData.content,
+        }),
+      });
+      setFormData({ title: "", content: "" });
+      onCreated?.(); // prévient le Blog : ferme la modale + recharge la liste
+    } catch (err) {
+      console.error(err); // 401 si l'utilisateur n'est pas connecté
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -81,30 +83,18 @@ const FormArticle = () => {
       className="w-full max-w-2xl my-8 border border-primary p-6 rounded-lg"
     >
       <div className="space-y-6">
-        <div className="flex gap-4">
-          <Input
-            label="Titre de l'article"
-            name="title"
-            type="text"
-            placeholder="Titre de votre article"
-            value={formData.title}
-            onChange={handleChange}
-            error={errors.title}
-            required
-            fullWidth
-          />
-          <Input
-            label="Auteur"
-            name="author"
-            type="text"
-            placeholder="Jean"
-            value={formData.author}
-            onChange={handleChange}
-            error={errors.author}
-            required
-            fullWidth
-          />
-        </div>
+        <Input
+          label="Titre de l'article"
+          name="title"
+          type="text"
+          placeholder="Titre de votre article"
+          value={formData.title}
+          onChange={handleChange}
+          error={errors.title}
+          required
+          fullWidth
+        />
+        {/* Pas de champ "Auteur" : l'auteur = l'utilisateur connecté (défini côté serveur) */}
 
         {/* Message */}
         <Textarea
@@ -127,7 +117,7 @@ const FormArticle = () => {
             size="lg"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Envoi en cours..." : "Envoyer le message"}
+            {isSubmitting ? "Publication..." : "Publier l'article"}
           </MainButton>
         </div>
       </div>
