@@ -1,12 +1,26 @@
+import { useEffect, useState } from "react";
+import { apiFetch } from "../../lib/api";
+import type { Article } from "../../types/article";
 import Button from "../../components/ui/Button/MainButton";
 import MainTitle from "../../components/ui/Title/MainTitle";
-import Card from "../../components/Blog/Card.tsx";
-import ArticleData from "../../data/articles.json";
+import Card from "../../components/common/Blog/Card.tsx";
+
 import { useRef } from "react";
-import FormArticle from "../../components/Blog/FormArticle.tsx";
+import FormArticle from "../../components/common/Blog/FormArticle.tsx";
 
 const Blog = () => {
   const dialogRef = useRef<HTMLDialogElement>(null);
+
+  const [articles, setArticles] = useState<Article[]>([]);
+
+  // Fonction réutilisable : chargement initial ET rechargement après création
+  const loadArticles = () => {
+    apiFetch<Article[]>("/articles/").then(setArticles).catch(console.error);
+  };
+
+  useEffect(() => {
+    loadArticles();
+  }, []);
 
   return (
     <div className="container-custom mt-32">
@@ -29,7 +43,7 @@ const Blog = () => {
         </Button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 mb-16">
-        {ArticleData.map((article) => (
+        {articles.map((article) => (
           <Card key={article.id} article={article} />
         ))}
       </div>
@@ -53,7 +67,12 @@ const Blog = () => {
 
         {/* Placeholder — le vrai formulaire viendra ici */}
         <div className="flex flex-col items-center justify-center">
-          <FormArticle />
+          <FormArticle
+            onCreated={() => {
+              dialogRef.current?.close(); // ferme la modale
+              loadArticles(); // recharge la liste → le nouvel article apparaît
+            }}
+          />
         </div>
       </dialog>
     </div>
