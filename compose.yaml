@@ -39,10 +39,18 @@ services:
     # `$$` et non `$` : le double dollar empêche Compose de substituer la
     # variable à la lecture du fichier, pour qu'elle soit résolue dans le
     # conteneur, où POSTGRES_USER et POSTGRES_DB sont définis.
+    #
+    # `-h 127.0.0.1` est indispensable : sans lui, pg_isready passe par la
+    # socket Unix, à laquelle répond DÉJÀ le serveur temporaire que Postgres
+    # lance pour initialiser le cluster. Le service serait déclaré sain une
+    # fraction de seconde avant d'écouter en TCP, et le `migrate` qui suit un
+    # `up --wait` échouerait en « Connection refused ». La sonde teste donc le
+    # même chemin que Django, le seul qui compte ici.
+    #
     # start_period couvre l'initialisation du cluster au tout premier
     # démarrage, pendant laquelle les échecs de sonde ne sont pas comptés.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 5

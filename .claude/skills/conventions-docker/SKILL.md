@@ -17,7 +17,7 @@ description: >-
 ## Dette à corriger AVANT de dockeriser
 
 1. ~~`SECRET_KEY` en dur, `DEBUG = True`, `ALLOWED_HOSTS` et `CORS_ALLOWED_ORIGINS` codés en dur~~ — **fait** (issue #48). Les settings sont découpés en `config/settings/{base,development,test,production}.py`, lus depuis l'environnement, et le module actif est choisi par `DJANGO_SETTINGS_MODULE`. La clé versionnée jusque-là reste dans l'historique git : elle est compromise et a été régénérée.
-2. ~~Base SQLite~~ — **fait** (issue #49). `psycopg[binary]` est dans `backend/requirements.txt`, `DATABASES` est composé par `postgres_database()` dans `config/settings/base.py` et appelé par chacun des trois environnements, et le service `db` est déclaré dans `compose.yaml`.
+2. ~~Base SQLite~~ — **fait** (issue #49). `psycopg` et `psycopg-binary` sont épinglés dans `backend/requirements.txt`, `DATABASES` est composé par `postgres_database()` dans `config/settings/base.py` et appelé par chacun des trois environnements, et le service `db` est déclaré dans `compose.yaml`.
 3. `backend/requirements.txt` — aucun serveur WSGI de production. Ajouter `gunicorn` avec l'image du backend.
 
 ## Images de base
@@ -96,7 +96,7 @@ Aucun service sans `healthcheck`. Les dépendances utilisent `depends_on: condit
 |---|---|
 | `backend` | `curl -f http://localhost:8000/api/articles/` (endpoint public en lecture) |
 | `frontend` | `wget -q --spider http://localhost/` |
-| `db` | `pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB` (`$$` : résolu dans le conteneur, pas par Compose) |
+| `db` | `pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB` — `$$` : résolu dans le conteneur, pas par Compose. `-h` obligatoire : sans lui la sonde passe par la socket Unix, à laquelle répond déjà le serveur temporaire d'initialisation |
 
 ## Secrets et variables d'environnement
 

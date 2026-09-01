@@ -92,7 +92,8 @@ def env_list(name, default=None):
 
 # SECRET_KEY n'est PAS définie ici : chaque environnement dit d'où vient la
 # sienne. `development` et `production` l'exigent depuis l'environnement, sans
-# aucune valeur de repli ; `test` pose une clé factice pour tourner sans .env.
+# aucune valeur de repli ; `test` pose une clé factice, seuls les identifiants
+# de base lui restant nécessaires.
 # La définir ici la rendrait obligatoire y compris pour lancer les tests.
 
 # Par défaut faux : c'est l'environnement de développement qui l'active,

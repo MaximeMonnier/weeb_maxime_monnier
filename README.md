@@ -40,9 +40,12 @@ python3 -c "import secrets, string; print(''.join(secrets.choice(string.ascii_le
 python3 -c "import secrets, string; a = string.ascii_letters + string.digits; print(''.join(secrets.choice(a) for _ in range(32)))"
 ```
 
-> Le caractère `$` est volontairement absent de ces deux jeux de caractères.
-> Compose lit le même `.env` et y verrait le début d'une variable à substituer,
-> ce qui tronquerait la valeur de son côté sans la tronquer côté Django.
+> Les caractères `$` et `#` sont volontairement absents de ces jeux de
+> caractères, et c'est aussi pourquoi on n'utilise pas ici le
+> `get_random_secret_key()` de Django, dont l'alphabet les contient : les
+> parseurs de `.env` les interprètent — `$` comme le début d'une variable à
+> substituer, `#` comme le début d'un commentaire. La valeur serait tronquée
+> d'un côté et pas de l'autre, pour une panne sans cause visible.
 
 Chaque variable de `.env.example` est commentée : lire ce fichier suffit à comprendre à quoi elle sert.
 
@@ -126,7 +129,7 @@ cd backend && python manage.py createsuperuser
 | `docker compose up -d --wait` | Démarre la base et attend qu'elle réponde |
 | `docker compose ps` | Affiche l'état du service et sa santé |
 | `docker compose logs -f db` | Suit les journaux de PostgreSQL |
-| `docker compose exec db psql -U weeb -d weeb` | Ouvre une console SQL sur la base |
+| `docker compose exec db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB'` | Ouvre une console SQL sur la base |
 | `docker compose stop` | Arrête la base sans rien supprimer |
 | `docker compose down` | Supprime le conteneur, **garde** les données |
 | `docker compose down -v` | Supprime aussi le volume : **toutes les données sont perdues** |
@@ -149,7 +152,7 @@ Les réglages Django sont découpés par environnement dans `backend/config/sett
 | `base.py` | commun à tous | lit le `.env`, ne définit aucune clé secrète |
 | `development.py` | poste de développement | `DEBUG` actif, origines `localhost:5173` autorisées |
 | `test.py` | tests automatisés | clé factice, base `test_weeb` créée et détruite par Django, exige PostgreSQL |
-| `production.py` | serveur en ligne | `DEBUG` forcé à faux, hôtes obligatoires, en-têtes de sécurité HTTPS |
+| `production.py` | serveur en ligne | `DEBUG` forcé à faux, hôtes obligatoires, en-têtes de sécurité HTTPS, TLS exigé jusqu'à la base |
 
 Le module utilisé est choisi par la variable `DJANGO_SETTINGS_MODULE`, à définir
 dans le terminal ou dans le conteneur — **pas** dans le `.env`, que Django lit trop tard.
