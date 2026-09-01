@@ -3,7 +3,7 @@
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403 — on repart de tous les réglages communs
-from .base import env_bool, env_int, env_list, env_required, postgres_database
+from .base import env_bool, env_int, env_list, env_required, env_str, postgres_database
 
 # Aucune valeur de repli : sans clé, le service refuse de démarrer.
 SECRET_KEY = env_required('DJANGO_SECRET_KEY')
@@ -30,6 +30,13 @@ CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS')
 # Aucun repli non plus ici : mieux vaut un démarrage refusé qu'un service qui
 # se rabat silencieusement sur une base qui n'est pas la bonne.
 DATABASES = postgres_database()
+
+# TLS exigé jusqu'à la base. Le défaut de libpq est `prefer` : sans TLS
+# disponible, la connexion se poursuit EN CLAIR, mot de passe compris, sans
+# rien signaler. `require` la fait échouer bruyamment à la place.
+# La variable existe pour le cas où la base est jointe par une socket locale
+# ou un tunnel déjà chiffré, où `disable` est alors le réglage correct.
+DATABASES['default']['OPTIONS'] = {'sslmode': env_str('POSTGRES_SSLMODE', 'require')}
 
 # --- En-têtes et cookies de sécurité ---
 # Ces réglages n'ont de sens que derrière HTTPS, donc uniquement ici.

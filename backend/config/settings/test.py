@@ -7,7 +7,8 @@ from .base import postgres_database
 DEBUG = False
 
 # Clé volontairement factice et publique : l'environnement de test ne protège
-# aucune donnée réelle, et la suite doit tourner en CI sans secret à fournir.
+# aucune donnée réelle, et la suite doit tourner en CI sans clé Django à
+# fournir. Les identifiants de base, eux, restent exigés (voir plus bas).
 # C'est la raison pour laquelle base.py ne définit pas SECRET_KEY lui-même.
 SECRET_KEY = 'cle-de-test-non-secrete'
 
