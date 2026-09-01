@@ -11,10 +11,6 @@ backend/venv/
 __pycache__/
 *.py[cod]
 
-# Base de données SQLite locale : contient des données de test, pas du code.
-*.sqlite3
-db.sqlite3
-
 # Secrets : SECRET_KEY Django, identifiants de base de données, etc.
 # NE JAMAIS committer un .env (sécurité).
 .env
