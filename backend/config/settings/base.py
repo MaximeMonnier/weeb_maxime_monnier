@@ -62,10 +62,12 @@ def env_int(name, default):
     try:
         return int(value.strip())
     except ValueError:
+        # `from None` : sans ça, la ValueError de int() s'affiche en premier et
+        # noie le message utile sous des dizaines de lignes de trace d'import.
         raise ImproperlyConfigured(
             f"La variable d'environnement {name} doit être un nombre entier, "
             f"or elle vaut {value!r}."
-        )
+        ) from None
 
 
 def env_list(name, default=None):
