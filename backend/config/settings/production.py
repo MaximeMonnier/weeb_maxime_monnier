@@ -3,7 +3,7 @@
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403 — on repart de tous les réglages communs
-from .base import env_bool, env_int, env_list, env_required
+from .base import env_bool, env_int, env_list, env_required, postgres_database
 
 # Aucune valeur de repli : sans clé, le service refuse de démarrer.
 SECRET_KEY = env_required('DJANGO_SECRET_KEY')
@@ -26,6 +26,10 @@ if not ALLOWED_HOSTS:
 # Si le front a son propre domaine, l'y déclarer, sinon le navigateur bloquera
 # chaque appel — sans que rien n'échoue côté serveur.
 CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS')
+
+# Aucun repli non plus ici : mieux vaut un démarrage refusé qu'un service qui
+# se rabat silencieusement sur une base qui n'est pas la bonne.
+DATABASES = postgres_database()
 
 # --- En-têtes et cookies de sécurité ---
 # Ces réglages n'ont de sens que derrière HTTPS, donc uniquement ici.
