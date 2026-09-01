@@ -1,0 +1,52 @@
+# ============================================
+#  Compose de base — projet Weeb
+# ============================================
+# Socle commun à tous les environnements. Les surcharges propres au
+# développement et à la production viendront dans compose.override.yaml et
+# compose.prod.yaml, quand le backend et le front seront eux-mêmes conteneurisés.
+#
+# Nom de projet figé : sans lui, Compose déduit le préfixe du nom du dossier,
+# et les conteneurs comme les volumes changeraient de nom d'une machine à
+# l'autre — le volume de données en premier.
+name: weeb
+
+services:
+  # Base de données. Seul service conteneurisé pour l'instant : Django tourne
+  # encore dans le venv local et s'y connecte par le port publié plus bas.
+  db:
+    image: postgres:17-alpine
+
+    # Aucune valeur en dur : tout vient du .env de la racine, que Compose lit
+    # tout seul. La syntaxe `:?` interrompt le démarrage avec ce message si la
+    # variable manque, plutôt que de créer une base aux identifiants surprise.
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:?absente du .env, voir .env.example}"
+      POSTGRES_USER: "${POSTGRES_USER:?absente du .env, voir .env.example}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?absente du .env, voir .env.example}"
+
+    # Publié sur 127.0.0.1 seulement, pas sur 0.0.0.0 : la base reste joignable
+    # depuis cette machine, jamais depuis le réseau local. Cette publication
+    # disparaîtra quand le backend tournera dans le même réseau Compose.
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+
+    # Volume nommé, et non un dossier du dépôt : les données survivent à
+    # `docker compose down` et à la suppression du conteneur. Elles ne
+    # disparaissent qu'avec `docker compose down -v`, qui détruit le volume.
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+    # `$$` et non `$` : le double dollar empêche Compose de substituer la
+    # variable à la lecture du fichier, pour qu'elle soit résolue dans le
+    # conteneur, où POSTGRES_USER et POSTGRES_DB sont définis.
+    # start_period couvre l'initialisation du cluster au tout premier
+    # démarrage, pendant laquelle les échecs de sonde ne sont pas comptés.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  db_data:
