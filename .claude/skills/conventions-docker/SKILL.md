@@ -16,11 +16,8 @@ description: >-
 
 ## Dette à corriger AVANT de dockeriser
 
-Trois blocages présents dans le code actuel. Les traiter en premier, sinon l'image produite est inutilisable :
-
-1. `backend/config/settings.py` — `SECRET_KEY` est en dur dans le fichier et versionné. La déplacer en variable d'environnement et **la considérer comme compromise** (en régénérer une nouvelle).
-2. `backend/config/settings.py` — `DEBUG = True`, `ALLOWED_HOSTS = []`, `CORS_ALLOWED_ORIGINS` codés en dur. Tous doivent être lus depuis l'environnement.
-3. `backend/requirements.txt` — base SQLite et aucun serveur WSGI de production. Ajouter `gunicorn` et `psycopg[binary]`, migrer `DATABASES` vers Postgres.
+1. ~~`SECRET_KEY` en dur, `DEBUG = True`, `ALLOWED_HOSTS` et `CORS_ALLOWED_ORIGINS` codés en dur~~ — **fait** (issue #48). Les settings sont découpés en `config/settings/{base,development,test,production}.py`, lus depuis l'environnement, et le module actif est choisi par `DJANGO_SETTINGS_MODULE`. La clé versionnée jusque-là reste dans l'historique git : elle est compromise et a été régénérée.
+2. `backend/requirements.txt` — base SQLite et aucun serveur WSGI de production. Ajouter `gunicorn` et `psycopg[binary]`, migrer `DATABASES` vers Postgres.
 
 ## Images de base
 

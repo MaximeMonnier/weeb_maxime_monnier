@@ -48,7 +48,8 @@ git diff main...HEAD
 - [ ] `git diff main...HEAD --stat | grep -i "\.env"` ne renvoie rien → sinon **BLOQUANT**.
 - [ ] Aucun secret en dur :
       `grep -rn "SECRET_KEY\|api_key\|password *= *[\"']" backend/ frontend/src/`
-      Dette connue : `config/settings.py` contient encore `SECRET_KEY` en clair et `DEBUG = True` — ne pas aggraver.
+      Les settings sont découpés en `config/settings/{base,development,test,production}.py` et lus depuis
+      l'environnement : toute nouvelle valeur sensible passe par le `.env` et figure dans `.env.example`.
 - [ ] **Toute nouvelle vue DRF déclare `permission_classes`** → sinon **BLOQUANT**. Le défaut global est `IsAuthenticated` : une vue publique sans `AllowAny` explicite est une erreur.
 - [ ] Serializer : `fields` explicite (jamais `__all__`), mot de passe `write_only=True`, `author` / `created_at` / `updated_at` en `read_only_fields`.
 - [ ] Aucun champ sensible exposé : `password`, `is_staff`, `is_superuser` absents de tout `fields`.
