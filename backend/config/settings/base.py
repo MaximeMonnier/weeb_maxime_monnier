@@ -32,47 +32,64 @@ load_dotenv(BASE_DIR.parent / '.env', override=False)
 #  Lecture de l'environnement
 # ============================================
 
-def env_requis(nom):
+def env_required(name):
     """Renvoie la variable d'environnement demandée, ou interrompt le démarrage si elle manque."""
-    valeur = os.environ.get(nom)
-    if not valeur:
+    value = os.environ.get(name, '').strip()
+    if not value:
         raise ImproperlyConfigured(
-            f"La variable d'environnement {nom} est absente ou vide. "
+            f"La variable d'environnement {name} est absente ou vide. "
             "Renseigne-la dans le fichier .env à la racine du dépôt "
             "(modèle : .env.example) ou dans l'environnement du conteneur."
         )
-    return valeur
+    return value
 
 
-def env_bool(nom, defaut=False):
+def env_bool(name, default=False):
     """Lit une variable d'environnement comme un booléen : 1, true, yes et on valent vrai."""
-    valeur = os.environ.get(nom)
-    if valeur is None:
-        return defaut
-    return valeur.strip().lower() in ('1', 'true', 'yes', 'on')
+    value = os.environ.get(name)
+    # Une variable présente mais vide (`DJANGO_DEBUG=` dans un .env) vaut "non
+    # renseignée" : on retombe sur le défaut, comme env_list.
+    if value is None or not value.strip():
+        return default
+    return value.strip().lower() in ('1', 'true', 'yes', 'on')
 
 
-def env_liste(nom, defaut=None):
+def env_int(name, default):
+    """Lit une variable d'environnement comme un entier, ou renvoie le défaut si elle est absente ou vide."""
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        return int(value.strip())
+    except ValueError:
+        raise ImproperlyConfigured(
+            f"La variable d'environnement {name} doit être un nombre entier, "
+            f"or elle vaut {value!r}."
+        )
+
+
+def env_list(name, default=None):
     """Lit une variable d'environnement comme une liste de valeurs séparées par des virgules."""
-    valeur = os.environ.get(nom)
-    if valeur is None or not valeur.strip():
-        return list(defaut or [])
-    return [element.strip() for element in valeur.split(',') if element.strip()]
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return list(default or [])
+    return [item.strip() for item in value.split(',') if item.strip()]
 
 
 # ============================================
 #  Sécurité
 # ============================================
 
-# Aucune valeur de repli volontairement : mieux vaut un démarrage qui échoue
-# qu'un serveur qui tourne avec une clé connue de tout le monde.
-SECRET_KEY = env_requis('DJANGO_SECRET_KEY')
+# SECRET_KEY n'est PAS définie ici : chaque environnement dit d'où vient la
+# sienne. `development` et `production` l'exigent depuis l'environnement, sans
+# aucune valeur de repli ; `test` pose une clé factice pour tourner sans .env.
+# La définir ici la rendrait obligatoire y compris pour lancer les tests.
 
 # Par défaut faux : c'est l'environnement de développement qui l'active,
 # jamais l'oubli d'une variable qui l'allume en production.
 DEBUG = env_bool('DJANGO_DEBUG', False)
 
-ALLOWED_HOSTS = env_liste('DJANGO_ALLOWED_HOSTS')
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS')
 
 
 # Application definition
@@ -212,4 +229,4 @@ SIMPLE_JWT = {
 # car ce sont deux "origines" différentes (politique de sécurité Same-Origin).
 # Les origines autorisées changent selon l'environnement : elles sont lues depuis
 # CORS_ALLOWED_ORIGINS, sous forme de liste séparée par des virgules.
-CORS_ALLOWED_ORIGINS = env_liste('CORS_ALLOWED_ORIGINS')
+CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS')
