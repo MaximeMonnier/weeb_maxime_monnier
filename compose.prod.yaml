@@ -1,0 +1,60 @@
+# Surcharge de production, à passer explicitement avec le socle :
+#   docker compose -f compose.yaml -f compose.prod.yaml up -d --wait --wait-timeout 60
+# Sans les `-f`, Compose ajoute la surcharge de développement. Les variables que
+# cette pile attend du .env sont au README.
+
+# Nom distinct de celui du socle, et c'est lui qui l'emporte : la production a
+# donc ses propres conteneurs et son propre volume. Sans ça, un
+# `docker compose down -v` lancé en développement détruirait ses données.
+name: weeb-prod
+
+services:
+  db:
+    # Aucun `ports:` : la base n'est joignable que par le réseau `interne`,
+    # fermé plus bas. Rien n'est publié, donc rien n'est atteignable depuis
+    # l'extérieur du démon Docker.
+    restart: unless-stopped
+
+  backend:
+    image: weeb-backend:prod
+
+    # `unless-stopped` et non `always` : le conteneur repart après un plantage
+    # ou un redémarrage de la machine, mais un arrêt volontaire le reste.
+    restart: unless-stopped
+
+    # Redondant avec l'image, qui pose déjà `production` — mais le socle sert
+    # aussi le développement, où l'inverse est imposé.
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+
+    # ⚠️ 127.0.0.1 tant qu'aucun proxy TLS n'est monté : cette pile fait confiance
+    # à X-Forwarded-Proto, que n'importe qui forgerait depuis le réseau. README.
+    ports:
+      - "127.0.0.1:${BACKEND_PORT_PROD:-8000}:8000"
+
+  frontend:
+    image: weeb-frontend:prod
+
+    restart: unless-stopped
+
+    build:
+      target: prod
+
+      # L'adresse de l'API est écrite DANS le bundle : elle doit être connue à la
+      # construction. `:?` interrompt le build plutôt que de livrer un front qui
+      # s'arrête au chargement.
+      args:
+        VITE_API_URL: "${VITE_API_URL:?absente du .env de la racine, voir .env.example}"
+
+    # 8080 côté conteneur : nginx tourne sous un compte non privilégié, qui ne
+    # peut pas se lier sous 1024. Variable distincte de celle du développement,
+    # sinon un port réglé pour Vite déplacerait aussi le site de production.
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT_PROD:-8080}:8080"
+
+networks:
+  # `internal` coupe le réseau de la passerelle de l'hôte : plus aucune entrée
+  # ni sortie. La base n'y perd rien, elle ne parle qu'au backend — qui garde
+  # `public` pour le reste.
+  interne:
+    internal: true

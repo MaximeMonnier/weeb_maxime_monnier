@@ -1,54 +1,31 @@
-# ============================================
-#  Compose de base — projet Weeb
-# ============================================
-# Socle commun à tous les environnements. Les surcharges propres au
-# développement et à la production viendront dans compose.override.yaml et
-# compose.prod.yaml, quand le backend et le front seront eux-mêmes conteneurisés.
+# Socle commun aux deux environnements, jamais lancé seul. Les commandes des deux
+# piles et le rôle de chaque fichier sont au README, § « La stack complète avec
+# Compose ».
 #
-# Nom de projet figé : sans lui, Compose déduit le préfixe du nom du dossier,
-# et les conteneurs comme les volumes changeraient de nom d'une machine à
-# l'autre — le volume de données en premier.
+# Nom de projet figé : sans lui, Compose le déduit du nom du dossier, et les
+# conteneurs comme le volume de données changeraient de nom d'une machine à
+# l'autre.
 name: weeb
 
 services:
-  # Base de données. Seul service conteneurisé pour l'instant : Django tourne
-  # encore dans le venv local et s'y connecte par le port publié plus bas.
   db:
     image: postgres:17-alpine
 
-    # Aucune valeur en dur : tout vient du .env de la racine, que Compose lit
-    # tout seul. La syntaxe `:?` interrompt le démarrage avec ce message si la
-    # variable manque, plutôt que de créer une base aux identifiants surprise.
+    # `:?` interrompt le démarrage avec ce message quand la variable manque,
+    # plutôt que de créer une base aux identifiants surprise.
     environment:
       POSTGRES_DB: "${POSTGRES_DB:?absente du .env, voir .env.example}"
       POSTGRES_USER: "${POSTGRES_USER:?absente du .env, voir .env.example}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?absente du .env, voir .env.example}"
 
-    # Publié sur 127.0.0.1 seulement, pas sur 0.0.0.0 : la base reste joignable
-    # depuis cette machine, jamais depuis le réseau local. Cette publication
-    # disparaîtra quand le backend tournera dans le même réseau Compose.
-    ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
-
-    # Volume nommé, et non un dossier du dépôt : les données survivent à
-    # `docker compose down` et à la suppression du conteneur. Elles ne
-    # disparaissent qu'avec `docker compose down -v`, qui détruit le volume.
     volumes:
       - db_data:/var/lib/postgresql/data
 
-    # `$$` et non `$` : le double dollar empêche Compose de substituer la
-    # variable à la lecture du fichier, pour qu'elle soit résolue dans le
-    # conteneur, où POSTGRES_USER et POSTGRES_DB sont définis.
-    #
-    # `-h 127.0.0.1` est indispensable : sans lui, pg_isready passe par la
-    # socket Unix, à laquelle répond DÉJÀ le serveur temporaire que Postgres
-    # lance pour initialiser le cluster. Le service serait déclaré sain une
-    # fraction de seconde avant d'écouter en TCP, et le `migrate` qui suit un
-    # `up --wait` échouerait en « Connection refused ». La sonde teste donc le
-    # même chemin que Django, le seul qui compte ici.
-    #
-    # start_period couvre l'initialisation du cluster au tout premier
-    # démarrage, pendant laquelle les échecs de sonde ne sont pas comptés.
+    networks:
+      - interne
+
+    # `-h 127.0.0.1` : sans lui, la sonde déclare le service sain avant qu'il
+    # écoute en TCP — voir le README. `$$` diffère la substitution au conteneur.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -56,5 +33,67 @@ services:
       retries: 5
       start_period: 10s
 
+  backend:
+    # Aucune `image:` ici : chaque surcharge nomme la sienne, sinon Compose
+    # réutilise l'image du même nom construite à la main. Voir le README.
+    build: ./backend
+
+    # Le même .env que celui lu par Compose, cette fois versé dans le conteneur.
+    # Absent, il interrompt le démarrage au lieu de partir sur des valeurs vides.
+    env_file: .env
+
+    # Contredit volontairement le .env, qui décrit la base vue depuis la machine.
+    # Ce n'est pas de la configuration mais la topologie déclarée ci-dessus.
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+
+    # `service_healthy` : Postgres accepte les connexions plusieurs secondes
+    # après le démarrage du conteneur, et le `migrate` échouerait entre-temps.
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - interne
+      - public
+
+    # Sonde héritée de l'image, seule sa cadence est reprise : les 30 s de
+    # l'image mèneraient la chaîne des trois services au-delà de la minute.
+    healthcheck:
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  frontend:
+    # `target` absent : il n'y a pas d'étape commune aux deux environnements,
+    # `dev` servant par Vite et `prod` par nginx.
+    build:
+      context: ./frontend
+
+    # Le front n'appelle pas l'API depuis le conteneur — c'est le navigateur qui
+    # le fait. La dépendance n'ordonne que le démarrage.
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    networks:
+      - public
+
+    healthcheck:
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
+
+networks:
+  # La base n'est jointe que par le backend, et compose.prod.yaml ferme
+  # `interne`. Le backend est sur les deux, ce qui lui laisse une sortie.
+  interne:
+  public:
+
 volumes:
+  # Volume nommé, et non un dossier du dépôt : les données ne disparaissent
+  # qu'avec `docker compose down -v`.
   db_data:
