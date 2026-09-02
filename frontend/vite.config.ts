@@ -4,10 +4,9 @@ import tailwindcss from "@tailwindcss/vite";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // loadEnv ne lit que les fichiers .env ; en conteneur la variable arrive par
-  // l'environnement, d'où les deux sources.
-  const env = loadEnv(mode, process.cwd(), "");
-  const apiUrl = env.VITE_API_URL || process.env.VITE_API_URL;
+  // Préfixe vide : loadEnv verse alors tout process.env en plus des fichiers
+  // .env, ce qui couvre la variable passée par --build-arg en conteneur.
+  const apiUrl = loadEnv(mode, process.cwd(), "").VITE_API_URL;
 
   // Échouer ici plutôt que de livrer un bundle vert qui meurt au chargement :
   // l'adresse est figée dans le JavaScript, elle doit être connue maintenant.
