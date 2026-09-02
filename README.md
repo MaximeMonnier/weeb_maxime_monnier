@@ -71,8 +71,11 @@ Chaque variable de `.env.example` est commentée : lire ce fichier suffit à com
 PostgreSQL tourne dans un conteneur, décrit par `compose.yaml`. Depuis la racine :
 
 ```bash
-docker compose up -d --wait
+docker compose up -d --wait db
 ```
+
+`db` à la fin : sans lui, Compose démarre aussi l'API et le front, et construit
+leurs images — utile plus tard, inutile pour les deux étapes qui suivent.
 
 `--wait` rend la main seulement quand la base répond vraiment, et non dès que le
 conteneur est lancé : l'étape suivante peut donc enchaîner sans attendre.
@@ -100,10 +103,24 @@ npm install
 
 ## Lancer le projet
 
-La base doit tourner en premier — une seule fois, elle reste démarrée ensuite :
+Deux façons, au choix.
+
+**Tout en conteneur** — une seule commande, rien à installer que Docker :
 
 ```bash
 docker compose up -d --wait
+```
+
+L'interface répond alors sur http://localhost:5173 et l'API sur
+http://localhost:8000. Le code des deux applications est monté depuis le dépôt :
+modifier un composant React ou un fichier Python recharge le service concerné
+sans reconstruire d'image. Détail dans « La stack complète avec Compose ».
+
+**Ou les deux applications sur la machine**, avec la seule base en conteneur —
+plus rapide à itérer, et le débogueur reste à portée :
+
+```bash
+docker compose up -d --wait db
 ```
 
 Puis **deux terminaux**, un par application.
@@ -119,7 +136,11 @@ cd frontend && npm run dev
 Pour accéder à l'administration Django (`http://localhost:8000/admin/`), créer d'abord un compte :
 
 ```bash
+# applications lancées sur la machine
 cd backend && python manage.py createsuperuser
+
+# applications lancées par Compose
+docker compose exec backend python manage.py createsuperuser
 ```
 
 ## Commandes utiles
@@ -140,13 +161,80 @@ cd backend && python manage.py createsuperuser
 
 | Commande | Effet |
 |---|---|
-| `docker compose up -d --wait` | Démarre la base et attend qu'elle réponde |
+| `docker compose up -d --wait db` | Démarre la **seule** base et attend qu'elle réponde |
 | `docker compose ps` | Affiche l'état du service et sa santé |
 | `docker compose logs -f db` | Suit les journaux de PostgreSQL |
 | `docker compose exec db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB'` | Ouvre une console SQL sur la base |
-| `docker compose stop` | Arrête la base sans rien supprimer |
-| `docker compose down` | Supprime le conteneur, **garde** les données |
+| `docker compose stop` | Arrête les services sans rien supprimer |
+| `docker compose down` | Supprime les conteneurs, **garde** les données |
 | `docker compose down -v` | Supprime aussi le volume : **toutes les données sont perdues** |
+
+### La stack complète avec Compose (depuis la racine)
+
+Trois fichiers, et jamais de condition dans un fichier unique :
+
+| Fichier | Rôle |
+|---|---|
+| `compose.yaml` | le socle : les trois services, les deux réseaux, le volume de données. Ne se lance jamais seul |
+| `compose.override.yaml` | le développement : code monté, ports publiés, rechargement à chaud. Compose le charge d'office |
+| `compose.prod.yaml` | la production : images figées, redémarrage automatique, base coupée du monde |
+
+```bash
+# développement — Compose ajoute compose.override.yaml tout seul
+docker compose up -d --wait
+
+# production — les -f explicites écartent la surcharge de développement
+docker compose -f compose.yaml -f compose.prod.yaml up -d --wait
+```
+
+> ⚠️ **Les `-f` ne sont pas facultatifs.** Sans eux, Compose charge
+> `compose.override.yaml` : la production démarrerait avec le code de la machine
+> monté dans les conteneurs et la base publiée sur l'hôte.
+
+| | développement | production |
+|---|---|---|
+| front | Vite sur `5173`, code monté | nginx sur `8080`, bundle figé dans l'image |
+| API | `runserver` sur `8000`, code monté | Gunicorn sur `8000`, aucun montage |
+| base | publiée sur `127.0.0.1:5432` | **aucun port publié**, réseau `interne` fermé |
+| redémarrage | aucun | `unless-stopped` sur les trois services |
+| images | `weeb-backend:dev`, `weeb-frontend:dev` | `weeb-backend:prod`, `weeb-frontend:prod` |
+
+Les trois services démarrent en file, chacun attendant que le précédent soit
+`healthy` : base, puis API, puis front. `up --wait` rend donc la main quand la
+pile entière répond — 18 secondes mesurées en production, images déjà construites.
+
+#### Ce que la production attend du `.env`
+
+Trois variables changent de valeur, et le `.env.example` le redit à chacune :
+
+| Variable | Valeur | Pourquoi |
+|---|---|---|
+| `POSTGRES_SSLMODE` | `disable` | `postgres:17-alpine` ne sert pas de TLS, alors que les réglages de production exigent `require`. Le lien ne quitte jamais le réseau `interne` |
+| `DJANGO_BEHIND_PROXY` | `1` | sans lui, la redirection HTTPS répond 301 à la sonde et le backend reste `unhealthy` |
+| `VITE_API_URL` | l'adresse de l'API | Compose ne lit **que** le `.env` de la racine, jamais `frontend/.env`, et l'adresse est écrite dans le bundle à la construction |
+
+> ⚠️ Cette pile ne monte aucun terminateur TLS. `DJANGO_BEHIND_PROXY=1` la rend
+> démarrable, pas utilisable depuis un navigateur : celui-ci n'envoie pas
+> `X-Forwarded-Proto` et se fait rediriger vers une adresse HTTPS que personne ne
+> sert. Une vraie mise en ligne place un proxy devant, et c'est lui qui rend ce
+> réglage légitime.
+
+#### Trois pièges
+
+- **Le nom des images.** Compose déduit `<projet>-<service>`, soit `weeb-backend`
+  et `weeb-frontend` — les noms mêmes des constructions manuelles décrites
+  ci-dessous. Sans `image:` explicite, il réutilise ces images-là plutôt que de
+  construire les siennes, **sans rien signaler** : la pile de développement s'est
+  retrouvée servie par le nginx de production. D'où les étiquettes `:dev` et
+  `:prod`.
+- **Le port publié de la base est dans `compose.override.yaml`, pas dans le
+  socle.** Compose sait ajouter une entrée héritée, jamais la retirer : une
+  publication posée dans `compose.yaml` serait impossible à enlever en production.
+- **La pile de développement laisse un `frontend/node_modules` vide sur la
+  machine**, appartenant à `root` — Docker crée le point de montage du volume
+  anonyme côté hôte. Il bloque ensuite `npm ci` et `npm run lint` en `EACCES`.
+  Le supprimer avec `rmdir frontend/node_modules` : le dossier est vide, le droit
+  d'écriture sur `frontend/` suffit, `sudo` est inutile.
 
 ### Image Docker du backend (depuis la racine)
 
@@ -162,48 +250,12 @@ migrations et fichiers statiques appliqués au démarrage. Elle ne remplace pas
 | `docker logs -f <conteneur>` | Suit les journaux de Gunicorn |
 | `docker inspect -f '{{.State.Health.Status}}' <conteneur>` | Affiche le résultat de la sonde de santé |
 
-Pour la lancer contre la base de `compose.yaml`, en la rattachant au réseau du
-projet et en visant le service `db` :
+Pour la faire tourner contre la base, ne pas la lancer à la main :
+`compose.prod.yaml` s'en charge, avec les réglages que le `.env` ne décrit pas
+pour un conteneur — voir « La stack complète avec Compose ». Le tableau ci-dessus
+sert à inspecter l'image, pas à la mettre en service.
 
-```bash
-docker run -d --name weeb-api --network weeb_default \
-  --restart unless-stopped \
-  --env-file .env \
-  -e POSTGRES_HOST=db \
-  -e POSTGRES_PORT=5432 \
-  -e POSTGRES_SSLMODE=disable \
-  -e DJANGO_BEHIND_PROXY=1 \
-  -p 127.0.0.1:8000:8000 \
-  weeb-backend
-```
-
-Quatre variables sont surchargées ici parce que le `.env` décrit un backend
-lancé dans le venv, pas dans un conteneur :
-
-- `POSTGRES_HOST=db` — la base se joint par le nom du service, pas par `localhost`,
-  qui désignerait le conteneur de l'API lui-même ;
-- `POSTGRES_PORT=5432` — le `.env` porte le port **publié sur la machine**, qui
-  peut avoir été déplacé en 5433 ; à l'intérieur du réseau Compose, la base
-  écoute toujours 5432 ;
-- `POSTGRES_SSLMODE=disable` — le PostgreSQL local ne présente pas de certificat,
-  alors que les réglages de production exigent TLS par défaut ;
-- `DJANGO_BEHIND_PROXY=1` — sans lui, la redirection HTTPS de la production
-  répond 301 à la sonde de santé et le conteneur reste `unhealthy`.
-
-> ⚠️ **`DJANGO_BEHIND_PROXY=1` sans reverse proxy devant le conteneur n'est
-> acceptable qu'ici**, parce que le port n'est publié que sur `127.0.0.1` :
-> seule la machine peut appeler l'API, donc seule elle peut forger l'en-tête
-> `X-Forwarded-Proto`. En ligne, ce réglage ne se justifie que derrière un proxy
-> qui **écrase** cet en-tête. Il ne doit pas être recopié tel quel dans un futur
-> `compose.prod.yaml`.
-
-`--restart unless-stopped` : le script de démarrage s'arrête si la base n'est
-pas joignable. Sans politique de redémarrage, un conteneur lancé avant sa base
-resterait mort.
-
-Le conteneur passe `healthy` quand `GET /api/articles/` renvoie 200. Un
-raccordement à Compose viendra plus tard : ici l'image est construite et lancée
-à la main.
+Le conteneur passe `healthy` quand `GET /api/articles/` renvoie 200.
 
 ### Image Docker du frontend (depuis la racine)
 
@@ -375,7 +427,9 @@ Le token d'accès est valable 1 heure, celui de rafraîchissement 1 jour.
 ```
 .
 ├── .env.example              # modèle de configuration à copier en .env
-├── compose.yaml              # services conteneurisés — pour l'instant la base
+├── compose.yaml              # socle : les trois services, les réseaux, le volume
+├── compose.override.yaml     # surcharge de développement, chargée d'office
+├── compose.prod.yaml         # surcharge de production, à passer par -f
 ├── backend/
 │   ├── config/               # configuration du projet Django
 │   │   ├── settings/         # base, development, test, production
@@ -427,7 +481,7 @@ cd backend && python manage.py shell -c "from accounts.models import CustomUser;
 ```
 
 **`connection to server at "localhost" ... failed: Connection refused`**
-La base n'est pas démarrée. Depuis la racine : `docker compose up -d --wait`.
+La base n'est pas démarrée. Depuis la racine : `docker compose up -d --wait db`.
 
 **`docker compose up` répond `required variable POSTGRES_DB is missing a value`**
 Le `.env` est absent ou les variables `POSTGRES_*` n'y sont pas. Reprendre l'étape
@@ -437,7 +491,7 @@ une base avec des identifiants improvisés.
 **J'ai changé `POSTGRES_USER` ou `POSTGRES_DB` et la connexion échoue**
 Ces valeurs ne servent qu'à la **création** de la base, au tout premier démarrage.
 Un volume déjà initialisé les ignore. Pour repartir sur ces nouvelles valeurs :
-`docker compose down -v`, puis `docker compose up -d --wait` et `python manage.py migrate`.
+`docker compose down -v`, puis `docker compose up -d --wait db` et `python manage.py migrate`.
 Attention, `-v` détruit toutes les données existantes.
 
 **Le port 5432 est déjà utilisé**
@@ -451,6 +505,17 @@ la sonde reçoit autre chose qu'un 200. Les deux causes habituelles : `127.0.0.1
 absent de `DJANGO_ALLOWED_HOSTS`, qui vaut un 400 ; ou `DJANGO_BEHIND_PROXY`
 laissé à 0, auquel cas la redirection HTTPS des réglages de production répond
 301 à la sonde.
+
+**`npm ci` ou `npm run lint` échoue en `EACCES` sur `frontend/node_modules`**
+La pile de développement a laissé un dossier vide appartenant à `root` : Docker
+crée côté hôte le point de montage du volume anonyme. `rmdir frontend/node_modules`
+suffit, sans `sudo`.
+
+**La pile de développement sert le front par nginx au lieu de Vite**
+Une image `weeb-frontend` construite à la main traîne sur la machine et porte le
+nom que Compose déduirait. Les fichiers Compose nomment désormais les leurs
+`weeb-frontend:dev` et `weeb-frontend:prod` ; si le symptôme revient, forcer la
+construction avec `docker compose up -d --build --wait`.
 
 **Le front affiche une erreur CORS dans la console du navigateur**
 L'adresse du front n'est pas dans `CORS_ALLOWED_ORIGINS` du `.env`. Y ajouter
