@@ -5,7 +5,7 @@ description: >-
   "crée une branche", "quel nom de branche", "fais le commit", "message de
   commit", "ouvre la PR", "je merge dans preprod", "rebase", "je pousse sur
   main", "nettoie l'historique". Covers branch naming
-  (<numéro-issue>-description-kebab-case from main), Conventional Commits
+  (<numéro-issue>-description-kebab-case from preprod), Conventional Commits
   (feat/fix/refactor/style/docs/chore/test), the main/preprod integration flow
   and atomic-commit rules.
 ---
@@ -17,12 +17,14 @@ description: >-
 Format : `<numéro-issue>-description-kebab-case`
 
 ```bash
-git switch main
-git pull
-git switch -c 36-page-ajout-article
+git fetch origin --prune
+git switch -c 36-page-ajout-article origin/preprod
 ```
 
-- **Toujours créée depuis `main` à jour.** Jamais depuis une autre branche de travail.
+- **Toujours créée depuis `origin/preprod`**, la branche d'intégration — jamais depuis `main`,
+  qui est en retard de tout ce qui attend d'être fusionné, ni depuis une autre branche de travail.
+- Depuis `origin/preprod` et non depuis la `preprod` locale : celle-ci peut avoir des commits de
+  retard, et on ne s'en aperçoit qu'au moment du conflit.
 - Le numéro d'issue est obligatoire et vient en premier.
 - **Aucun accent ni caractère non-ASCII** : `17-page-a-propos`, pas `17-page-à-propos`. L'historique du dépôt en contient (`17-page-à-propos`, `1-identifier-les-composant-réutilisable-de-lapplication`) — ne pas reproduire.
 - Description courte, 2 à 5 mots, en minuscules, séparée par des tirets.
@@ -60,7 +62,7 @@ Règles :
 - Nettoyer avant d'ouvrir la PR si nécessaire :
 
 ```bash
-git rebase -i main   # squash/reword des commits de travail
+git rebase -i origin/preprod   # squash/reword des commits de travail
 ```
 
 - Ne jamais réécrire l'historique d'une branche déjà mergée, ni celui de `main` ou `preprod`.
