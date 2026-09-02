@@ -31,10 +31,13 @@ __pycache__/
 
 # --- Secrets ---
 # Le .env vit à la racine du dépôt, hors de ce contexte : il ne peut donc pas
-# entrer dans l'image. Ces lignes couvrent le cas d'un .env déposé par erreur
+# entrer dans l'image. Cette ligne couvre le cas d'un .env déposé par erreur
 # dans backend/ — la seule façon dont un secret pourrait se retrouver dans un
 # layer, et de là dans `docker history`.
-.env
+# Deux motifs, parce qu'aucun ne suffit seul : `*.env` laisse passer un
+# `.env.prod`, qui ne se TERMINE pas par `.env`, et `.env*` laisse passer un
+# `secrets.env`, qui ne COMMENCE pas par. Même paire que dans le .gitignore.
+.env*
 *.env
 
 # --- Fichiers générés par Django ---
