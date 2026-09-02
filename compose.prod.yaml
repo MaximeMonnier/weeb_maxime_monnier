@@ -1,0 +1,56 @@
+# Surcharge de production, à passer explicitement avec le socle :
+#   docker compose -f compose.yaml -f compose.prod.yaml up -d --wait
+# Les `-f` ne sont pas un détail de confort : sans eux, Compose ajouterait
+# compose.override.yaml et la production démarrerait avec le code monté et la
+# base publiée sur l'hôte.
+#
+# Trois variables du .env changent de valeur ici, voir .env.example :
+# POSTGRES_SSLMODE, DJANGO_BEHIND_PROXY et VITE_API_URL.
+
+services:
+  db:
+    # Aucun `ports:` : la base n'est joignable que par le réseau `interne`,
+    # fermé plus bas. Rien n'est publié sur l'hôte, donc rien n'est atteignable
+    # depuis l'extérieur du démon Docker.
+    restart: unless-stopped
+
+  backend:
+    # `unless-stopped` et non `always` : le conteneur repart après un plantage
+    # ou un redémarrage de la machine, mais un arrêt volontaire le reste.
+    restart: unless-stopped
+
+    # Redondant avec l'image, qui pose déjà `production` — mais le socle sert
+    # aussi le développement, où l'inverse est imposé. L'écrire ici évite de
+    # dépendre d'un défaut qui vit dans un autre fichier.
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+
+    # Publié sur toutes les interfaces, contrairement au développement : en
+    # production, c'est le pare-feu de la machine ou le proxy en amont qui
+    # décide qui entre, pas Compose.
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+
+  frontend:
+    restart: unless-stopped
+
+    build:
+      target: prod
+
+      # L'adresse de l'API est écrite DANS le bundle par Vite : elle doit être
+      # connue à la construction, pas au démarrage. `:?` interrompt le build
+      # plutôt que de livrer un front qui s'arrête au chargement.
+      args:
+        VITE_API_URL: "${VITE_API_URL:?absente du .env de la racine, voir .env.example}"
+
+    # 8080 côté conteneur : l'image sert par nginx sous un compte non privilégié,
+    # qui ne peut pas se lier à un port inférieur à 1024.
+    ports:
+      - "${FRONTEND_PORT:-8080}:8080"
+
+networks:
+  # `internal` coupe le réseau du routeur de l'hôte : plus de passerelle, donc
+  # aucune sortie et aucune entrée. La base n'y perd rien, elle ne parle qu'au
+  # backend — qui garde `public` pour le reste.
+  interne:
+    internal: true
