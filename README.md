@@ -37,6 +37,10 @@ projet, donc `frontend/`. Une variable posée à la racine du dépôt lui rester
 invisible. Le second ne contient d'ailleurs aucun secret — tout ce que Vite y
 lit part **en clair** dans le JavaScript servi au navigateur.
 
+Un troisième, `.env.prod`, n'est nécessaire que pour lancer la **pile de
+production** : voir « Ce que la production attend de la configuration ». Rien
+de ce qui suit n'en a besoin.
+
 Puis générer une clé secrète et un mot de passe de base de données, et les coller
 dans `.env` à la place des valeurs d'exemple :
 
@@ -236,16 +240,58 @@ Les trois services démarrent en file, chacun attendant que le précédent soit
 `healthy` : base, puis API, puis front. `up --wait` rend donc la main quand la
 pile entière répond — 18 secondes mesurées en production, images déjà construites.
 
-#### Ce que la production attend du `.env`
+#### Ce que la production attend de la configuration
 
-Quatre variables changent de valeur, et le `.env.example` le redit à chacune :
+Trois variables doivent valoir **autre chose** qu'en développement. Elles ne
+vivent pas dans le `.env`, où les deux jeux se contrediraient sans que rien ne
+le signale, mais dans un fichier à part que la seule pile de production charge
+**par-dessus** :
+
+```bash
+cp .env.prod.example .env.prod
+```
 
 | Variable | Valeur | Pourquoi |
 |---|---|---|
 | `POSTGRES_SSLMODE` | `disable` | `postgres:17-alpine` ne sert pas de TLS, alors que les réglages de production exigent `require`. Le lien ne quitte jamais le réseau `interne` |
 | `DJANGO_BEHIND_PROXY` | `1` | sans lui, la redirection HTTPS répond 301 à la sonde et le backend reste `unhealthy` |
-| `VITE_API_URL` | l'adresse de l'API | Compose ne lit **que** le `.env` de la racine, jamais `frontend/.env`, et l'adresse est écrite dans le bundle à la construction |
-| `CORS_ALLOWED_ORIGINS` | y ajouter `http://localhost:8080` | l'origine du front de production. Les réglages de production n'ont aucun repli : sans elle, le navigateur bloque chaque appel, sans que rien n'échoue côté serveur |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:8080` | l'origine du front de production, servi par nginx. Les réglages de production n'ont aucun repli : sans elle, le navigateur bloque chaque appel, sans que rien n'échoue côté serveur. La valeur **remplace** celle du `.env`, elle ne s'y ajoute pas |
+
+`VITE_API_URL` n'est pas dans ce tableau et reste dans le `.env` de la racine,
+d'où Compose la passe en argument de build au front. La pile l'exige toujours,
+et une vraie mise en ligne doit y mettre l'adresse publique de l'API : elle est
+écrite **dans le bundle** à la construction, pas lue au démarrage.
+
+`compose.prod.yaml` déclare `env_file: .env.prod` sur le backend, et le socle y
+déclare déjà `.env` : Compose **concatène** les deux listes, dans cet ordre, et
+le dernier fichier l'emporte variable par variable. Tout ce que le `.env`
+apporte reste donc en place — clé secrète, identifiants de base, hôtes
+autorisés — et seules ces trois lignes sont réécrites. Inutile d'y répéter
+`.env` : un chemin dupliqué est ramené à sa première position.
+
+> ⚠️ **`env_file` n'alimente que l'intérieur du conteneur.** Ce qu'un fichier
+> Compose interpole lui-même avec `${...}` ne se lit que dans le `.env` de la
+> racine, et n'a donc rien à faire dans `.env.prod` :
+>
+> | Déplacée par erreur | Ce qui se passe |
+> |---|---|
+> | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `VITE_API_URL` | démarrage refusé, la variable nommée : elles s'écrivent `${VAR:?message}` |
+> | `BACKEND_PORT_PROD`, `FRONTEND_PORT_PROD` | **rien de visible** : le repli `${VAR:-défaut}` s'applique et la production démarre sur un autre port que celui voulu |
+> | `POSTGRES_PORT`, `BACKEND_PORT_DEV`, `FRONTEND_PORT_DEV` | rien en production, qui ne les interpole pas : `compose.override.yaml` est seul à le faire. C'est le **développement** qu'on déplace alors sur d'autres ports, sans le voir |
+>
+> Les trois `POSTGRES_*` sont le piège de ce tableau : elles sont lues **des deux
+> côtés**, par Compose pour créer la base et par Django dans le conteneur. Être
+> lue dans le conteneur ne suffit donc pas à autoriser le déplacement — la règle
+> est qu'**aucun fichier Compose ne doit l'interpoler**.
+>
+> Un cas à part, à ne pas confondre avec la troisième ligne : ce que Django lit
+> dans le conteneur pour `POSTGRES_HOST` et `POSTGRES_PORT` ne vient d'aucun
+> `env_file`, l'`environment:` du socle imposant `db:5432` par-dessus. Les poser
+> dans `.env.prod` ne changerait donc rien à la connexion à la base.
+>
+> `.env.prod` manquant, `up` s'arrête avant de rien démarrer, en nommant le
+> chemin attendu — `ps`, `logs` et `down` continuent de fonctionner, une pile
+> déjà lancée reste donc arrêtable.
 
 > ⚠️ Cette pile ne monte aucun terminateur TLS. `DJANGO_BEHIND_PROXY=1` la rend
 > démarrable, pas utilisable depuis un navigateur : celui-ci n'envoie pas
@@ -488,6 +534,7 @@ Le token d'accès est valable 1 heure, celui de rafraîchissement 1 jour.
 ```
 .
 ├── .env.example              # modèle de configuration à copier en .env
+├── .env.prod.example         # modèle des valeurs propres à la production
 ├── compose.yaml              # socle : les trois services, les réseaux, le volume
 ├── compose.override.yaml     # surcharge de développement, chargée d'office
 ├── compose.prod.yaml         # surcharge de production, à passer par -f
@@ -524,7 +571,9 @@ l'autoriser explicitement.
 - Messages de commit en français, à l'impératif, préfixés par leur type :
   `feat`, `fix`, `refactor`, `style`, `docs`, `chore`, `test`. Un seul type par commit.
 - Les pull requests vont vers `preprod`, puis `preprod` est fusionnée dans `main`.
-- Ajouter une variable d'environnement implique de l'ajouter à `.env.example`, avec un commentaire.
+- Ajouter une variable d'environnement implique de l'ajouter au `.env.example`
+  correspondant, avec un commentaire — `.env.prod.example` si elle ne concerne
+  que la production, `frontend/.env.example` si elle est lue par Vite.
 
 ## Résolution de problèmes
 
@@ -565,7 +614,14 @@ y apparaît en clair. Si les journaux montrent un démarrage normal de Gunicorn,
 la sonde reçoit autre chose qu'un 200. Les deux causes habituelles : `127.0.0.1`
 absent de `DJANGO_ALLOWED_HOSTS`, qui vaut un 400 ; ou `DJANGO_BEHIND_PROXY`
 laissé à 0, auquel cas la redirection HTTPS des réglages de production répond
-301 à la sonde.
+301 à la sonde — en production, cette variable-là se règle dans `.env.prod`.
+
+**`env file /chemin/.env.prod not found`**
+La pile de production réclame son second fichier de configuration :
+`cp .env.prod.example .env.prod`. Voir « Ce que la production attend de la
+configuration ». Compose s'arrête avant de démarrer quoi que ce soit, ce qui
+est voulu — sans ce fichier, le backend partirait avec les valeurs du
+développement et ne démarrerait pas.
 
 **`npm ci` ou `npm run lint` échoue en `EACCES` sur `frontend/node_modules`**
 La pile de développement a laissé un dossier vide appartenant à `root` : Docker
@@ -579,5 +635,7 @@ nom que Compose déduirait. Les fichiers Compose nomment désormais les leurs
 construction avec `docker compose up -d --build --wait`.
 
 **Le front affiche une erreur CORS dans la console du navigateur**
-L'adresse du front n'est pas dans `CORS_ALLOWED_ORIGINS` du `.env`. Y ajouter
-l'origine exacte, port compris, puis redémarrer le serveur Django.
+L'adresse du front n'est pas dans `CORS_ALLOWED_ORIGINS`. Y ajouter l'origine
+exacte, port compris, puis redémarrer le serveur Django. Attention au fichier :
+c'est le `.env` en développement, mais `.env.prod` pour la pile de production,
+dont la valeur remplace celle du `.env` au lieu de s'y ajouter.

@@ -16,6 +16,13 @@ __pycache__/
 .env
 *.env
 
+# Les fichiers par pile, `.env.prod` en tête : `*.env` ci-dessus ne les attrape
+# pas, ils ne se TERMINENT pas par `.env`. Seuls les modèles en sont exclus —
+# ils ne portent aucune valeur réelle et doivent partir avec le dépôt.
+.env.*
+!.env.example
+!.env.*.example
+
 # Fichiers statiques/médias collectés par Django (générés).
 backend/staticfiles/
 backend/media/
