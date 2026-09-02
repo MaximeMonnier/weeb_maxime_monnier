@@ -142,7 +142,7 @@ Pour accéder à l'administration Django (`http://localhost:8000/admin/`), crée
 # applications lancées sur la machine
 cd backend && python manage.py createsuperuser
 
-# applications lancées par Compose
+# applications lancées par la pile de développement
 docker compose exec backend python manage.py createsuperuser
 ```
 
@@ -195,6 +195,23 @@ docker compose -f compose.yaml -f compose.prod.yaml up -d --wait --wait-timeout 
 `--wait` seul attendrait indéfiniment. Soixante secondes, la durée que la pile
 doit tenir de toute façon.
 
+> ⚠️ **Les `-f` valent pour TOUTES les commandes de la production**, pas seulement
+> `up`. Sans eux, Compose vise le projet `weeb`, celui du développement, et
+> échoue **en silence** : `docker compose ps` ne liste rien de la production, et
+> `docker compose down` supprime les conteneurs de développement, répond « done »,
+> et laisse la production tourner — redémarrage de la machine compris, puisqu'elle
+> est en `unless-stopped`.
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml ps
+docker compose -f compose.yaml -f compose.prod.yaml logs -f backend
+docker compose -f compose.yaml -f compose.prod.yaml exec backend python manage.py createsuperuser
+docker compose -f compose.yaml -f compose.prod.yaml down
+
+# ou, une fois pour toutes dans le terminal qui pilote la production :
+export COMPOSE_FILE=compose.yaml:compose.prod.yaml
+```
+
 > ⚠️ **Les `-f` ne sont pas facultatifs.** Sans eux, Compose charge
 > `compose.override.yaml` : la production démarrerait avec le code de la machine
 > monté dans les conteneurs et la base publiée sur l'hôte.
@@ -208,10 +225,12 @@ doit tenir de toute façon.
 | images | `weeb-backend:dev`, `weeb-frontend:dev` | `weeb-backend:prod`, `weeb-frontend:prod` |
 | projet Compose | `weeb`, volume `weeb_db_data` | `weeb-prod`, volume `weeb-prod_db_data` |
 
-Les deux piles portent des **noms de projet différents**, donc des conteneurs et
-des volumes distincts : un `docker compose down -v` lancé en développement ne
-touche pas aux données de la production, et l'inverse est vrai aussi. Elles ne
-partagent que les ports de l'hôte, ce qui les rend exclusives l'une de l'autre.
+Les deux piles portent des **noms de projet différents**, donc des conteneurs, des
+réseaux et des volumes distincts : un `docker compose down -v` lancé en
+développement ne touche pas aux données de la production, et l'inverse est vrai
+aussi. Elles ne se disputent que le port `8000`, seul défaut commun aux deux —
+déplacer `BACKEND_PORT_PROD` suffit à les faire tourner ensemble, à condition
+d'ajuster `VITE_API_URL` avec.
 
 Les trois services démarrent en file, chacun attendant que le précédent soit
 `healthy` : base, puis API, puis front. `up --wait` rend donc la main quand la

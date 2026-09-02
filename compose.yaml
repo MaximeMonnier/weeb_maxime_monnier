@@ -24,10 +24,8 @@ services:
     networks:
       - interne
 
-    # `-h 127.0.0.1` : sans lui, pg_isready passe par la socket Unix et déclare
-    # le service sain avant qu'il écoute en TCP, le chemin de Django.
-    # `$$` empêche Compose de substituer la variable ici, pour qu'elle le soit
-    # dans le conteneur.
+    # `-h 127.0.0.1` : sans lui, la sonde déclare le service sain avant qu'il
+    # écoute en TCP — voir le README. `$$` diffère la substitution au conteneur.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
