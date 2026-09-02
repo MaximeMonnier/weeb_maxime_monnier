@@ -249,6 +249,14 @@ docker run -d --name weeb-front-dev -p 127.0.0.1:5173:5173 \
 > échoue en `EACCES`. Construire depuis la machine avec `npm run build`, ou par
 > la cible `prod` ci-dessous, qui compile à l'intérieur de l'image.
 
+> ⚠️ **Deux traces que ce conteneur laisse sur la machine.** Docker crée le point
+> de montage du volume anonyme **côté hôte** : un `frontend/node_modules` vide
+> apparaît, appartenant à `root`, et bloque ensuite `npm ci` et `npm run lint` en
+> `EACCES`. Le supprimer avec `rmdir frontend/node_modules` — le dossier est vide,
+> le droit d'écriture sur `frontend/` suffit, `sudo` est inutile. Et supprimer le
+> conteneur avec **`docker rm -v`** : sans le `-v`, chaque suppression abandonne un
+> volume anonyme d'environ 300 Mo. `docker volume ls -qf dangling=true` les liste.
+
 #### La cible `prod`
 
 ```bash
