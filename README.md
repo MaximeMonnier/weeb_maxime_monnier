@@ -140,6 +140,63 @@ cd backend && python manage.py createsuperuser
 | `docker compose down` | Supprime le conteneur, **garde** les données |
 | `docker compose down -v` | Supprime aussi le volume : **toutes les données sont perdues** |
 
+### Image Docker du backend (depuis la racine)
+
+L'API est empaquetée dans une image de production : Gunicorn, compte non-root,
+migrations et fichiers statiques appliqués au démarrage. Elle ne remplace pas
+`runserver` pour le développement quotidien.
+
+| Commande | Effet |
+|---|---|
+| `docker build -t weeb-backend ./backend` | Construit l'image (contexte : `backend/`) |
+| `docker image ls weeb-backend` | Affiche la taille de l'image |
+| `docker run --rm weeb-backend id -u` | Vérifie que le conteneur ne tourne pas en root |
+| `docker logs -f <conteneur>` | Suit les journaux de Gunicorn |
+| `docker inspect -f '{{.State.Health.Status}}' <conteneur>` | Affiche le résultat de la sonde de santé |
+
+Pour la lancer contre la base de `compose.yaml`, en la rattachant au réseau du
+projet et en visant le service `db` :
+
+```bash
+docker run -d --name weeb-api --network weeb_default \
+  --restart unless-stopped \
+  --env-file .env \
+  -e POSTGRES_HOST=db \
+  -e POSTGRES_PORT=5432 \
+  -e POSTGRES_SSLMODE=disable \
+  -e DJANGO_BEHIND_PROXY=1 \
+  -p 127.0.0.1:8000:8000 \
+  weeb-backend
+```
+
+Quatre variables sont surchargées ici parce que le `.env` décrit un backend
+lancé dans le venv, pas dans un conteneur :
+
+- `POSTGRES_HOST=db` — la base se joint par le nom du service, pas par `localhost`,
+  qui désignerait le conteneur de l'API lui-même ;
+- `POSTGRES_PORT=5432` — le `.env` porte le port **publié sur la machine**, qui
+  peut avoir été déplacé en 5433 ; à l'intérieur du réseau Compose, la base
+  écoute toujours 5432 ;
+- `POSTGRES_SSLMODE=disable` — le PostgreSQL local ne présente pas de certificat,
+  alors que les réglages de production exigent TLS par défaut ;
+- `DJANGO_BEHIND_PROXY=1` — sans lui, la redirection HTTPS de la production
+  répond 301 à la sonde de santé et le conteneur reste `unhealthy`.
+
+> ⚠️ **`DJANGO_BEHIND_PROXY=1` sans reverse proxy devant le conteneur n'est
+> acceptable qu'ici**, parce que le port n'est publié que sur `127.0.0.1` :
+> seule la machine peut appeler l'API, donc seule elle peut forger l'en-tête
+> `X-Forwarded-Proto`. En ligne, ce réglage ne se justifie que derrière un proxy
+> qui **écrase** cet en-tête. Il ne doit pas être recopié tel quel dans un futur
+> `compose.prod.yaml`.
+
+`--restart unless-stopped` : le script de démarrage s'arrête si la base n'est
+pas joignable. Sans politique de redémarrage, un conteneur lancé avant sa base
+resterait mort.
+
+Le conteneur passe `healthy` quand `GET /api/articles/` renvoie 200. Un
+raccordement à Compose viendra plus tard : ici l'image est construite et lancée
+à la main.
+
 ### Frontend (depuis `frontend/`)
 
 | Commande | Effet |
@@ -210,6 +267,10 @@ Le token d'accès est valable 1 heure, celui de rafraîchissement 1 jour.
 │   ├── accounts/             # utilisateurs, authentification JWT
 │   ├── articles/             # articles du blog
 │   ├── contact/              # formulaire de contact
+│   ├── Dockerfile            # image de production de l'API
+│   ├── .dockerignore         # ce que le build n'envoie pas au démon
+│   ├── docker-entrypoint.sh  # migrations et statiques avant Gunicorn
+│   ├── healthcheck.py        # sonde de santé du conteneur
 │   └── requirements.txt
 └── frontend/
     └── src/
@@ -266,6 +327,14 @@ Attention, `-v` détruit toutes les données existantes.
 **Le port 5432 est déjà utilisé**
 Un PostgreSQL tourne déjà sur la machine. Changer `POSTGRES_PORT` dans le `.env`
 (par exemple `5433`) : Django et Compose lisent tous deux cette variable.
+
+**Le conteneur du backend reste `unhealthy`**
+Regarder d'abord `docker logs <conteneur>` : une erreur de connexion à la base
+y apparaît en clair. Si les journaux montrent un démarrage normal de Gunicorn,
+la sonde reçoit autre chose qu'un 200. Les deux causes habituelles : `127.0.0.1`
+absent de `DJANGO_ALLOWED_HOSTS`, qui vaut un 400 ; ou `DJANGO_BEHIND_PROXY`
+laissé à 0, auquel cas la redirection HTTPS des réglages de production répond
+301 à la sonde.
 
 **Le front affiche une erreur CORS dans la console du navigateur**
 L'adresse du front n'est pas dans `CORS_ALLOWED_ORIGINS` du `.env`. Y ajouter
