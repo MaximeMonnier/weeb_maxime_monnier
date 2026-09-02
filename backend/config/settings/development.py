@@ -1,7 +1,7 @@
 """Réglages de développement : machine du développeur, front Vite en local."""
 
 from .base import *  # noqa: F403 — on repart de tous les réglages communs
-from .base import env_bool, env_list, env_required
+from .base import env_bool, env_list, env_required, postgres_database
 
 # Même en développement, aucune valeur de repli : une clé connue de tous
 # finirait par se retrouver en production par simple oubli.
@@ -20,3 +20,9 @@ CORS_ALLOWED_ORIGINS = env_list(
     'CORS_ALLOWED_ORIGINS',
     ['http://localhost:5173', 'http://127.0.0.1:5173'],
 )
+
+
+# Base PostgreSQL du poste local, servie par le conteneur `db` de compose.yaml.
+# Les identifiants sont exigés : une base de développement accessible avec des
+# identifiants devinables finirait par être exposée telle quelle ailleurs.
+DATABASES = postgres_database()
