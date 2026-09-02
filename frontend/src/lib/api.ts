@@ -1,4 +1,22 @@
-const API_URL = "http://localhost:8000/api";
+// L'adresse de l'API n'est plus écrite ici : elle vient de VITE_API_URL, lue
+// par Vite dans frontend/.env — et non dans le .env de la racine, que Vite ne
+// regarde pas. Seules les variables préfixées VITE_ sont exposées au
+// navigateur ; ce préfixe est une sécurité, car tout ce qui passe par là finit
+// en clair dans le JavaScript public. Aucun secret ici.
+//
+// La substitution est faite par Vite au démarrage, pas lue à l'exécution :
+// changer la variable impose de relancer le serveur.
+const API_URL = import.meta.env.VITE_API_URL;
+
+// Pas de repli sur une valeur en dur. Un défaut silencieux ferait porter au
+// premier appel réseau la faute d'une configuration absente, sous la forme
+// d'un 404 inexplicable ; ici l'erreur tombe au chargement du module, et elle
+// nomme son remède.
+if (!API_URL) {
+  throw new Error(
+    "VITE_API_URL est absente : copier frontend/.env.example en frontend/.env, puis relancer Vite.",
+  );
+}
 
 function getToken(): string | null {
   return localStorage.getItem("access");
