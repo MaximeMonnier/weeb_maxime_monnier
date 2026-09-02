@@ -21,7 +21,6 @@ const sizes: Record<ButtonSize, string> = {
 };
 
 const variants: Record<ButtonVariant, string> = {
-  // Bouton violet (comme sur ton screen)
   primary:
     "text-white " +
     "bg-[var(--color-light-accent-primary)] hover:bg-[var(--color-light-accent-hover)] " +
@@ -29,7 +28,6 @@ const variants: Record<ButtonVariant, string> = {
     "hover:-translate-y-[1px] hover:shadow-[var(--shadow-glow-primary)] active:translate-y-0 " +
     "focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]",
 
-  // Variante noir/blanc (outline) comme “S'abonner à la newsletter”
   outline:
     "bg-transparent " +
     "text-[var(--color-light-text-primary)] border border-[var(--color-light-border-secondary)] " +

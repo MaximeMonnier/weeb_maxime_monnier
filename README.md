@@ -23,11 +23,19 @@ Le projet est séparé en deux applications indépendantes qui se parlent par HT
 ### 1. La configuration
 
 Le projet ne démarre pas sans configuration : les valeurs sensibles ne sont pas
-dans le code, elles sont lues depuis un fichier `.env` que chacun crée chez lui.
+dans le code, elles sont lues depuis des fichiers `.env` que chacun crée chez lui.
+
+Il y en a **deux**, et ils ne sont pas interchangeables :
 
 ```bash
-cp .env.example .env
+cp .env.example .env                    # Django et Docker Compose
+cp frontend/.env.example frontend/.env  # le front, lu par Vite
 ```
+
+Pourquoi deux : Vite ne lit que les `.env` situés à la racine de son propre
+projet, donc `frontend/`. Une variable posée à la racine du dépôt lui resterait
+invisible. Le second ne contient d'ailleurs aucun secret — tout ce que Vite y
+lit part **en clair** dans le JavaScript servi au navigateur.
 
 Puis générer une clé secrète et un mot de passe de base de données, et les coller
 dans `.env` à la place des valeurs d'exemple :
@@ -196,6 +204,114 @@ resterait mort.
 Le conteneur passe `healthy` quand `GET /api/articles/` renvoie 200. Un
 raccordement à Compose viendra plus tard : ici l'image est construite et lancée
 à la main.
+
+### Image Docker du frontend (depuis la racine)
+
+Un seul `Dockerfile`, **deux images**, choisies par `--target` :
+
+| Cible | Ce qu'elle contient | Taille | Usage |
+|---|---|---|---|
+| `dev` | Node, toutes les dépendances, le serveur Vite | ~540 Mo | travailler sans installer Node sur sa machine |
+| `prod` | le site compilé et nginx, **sans Node** | ~74 Mo | servir le site en ligne |
+
+#### La cible `dev`
+
+```bash
+docker build --target dev -t weeb-frontend-dev ./frontend
+
+docker run -d --name weeb-front-dev \
+  -p 127.0.0.1:5173:5173 \
+  -v "$PWD/frontend:/app" \
+  -v /app/node_modules \
+  weeb-frontend-dev
+```
+
+Les deux montages vont ensemble, et le second n'est pas une coquille :
+
+- `-v "$PWD/frontend:/app"` place le code de la machine dans le conteneur, pour
+  que Vite recharge la page à chaque enregistrement ;
+- `-v /app/node_modules` — un volume anonyme, sans source — **recouvre** le
+  premier à cet endroit précis. Sans lui, le `frontend/` de la machine masquerait
+  le `node_modules` installé dans l'image, et Vite ne trouverait plus rien.
+
+L'adresse de l'API vient alors du `frontend/.env`, apporté par le montage. Sans
+montage, il faut la passer à la main, sinon le front s'arrête au chargement :
+
+```bash
+docker run -d --name weeb-front-dev -p 127.0.0.1:5173:5173 \
+  -e VITE_API_URL=http://localhost:8000/api \
+  weeb-frontend-dev
+```
+
+> ⚠️ **Ne pas lancer `npm run build` dans ce conteneur avec le montage.** Le
+> compte `node` de l'image porte l'uid 1000, alors que les fichiers de la machine
+> appartiennent à l'utilisateur qui a cloné le dépôt : la création de `dist/`
+> échoue en `EACCES`. Construire depuis la machine avec `npm run build`, ou par
+> la cible `prod` ci-dessous, qui compile à l'intérieur de l'image.
+
+> ⚠️ **Deux traces que ce conteneur laisse sur la machine.** Docker crée le point
+> de montage du volume anonyme **côté hôte** : un `frontend/node_modules` vide
+> apparaît, appartenant à `root`, et bloque ensuite `npm ci` et `npm run lint` en
+> `EACCES`. Le supprimer avec `rmdir frontend/node_modules` — le dossier est vide,
+> le droit d'écriture sur `frontend/` suffit, `sudo` est inutile. Et supprimer le
+> conteneur avec **`docker rm -v`** : sans le `-v`, chaque suppression abandonne un
+> volume anonyme d'environ 300 Mo. `docker volume ls -qf dangling=true` les liste.
+
+#### La cible `prod`
+
+```bash
+docker build --target prod -t weeb-frontend \
+  --build-arg VITE_API_URL=https://api.exemple.fr/api ./frontend
+
+docker run -d --name weeb-front -p 127.0.0.1:8080:8080 weeb-frontend
+```
+
+`--build-arg` n'est pas optionnel : l'adresse de l'API est **écrite dans le
+JavaScript** au moment de la compilation, pas lue au démarrage. En changer impose
+donc de reconstruire l'image. Un build lancé sans elle s'interrompt avec un
+message explicite, plutôt que de produire un bundle qui afficherait une page
+blanche dans le navigateur.
+
+Le port est **8080** et non 80 : le conteneur tourne sous le compte `nginx`,
+qui n'a pas le privilège de lier un port inférieur à 1024.
+
+#### Vérifier une image
+
+| Commande | Effet |
+|---|---|
+| `docker image ls weeb-frontend` | Affiche la taille de l'image |
+| `docker run --rm weeb-frontend which node` | Doit **échouer** : Node est absent de l'image de production |
+| `docker run --rm weeb-frontend id -u` | Vérifie que le conteneur ne tourne pas en root |
+| `docker logs -f <conteneur>` | Suit les journaux |
+| `docker inspect -f '{{.State.Health.Status}}' <conteneur>` | Affiche le résultat de la sonde de santé |
+
+Les deux images passent `healthy` quand leur serveur répond sur `/`. Attention à
+ce que cette sonde ne dit pas en `dev` : elle vérifie que Vite répond, pas que
+l'application fonctionne. Une `VITE_API_URL` absente casse le front dans le
+navigateur alors que le conteneur reste `healthy`.
+
+#### Les choix du Dockerfile qui ne se devinent pas
+
+- **Le compte `node` reçoit `/app` avant l'installation.** Vite écrit son cache de
+  dépendances pré-compilées dans `node_modules/.vite` au démarrage. Installer en
+  root puis basculer d'utilisateur laisserait ce dossier en lecture seule pour
+  lui, et le serveur ne démarrerait pas.
+- **`DEV_POLLING=1`, posé par la cible `dev`.** `vite.config.ts` bascule alors la
+  surveillance des fichiers en interrogation périodique. Les événements du système
+  de fichiers ne traversent pas un montage lié : sans cela, le rechargement à
+  chaud reste muet.
+- **Vite est appelé directement, pas par `npm run dev`.** npm resterait le
+  processus n° 1 sans transmettre `SIGTERM` à son enfant, et chaque `docker stop`
+  attendrait les dix secondes du délai de grâce. Son option `--host` est
+  indispensable : sans elle, Vite n'écoute que la boucle locale *du conteneur*,
+  que la publication de port ne peut pas atteindre.
+- **`nginx.conf` remplace la configuration entière**, et non un fragment de
+  `conf.d/`. Celle d'origine pose une directive `user` et son fichier pid dans
+  `/var/run`, deux choses interdites à un compte non privilégié ; tout ce que le
+  serveur écrit a été renvoyé vers `/tmp`.
+- **`try_files $uri $uri/ /index.html`.** Le routage appartient à React : sans ce
+  repli, un rechargement de page sur `/articles/42` chercherait un fichier de ce
+  nom et renverrait 404.
 
 ### Frontend (depuis `frontend/`)
 
