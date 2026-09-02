@@ -57,6 +57,15 @@ COPY --from=builder /opt/venv /opt/venv
 
 WORKDIR /app
 
+# Hors de /app, que le développement recouvre avec `./backend:/app` : sous /app,
+# ce sont les fichiers de la machine qui s'exécuteraient, jamais ceux de l'image.
+# Copiés avant le code, pour que leur layer survive à chaque modification de vue.
+# Et le bit exécutable est posé ICI plutôt qu'hérité de l'hôte : une extraction
+# du dépôt par un outil sans droits POSIX le perdrait, et le conteneur casserait
+# sur une erreur qui ne désigne pas sa cause.
+COPY docker-entrypoint.sh healthcheck.py /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Sans --chown : le code reste la propriété de root, donc lisible et exécutable
 # par `weeb`, mais pas modifiable par lui. Une faille permettant l'écriture
 # arbitraire dans le processus ne peut alors pas réécrire une vue ou le script
@@ -77,14 +86,14 @@ EXPOSE 8000
 # start-period couvre les migrations et la collecte des statiques, pendant
 # lesquelles les échecs ne sont pas comptabilisés.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD ["python", "/app/healthcheck.py"]
+    CMD ["python", "/usr/local/bin/healthcheck.py"]
 
 # Le script d'entrée s'interpose devant TOUTE commande, y compris une commande
 # passée à `docker run` ou un `command:` de Compose : les migrations ne peuvent
 # pas être sautées par mégarde en surchargeant la commande. C'est le script
 # lui-même qui décide de préparer ou non, selon la commande demandée, de sorte
 # que `docker run <image> id -u` reste possible sans --entrypoint.
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # --workers 3 : point de départ raisonnable pour deux cœurs. À ajuster selon la
 # machine, avec la formule usuelle (2 × cœurs + 1).

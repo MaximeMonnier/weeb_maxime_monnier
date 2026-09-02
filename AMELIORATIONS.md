@@ -11,9 +11,8 @@ et pour les prochaines itérations).
 
 ## Docker — mise en ligne
 
-Les quatre premiers sont des critères de l'epic de dockerisation qu'aucune sous-issue n'a
-couverts ; le dernier est une fragilité relevée en revue. Rien ici ne bloque le
-développement, mais la pile de production n'est pas utilisable sans le premier.
+Quatre critères de l'epic de dockerisation qu'aucune sous-issue n'a couverts. Rien ici ne
+bloque le développement, mais la pile de production n'est pas utilisable sans le premier.
 
 - [ ] **Terminateur TLS devant la production** : le seul défaut vraiment fonctionnel.
       La sonde du backend forge `X-Forwarded-Proto: https` pour ne pas recevoir la
@@ -34,15 +33,5 @@ développement, mais la pile de production n'est pas utilisable sans le premier.
 - [ ] **Exécution des tests en conteneur isolé** : sur l'image de production, avec un
       service `db` éphémère, jamais sur l'image de développement. À reprendre avec le
       chantier des tests, qui dépasse Docker.
-
-- [ ] **Sortir l'entrypoint et la sonde du répertoire monté** : `backend/Dockerfile`
-      déclare son `ENTRYPOINT` et son `HEALTHCHECK` sous `/app`, que
-      `compose.override.yaml` recouvre avec `./backend:/app`. En développement, ce sont
-      donc les fichiers de la machine qui s'exécutent, et non ceux de l'image. Cela tient
-      tant que `docker-entrypoint.sh` garde son bit exécutable — un clone git comme un
-      `git archive` le conservent, une extraction par un outil sans droits POSIX le perd,
-      et le conteneur casse alors sur une erreur qui ne désigne pas sa cause. Piste :
-      copier les deux scripts dans `/usr/local/bin/` avant le `COPY . .`, et poser le bit
-      exécutable sur l'entrypoint par un `RUN chmod +x` plutôt que de l'hériter de l'hôte.
 
 ## (à compléter au fil de l'eau)
