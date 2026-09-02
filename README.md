@@ -105,7 +105,10 @@ npm install
 
 Deux façons, au choix.
 
-**Tout en conteneur** — une seule commande, rien à installer que Docker :
+**Tout en conteneur** — une seule commande, sans venv ni `npm install`. Les
+étapes *3. Le backend* et *4. Le frontend* deviennent facultatives ; **pas**
+l'étape *1. La configuration* : le front lit `frontend/.env` par le montage, et
+s'arrête au chargement sans lui.
 
 ```bash
 docker compose up -d --wait
@@ -184,8 +187,13 @@ Trois fichiers, et jamais de condition dans un fichier unique :
 docker compose up -d --wait
 
 # production — les -f explicites écartent la surcharge de développement
-docker compose -f compose.yaml -f compose.prod.yaml up -d --wait
+docker compose -f compose.yaml -f compose.prod.yaml up -d --wait --wait-timeout 60
 ```
+
+`--wait-timeout` n'est pas un ornement : les services de production repartent en
+`unless-stopped`, donc un backend qui échoue au démarrage reboucle sans fin et
+`--wait` seul attendrait indéfiniment. Soixante secondes, la durée que la pile
+doit tenir de toute façon.
 
 > ⚠️ **Les `-f` ne sont pas facultatifs.** Sans eux, Compose charge
 > `compose.override.yaml` : la production démarrerait avec le code de la machine
@@ -198,6 +206,12 @@ docker compose -f compose.yaml -f compose.prod.yaml up -d --wait
 | base | publiée sur `127.0.0.1:5432` | **aucun port publié**, réseau `interne` fermé |
 | redémarrage | aucun | `unless-stopped` sur les trois services |
 | images | `weeb-backend:dev`, `weeb-frontend:dev` | `weeb-backend:prod`, `weeb-frontend:prod` |
+| projet Compose | `weeb`, volume `weeb_db_data` | `weeb-prod`, volume `weeb-prod_db_data` |
+
+Les deux piles portent des **noms de projet différents**, donc des conteneurs et
+des volumes distincts : un `docker compose down -v` lancé en développement ne
+touche pas aux données de la production, et l'inverse est vrai aussi. Elles ne
+partagent que les ports de l'hôte, ce qui les rend exclusives l'une de l'autre.
 
 Les trois services démarrent en file, chacun attendant que le précédent soit
 `healthy` : base, puis API, puis front. `up --wait` rend donc la main quand la
@@ -205,21 +219,29 @@ pile entière répond — 18 secondes mesurées en production, images déjà con
 
 #### Ce que la production attend du `.env`
 
-Trois variables changent de valeur, et le `.env.example` le redit à chacune :
+Quatre variables changent de valeur, et le `.env.example` le redit à chacune :
 
 | Variable | Valeur | Pourquoi |
 |---|---|---|
 | `POSTGRES_SSLMODE` | `disable` | `postgres:17-alpine` ne sert pas de TLS, alors que les réglages de production exigent `require`. Le lien ne quitte jamais le réseau `interne` |
 | `DJANGO_BEHIND_PROXY` | `1` | sans lui, la redirection HTTPS répond 301 à la sonde et le backend reste `unhealthy` |
 | `VITE_API_URL` | l'adresse de l'API | Compose ne lit **que** le `.env` de la racine, jamais `frontend/.env`, et l'adresse est écrite dans le bundle à la construction |
+| `CORS_ALLOWED_ORIGINS` | y ajouter `http://localhost:8080` | l'origine du front de production. Les réglages de production n'ont aucun repli : sans elle, le navigateur bloque chaque appel, sans que rien n'échoue côté serveur |
 
 > ⚠️ Cette pile ne monte aucun terminateur TLS. `DJANGO_BEHIND_PROXY=1` la rend
 > démarrable, pas utilisable depuis un navigateur : celui-ci n'envoie pas
 > `X-Forwarded-Proto` et se fait rediriger vers une adresse HTTPS que personne ne
 > sert. Une vraie mise en ligne place un proxy devant, et c'est lui qui rend ce
 > réglage légitime.
+>
+> **C'est pour cela que les deux services de production ne publient leurs ports
+> que sur `127.0.0.1`.** `DJANGO_BEHIND_PROXY=1` fait confiance à un en-tête que
+> personne n'écrase : ouvert au réseau, n'importe quelle machine le forgerait
+> pour contourner la redirection HTTPS et lire les jetons JWT en clair, pendant
+> que Django croit servir du chiffré et pose ses cookies `Secure`. Élargir la
+> publication **seulement** une fois le proxy en place.
 
-#### Trois pièges
+#### Cinq pièges
 
 - **Le nom des images.** Compose déduit `<projet>-<service>`, soit `weeb-backend`
   et `weeb-frontend` — les noms mêmes des constructions manuelles décrites
@@ -235,6 +257,19 @@ Trois variables changent de valeur, et le `.env.example` le redit à chacune :
   anonyme côté hôte. Il bloque ensuite `npm ci` et `npm run lint` en `EACCES`.
   Le supprimer avec `rmdir frontend/node_modules` : le dossier est vide, le droit
   d'écriture sur `frontend/` suffit, `sudo` est inutile.
+- **La sonde de la base vise `pg_isready -h 127.0.0.1`, et le `-h` n'est pas
+  décoratif.** Sans lui, `pg_isready` passe par la socket Unix, à laquelle répond
+  déjà le serveur temporaire que PostgreSQL lance pour initialiser son cluster :
+  le service serait déclaré sain une fraction de seconde avant d'écouter en TCP,
+  et le `migrate` qui suit un `up --wait` échouerait en « Connection refused ».
+  La sonde teste donc le chemin de Django, le seul qui compte. Son `start_period`
+  couvre cette initialisation, pendant laquelle les échecs ne sont pas comptés.
+- **Les deux conteneurs de développement écrivent sous un uid fixe** : `1001`
+  pour le backend, `1000` pour le front. Une commande qui crée un fichier dans le
+  dépôt à travers le montage — `docker compose exec backend python manage.py
+  makemigrations`, par exemple — échoue en `Permission denied` si l'utilisateur
+  de la machine porte un autre uid (`id -u` pour le connaître). La lancer alors
+  depuis le venv, où le fichier appartient d'emblée à la bonne personne.
 
 ### Image Docker du backend (depuis la racine)
 

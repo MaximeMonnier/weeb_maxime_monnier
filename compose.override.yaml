@@ -1,14 +1,12 @@
 # Surcharge de développement : code monté, ports publiés, rechargement à chaud.
 # Compose la charge d'office avec compose.yaml, donc `docker compose up -d --wait`
-# suffit. C'est aussi pourquoi la production passe des `-f` explicites : sans eux,
-# ce fichier viendrait s'ajouter à elle.
+# suffit — et c'est pourquoi la production passe des `-f` explicites.
 
 services:
   db:
-    # Publication absente du socle, pour que la production n'en hérite pas.
-    # Sur 127.0.0.1 seulement, pas sur 0.0.0.0 : la base reste joignable depuis
-    # cette machine — psql, un client graphique, ou le backend lancé dans le venv
-    # plutôt qu'en conteneur — jamais depuis le réseau local.
+    # Publication absente du socle, que la production n'en hérite pas : Compose
+    # sait ajouter une entrée héritée, jamais la retirer. Sur 127.0.0.1 seul, la
+    # base reste joignable depuis cette machine, jamais depuis le réseau local.
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
 
@@ -21,7 +19,7 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.development
 
     # Le code de la machine masque celui de l'image : `runserver` surveille ces
-    # fichiers-là, et une modification recharge le serveur sans reconstruction.
+    # fichiers-là. Le conteneur y écrit sous l'uid 1001, voir le README.
     volumes:
       - ./backend:/app
 
@@ -29,8 +27,7 @@ services:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
 
     # L'entrypoint ne prépare la base que devant `gunicorn` : cette commande-ci
-    # doit donc migrer elle-même. `exec` pour que runserver devienne le processus
-    # visé par SIGTERM, sinon `docker stop` attend le délai de grâce.
+    # migre donc elle-même. `exec` pour que runserver reçoive le SIGTERM.
     command: ["sh", "-c", "python manage.py migrate --noinput && exec python manage.py runserver 0.0.0.0:8000"]
 
   frontend:
@@ -40,8 +37,7 @@ services:
       target: dev
 
     # Volume anonyme sur node_modules, EN PLUS du montage du code : sans lui, le
-    # frontend/ de la machine masque le node_modules installé dans l'image, et
-    # Vite ne trouve plus rien.
+    # frontend/ de la machine masque celui de l'image et Vite ne trouve rien.
     volumes:
       - ./frontend:/app
       - /app/node_modules
