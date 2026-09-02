@@ -1,9 +1,8 @@
-# ============================================
-#  Compose de base — projet Weeb
-# ============================================
-# Socle commun à tous les environnements. Les surcharges propres au
-# développement et à la production viendront dans compose.override.yaml et
-# compose.prod.yaml, quand le backend et le front seront eux-mêmes conteneurisés.
+# Socle commun aux deux environnements, jamais lancé seul :
+#   développement  docker compose up -d --wait
+#   production     docker compose -f compose.yaml -f compose.prod.yaml up -d --wait
+# Le second passe des `-f` explicites, ce qui écarte compose.override.yaml —
+# que Compose charge d'office dès qu'on ne lui en donne aucun.
 #
 # Nom de projet figé : sans lui, Compose déduit le préfixe du nom du dossier,
 # et les conteneurs comme les volumes changeraient de nom d'une machine à
@@ -11,8 +10,6 @@
 name: weeb
 
 services:
-  # Base de données. Seul service conteneurisé pour l'instant : Django tourne
-  # encore dans le venv local et s'y connecte par le port publié plus bas.
   db:
     image: postgres:17-alpine
 
@@ -24,17 +21,14 @@ services:
       POSTGRES_USER: "${POSTGRES_USER:?absente du .env, voir .env.example}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?absente du .env, voir .env.example}"
 
-    # Publié sur 127.0.0.1 seulement, pas sur 0.0.0.0 : la base reste joignable
-    # depuis cette machine, jamais depuis le réseau local. Cette publication
-    # disparaîtra quand le backend tournera dans le même réseau Compose.
-    ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
-
-    # Volume nommé, et non un dossier du dépôt : les données survivent à
-    # `docker compose down` et à la suppression du conteneur. Elles ne
-    # disparaissent qu'avec `docker compose down -v`, qui détruit le volume.
+    # Aucun port publié ici : la production n'en veut pas, et Compose ne sait
+    # pas RETIRER une entrée héritée du socle. La publication est donc posée
+    # par compose.override.yaml, où seul le développement la voit.
     volumes:
       - db_data:/var/lib/postgresql/data
+
+    networks:
+      - interne
 
     # `$$` et non `$` : le double dollar empêche Compose de substituer la
     # variable à la lecture du fichier, pour qu'elle soit résolue dans le
@@ -56,5 +50,76 @@ services:
       retries: 5
       start_period: 10s
 
+  backend:
+    build: ./backend
+
+    # Le même .env que celui lu par Compose, cette fois versé dans le conteneur :
+    # clé Django, hôtes autorisés, CORS et identifiants de base y sont déjà.
+    # Absent, il interrompt le démarrage au lieu de partir sur des valeurs vides.
+    env_file: .env
+
+    # Ces deux-là contredisent volontairement le .env, et `environment` l'emporte
+    # sur `env_file`. Le fichier décrit la base vue depuis la machine — `localhost`
+    # et le port publié ; le conteneur, lui, la joint par le réseau Compose, où
+    # elle s'appelle `db` et écoute toujours 5432. Ce ne sont pas des réglages,
+    # mais la topologie déclarée quelques lignes plus haut.
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+
+    # `service_healthy`, pas `service_started` : Postgres accepte les connexions
+    # plusieurs secondes après le démarrage du conteneur, et le `migrate` de
+    # l'entrypoint échouerait dans cet intervalle.
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - interne
+      - public
+
+    # Sonde héritée de l'image (healthcheck.py) : seule sa cadence est reprise
+    # ici. Les 30 s de l'image mèneraient la chaîne db → backend → frontend
+    # au-delà de la minute, alors que chaque étape est prête bien avant.
+    # start_period couvre les migrations et la collecte des statiques.
+    healthcheck:
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  frontend:
+    # `target` est absent volontairement : il n'y a pas d'étape commune aux deux
+    # environnements, la cible `dev` servant par Vite et `prod` par nginx.
+    # Chaque surcharge choisit la sienne.
+    build:
+      context: ./frontend
+
+    # Le front n'appelle jamais l'API depuis le conteneur — c'est le navigateur
+    # qui le fait. La dépendance ne sert donc qu'à ordonner le démarrage : une
+    # pile déclarée prête doit l'être de bout en bout.
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    networks:
+      - public
+
+    healthcheck:
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
+
+networks:
+  # Deux réseaux et non un seul : la base n'est jointe que par le backend, et
+  # compose.prod.yaml ferme `interne` au monde extérieur. Le backend est sur les
+  # deux, ce qui lui laisse une sortie par `public`.
+  interne:
+  public:
+
 volumes:
+  # Volume nommé, et non un dossier du dépôt : les données survivent à
+  # `docker compose down` et à la suppression du conteneur. Elles ne
+  # disparaissent qu'avec `docker compose down -v`, qui détruit le volume.
   db_data:
