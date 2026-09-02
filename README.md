@@ -159,23 +159,39 @@ projet et en visant le service `db` :
 
 ```bash
 docker run -d --name weeb-api --network weeb_default \
+  --restart unless-stopped \
   --env-file .env \
   -e POSTGRES_HOST=db \
+  -e POSTGRES_PORT=5432 \
   -e POSTGRES_SSLMODE=disable \
   -e DJANGO_BEHIND_PROXY=1 \
   -p 127.0.0.1:8000:8000 \
   weeb-backend
 ```
 
-Trois variables sont surchargées ici parce que le `.env` décrit un backend
+Quatre variables sont surchargées ici parce que le `.env` décrit un backend
 lancé dans le venv, pas dans un conteneur :
 
 - `POSTGRES_HOST=db` — la base se joint par le nom du service, pas par `localhost`,
   qui désignerait le conteneur de l'API lui-même ;
+- `POSTGRES_PORT=5432` — le `.env` porte le port **publié sur la machine**, qui
+  peut avoir été déplacé en 5433 ; à l'intérieur du réseau Compose, la base
+  écoute toujours 5432 ;
 - `POSTGRES_SSLMODE=disable` — le PostgreSQL local ne présente pas de certificat,
   alors que les réglages de production exigent TLS par défaut ;
 - `DJANGO_BEHIND_PROXY=1` — sans lui, la redirection HTTPS de la production
   répond 301 à la sonde de santé et le conteneur reste `unhealthy`.
+
+> ⚠️ **`DJANGO_BEHIND_PROXY=1` sans reverse proxy devant le conteneur n'est
+> acceptable qu'ici**, parce que le port n'est publié que sur `127.0.0.1` :
+> seule la machine peut appeler l'API, donc seule elle peut forger l'en-tête
+> `X-Forwarded-Proto`. En ligne, ce réglage ne se justifie que derrière un proxy
+> qui **écrase** cet en-tête. Il ne doit pas être recopié tel quel dans un futur
+> `compose.prod.yaml`.
+
+`--restart unless-stopped` : le script de démarrage s'arrête si la base n'est
+pas joignable. Sans politique de redémarrage, un conteneur lancé avant sa base
+resterait mort.
 
 Le conteneur passe `healthy` quand `GET /api/articles/` renvoie 200. Un
 raccordement à Compose viendra plus tard : ici l'image est construite et lancée

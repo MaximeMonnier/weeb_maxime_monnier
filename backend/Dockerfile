@@ -7,8 +7,10 @@
 # entrer dans aucun layer, ni apparaître dans `docker history`.
 #
 # Build en deux temps. Le premier installe les dépendances, le second n'emporte
-# que leur résultat : ni pip, ni cache de roues, ni chaîne de compilation ne
-# survivent dans l'image livrée.
+# que le venv produit : le cache de roues et tout outil de compilation que
+# l'installation aurait tiré restent dans l'étape de build. pip, lui, fait
+# partie du venv et suit — c'est sans conséquence, il n'est jamais exécuté au
+# démarrage et le conteneur tourne sans privilèges.
 
 # ---------- Étape 1 : construction des dépendances ----------
 FROM python:3.13-slim AS builder
