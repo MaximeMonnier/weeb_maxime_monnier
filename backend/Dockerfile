@@ -54,10 +54,15 @@ RUN groupadd --system --gid 1001 weeb \
 COPY --from=builder /opt/venv /opt/venv
 
 WORKDIR /app
-COPY --chown=weeb:weeb . .
 
-# collectstatic écrit dans STATIC_ROOT (/app/staticfiles) au démarrage, donc
-# sous l'identité de `weeb` : le dossier doit lui appartenir.
+# Sans --chown : le code reste la propriété de root, donc lisible et exécutable
+# par `weeb`, mais pas modifiable par lui. Une faille permettant l'écriture
+# arbitraire dans le processus ne peut alors pas réécrire une vue ou le script
+# de démarrage pour se rendre persistante.
+COPY . .
+
+# Seule exception, et seul dossier écrit à l'exécution : collectstatic remplit
+# STATIC_ROOT (/app/staticfiles) au démarrage, sous l'identité de `weeb`.
 RUN mkdir -p /app/staticfiles && chown weeb:weeb /app/staticfiles
 
 # Tout ce qui suit s'exécute sans privilèges. Une faille dans une dépendance
