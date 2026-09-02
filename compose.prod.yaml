@@ -15,6 +15,8 @@ services:
     restart: unless-stopped
 
   backend:
+    image: weeb-backend:prod
+
     # `unless-stopped` et non `always` : le conteneur repart après un plantage
     # ou un redémarrage de la machine, mais un arrêt volontaire le reste.
     restart: unless-stopped
@@ -33,6 +35,8 @@ services:
 
   frontend:
     restart: unless-stopped
+
+    image: weeb-frontend:prod
 
     build:
       target: prod

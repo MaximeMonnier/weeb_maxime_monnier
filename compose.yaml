@@ -51,6 +51,12 @@ services:
       start_period: 10s
 
   backend:
+    # Chaque surcharge nomme l'image qu'elle construit, et le socle n'en nomme
+    # aucune : le nom que Compose déduirait — <projet>-<service>, donc
+    # `weeb-backend` — est celui que le README fait construire à la main.
+    # Compose réutiliserait cette image-là au lieu de construire la sienne, sans
+    # rien signaler ; le front en est mort une fois, servi par nginx alors qu'on
+    # attendait Vite.
     build: ./backend
 
     # Le même .env que celui lu par Compose, cette fois versé dans le conteneur :
@@ -91,7 +97,7 @@ services:
   frontend:
     # `target` est absent volontairement : il n'y a pas d'étape commune aux deux
     # environnements, la cible `dev` servant par Vite et `prod` par nginx.
-    # Chaque surcharge choisit la sienne.
+    # Chaque surcharge choisit la sienne, et nomme son image.
     build:
       context: ./frontend
 

@@ -13,6 +13,8 @@ services:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
 
   backend:
+    image: weeb-backend:dev
+
     # L'image pose `production`. En développement on veut l'inverse : page
     # d'erreur détaillée, pas de redirection HTTPS, CORS ouvert sur Vite.
     environment:
@@ -32,6 +34,8 @@ services:
     command: ["sh", "-c", "python manage.py migrate --noinput && exec python manage.py runserver 0.0.0.0:8000"]
 
   frontend:
+    image: weeb-frontend:dev
+
     build:
       target: dev
 
