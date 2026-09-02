@@ -13,6 +13,7 @@ Le projet est séparé en deux applications indépendantes qui se parlent par HT
 
 - Python 3.12 ou plus récent
 - Node.js 22 ou plus récent
+- Docker avec Compose v2 (`docker compose version`) — la base de données tourne dans un conteneur
 - Git
 
 ## Installation
@@ -28,28 +29,61 @@ dans le code, elles sont lues depuis un fichier `.env` que chacun crée chez lui
 cp .env.example .env
 ```
 
-Puis générer une clé secrète et la coller dans `.env` à la place de la valeur d'exemple :
+Puis générer une clé secrète et un mot de passe de base de données, et les coller
+dans `.env` à la place des valeurs d'exemple :
 
 ```bash
-python3 -c "import secrets, string; print(''.join(secrets.choice(string.ascii_letters + string.digits + '!@#$%^&*(-_=+)') for _ in range(50)))"
+# DJANGO_SECRET_KEY
+python3 -c 'import secrets, string; print("".join(secrets.choice(string.ascii_letters + string.digits + "!@%^&*(-_=+)") for _ in range(50)))'
+
+# POSTGRES_PASSWORD
+python3 -c 'import secrets, string; a = string.ascii_letters + string.digits; print("".join(secrets.choice(a) for _ in range(32)))'
 ```
+
+> Les apostrophes sont volontairement à l'extérieur de ces commandes : entre
+> guillemets doubles, le `!` du jeu de caractères est pris par zsh et bash pour
+> un rappel d'historique, et la commande échoue sur `event not found`.
+>
+> Les caractères `$` et `#` sont volontairement absents de ces jeux de
+> caractères, et c'est pourquoi on n'utilise pas ici le
+> `get_random_secret_key()` de Django, dont l'alphabet les contient.
+> Le `$` est le vrai piège : Docker Compose lit le même `.env` et y voit le
+> début d'une variable à substituer, donc il tronque la valeur là où Django la
+> lit entière — une panne sans cause visible, que doubler le caractère
+> n'arrange pas. Le `#` est écarté par simple précaution : il ouvre un
+> commentaire dès qu'un espace le précède, pour les deux lecteurs à la fois.
 
 Chaque variable de `.env.example` est commentée : lire ce fichier suffit à comprendre à quoi elle sert.
 
 > Le `.env` ne doit **jamais** être envoyé sur GitHub. Il est déjà exclu par `.gitignore`.
 > Une clé secrète qui a été versionnée est à considérer comme compromise : il faut en générer une autre.
 
-### 2. Le backend
+### 2. La base de données
+
+PostgreSQL tourne dans un conteneur, décrit par `compose.yaml`. Depuis la racine :
+
+```bash
+docker compose up -d --wait
+```
+
+`--wait` rend la main seulement quand la base répond vraiment, et non dès que le
+conteneur est lancé : l'étape suivante peut donc enchaîner sans attendre.
+
+```bash
+docker compose ps     # le service `db` doit être `healthy`
+```
+
+### 3. Le backend
 
 ```bash
 cd backend
 python3 -m venv venv
 source venv/bin/activate          # Windows : venv\Scripts\activate
 pip install -r requirements.txt
-python manage.py migrate
+python manage.py migrate          # exige que la base soit démarrée
 ```
 
-### 3. Le frontend
+### 4. Le frontend
 
 ```bash
 cd frontend
@@ -58,7 +92,13 @@ npm install
 
 ## Lancer le projet
 
-Il faut **deux terminaux**, un par application.
+La base doit tourner en premier — une seule fois, elle reste démarrée ensuite :
+
+```bash
+docker compose up -d --wait
+```
+
+Puis **deux terminaux**, un par application.
 
 ```bash
 # terminal 1 — l'API sur http://localhost:8000
@@ -88,6 +128,18 @@ cd backend && python manage.py createsuperuser
 | `python manage.py check --deploy` | Vérifie la configuration de sécurité avant mise en ligne |
 | `python manage.py collectstatic --noinput` | Rassemble les fichiers statiques pour la production |
 
+### Base de données (depuis la racine)
+
+| Commande | Effet |
+|---|---|
+| `docker compose up -d --wait` | Démarre la base et attend qu'elle réponde |
+| `docker compose ps` | Affiche l'état du service et sa santé |
+| `docker compose logs -f db` | Suit les journaux de PostgreSQL |
+| `docker compose exec db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB'` | Ouvre une console SQL sur la base |
+| `docker compose stop` | Arrête la base sans rien supprimer |
+| `docker compose down` | Supprime le conteneur, **garde** les données |
+| `docker compose down -v` | Supprime aussi le volume : **toutes les données sont perdues** |
+
 ### Frontend (depuis `frontend/`)
 
 | Commande | Effet |
@@ -105,8 +157,8 @@ Les réglages Django sont découpés par environnement dans `backend/config/sett
 |---|---|---|
 | `base.py` | commun à tous | lit le `.env`, ne définit aucune clé secrète |
 | `development.py` | poste de développement | `DEBUG` actif, origines `localhost:5173` autorisées |
-| `test.py` | tests automatisés | clé factice, base jetable, fonctionne sans `.env` |
-| `production.py` | serveur en ligne | `DEBUG` forcé à faux, hôtes obligatoires, en-têtes de sécurité HTTPS |
+| `test.py` | tests automatisés | clé factice, base `test_weeb` créée et détruite par Django, exige PostgreSQL |
+| `production.py` | serveur en ligne | `DEBUG` forcé à faux, hôtes obligatoires, en-têtes de sécurité HTTPS, TLS exigé jusqu'à la base |
 
 Le module utilisé est choisi par la variable `DJANGO_SETTINGS_MODULE`, à définir
 dans le terminal ou dans le conteneur — **pas** dans le `.env`, que Django lit trop tard.
@@ -150,6 +202,7 @@ Le token d'accès est valable 1 heure, celui de rafraîchissement 1 jour.
 ```
 .
 ├── .env.example              # modèle de configuration à copier en .env
+├── compose.yaml              # services conteneurisés — pour l'instant la base
 ├── backend/
 │   ├── config/               # configuration du projet Django
 │   │   ├── settings/         # base, development, test, production
@@ -195,6 +248,24 @@ C'est le comportement prévu : un compte est créé inactif. L'activer depuis
 ```bash
 cd backend && python manage.py shell -c "from accounts.models import CustomUser; u = CustomUser.objects.get(email='ton@email.fr'); u.is_active = True; u.save()"
 ```
+
+**`connection to server at "localhost" ... failed: Connection refused`**
+La base n'est pas démarrée. Depuis la racine : `docker compose up -d --wait`.
+
+**`docker compose up` répond `required variable POSTGRES_DB is missing a value`**
+Le `.env` est absent ou les variables `POSTGRES_*` n'y sont pas. Reprendre l'étape
+*La configuration*. Compose refuse volontairement de démarrer plutôt que de créer
+une base avec des identifiants improvisés.
+
+**J'ai changé `POSTGRES_USER` ou `POSTGRES_DB` et la connexion échoue**
+Ces valeurs ne servent qu'à la **création** de la base, au tout premier démarrage.
+Un volume déjà initialisé les ignore. Pour repartir sur ces nouvelles valeurs :
+`docker compose down -v`, puis `docker compose up -d --wait` et `python manage.py migrate`.
+Attention, `-v` détruit toutes les données existantes.
+
+**Le port 5432 est déjà utilisé**
+Un PostgreSQL tourne déjà sur la machine. Changer `POSTGRES_PORT` dans le `.env`
+(par exemple `5433`) : Django et Compose lisent tous deux cette variable.
 
 **Le front affiche une erreur CORS dans la console du navigateur**
 L'adresse du front n'est pas dans `CORS_ALLOWED_ORIGINS` du `.env`. Y ajouter

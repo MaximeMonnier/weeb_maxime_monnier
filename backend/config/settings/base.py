@@ -70,6 +70,14 @@ def env_int(name, default):
         ) from None
 
 
+def env_str(name, default):
+    """Lit une variable d'environnement comme une chaîne, ou renvoie le défaut si elle est absente ou vide."""
+    value = os.environ.get(name)
+    if value is None or not value.strip():
+        return default
+    return value.strip()
+
+
 def env_list(name, default=None):
     """Lit une variable d'environnement comme une liste de valeurs séparées par des virgules."""
     value = os.environ.get(name)
@@ -84,7 +92,8 @@ def env_list(name, default=None):
 
 # SECRET_KEY n'est PAS définie ici : chaque environnement dit d'où vient la
 # sienne. `development` et `production` l'exigent depuis l'environnement, sans
-# aucune valeur de repli ; `test` pose une clé factice pour tourner sans .env.
+# aucune valeur de repli ; `test` pose une clé factice, seuls les identifiants
+# de base lui restant nécessaires.
 # La définir ici la rendrait obligatoire y compris pour lancer les tests.
 
 # Par défaut faux : c'est l'environnement de développement qui l'active,
@@ -151,12 +160,28 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+def postgres_database():
+    """Compose la configuration de la base PostgreSQL à partir de l'environnement."""
+    return {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': env_required('POSTGRES_DB'),
+            'USER': env_required('POSTGRES_USER'),
+            'PASSWORD': env_required('POSTGRES_PASSWORD'),
+            # Hôte et port ont un défaut, contrairement aux identifiants : la
+            # base écoute sur le port standard de la machine tant que le backend
+            # tourne hors conteneur. Une fois le backend conteneurisé,
+            # POSTGRES_HOST prendra le nom du service Compose (`db`).
+            'HOST': env_str('POSTGRES_HOST', 'localhost'),
+            'PORT': env_int('POSTGRES_PORT', 5432),
+        }
     }
-}
+
+
+# DATABASES n'est PAS défini ici, pour la même raison que SECRET_KEY : les
+# identifiants sont exigés depuis l'environnement, et les exiger dès ce module
+# rendrait impossible le simple import des réglages sans base configurée.
+# Chaque environnement appelle postgres_database() lui-même.
 
 
 # Password validation
