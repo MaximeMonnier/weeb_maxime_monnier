@@ -34,7 +34,6 @@ backend/media/
 CLAUDE.md
 GUIDE_RAPPORT.md
 PROMPT_REECRITURE_RAPPORT.md
-# Configuration Claude Code : ignorée SAUF les skills, qui portent les conventions
-# du projet et doivent être partagées avec le dépôt.
-.claude/*
-!.claude/skills/
+# Configuration Claude Code : entièrement ignorée. Skills, commandes et réglages
+# sont un outillage personnel, propre à la machine, et non un livrable du projet.
+.claude/
