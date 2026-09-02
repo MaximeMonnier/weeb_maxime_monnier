@@ -85,9 +85,15 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # machine, avec la formule usuelle (2 × cœurs + 1).
 # --access-logfile - : les journaux d'accès vont sur la sortie standard, là où
 # Docker les récupère, au lieu d'un fichier que personne ne lira dans l'image.
+# --no-control-socket : Gunicorn ouvre par défaut un socket d'administration
+# sous ~/.gunicorn. Le compte de service n'a pas de répertoire personnel, ce
+# qui produisait une erreur à chaque démarrage — et ce socket ne sert à rien
+# ici, où l'on pilote le processus par `docker restart`, pas par une commande
+# locale.
 CMD ["/app/docker-entrypoint.sh", \
      "gunicorn", "config.wsgi:application", \
      "--bind", "0.0.0.0:8000", \
      "--workers", "3", \
+     "--no-control-socket", \
      "--access-logfile", "-", \
      "--error-logfile", "-"]
