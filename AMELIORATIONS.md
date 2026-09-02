@@ -12,21 +12,28 @@ et pour les prochaines itérations).
 ## Docker — mise en ligne
 
 Quatre critères de l'epic de dockerisation qu'aucune sous-issue n'a couverts. Rien ici ne
-bloque le développement, mais la pile de production n'est pas utilisable sans le premier.
+bloque le développement, et le premier — le seul qui rendait la production inutilisable —
+est livré.
 
-- [ ] **Terminateur TLS devant la production** : le seul défaut vraiment fonctionnel.
-      La sonde du backend forge `X-Forwarded-Proto: https` pour ne pas recevoir la
-      redirection HTTPS, donc la pile se déclare saine sur un chemin qu'un navigateur
-      n'emprunte pas. Piste : un service `proxy` (nginx ou Caddy) seul à publier des
-      ports, qui **écrase** `X-Forwarded-Proto` (`proxy_set_header … $scheme`, jamais
-      `$http_x_forwarded_proto`). Il fait passer le front et l'API sur la même origine :
-      CORS disparaît et `VITE_API_URL` devient relative.
+- [x] **Terminateur TLS devant la production** — livré. Un service `proxy` (nginx,
+      `proxy/`) est seul à publier des ports, termine le TLS et **écrase**
+      `X-Forwarded-Proto` (`proxy_set_header X-Forwarded-Proto $scheme`). Le front et
+      l'API sont désormais sur la même origine : CORS a disparu de la production et
+      `VITE_API_URL` y vaut `/api`. Reste à faire le jour où un domaine réel existe :
+      Let's Encrypt à la place du certificat local, et HSTS remonté par paliers — il est
+      à 0 tant que la production est servie sur `localhost`, qu'elle partage avec la pile
+      de développement.
+- [ ] **Limiter ce que le proxy expose au réseau.** Depuis le point ci-dessus, la pile ne
+      publie plus sur `127.0.0.1` mais sur toutes les interfaces : `/admin/` et les routes
+      d'authentification (`/api/auth/login/`, `/api/auth/password-reset/`) sont donc
+      joignables depuis le réseau local, sans aucune limitation de débit. Pistes : un
+      `limit_req_zone` nginx sur ces chemins, et un `allow`/`deny` sur `/admin/`. Rien
+      d'urgent sur un poste, indispensable avant une vraie mise en ligne.
 - [ ] **Publication des images en intégration continue** : construire et pousser les deux
       images vers un registre à chaque push sur `preprod`. Piste : GitHub Actions vers
-      `ghcr.io`, étiquetage par sha court **et** tag mobile, jamais `latest` seul. À
-      trancher d'abord : `VITE_API_URL` étant figée dans le bundle à la construction, une
-      image de front n'est valable que pour une cible — sauf si le proxy ci-dessus rend
-      l'adresse relative.
+      `ghcr.io`, étiquetage par sha court **et** tag mobile, jamais `latest` seul. Le
+      point à trancher est levé : `VITE_API_URL` valant `/api` depuis le proxy ci-dessus,
+      l'image du front n'est plus liée à une cible.
 - [ ] **Logs et métriques depuis une interface unique** : piste, Grafana + Loki pour les
       logs, cAdvisor pour les métriques de conteneurs, dans un fichier Compose à part
       que la production doit pouvoir ignorer. Périmètre à réduire avant de commencer.
