@@ -104,11 +104,11 @@ Aucun service sans `healthcheck`. Les dépendances utilisent `depends_on: condit
 - Tout passe par un `.env` **non versionné** (déjà couvert par `.gitignore` : `.env`, `*.env`).
 - Un **`.env.example` versionné**, tenu à jour : chaque variable y figure avec une valeur factice et un commentaire. Ajouter une variable sans la reporter dans `.env.example` est une erreur.
 
-Variables attendues au minimum : `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`, `VITE_API_URL`.
+Variables attendues au minimum : `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_SSLMODE` (production seule), `VITE_API_URL`.
 
-La connexion passe par ces cinq variables séparées, **pas** par une `DATABASE_URL` : les trois premières servent aussi telles quelles à initialiser l'image `postgres`, ce qui évite de décrire les mêmes identifiants deux fois.
+La connexion passe par les cinq variables `POSTGRES_DB/USER/PASSWORD/HOST/PORT`, **pas** par une `DATABASE_URL` : les trois premières servent aussi telles quelles à initialiser l'image `postgres`, ce qui évite de décrire les mêmes identifiants deux fois.
 
-⚠️ **Pas de `$` dans les valeurs du `.env`.** Compose y voit le début d'une variable à substituer et tronque la valeur, là où `python-dotenv` la lit entière. Un secret qui en contient produit des avertissements `variable is not set` à chaque commande Compose, et casserait toute valeur réellement interpolée dans un fichier Compose.
+⚠️ **Pas de `$` dans les valeurs du `.env`.** Compose y voit le début d'une variable à substituer et tronque la valeur, là où `python-dotenv` la lit entière. Un secret qui en contient produit des avertissements `variable is not set` à chaque commande Compose, et casserait toute valeur réellement interpolée dans un fichier Compose. **Doubler le caractère n'est pas une échappatoire** : mesuré sur `A=ab$$cd`, Compose livre `ab` et Django `ab$$cd`. Régénérer la valeur est la seule issue.
 
 ## Séparation dev / test / prod
 

@@ -41,11 +41,13 @@ python3 -c "import secrets, string; a = string.ascii_letters + string.digits; pr
 ```
 
 > Les caractères `$` et `#` sont volontairement absents de ces jeux de
-> caractères, et c'est aussi pourquoi on n'utilise pas ici le
-> `get_random_secret_key()` de Django, dont l'alphabet les contient : les
-> parseurs de `.env` les interprètent — `$` comme le début d'une variable à
-> substituer, `#` comme le début d'un commentaire. La valeur serait tronquée
-> d'un côté et pas de l'autre, pour une panne sans cause visible.
+> caractères, et c'est pourquoi on n'utilise pas ici le
+> `get_random_secret_key()` de Django, dont l'alphabet les contient.
+> Le `$` est le vrai piège : Docker Compose lit le même `.env` et y voit le
+> début d'une variable à substituer, donc il tronque la valeur là où Django la
+> lit entière — une panne sans cause visible, que doubler le caractère
+> n'arrange pas. Le `#` est écarté par simple précaution : il ouvre un
+> commentaire dès qu'un espace le précède, pour les deux lecteurs à la fois.
 
 Chaque variable de `.env.example` est commentée : lire ce fichier suffit à comprendre à quoi elle sert.
 
