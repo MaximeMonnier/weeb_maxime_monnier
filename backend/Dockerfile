@@ -77,15 +77,13 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD ["python", "/app/healthcheck.py"]
 
-# Le script d'entrée est placé en CMD, et non en ENTRYPOINT. Un ENTRYPOINT
-# s'exécuterait AVANT toute commande passée à `docker run`, y compris un simple
-# `docker run <image> id -u` : la sonde d'inspection déclencherait alors une
-# migration de base et échouerait faute de base joignable. En CMD, une commande
-# donnée en ligne de commande remplace le tout — l'image reste inspectable —
-# tandis qu'un `docker run <image>` sans argument prépare bien la base avant de
-# servir. Contrepartie assumée : `docker run <image> python manage.py shell`
-# saute la préparation, ce qui est de toute façon le comportement voulu.
-#
+# Le script d'entrée s'interpose devant TOUTE commande, y compris une commande
+# passée à `docker run` ou un `command:` de Compose : les migrations ne peuvent
+# pas être sautées par mégarde en surchargeant la commande. C'est le script
+# lui-même qui décide de préparer ou non, selon la commande demandée, de sorte
+# que `docker run <image> id -u` reste possible sans --entrypoint.
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
 # --workers 3 : point de départ raisonnable pour deux cœurs. À ajuster selon la
 # machine, avec la formule usuelle (2 × cœurs + 1).
 # --access-logfile - : les journaux d'accès vont sur la sortie standard, là où
@@ -95,8 +93,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # qui produisait une erreur à chaque démarrage — et ce socket ne sert à rien
 # ici, où l'on pilote le processus par `docker restart`, pas par une commande
 # locale.
-CMD ["/app/docker-entrypoint.sh", \
-     "gunicorn", "config.wsgi:application", \
+CMD ["gunicorn", "config.wsgi:application", \
      "--bind", "0.0.0.0:8000", \
      "--workers", "3", \
      "--no-control-socket", \
