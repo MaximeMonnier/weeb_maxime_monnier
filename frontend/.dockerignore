@@ -1,48 +1,23 @@
-# ============================================
-#  Contexte de build de l'image du frontend
-# ============================================
-# Docker N'UTILISE PAS le .gitignore : sans ce fichier-ci, `docker build`
-# enverrait au démon tout le contenu de frontend/, node_modules compris —
-# des centaines de mégaoctets et des dizaines de milliers de fichiers à
-# transférer avant même la première instruction.
-#
-# Deux enjeux distincts :
-#   - la taille du contexte, donc la durée de chaque build ;
-#   - le contenu de l'image, car un fichier exclu ici ne peut pas y entrer
-#     par accident, même via un `COPY . .`.
-#
-# Les chemins sont relatifs au contexte de build, c'est-à-dire à frontend/,
-# et non à la racine du dépôt : on écrit `node_modules/`, pas
-# `frontend/node_modules/`.
+# Docker n'utilise pas le .gitignore : sans ce fichier, node_modules/ partirait
+# au démon à chaque build. Les chemins sont relatifs à frontend/.
 
-# --- Dépendances installées localement ---
-# Installées pour la machine du développeur, et parfois avec des binaires
-# compilés pour elle. L'image refait son propre `npm ci` depuis le
-# package-lock.json, et la copier ici écraserait ce travail.
+# Réinstallé dans l'image depuis le verrou, et parfois compilé pour l'hôte.
 node_modules/
 
-# --- Résultat de build ---
-# L'image de développement sert les fichiers par Vite, jamais depuis dist/.
-# Un dist/ traîné depuis un ancien `npm run build` n'a rien à y faire.
+# L'image de développement sert par Vite, jamais depuis dist/.
 dist/
 dist-ssr/
 
-# --- Secrets et configuration locale ---
-# Le .env du front ne doit PAS entrer dans un layer : il y resterait lisible
-# dans `docker history`, et fixerait l'adresse de l'API à la valeur d'une
-# machine. Elle se passe à l'exécution, par `-e VITE_API_URL=...` ou par le
-# montage du dossier en développement.
+# Un .env entré dans un layer resterait lisible dans `docker history`.
+# L'adresse de l'API se passe à l'exécution.
 .env
 *.env
 *.local
 
-# --- Fichiers de build eux-mêmes ---
-# Ils décrivent l'image, ils ne la servent pas. Les exclure n'empêche pas le
-# build : BuildKit reçoit le Dockerfile par un canal distinct du contexte.
+# Ils décrivent l'image, ils ne la servent pas.
 Dockerfile
 .dockerignore
 
-# --- Journaux ---
 logs/
 *.log
 npm-debug.log*
@@ -50,7 +25,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# --- Outillage de développement ---
 .git/
 .gitignore
 .idea/
