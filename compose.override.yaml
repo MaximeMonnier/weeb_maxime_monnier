@@ -24,7 +24,7 @@ services:
       - ./backend:/app
 
     ports:
-      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+      - "127.0.0.1:${BACKEND_PORT_DEV:-8000}:8000"
 
     # L'entrypoint ne prépare la base que devant `gunicorn` : cette commande-ci
     # migre donc elle-même. `exec` pour que runserver reçoive le SIGTERM.

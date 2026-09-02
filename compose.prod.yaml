@@ -27,13 +27,10 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
 
-    # ⚠️ Publié sur 127.0.0.1, et ce n'est pas un excès de prudence : cette pile
-    # exige DJANGO_BEHIND_PROXY=1 pour démarrer, ce qui fait confiance à
-    # l'en-tête X-Forwarded-Proto. Ouvert au réseau, n'importe quelle machine le
-    # forgerait pour contourner la redirection HTTPS et lire les jetons en clair.
-    # Élargir seulement une fois un proxy TLS placé devant, qui ÉCRASE l'en-tête.
+    # ⚠️ 127.0.0.1 tant qu'aucun proxy TLS n'est monté : cette pile fait confiance
+    # à X-Forwarded-Proto, que n'importe qui forgerait depuis le réseau. README.
     ports:
-      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+      - "127.0.0.1:${BACKEND_PORT_PROD:-8000}:8000"
 
   frontend:
     image: weeb-frontend:prod
