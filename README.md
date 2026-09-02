@@ -260,7 +260,7 @@ Quatre variables changent de valeur, et le `.env.example` le redit à chacune :
 > que Django croit servir du chiffré et pose ses cookies `Secure`. Élargir la
 > publication **seulement** une fois le proxy en place.
 
-#### Cinq pièges
+#### Six pièges
 
 - **Le nom des images.** Compose déduit `<projet>-<service>`, soit `weeb-backend`
   et `weeb-frontend` — les noms mêmes des constructions manuelles décrites
@@ -283,6 +283,13 @@ Quatre variables changent de valeur, et le `.env.example` le redit à chacune :
   et le `migrate` qui suit un `up --wait` échouerait en « Connection refused ».
   La sonde teste donc le chemin de Django, le seul qui compte. Son `start_period`
   couvre cette initialisation, pendant laquelle les échecs ne sont pas comptés.
+- **L'entrypoint et la sonde ne sont plus ceux du dépôt.** Ils vivent dans
+  `/usr/local/bin/` depuis que le montage `./backend:/app` recouvrait leurs
+  copies sous `/app` — ce sont donc bien ceux de l'image qui s'exécutent, mais
+  éditer `backend/docker-entrypoint.sh` ou `backend/healthcheck.py` sur la
+  machine n'a plus d'effet sur le conteneur tant que l'image n'est pas
+  reconstruite (`docker compose up -d --build`). En échange, le bit exécutable
+  du dépôt n'entre plus dans l'équation.
 - **Les deux conteneurs de développement écrivent sous un uid fixe** : `1001`
   pour le backend, `1000` pour le front. Une commande qui crée un fichier dans le
   dépôt à travers le montage — `docker compose exec backend python manage.py
