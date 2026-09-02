@@ -23,11 +23,19 @@ Le projet est séparé en deux applications indépendantes qui se parlent par HT
 ### 1. La configuration
 
 Le projet ne démarre pas sans configuration : les valeurs sensibles ne sont pas
-dans le code, elles sont lues depuis un fichier `.env` que chacun crée chez lui.
+dans le code, elles sont lues depuis des fichiers `.env` que chacun crée chez lui.
+
+Il y en a **deux**, et ils ne sont pas interchangeables :
 
 ```bash
-cp .env.example .env
+cp .env.example .env                    # Django et Docker Compose
+cp frontend/.env.example frontend/.env  # le front, lu par Vite
 ```
+
+Pourquoi deux : Vite ne lit que les `.env` situés à la racine de son propre
+projet, donc `frontend/`. Une variable posée à la racine du dépôt lui resterait
+invisible. Le second ne contient d'ailleurs aucun secret — tout ce que Vite y
+lit part **en clair** dans le JavaScript servi au navigateur.
 
 Puis générer une clé secrète et un mot de passe de base de données, et les coller
 dans `.env` à la place des valeurs d'exemple :
@@ -196,6 +204,76 @@ resterait mort.
 Le conteneur passe `healthy` quand `GET /api/articles/` renvoie 200. Un
 raccordement à Compose viendra plus tard : ici l'image est construite et lancée
 à la main.
+
+### Image Docker du frontend (depuis la racine)
+
+> ⚠️ Image de **développement**. Elle fait tourner le serveur de Vite avec le
+> rechargement à chaud, pas un build statique : elle embarque Node et toutes les
+> dépendances, pèse plusieurs centaines de mégaoctets, et n'a pas vocation à être
+> exposée en ligne. L'image de production — le site compilé en fichiers statiques,
+> servis sans Node — reste à faire, et ce sera une autre image.
+
+Elle ne remplace pas `npm run dev` au quotidien : elle sert à travailler sans
+installer Node sur sa machine.
+
+| Commande | Effet |
+|---|---|
+| `docker build -t weeb-frontend ./frontend` | Construit l'image (contexte : `frontend/`) |
+| `docker run --rm weeb-frontend id -u` | Vérifie que le conteneur ne tourne pas en root |
+| `docker logs -f <conteneur>` | Suit les journaux de Vite |
+| `docker inspect -f '{{.State.Health.Status}}' <conteneur>` | Affiche le résultat de la sonde de santé |
+
+Pour la lancer sur le code de la machine, donc avec le rechargement à chaud :
+
+```bash
+docker run -d --name weeb-front \
+  -p 5173:5173 \
+  -v "$PWD/frontend:/app" \
+  -v /app/node_modules \
+  weeb-frontend
+```
+
+Les deux montages vont ensemble, et le second n'est pas une coquille :
+
+- `-v "$PWD/frontend:/app"` place le code de la machine dans le conteneur, pour
+  que Vite recharge la page à chaque enregistrement ;
+- `-v /app/node_modules` — un volume anonyme, sans source — **recouvre** le
+  premier à cet endroit précis. Sans lui, le `frontend/` de la machine masquerait
+  le `node_modules` installé dans l'image, et Vite ne trouverait plus rien.
+
+L'adresse de l'API vient alors du `frontend/.env`, apporté par le montage. Sans
+montage, il faut la passer à la main, sinon le front s'arrête au chargement :
+
+```bash
+docker run -d --name weeb-front -p 5173:5173 \
+  -e VITE_API_URL=http://localhost:8000/api \
+  weeb-frontend
+```
+
+`localhost` est correct dans les deux cas : cette adresse est appelée par le
+**navigateur**, depuis la machine, jamais par le conteneur du front. Elle désigne
+donc bien le port 8000 publié sur la machine.
+
+Le conteneur passe `healthy` quand Vite répond sur `/`. Attention à ce que cette
+sonde ne dit pas : elle vérifie le serveur, pas l'application. Une `VITE_API_URL`
+absente casse le front dans le navigateur alors que le conteneur reste `healthy`.
+
+Quatre choix du `Dockerfile` qui ne se devinent pas à la lecture :
+
+- **Le compte `node` reçoit `/app` avant l'installation.** Vite écrit son cache de
+  dépendances pré-compilées dans `node_modules/.vite` au démarrage. Installer en
+  root puis basculer d'utilisateur laisserait ce dossier en lecture seule pour
+  lui, et le serveur ne démarrerait pas.
+- **`NODE_ENV=development`.** Sans lui, `npm ci` saute les `devDependencies` —
+  Vite, TypeScript et le plugin React en font partie.
+- **`DEV_POLLING=1`.** `vite.config.ts` bascule alors la surveillance des fichiers
+  en interrogation périodique. Les événements du système de fichiers ne traversent
+  pas un montage lié : sans cela, le rechargement à chaud reste muet.
+- **Vite est appelé directement, pas par `npm run dev`.** npm resterait le
+  processus n° 1 sans transmettre `SIGTERM` à son enfant, et chaque `docker stop`
+  attendrait les dix secondes du délai de grâce. Son option `--host` est
+  indispensable : sans elle, Vite n'écoute que la boucle locale *du conteneur*,
+  que la publication de port ne peut pas atteindre.
 
 ### Frontend (depuis `frontend/`)
 
