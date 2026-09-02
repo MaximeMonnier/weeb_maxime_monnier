@@ -41,10 +41,17 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
 
-    # ⚠️ 127.0.0.1 tant qu'aucun proxy TLS n'est monté : cette pile fait confiance
-    # à X-Forwarded-Proto, que n'importe qui forgerait depuis le réseau. README.
-    ports:
-      - "127.0.0.1:${BACKEND_PORT_PROD:-8000}:8000"
+    # Aucun `ports:` : le backend n'est joignable que par le service `proxy`, à
+    # travers le réseau `public`. C'est ce qui rend DJANGO_BEHIND_PROXY=1
+    # légitime — plus personne ne peut lui parler sans passer par le proxy, qui
+    # ÉCRASE X-Forwarded-Proto.
+
+    # Volume nommé partagé avec le proxy : `collectstatic` le remplit au
+    # démarrage, nginx sert son contenu sur /static/. Django ne sert pas ses
+    # statiques avec DEBUG=False, et l'image n'embarque pas whitenoise — sans ce
+    # partage, l'admin et l'API navigable de DRF arrivent sans style.
+    volumes:
+      - static_data:/app/staticfiles
 
   frontend:
     image: weeb-frontend:prod
@@ -60,11 +67,54 @@ services:
       args:
         VITE_API_URL: "${VITE_API_URL:?absente du .env de la racine, voir .env.example}"
 
-    # 8080 côté conteneur : nginx tourne sous un compte non privilégié, qui ne
-    # peut pas se lier sous 1024. Variable distincte de celle du développement,
-    # sinon un port réglé pour Vite déplacerait aussi le site de production.
+    # Aucun `ports:` non plus : le front n'est servi qu'à travers le proxy, ce
+    # qui met l'API et le site sur la MÊME ORIGINE. C'est ce qui fait disparaître
+    # CORS de cette pile et rend `VITE_API_URL` relative.
+
+  # ---------- Terminateur TLS, seule porte d'entrée de la pile ----------
+  proxy:
+    image: weeb-proxy:prod
+
+    build: ./proxy
+
+    restart: unless-stopped
+
+    # Le SEUL service de la pile à publier des ports. 80 et 443 côté machine,
+    # 8080 et 8443 dans le conteneur : nginx y tourne sans privilèges et ne peut
+    # pas se lier sous 1024. Plus de `127.0.0.1:` — c'est tout l'objet de ce
+    # proxy : il termine le TLS et écrase X-Forwarded-Proto, donc la pile peut
+    # enfin être ouverte au réseau.
     ports:
-      - "127.0.0.1:${FRONTEND_PORT_PROD:-8080}:8080"
+      - "${PROXY_HTTP_PORT:-80}:8080"
+      - "${PROXY_HTTPS_PORT:-443}:8443"
+
+    volumes:
+      # Lecture seule, et montés plutôt que copiés dans l'image : une clé privée
+      # n'a sa place ni dans un layer ni dans un registre. `proxy/generate-cert.sh`
+      # les produit sur la machine, et .gitignore les tient hors du dépôt.
+      - ./proxy/certs:/etc/nginx/certs:ro
+      # L'autre bout du volume du backend, en lecture seule : le proxy sert ces
+      # fichiers, il ne les écrit jamais.
+      - static_data:/srv/static:ro
+
+    # Les deux en `service_healthy` : un proxy qui démarre devant des services
+    # muets répondrait 502 aux premières requêtes.
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+
+    networks:
+      - public
+
+    # Sonde héritée de l'image, seule sa cadence est reprise : les 30 s de
+    # l'image allongeraient d'autant le `up --wait` de la pile entière.
+    healthcheck:
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
 
 networks:
   # `internal` coupe le réseau de la passerelle de l'hôte : plus aucune entrée
@@ -72,3 +122,9 @@ networks:
   # `public` pour le reste.
   interne:
     internal: true
+
+volumes:
+  # Fichiers statiques de Django, produits par `collectstatic` au démarrage du
+  # backend et lus par le proxy. Volume nommé et non dossier du dépôt : la
+  # production ne monte aucune source de la machine.
+  static_data:

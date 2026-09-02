@@ -28,6 +28,14 @@ backend/staticfiles/
 backend/media/
 
 # ============================================
+#  Proxy — certificats TLS
+# ============================================
+# Clé privée et certificat du terminateur TLS, produits par
+# `proxy/generate-cert.sh`. Propres à chaque machine, jamais versionnés :
+# une clé privée dans un dépôt est compromise dès le premier clone.
+proxy/certs/
+
+# ============================================
 #  Divers / OS / IDE
 # ============================================
 .DS_Store
@@ -41,6 +49,8 @@ backend/media/
 CLAUDE.md
 GUIDE_RAPPORT.md
 PROMPT_REECRITURE_RAPPORT.md
+plan.md
+correction.md
 # Configuration Claude Code : entièrement ignorée. Skills, commandes et réglages
 # sont un outillage personnel, propre à la machine, et non un livrable du projet.
 .claude/

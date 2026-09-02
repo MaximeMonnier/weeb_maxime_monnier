@@ -184,15 +184,19 @@ Trois fichiers, et jamais de condition dans un fichier unique :
 |---|---|
 | `compose.yaml` | le socle : les trois services, les deux réseaux, le volume de données. Ne se lance jamais seul |
 | `compose.override.yaml` | le développement : code monté, ports publiés, rechargement à chaud. Compose le charge d'office |
-| `compose.prod.yaml` | la production : images figées, redémarrage automatique, base coupée du monde |
+| `compose.prod.yaml` | la production : images figées, redémarrage automatique, base coupée du monde, **proxy TLS en façade** |
 
 ```bash
 # développement — Compose ajoute compose.override.yaml tout seul
 docker compose up -d --wait
 
-# production — les -f explicites écartent la surcharge de développement
+# production — le certificat d'abord, une fois par machine
+./proxy/generate-cert.sh
 docker compose -f compose.yaml -f compose.prod.yaml up -d --wait --wait-timeout 60
 ```
+
+Le site répond alors sur **https://localhost/**, et rien d'autre n'est publié :
+ni l'API, ni le front, ni la base. Sans le certificat, le proxy ne démarre pas.
 
 `--wait-timeout` n'est pas un ornement : les services de production repartent en
 `unless-stopped`, donc un backend qui échoue au démarrage reboucle sans fin et
@@ -222,27 +226,29 @@ export COMPOSE_FILE=compose.yaml:compose.prod.yaml
 
 | | développement | production |
 |---|---|---|
-| front | Vite sur `5173`, code monté | nginx sur `8080`, bundle figé dans l'image |
-| API | `runserver` sur `8000`, code monté | Gunicorn sur `8000`, aucun montage |
+| services | `db`, `backend`, `frontend` | les mêmes **plus `proxy`** |
+| front | Vite sur `5173`, code monté | nginx dans l'image, **non publié** |
+| API | `runserver` sur `8000`, code monté | Gunicorn, aucun montage, **non publiée** |
 | base | publiée sur `127.0.0.1:5432` | **aucun port publié**, réseau `interne` fermé |
-| redémarrage | aucun | `unless-stopped` sur les trois services |
-| images | `weeb-backend:dev`, `weeb-frontend:dev` | `weeb-backend:prod`, `weeb-frontend:prod` |
-| projet Compose | `weeb`, volume `weeb_db_data` | `weeb-prod`, volume `weeb-prod_db_data` |
+| entrée | trois ports en clair | **le seul `proxy`**, en HTTPS |
+| redémarrage | aucun | `unless-stopped` sur les quatre services |
+| images | `weeb-backend:dev`, `weeb-frontend:dev` | `weeb-backend:prod`, `weeb-frontend:prod`, `weeb-proxy:prod` |
+| projet Compose | `weeb`, volume `weeb_db_data` | `weeb-prod`, volumes `weeb-prod_db_data` et `weeb-prod_static_data` |
 
 Les deux piles portent des **noms de projet différents**, donc des conteneurs, des
 réseaux et des volumes distincts : un `docker compose down -v` lancé en
 développement ne touche pas aux données de la production, et l'inverse est vrai
-aussi. Elles ne se disputent que le port `8000`, seul défaut commun aux deux —
-déplacer `BACKEND_PORT_PROD` suffit à les faire tourner ensemble, à condition
-d'ajuster `VITE_API_URL` avec.
+aussi. Depuis que le proxy est la seule façade de la production, elles ne se
+disputent plus aucun port de l'hôte et **peuvent tourner en même temps** — le
+développement sur `5173`, `8000` et `5432`, la production sur `80` et `443`.
 
-Les trois services démarrent en file, chacun attendant que le précédent soit
-`healthy` : base, puis API, puis front. `up --wait` rend donc la main quand la
-pile entière répond — 18 secondes mesurées en production, images déjà construites.
+Les services démarrent en file, chacun attendant que le précédent soit
+`healthy` : base, puis API, puis front, puis proxy. `up --wait` rend donc la main
+quand la pile entière répond.
 
 #### Ce que la production attend de la configuration
 
-Trois variables doivent valoir **autre chose** qu'en développement. Elles ne
+Quatre variables doivent valoir **autre chose** qu'en développement. Elles ne
 vivent pas dans le `.env`, où les deux jeux se contrediraient sans que rien ne
 le signale, mais dans un fichier à part que la seule pile de production charge
 **par-dessus** :
@@ -254,13 +260,17 @@ cp .env.prod.example .env.prod
 | Variable | Valeur | Pourquoi |
 |---|---|---|
 | `POSTGRES_SSLMODE` | `disable` | `postgres:17-alpine` ne sert pas de TLS, alors que les réglages de production exigent `require`. Le lien ne quitte jamais le réseau `interne` |
-| `DJANGO_BEHIND_PROXY` | `1` | sans lui, la redirection HTTPS répond 301 à la sonde et le backend reste `unhealthy` |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:8080` | l'origine du front de production, servi par nginx. Les réglages de production n'ont aucun repli : sans elle, le navigateur bloque chaque appel, sans que rien n'échoue côté serveur. La valeur **remplace** celle du `.env`, elle ne s'y ajoute pas |
+| `DJANGO_BEHIND_PROXY` | `1` | sans lui, la redirection HTTPS répond 301 à la sonde et le backend reste `unhealthy`. Cette valeur n'est légitime **que** parce que le proxy écrase `X-Forwarded-Proto` et qu'il est seul à publier des ports |
+| `CORS_ALLOWED_ORIGINS` | **vide** | le proxy sert le front et l'API sur la même origine : il n'y a plus rien à autoriser. La ligne doit rester, vide : elle **remplace** celle du `.env`, et l'omettre ferait hériter la production des origines Vite du développement |
+| `DJANGO_HSTS_SECONDS` | `0` | la production est servie sur `localhost`, le nom d'hôte de la pile de développement. Un HSTS posé sur `localhost` vaut pour **tous ses ports** : le navigateur refuserait ensuite `http://localhost:5173`. Monter les paliers le jour où il y a un vrai domaine |
 
 `VITE_API_URL` n'est pas dans ce tableau et reste dans le `.env` de la racine,
-d'où Compose la passe en argument de build au front. La pile l'exige toujours,
-et une vraie mise en ligne doit y mettre l'adresse publique de l'API : elle est
-écrite **dans le bundle** à la construction, pas lue au démarrage.
+d'où Compose la passe en argument de build au front. Elle vaut désormais **`/api`**,
+un chemin relatif : le proxy met le site et l'API sur la même origine, donc le
+bundle n'a plus d'hôte à connaître. C'est ce qui rend l'image du front
+indépendante de l'adresse publique du site — elle n'était jusqu'ici valable que
+pour une seule cible, l'adresse étant écrite **dans le bundle** à la
+construction, pas lue au démarrage.
 
 `compose.prod.yaml` déclare `env_file: .env.prod` sur le backend, et le socle y
 déclare déjà `.env` : Compose **concatène** les deux listes, dans cet ordre, et
@@ -276,7 +286,7 @@ autorisés — et seules ces trois lignes sont réécrites. Inutile d'y répéte
 > | Déplacée par erreur | Ce qui se passe |
 > |---|---|
 > | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `VITE_API_URL` | démarrage refusé, la variable nommée : elles s'écrivent `${VAR:?message}` |
-> | `BACKEND_PORT_PROD`, `FRONTEND_PORT_PROD` | **rien de visible** : le repli `${VAR:-défaut}` s'applique et la production démarre sur un autre port que celui voulu |
+> | `PROXY_HTTP_PORT`, `PROXY_HTTPS_PORT` | **rien de visible** : le repli `${VAR:-défaut}` s'applique et la production démarre sur un autre port que celui voulu |
 > | `POSTGRES_PORT`, `BACKEND_PORT_DEV`, `FRONTEND_PORT_DEV` | rien en production, qui ne les interpole pas : `compose.override.yaml` est seul à le faire. C'est le **développement** qu'on déplace alors sur d'autres ports, sans le voir |
 >
 > Les trois `POSTGRES_*` sont le piège de ce tableau : elles sont lues **des deux
@@ -293,20 +303,89 @@ autorisés — et seules ces trois lignes sont réécrites. Inutile d'y répéte
 > chemin attendu — `ps`, `logs` et `down` continuent de fonctionner, une pile
 > déjà lancée reste donc arrêtable.
 
-> ⚠️ Cette pile ne monte aucun terminateur TLS. `DJANGO_BEHIND_PROXY=1` la rend
-> démarrable, pas utilisable depuis un navigateur : celui-ci n'envoie pas
-> `X-Forwarded-Proto` et se fait rediriger vers une adresse HTTPS que personne ne
-> sert. Une vraie mise en ligne place un proxy devant, et c'est lui qui rend ce
-> réglage légitime.
->
-> **C'est pour cela que les deux services de production ne publient leurs ports
-> que sur `127.0.0.1`.** `DJANGO_BEHIND_PROXY=1` fait confiance à un en-tête que
-> personne n'écrase : ouvert au réseau, n'importe quelle machine le forgerait
-> pour contourner la redirection HTTPS et lire les jetons JWT en clair, pendant
-> que Django croit servir du chiffré et pose ses cookies `Secure`. Élargir la
-> publication **seulement** une fois le proxy en place.
+#### Le proxy TLS
 
-#### Six pièges
+C'est la seule porte d'entrée de la pile, et la raison pour laquelle plus rien
+d'autre n'est publié. Quatre fichiers dans `proxy/` : un `Dockerfile` d'une étape
+sur `nginx:1.27-alpine`, la configuration `nginx.conf`, `generate-cert.sh`, et un
+`.dockerignore` qui tient les certificats hors du contexte de build.
+
+**Le routage**, tout en HTTPS :
+
+| Chemin | Destination |
+|---|---|
+| `/api/`, `/admin/` | `backend:8000` |
+| `/static/` | servi par nginx, depuis le volume que `collectstatic` remplit |
+| tout le reste | `frontend:8080`, qui porte le routage React |
+
+Le port en clair ne relaie **rien** : il répond `301` vers `https://` et sert la
+sonde du conteneur sur `/healthz`. C'est ce qui rend inoffensif un
+`X-Forwarded-Proto` forgé — il n'atteint jamais Django.
+
+**Les deux serveurs ne répondent qu'aux hôtes qu'ils servent** (`server_name
+localhost 127.0.0.1`), et un bloc `default_server` ferme la connexion sur tout
+autre `Host` avec un `444`. Sans lui, la redirection renverrait un en-tête
+`Location` construit à partir d'un `Host` forgé par le client — une redirection
+ouverte, sur le seul point d'entrée non authentifié de la façade. Une mise en
+ligne remplace ces noms par son domaine.
+
+Ce n'est **pas** un contrôle d'accès : le site reste joignable depuis le réseau
+local par l'adresse IP de la machine, avec l'en-tête `Host` qui convient. Le
+bloc ne borne que la valeur réfléchie dans `Location`. Restreindre réellement
+l'accès est une autre affaire, listée dans `AMELIORATIONS.md`.
+
+**La ligne qui justifie tout le reste** :
+
+```nginx
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
+`proxy_set_header` **remplace** la valeur reçue du client, et `$scheme` est le
+protocole vu par le proxy lui-même. Écrire `$http_x_forwarded_proto` à la place
+relaierait la valeur du client : n'importe qui se déclarerait en HTTPS, Django le
+croirait, et la redirection serait contournée — exactement la faille que ce proxy
+ferme. Les deux directives se ressemblent, elles n'ont pas du tout le même effet.
+
+**`/static/` est servi par le proxy, pas par Django** : avec `DEBUG = False`
+Django ne sert pas ses fichiers statiques, et l'image n'embarque pas whitenoise.
+Le backend et le proxy partagent donc un volume nommé, `static_data`, que
+`collectstatic` remplit au démarrage. Sans lui, l'administration Django et l'API
+navigable de DRF s'affichent sans style.
+
+**Le certificat** est produit sur la machine, jamais versionné :
+
+```bash
+./proxy/generate-cert.sh
+```
+
+Le script utilise `mkcert` s'il est installé — le certificat est alors accepté
+sans avertissement — et retombe sinon sur un auto-signé `openssl`, que le
+navigateur signale une fois. Sur une autre machine, relancer le script suffit :
+`proxy/certs/` est couvert par `.gitignore`, et une clé privée n'entre ni dans un
+dépôt, ni dans un layer d'image (le `.dockerignore` du contexte l'exclut ; elle
+est **montée** en lecture seule au démarrage). Let's Encrypt reste hors sujet
+tant qu'aucun domaine réel n'existe : il valide un nom public, pas `localhost`.
+
+> ⚠️ La clé est écrite en `0644`, délibérément : le compte `nginx` du conteneur
+> ne partage aucun groupe avec l'utilisateur de la machine et ne pourrait pas la
+> lire en `0600` à travers le montage. C'est acceptable pour un certificat de
+> poste qui ne protège rien de réel — un vrai certificat passe par un secret
+> Docker, pas par un bind-mount.
+
+**Les ports de l'hôte** sont `80` et `443` par défaut, réglables par
+`PROXY_HTTP_PORT` et `PROXY_HTTPS_PORT` dans le `.env` si la machine en occupe
+déjà un — un Apache local sur le `80`, typiquement. Dans le conteneur, nginx
+écoute `8080` et `8443` : il tourne sans privilèges et ne peut pas se lier sous
+1024.
+
+> ⚠️ Déplacer le port **HTTPS** casse deux choses : la redirection depuis HTTP,
+> qui vise toujours le `443` canonique ; et l'administration Django, dont les
+> POST échouent en `403 CSRF`. Le proxy transmet `Host $host`, qui ne porte pas
+> le port, alors que le navigateur envoie un `Origin` qui le porte — Django
+> compare les deux et refuse. Y remédier demande un `CSRF_TRUSTED_ORIGINS`. Le
+> port HTTP, lui, se déplace sans conséquence.
+
+#### Sept pièges
 
 - **Le nom des images.** Compose déduit `<projet>-<service>`, soit `weeb-backend`
   et `weeb-frontend` — les noms mêmes des constructions manuelles décrites
@@ -336,6 +415,14 @@ autorisés — et seules ces trois lignes sont réécrites. Inutile d'y répéte
   machine n'a plus d'effet sur le conteneur tant que l'image n'est pas
   reconstruite (`docker compose up -d --build`). En échange, le bit exécutable
   du dépôt n'entre plus dans l'équation.
+- **`proxy_pass` sans barre oblique finale, et c'est délibéré.**
+  `proxy_pass http://$api_backend$request_uri` conserve le chemin complet ;
+  `proxy_pass http://$api_backend/` remplacerait le préfixe `/api/` de la
+  `location` par une barre oblique, et Django répondrait 404 sur toutes les
+  routes. Les adresses passent en outre par une variable — sans elle, la
+  directive `resolver` ne s'applique pas et nginx garde l'IP résolue au
+  démarrage : les services repartant en `unless-stopped`, un redémarrage du
+  backend lui vaudrait des 502 jusqu'à ce qu'on redémarre le proxy aussi.
 - **Les deux conteneurs de développement écrivent sous un uid fixe** : `1001`
   pour le backend, `1000` pour le front. Une commande qui crée un fichier dans le
   dépôt à travers le montage — `docker compose exec backend python manage.py
@@ -431,6 +518,11 @@ donc de reconstruire l'image. Un build lancé sans elle s'interrompt avec un
 message explicite, plutôt que de produire un bundle qui afficherait une page
 blanche dans le navigateur.
 
+L'adresse absolue ci-dessus vaut pour cette construction **à la main**, où
+l'image est lancée seule. La pile de production, elle, passe `/api` : son proxy
+met le site et l'API sur la même origine, ce qui rend l'image indépendante de
+l'adresse publique du site.
+
 Le port est **8080** et non 80 : le conteneur tourne sous le compte `nginx`,
 qui n'a pas le privilège de lier un port inférieur à 1024.
 
@@ -506,7 +598,8 @@ de développement.
 
 ## L'API
 
-Base : `http://localhost:8000/api/`
+Base : `http://localhost:8000/api/` en développement, `https://localhost/api/`
+dans la pile de production, où le proxy sert l'API et le site sur la même origine.
 
 | Méthode | Route | Accès | Rôle |
 |---|---|---|---|
@@ -538,6 +631,12 @@ Le token d'accès est valable 1 heure, celui de rafraîchissement 1 jour.
 ├── compose.yaml              # socle : les trois services, les réseaux, le volume
 ├── compose.override.yaml     # surcharge de développement, chargée d'office
 ├── compose.prod.yaml         # surcharge de production, à passer par -f
+├── proxy/                    # terminateur TLS, seule façade de la production
+│   ├── Dockerfile            # nginx, une étape, compte non privilégié
+│   ├── nginx.conf            # routage, TLS, écrasement de X-Forwarded-Proto
+│   ├── .dockerignore         # exclut les certificats du contexte de build
+│   ├── generate-cert.sh      # certificat local, mkcert ou openssl
+│   └── certs/                # clé et certificat, JAMAIS versionnés
 ├── backend/
 │   ├── config/               # configuration du projet Django
 │   │   ├── settings/         # base, development, test, production
@@ -614,7 +713,8 @@ y apparaît en clair. Si les journaux montrent un démarrage normal de Gunicorn,
 la sonde reçoit autre chose qu'un 200. Les deux causes habituelles : `127.0.0.1`
 absent de `DJANGO_ALLOWED_HOSTS`, qui vaut un 400 ; ou `DJANGO_BEHIND_PROXY`
 laissé à 0, auquel cas la redirection HTTPS des réglages de production répond
-301 à la sonde — en production, cette variable-là se règle dans `.env.prod`.
+301 à la sonde — en production, cette variable-là se règle dans `.env.prod`, où
+le proxy TLS de la pile la rend légitime.
 
 **`env file /chemin/.env.prod not found`**
 La pile de production réclame son second fichier de configuration :
@@ -622,6 +722,21 @@ La pile de production réclame son second fichier de configuration :
 configuration ». Compose s'arrête avant de démarrer quoi que ce soit, ce qui
 est voulu — sans ce fichier, le backend partirait avec les valeurs du
 développement et ne démarrerait pas.
+
+**Le conteneur `proxy` ne démarre pas : `cannot load certificate "/etc/nginx/certs/localhost.crt"`**
+Le certificat n'a pas été produit sur cette machine. Il n'est pas versionné, et
+c'est voulu : `./proxy/generate-cert.sh`, puis relancer la pile.
+
+**`Bind for 0.0.0.0:80 failed: port is already allocated`**
+Un serveur web tourne déjà sur la machine — un Apache système, typiquement.
+Changer `PROXY_HTTP_PORT` dans le `.env` (par exemple `8081`). Attention : la
+redirection depuis HTTP vise toujours le `443` canonique, donc déplacer le port
+HTTPS demande de taper l'adresse chiffrée à la main.
+
+**Le navigateur affiche « Votre connexion n'est pas privée »**
+Le certificat est auto-signé : aucune autorité connue ne le garantit. C'est
+attendu sur un poste. Franchir l'avertissement une fois, ou installer `mkcert`
+et régénérer le certificat — il sera alors accepté sans rien signaler.
 
 **`npm ci` ou `npm run lint` échoue en `EACCES` sur `frontend/node_modules`**
 La pile de développement a laissé un dossier vide appartenant à `root` : Docker

@@ -17,13 +17,9 @@ import urllib.request
 URL = 'http://127.0.0.1:8000/api/articles/'
 TIMEOUT_SECONDS = 5
 
-# Les réglages de production redirigent tout le trafic en clair vers HTTPS.
-# Cet en-tête dit à Django que la requête d'origine était chiffrée — ce que
-# ferait le reverse proxy devant lequel ce conteneur est destiné à tourner.
-# Django ne l'écoute QUE si DJANGO_BEHIND_PROXY vaut 1. Sans cette variable,
-# la sonde reçoit une redirection, échoue, et c'est le comportement voulu :
-# un conteneur qui redirige tout vers une adresse HTTPS inexistante ne peut
-# servir personne.
+# La sonde s'adresse à Gunicorn EN DIRECT, sans traverser le proxy TLS : elle
+# teste CE conteneur, pas la chaîne entière. Elle rejoue donc elle-même l'en-tête
+# que le proxy pose, sans quoi les réglages de production lui répondraient 301.
 request = urllib.request.Request(URL, headers={'X-Forwarded-Proto': 'https'})
 
 try:
