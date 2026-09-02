@@ -47,4 +47,4 @@ services:
       - /app/node_modules
 
     ports:
-      - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
+      - "127.0.0.1:${FRONTEND_PORT_DEV:-5173}:5173"

@@ -48,9 +48,11 @@ services:
         VITE_API_URL: "${VITE_API_URL:?absente du .env de la racine, voir .env.example}"
 
     # 8080 côté conteneur : l'image sert par nginx sous un compte non privilégié,
-    # qui ne peut pas se lier à un port inférieur à 1024.
+    # qui ne peut pas se lier à un port inférieur à 1024. Une variable distincte
+    # de celle du développement, sans quoi un `FRONTEND_PORT_DEV` renseigné pour
+    # Vite déplacerait aussi le site de production.
     ports:
-      - "${FRONTEND_PORT:-8080}:8080"
+      - "${FRONTEND_PORT_PROD:-8080}:8080"
 
 networks:
   # `internal` coupe le réseau du routeur de l'hôte : plus de passerelle, donc
