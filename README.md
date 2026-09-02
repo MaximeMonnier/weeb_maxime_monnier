@@ -34,12 +34,16 @@ dans `.env` à la place des valeurs d'exemple :
 
 ```bash
 # DJANGO_SECRET_KEY
-python3 -c "import secrets, string; print(''.join(secrets.choice(string.ascii_letters + string.digits + '!@%^&*(-_=+)') for _ in range(50)))"
+python3 -c 'import secrets, string; print("".join(secrets.choice(string.ascii_letters + string.digits + "!@%^&*(-_=+)") for _ in range(50)))'
 
 # POSTGRES_PASSWORD
-python3 -c "import secrets, string; a = string.ascii_letters + string.digits; print(''.join(secrets.choice(a) for _ in range(32)))"
+python3 -c 'import secrets, string; a = string.ascii_letters + string.digits; print("".join(secrets.choice(a) for _ in range(32)))'
 ```
 
+> Les apostrophes sont volontairement à l'extérieur de ces commandes : entre
+> guillemets doubles, le `!` du jeu de caractères est pris par zsh et bash pour
+> un rappel d'historique, et la commande échoue sur `event not found`.
+>
 > Les caractères `$` et `#` sont volontairement absents de ces jeux de
 > caractères, et c'est pourquoi on n'utilise pas ici le
 > `get_random_secret_key()` de Django, dont l'alphabet les contient.
