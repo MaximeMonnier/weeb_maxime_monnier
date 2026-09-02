@@ -36,7 +36,14 @@ DATABASES = postgres_database()
 # rien signaler. `require` la fait échouer bruyamment à la place.
 # La variable existe pour le cas où la base est jointe par une socket locale
 # ou un tunnel déjà chiffré, où `disable` est alors le réglage correct.
-DATABASES['default']['OPTIONS'] = {'sslmode': env_str('POSTGRES_SSLMODE', 'require')}
+#
+# `setdefault` plutôt qu'une affectation : le jour où postgres_database() posera
+# une autre option, une affectation l'effacerait ici sans rien dire.
+#
+# `require` chiffre mais ne VÉRIFIE PAS le certificat du serveur : il protège de
+# l'écoute passive, pas d'un intermédiaire actif. Quand la base sera réellement
+# en ligne, passer à `verify-full` et fournir un `sslrootcert`.
+DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = env_str('POSTGRES_SSLMODE', 'require')
 
 # --- En-têtes et cookies de sécurité ---
 # Ces réglages n'ont de sens que derrière HTTPS, donc uniquement ici.
