@@ -8,10 +8,9 @@ node_modules/
 dist/
 dist-ssr/
 
-# Un .env entré dans un layer resterait lisible dans `docker history`.
-# L'adresse de l'API se passe à l'exécution.
-.env
-*.env
+# Un .env entré dans un layer resterait lisible dans `docker history`. Le motif
+# couvre .env.production et consorts, que Vite lit aussi.
+.env*
 *.local
 
 # Ils décrivent l'image, ils ne la servent pas.
