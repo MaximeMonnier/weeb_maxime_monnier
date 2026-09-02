@@ -1,4 +1,13 @@
-const API_URL = "http://localhost:8000/api";
+// L'URL vient de frontend/.env : Vite ne lit jamais le .env de la racine.
+// Tout ce qui est préfixé VITE_ part en clair dans le bundle — aucun secret ici.
+const API_URL = import.meta.env.VITE_API_URL;
+
+// Pas de repli : un défaut silencieux changerait l'oubli en 404 inexplicable.
+if (!API_URL) {
+  throw new Error(
+    "VITE_API_URL est absente : copier frontend/.env.example en frontend/.env, puis relancer Vite.",
+  );
+}
 
 function getToken(): string | null {
   return localStorage.getItem("access");
