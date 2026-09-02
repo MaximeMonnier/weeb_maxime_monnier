@@ -49,6 +49,13 @@ media/
 # en aucun cas être embarqué dans une image.
 *.sqlite3
 
+# --- Fichiers de build eux-mêmes ---
+# Ils n'ont rien à faire DANS l'image : ils la décrivent, ils ne la servent pas.
+# Les exclure n'empêche pas le build — BuildKit reçoit le Dockerfile par un
+# canal distinct du contexte.
+Dockerfile
+.dockerignore
+
 # --- Outillage de développement ---
 .git/
 .gitignore

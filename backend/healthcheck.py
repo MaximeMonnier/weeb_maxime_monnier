@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Sonde de santé du conteneur : sort 0 si l'API répond 200, 1 sinon."""
 
 # Pourquoi un script Python et non `curl` : l'image python:3.13-slim n'embarque
