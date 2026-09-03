@@ -1,45 +1,89 @@
-# Surcharge de production, à passer explicitement avec le socle :
-#   docker compose -f compose.yaml -f compose.prod.yaml up -d --wait --wait-timeout 60
-# Sans les `-f`, Compose ajoute la surcharge de développement. Cette pile lit
-# DEUX fichiers de configuration, le .env et le .env.prod ci-dessous : le
+# Pile de PRODUCTION, autonome : ce fichier se lit de bout en bout et ne
+# fusionne avec rien. Le développement est dans compose.dev.yaml.
+#
+#   ./proxy/generate-cert.sh                                      # une fois par machine
+#   docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60
+#
+# Le `-f` n'est pas facultatif, et vaut pour TOUTES les commandes — `ps`,
+# `logs`, `exec`, `down` compris. Il n'y a plus de `compose.yaml` : une commande
+# qui l'oublie échoue en le disant, au lieu de viser la pile de développement en
+# silence. `export COMPOSE_FILE=compose.prod.yaml` le pose une fois pour toutes.
+# Et `--wait` sans `--wait-timeout` attend indéfiniment, les services d'ici
+# rebouclant en `unless-stopped`.
+#
+# Cette pile lit DEUX fichiers de configuration, le .env et le .env.prod : le
 # partage des variables entre les deux est au README.
 
-# Nom distinct de celui du socle, et c'est lui qui l'emporte : la production a
-# donc ses propres conteneurs et son propre volume. Sans ça, un
-# `docker compose down -v` lancé en développement détruirait ses données.
+# Nom distinct de celui du développement, donc conteneurs, réseaux et volumes
+# distincts. Sans ça, un `docker compose -f compose.dev.yaml down -v` détruirait
+# les données d'ici.
 name: weeb-prod
 
 services:
   db:
+    image: postgres:17-alpine
+
+    # `:?` interrompt le démarrage avec ce message quand la variable manque,
+    # plutôt que de créer une base aux identifiants surprise.
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:?absente du .env, voir .env.example}"
+      POSTGRES_USER: "${POSTGRES_USER:?absente du .env, voir .env.example}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?absente du .env, voir .env.example}"
+
     # Aucun `ports:` : la base n'est joignable que par le réseau `interne`,
     # fermé plus bas. Rien n'est publié, donc rien n'est atteignable depuis
     # l'extérieur du démon Docker.
-    restart: unless-stopped
 
-  backend:
-    image: weeb-backend:prod
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+    networks:
+      - interne
 
     # `unless-stopped` et non `always` : le conteneur repart après un plantage
     # ou un redémarrage de la machine, mais un arrêt volontaire le reste.
     restart: unless-stopped
 
-    # S'AJOUTE au `.env` du socle, il ne le remplace pas : Compose concatène les
-    # `env_file` des fichiers fusionnés, et le dernier de la liste l'emporte. Ne
-    # porte donc que les valeurs qui DIFFÈRENT du développement. Inutile d'y
-    # répéter `.env` : un chemin dupliqué est ramené à sa première position, un
-    # `.env` écrit après ce fichier-ci ne reprendrait pas la main pour autant.
+    # `-h 127.0.0.1` : sans lui, la sonde déclare le service sain avant qu'il
+    # écoute en TCP — voir le README. `$$` diffère la substitution au conteneur.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    # `image:` explicite, et étiquetée : le même Dockerfile produit l'image de
+    # développement, qui n'a ni les mêmes réglages ni la même commande. Sans
+    # elle, Compose déduirait un nom du projet et les deux se confondraient.
+    image: weeb-backend:prod
+
+    build: ./backend
+
+    # DEUX fichiers, dans cet ordre, et c'est le fichier qui les nomme : le .env
+    # porte le commun — clé secrète, identifiants de base, hôtes autorisés — et
+    # .env.prod réécrit les quatre valeurs qui diffèrent. Le dernier de la liste
+    # l'emporte variable par variable.
     #
-    # ⚠️ N'alimente que l'INTÉRIEUR du conteneur : aucune variable qu'un fichier
-    # Compose interpole en `${...}` n'a sa place ici, elles ne se lisent que dans
-    # le `.env` de la racine. Y compris POSTGRES_DB, _USER et _PASSWORD, que
-    # Django lit pourtant aussi. Le partage exact est au README.
+    # ⚠️ N'alimentent que l'INTÉRIEUR du conteneur : aucune variable qu'un
+    # fichier Compose interpole en `${...}` n'a sa place dans .env.prod, elles
+    # ne se lisent que dans le .env de la racine. Y compris POSTGRES_DB, _USER
+    # et _PASSWORD, que Django lit pourtant aussi. Le partage est au README.
     env_file:
+      - .env
       - .env.prod
 
-    # Redondant avec l'image, qui pose déjà `production` — mais le socle sert
-    # aussi le développement, où l'inverse est imposé.
+    # Redondant avec l'image, qui pose déjà `production` — écrit quand même, en
+    # regard de compose.dev.yaml qui impose l'inverse.
+    #
+    # POSTGRES_HOST et POSTGRES_PORT contredisent volontairement le .env, qui
+    # décrit la base vue depuis la machine. Ce n'est pas de la configuration
+    # mais la topologie du réseau déclaré plus bas.
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
 
     # Aucun `ports:` : le backend n'est joignable que par le service `proxy`, à
     # travers le réseau `public`. C'est ce qui rend DJANGO_BEHIND_PROXY=1
@@ -50,15 +94,40 @@ services:
     # démarrage, nginx sert son contenu sur /static/. Django ne sert pas ses
     # statiques avec DEBUG=False, et l'image n'embarque pas whitenoise — sans ce
     # partage, l'admin et l'API navigable de DRF arrivent sans style.
+    #
+    # Aucun montage de source, contrairement au développement : l'image porte le
+    # code, et rien de la machine ne la recouvre.
     volumes:
       - static_data:/app/staticfiles
+
+    # `service_healthy` : Postgres accepte les connexions plusieurs secondes
+    # après le démarrage du conteneur, et l'entrypoint migre avant Gunicorn.
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - interne
+      - public
+
+    restart: unless-stopped
+
+    # Sonde héritée de l'image, seule sa cadence est reprise : les 30 s de
+    # l'image mèneraient la chaîne des quatre services bien au-delà de la minute.
+    healthcheck:
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
 
   frontend:
     image: weeb-frontend:prod
 
-    restart: unless-stopped
-
+    # `target: prod` sert par nginx, sans Node ; le développement construit le
+    # même Dockerfile en `target: dev`, servi par Vite. Ce ne sont pas deux
+    # réglages du même serveur, ce sont deux serveurs.
     build:
+      context: ./frontend
       target: prod
 
       # L'adresse de l'API est écrite DANS le bundle : elle doit être connue à la
@@ -71,13 +140,28 @@ services:
     # qui met l'API et le site sur la MÊME ORIGINE. C'est ce qui fait disparaître
     # CORS de cette pile et rend `VITE_API_URL` relative.
 
+    # Le front n'appelle pas l'API depuis le conteneur — c'est le navigateur qui
+    # le fait. La dépendance n'ordonne que le démarrage.
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    networks:
+      - public
+
+    restart: unless-stopped
+
+    healthcheck:
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
+
   # ---------- Terminateur TLS, seule porte d'entrée de la pile ----------
   proxy:
     image: weeb-proxy:prod
 
     build: ./proxy
-
-    restart: unless-stopped
 
     # Le SEUL service de la pile à publier des ports. 80 et 443 côté machine,
     # 8080 et 8443 dans le conteneur : nginx y tourne sans privilèges et ne peut
@@ -108,6 +192,8 @@ services:
     networks:
       - public
 
+    restart: unless-stopped
+
     # Sonde héritée de l'image, seule sa cadence est reprise : les 30 s de
     # l'image allongeraient d'autant le `up --wait` de la pile entière.
     healthcheck:
@@ -122,8 +208,13 @@ networks:
   # `public` pour le reste.
   interne:
     internal: true
+  public:
 
 volumes:
+  # Volume nommé, et non un dossier du dépôt : les données ne disparaissent
+  # qu'avec `docker compose -f compose.prod.yaml down -v`.
+  db_data:
+
   # Fichiers statiques de Django, produits par `collectstatic` au démarrage du
   # backend et lus par le proxy. Volume nommé et non dossier du dépôt : la
   # production ne monte aucune source de la machine.
