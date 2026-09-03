@@ -1,0 +1,71 @@
+# Construit les trois images à chaque intégration. L'intérêt n'est pas d'en
+# disposer — elles sont jetées avec la machine — mais de partir d'une machine
+# vierge : voir « Intégration continue » dans le README.
+
+name: Images Docker
+
+# main autant que preprod : c'est elle qui partira sur un serveur, donc elle
+# que la publication d'images visera le jour où elle existera.
+on:
+  push:
+    branches: [preprod, main]
+  pull_request:
+    branches: [preprod, main]
+
+# Un nouveau push rend l'exécution en cours caduque : trois constructions
+# complètes pour un résultat que plus personne ne lira.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Lecture seule : rien n'est publié, donc rien n'a besoin d'être écrit.
+permissions:
+  contents: read
+
+jobs:
+  construire:
+    # Le nom du job nomme l'image : un journal rouge désigne la construction en
+    # cause sans qu'il faille l'ouvrir.
+    name: ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      # Les trois vont au bout même si l'une casse : une seule exécution suffit
+      # alors à connaître l'état des trois.
+      fail-fast: false
+      matrix:
+        include:
+          - image: backend
+            contexte: ./backend
+
+          - image: frontend
+            contexte: ./frontend
+            # La cible dev est hors périmètre : elle ne sert qu'au poste.
+            cible: prod
+            # Écrite DANS le bundle à la construction, pas lue au démarrage, et
+            # le build s'interrompt si elle manque. Relative : même origine.
+            arguments: VITE_API_URL=/api
+
+          - image: proxy
+            contexte: ./proxy
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # buildx pour le cache : le démon Docker ne garde rien d'une machine
+      # jetable à la suivante.
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.contexte }}
+          target: ${{ matrix.cible }}
+          build-args: ${{ matrix.arguments }}
+          # Ni push, ni load : construire est le but, l'image ne sert à
+          # personne ensuite.
+          push: false
+          # Une portée par image, sinon les trois écrasent tour à tour la même
+          # et le passage suivant repart de zéro.
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
