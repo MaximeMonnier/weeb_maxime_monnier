@@ -17,9 +17,10 @@ import urllib.request
 URL = 'http://127.0.0.1:8000/api/articles/'
 TIMEOUT_SECONDS = 5
 
-# La sonde s'adresse à Gunicorn EN DIRECT, sans traverser le proxy TLS : elle
-# teste CE conteneur, pas la chaîne entière. Elle rejoue donc elle-même l'en-tête
-# que le proxy pose, sans quoi les réglages de production lui répondraient 301.
+# La sonde s'adresse à Gunicorn EN DIRECT, sans traverser le nginx du serveur qui
+# termine le TLS : elle teste CE conteneur, pas la chaîne entière. Elle rejoue
+# donc elle-même l'en-tête que ce nginx pose sur chaque requête relayée, sans
+# quoi les réglages de production lui répondraient 301.
 request = urllib.request.Request(URL, headers={'X-Forwarded-Proto': 'https'})
 
 try:

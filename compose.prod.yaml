@@ -1,8 +1,12 @@
 # Pile de PRODUCTION, autonome : ce fichier se lit de bout en bout et ne
 # fusionne avec rien. Le développement est dans compose.dev.yaml.
 #
-#   ./proxy/generate-cert.sh                                      # une fois par machine
 #   docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60
+#
+# Cette pile ne termine PAS le TLS : elle publie le front et l'API en clair sur
+# 127.0.0.1, et c'est le nginx du serveur qui les sert au monde. Sa
+# configuration de référence est au README, § « Déployer derrière le nginx du
+# serveur » — elle porte le TLS, le routage et l'en-tête X-Forwarded-Proto.
 #
 # Le `-f` n'est pas facultatif, et vaut pour TOUTES les commandes — `ps`,
 # `logs`, `exec`, `down` compris. Il n'y a plus de `compose.yaml` : une commande
@@ -80,15 +84,22 @@ services:
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
 
-    # Aucun `ports:` : le backend n'est joignable que par le service `proxy`, à
-    # travers le réseau `public`. C'est ce qui rend DJANGO_BEHIND_PROXY=1
-    # légitime — plus personne ne peut lui parler sans passer par le proxy, qui
-    # ÉCRASE X-Forwarded-Proto.
+    # `127.0.0.1:` et non un port nu : le nginx du serveur est sur la MÊME
+    # machine, et rien ici ne doit être joignable depuis le réseau. C'est ce qui
+    # borne DJANGO_BEHIND_PROXY=1 — l'en-tête X-Forwarded-Proto n'est plus
+    # écrasé par un service de la pile, seul le nginx du serveur le pose.
+    #
+    # Un port PROD distinct de BACKEND_PORT_DEV, jamais la même variable : les
+    # deux piles doivent pouvoir tourner en même temps, et un recouvrement a
+    # déjà été payé une fois.
+    ports:
+      - "127.0.0.1:${BACKEND_PORT_PROD:-8001}:8000"
 
-    # Volume nommé partagé avec le proxy : `collectstatic` le remplit au démarrage,
-    # nginx sert son contenu sur /static/. Django ne sert pas ses statiques avec
-    # DEBUG=False et l'image n'embarque pas whitenoise — sans ce partage, l'admin
-    # arrive sans style. Aucun montage de source, contrairement au développement.
+    # Volume nommé partagé avec le front : `collectstatic` le remplit au démarrage,
+    # et le nginx de l'image du front sert son contenu sur /static/. Django ne sert
+    # pas ses statiques avec DEBUG=False et l'image n'embarque pas whitenoise —
+    # sans ce partage, l'admin arrive sans style. Aucun montage de source,
+    # contrairement au développement.
     volumes:
       - static_data:/app/staticfiles
 
@@ -105,7 +116,7 @@ services:
     restart: unless-stopped
 
     # Sonde héritée de l'image, seule sa cadence est reprise : les 30 s de
-    # l'image mèneraient la chaîne des quatre services bien au-delà de la minute.
+    # l'image mèneraient la chaîne des trois services bien au-delà de la minute.
     healthcheck:
       interval: 5s
       timeout: 5s
@@ -128,12 +139,19 @@ services:
       args:
         VITE_API_URL: "${VITE_API_URL:?absente du .env de la racine, voir .env.example}"
 
-    # Aucun `ports:` non plus : le front n'est servi qu'à travers le proxy, ce
-    # qui met l'API et le site sur la MÊME ORIGINE. C'est ce qui fait disparaître
-    # CORS de cette pile et rend `VITE_API_URL` relative.
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT_PROD:-8081}:8080"
+
+    # L'autre bout du volume du backend, en lecture seule : ce nginx sert ces
+    # fichiers sur /static/, il ne les écrit jamais. Il les sert lui-même pour
+    # que le nginx du serveur n'ait pas à lire les volumes de Docker, dont le
+    # répertoire n'est traversable que par root.
+    volumes:
+      - static_data:/srv/static:ro
 
     # Le front n'appelle pas l'API depuis le conteneur — c'est le navigateur qui
-    # le fait. La dépendance n'ordonne que le démarrage.
+    # le fait. La dépendance n'ordonne que le démarrage. Elle garantit en outre
+    # que `collectstatic` a rempli le volume avant que nginx le serve.
     depends_on:
       backend:
         condition: service_healthy
@@ -149,51 +167,6 @@ services:
       retries: 6
       start_period: 30s
 
-  # ---------- Terminateur TLS, seule porte d'entrée de la pile ----------
-  proxy:
-    image: weeb-proxy:prod
-
-    build: ./proxy
-
-    # Le SEUL service de la pile à publier des ports. 80 et 443 côté machine,
-    # 8080 et 8443 dans le conteneur : nginx y tourne sans privilèges et ne peut
-    # pas se lier sous 1024. Plus de `127.0.0.1:` — c'est tout l'objet de ce
-    # proxy : il termine le TLS et écrase X-Forwarded-Proto, donc la pile peut
-    # enfin être ouverte au réseau.
-    ports:
-      - "${PROXY_HTTP_PORT:-80}:8080"
-      - "${PROXY_HTTPS_PORT:-443}:8443"
-
-    volumes:
-      # Lecture seule, et montés plutôt que copiés dans l'image : une clé privée
-      # n'a sa place ni dans un layer ni dans un registre. `proxy/generate-cert.sh`
-      # les produit sur la machine, et .gitignore les tient hors du dépôt.
-      - ./proxy/certs:/etc/nginx/certs:ro
-      # L'autre bout du volume du backend, en lecture seule : le proxy sert ces
-      # fichiers, il ne les écrit jamais.
-      - static_data:/srv/static:ro
-
-    # Les deux en `service_healthy` : un proxy qui démarre devant des services
-    # muets répondrait 502 aux premières requêtes.
-    depends_on:
-      backend:
-        condition: service_healthy
-      frontend:
-        condition: service_healthy
-
-    networks:
-      - public
-
-    restart: unless-stopped
-
-    # Sonde héritée de l'image, seule sa cadence est reprise : les 30 s de
-    # l'image allongeraient d'autant le `up --wait` de la pile entière.
-    healthcheck:
-      interval: 5s
-      timeout: 3s
-      retries: 6
-      start_period: 10s
-
 networks:
   # `internal` coupe le réseau de la passerelle de l'hôte : plus aucune entrée
   # ni sortie. La base n'y perd rien, elle ne parle qu'au backend — qui garde
@@ -208,6 +181,7 @@ volumes:
   db_data:
 
   # Fichiers statiques de Django, produits par `collectstatic` au démarrage du
-  # backend et lus par le proxy. Volume nommé et non dossier du dépôt : la
-  # production ne monte aucune source de la machine.
+  # backend et lus par le front, qui les sert sur /static/. Volume nommé et non
+  # dossier de la machine : un bind-mount n'hérite pas des droits posés par
+  # l'image, et `collectstatic` échouerait faute de pouvoir y écrire.
   static_data:
