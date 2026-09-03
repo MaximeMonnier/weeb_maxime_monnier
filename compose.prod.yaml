@@ -61,15 +61,10 @@ services:
 
     build: ./backend
 
-    # DEUX fichiers, dans cet ordre, et c'est le fichier qui les nomme : le .env
-    # porte le commun — clé secrète, identifiants de base, hôtes autorisés — et
-    # .env.prod réécrit les quatre valeurs qui diffèrent. Le dernier de la liste
-    # l'emporte variable par variable.
-    #
-    # ⚠️ N'alimentent que l'INTÉRIEUR du conteneur : aucune variable qu'un
-    # fichier Compose interpole en `${...}` n'a sa place dans .env.prod, elles
-    # ne se lisent que dans le .env de la racine. Y compris POSTGRES_DB, _USER
-    # et _PASSWORD, que Django lit pourtant aussi. Le partage est au README.
+    # DEUX fichiers, dans cet ordre : le .env porte le commun, .env.prod réécrit
+    # les quatre valeurs qui diffèrent, et le dernier de la liste l'emporte.
+    # ⚠️ N'alimentent que l'INTÉRIEUR du conteneur — ce qu'un fichier Compose
+    # interpole en `${...}` ne se lit que dans le .env. Partage exact au README.
     env_file:
       - .env
       - .env.prod
@@ -90,13 +85,10 @@ services:
     # légitime — plus personne ne peut lui parler sans passer par le proxy, qui
     # ÉCRASE X-Forwarded-Proto.
 
-    # Volume nommé partagé avec le proxy : `collectstatic` le remplit au
-    # démarrage, nginx sert son contenu sur /static/. Django ne sert pas ses
-    # statiques avec DEBUG=False, et l'image n'embarque pas whitenoise — sans ce
-    # partage, l'admin et l'API navigable de DRF arrivent sans style.
-    #
-    # Aucun montage de source, contrairement au développement : l'image porte le
-    # code, et rien de la machine ne la recouvre.
+    # Volume nommé partagé avec le proxy : `collectstatic` le remplit au démarrage,
+    # nginx sert son contenu sur /static/. Django ne sert pas ses statiques avec
+    # DEBUG=False et l'image n'embarque pas whitenoise — sans ce partage, l'admin
+    # arrive sans style. Aucun montage de source, contrairement au développement.
     volumes:
       - static_data:/app/staticfiles
 

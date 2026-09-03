@@ -206,15 +206,17 @@ docker compose -f compose.dev.yaml up -d --wait
 docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60
 ```
 
-Les deux fichiers se ressemblent — une cinquantaine de lignes leur sont
-communes, et c'est le prix assumé de leur lisibilité. Un socle partagé les
-économiserait, mais la fusion qu'il impose a coûté plus cher : override chargé
-d'office, entrée héritée impossible à retirer, image déduite du nom de projet,
-`env_file` concaténés. Ces quatre pièges ne sont pas corrigés ici, ils n'ont
-plus d'objet.
-
 Le site répond alors sur **https://localhost/**, et rien d'autre n'est publié :
 ni l'API, ni le front, ni la base. Sans le certificat, le proxy ne démarre pas.
+
+Les deux fichiers se ressemblent — une cinquantaine de lignes leur sont
+communes, et c'est le prix assumé de leur lisibilité. Un socle partagé les
+économiserait, mais la fusion qu'il impose coûtait plus cher : trois règles
+n'existaient que par elle et n'ont plus d'objet — l'override chargé d'office et
+les `-f` qu'il rendait obligatoires d'un seul côté, l'entrée héritée qu'on peut
+ajouter mais jamais retirer, et l'ordre de concaténation des `env_file`,
+aujourd'hui écrit dans le fichier. Le piège du **nom des images**, lui, reste
+entier : voir plus bas.
 
 `--wait-timeout` n'est pas un ornement : les services de production repartent en
 `unless-stopped`, donc un backend qui échoue au démarrage reboucle sans fin et
