@@ -72,10 +72,11 @@ Chaque variable de `.env.example` est commentée : lire ce fichier suffit à com
 
 ### 2. La base de données
 
-PostgreSQL tourne dans un conteneur, décrit par `compose.yaml`. Depuis la racine :
+PostgreSQL tourne dans un conteneur, décrit par `compose.dev.yaml`. Depuis la
+racine :
 
 ```bash
-docker compose up -d --wait db
+docker compose -f compose.dev.yaml up -d --wait db
 ```
 
 `db` à la fin : sans lui, Compose démarre aussi l'API et le front, et construit
@@ -85,8 +86,14 @@ leurs images — utile plus tard, inutile pour les deux étapes qui suivent.
 conteneur est lancé : l'étape suivante peut donc enchaîner sans attendre.
 
 ```bash
-docker compose ps     # le service `db` doit être `healthy`
+docker compose -f compose.dev.yaml ps     # le service `db` doit être `healthy`
 ```
+
+> Le `-f` n'est pas facultatif, et il vaut pour toutes les commandes. Il n'y a
+> **pas** de `compose.yaml` dans ce dépôt : chaque pile a son fichier, et une
+> commande qui oublie le `-f` s'arrête sur `no configuration file provided`
+> plutôt que de viser la mauvaise pile. `export COMPOSE_FILE=compose.dev.yaml`
+> le pose une fois pour toutes dans le terminal.
 
 ### 3. Le backend
 
@@ -115,7 +122,7 @@ l'étape *1. La configuration* : le front lit `frontend/.env` par le montage, et
 s'arrête au chargement sans lui.
 
 ```bash
-docker compose up -d --wait
+docker compose -f compose.dev.yaml up -d --wait
 ```
 
 L'interface répond alors sur http://localhost:5173 et l'API sur
@@ -127,7 +134,7 @@ sans reconstruire d'image. Détail dans « La stack complète avec Compose ».
 plus rapide à itérer, et le débogueur reste à portée :
 
 ```bash
-docker compose up -d --wait db
+docker compose -f compose.dev.yaml up -d --wait db
 ```
 
 Puis **deux terminaux**, un par application.
@@ -147,7 +154,7 @@ Pour accéder à l'administration Django (`http://localhost:8000/admin/`), crée
 cd backend && python manage.py createsuperuser
 
 # applications lancées par la pile de développement
-docker compose exec backend python manage.py createsuperuser
+docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
 ```
 
 ## Commandes utiles
@@ -168,32 +175,43 @@ docker compose exec backend python manage.py createsuperuser
 
 | Commande | Effet |
 |---|---|
-| `docker compose up -d --wait db` | Démarre la **seule** base et attend qu'elle réponde |
-| `docker compose ps` | Affiche l'état du service et sa santé |
-| `docker compose logs -f db` | Suit les journaux de PostgreSQL |
-| `docker compose exec db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB'` | Ouvre une console SQL sur la base |
-| `docker compose stop` | Arrête les services sans rien supprimer |
-| `docker compose down` | Supprime les conteneurs, **garde** les données |
-| `docker compose down -v` | Supprime aussi le volume : **toutes les données sont perdues** |
+| `docker compose -f compose.dev.yaml up -d --wait db` | Démarre la **seule** base et attend qu'elle réponde |
+| `docker compose -f compose.dev.yaml ps` | Affiche l'état du service et sa santé |
+| `docker compose -f compose.dev.yaml logs -f db` | Suit les journaux de PostgreSQL |
+| `docker compose -f compose.dev.yaml exec db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB'` | Ouvre une console SQL sur la base |
+| `docker compose -f compose.dev.yaml stop` | Arrête les services sans rien supprimer |
+| `docker compose -f compose.dev.yaml down` | Supprime les conteneurs, **garde** les données |
+| `docker compose -f compose.dev.yaml down -v` | Supprime aussi le volume : **toutes les données sont perdues** |
+
+Le `-f` se répète à chaque ligne, et c'est voulu — voir l'encadré de l'étape
+*2. La base de données*. `export COMPOSE_FILE=compose.dev.yaml` dispense de le
+taper pour toute la durée du terminal.
 
 ### La stack complète avec Compose (depuis la racine)
 
-Trois fichiers, et jamais de condition dans un fichier unique :
+**Deux fichiers autonomes**, un par pile, et jamais de condition dans un fichier
+unique. Aucune fusion : chacun se lit de bout en bout.
 
 | Fichier | Rôle |
 |---|---|
-| `compose.yaml` | le socle : les trois services, les deux réseaux, le volume de données. Ne se lance jamais seul |
-| `compose.override.yaml` | le développement : code monté, ports publiés, rechargement à chaud. Compose le charge d'office |
+| `compose.dev.yaml` | le développement : code monté, ports publiés sur `127.0.0.1`, rechargement à chaud |
 | `compose.prod.yaml` | la production : images figées, redémarrage automatique, base coupée du monde, **proxy TLS en façade** |
 
 ```bash
-# développement — Compose ajoute compose.override.yaml tout seul
-docker compose up -d --wait
+# développement
+docker compose -f compose.dev.yaml up -d --wait
 
 # production — le certificat d'abord, une fois par machine
 ./proxy/generate-cert.sh
-docker compose -f compose.yaml -f compose.prod.yaml up -d --wait --wait-timeout 60
+docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60
 ```
+
+Les deux fichiers se ressemblent — une cinquantaine de lignes leur sont
+communes, et c'est le prix assumé de leur lisibilité. Un socle partagé les
+économiserait, mais la fusion qu'il impose a coûté plus cher : override chargé
+d'office, entrée héritée impossible à retirer, image déduite du nom de projet,
+`env_file` concaténés. Ces quatre pièges ne sont pas corrigés ici, ils n'ont
+plus d'objet.
 
 Le site répond alors sur **https://localhost/**, et rien d'autre n'est publié :
 ni l'API, ni le front, ni la base. Sans le certificat, le proxy ne démarre pas.
@@ -203,29 +221,26 @@ ni l'API, ni le front, ni la base. Sans le certificat, le proxy ne démarre pas.
 `--wait` seul attendrait indéfiniment. Soixante secondes, la durée que la pile
 doit tenir de toute façon.
 
-> ⚠️ **Les `-f` valent pour TOUTES les commandes de la production**, pas seulement
-> `up`. Sans eux, Compose vise le projet `weeb`, celui du développement, et
-> échoue **en silence** : `docker compose ps` ne liste rien de la production, et
-> `docker compose down` supprime les conteneurs de développement, répond « done »,
-> et laisse la production tourner — redémarrage de la machine compris, puisqu'elle
-> est en `unless-stopped`.
+> ⚠️ **Le `-f` vaut pour TOUTES les commandes**, pas seulement `up`. Il n'y a
+> pas de `compose.yaml` dans ce dépôt : une commande qui l'oublie s'arrête sur
+> `no configuration file provided: not found`, et c'est exactement ce qu'on
+> attend d'elle. Tant qu'un socle existait, la même commande visait le projet du
+> développement et échouait **en silence** — `docker compose down` y supprimait
+> les mauvais conteneurs, répondait « done », et laissait la production tourner.
 
 ```bash
-docker compose -f compose.yaml -f compose.prod.yaml ps
-docker compose -f compose.yaml -f compose.prod.yaml logs -f backend
-docker compose -f compose.yaml -f compose.prod.yaml exec backend python manage.py createsuperuser
-docker compose -f compose.yaml -f compose.prod.yaml down
+docker compose -f compose.prod.yaml ps
+docker compose -f compose.prod.yaml logs -f backend
+docker compose -f compose.prod.yaml exec backend python manage.py createsuperuser
+docker compose -f compose.prod.yaml down
 
 # ou, une fois pour toutes dans le terminal qui pilote la production :
-export COMPOSE_FILE=compose.yaml:compose.prod.yaml
+export COMPOSE_FILE=compose.prod.yaml
 ```
-
-> ⚠️ **Les `-f` ne sont pas facultatifs.** Sans eux, Compose charge
-> `compose.override.yaml` : la production démarrerait avec le code de la machine
-> monté dans les conteneurs et la base publiée sur l'hôte.
 
 | | développement | production |
 |---|---|---|
+| fichier | `compose.dev.yaml` | `compose.prod.yaml` |
 | services | `db`, `backend`, `frontend` | les mêmes **plus `proxy`** |
 | front | Vite sur `5173`, code monté | nginx dans l'image, **non publié** |
 | API | `runserver` sur `8000`, code monté | Gunicorn, aucun montage, **non publiée** |
@@ -236,9 +251,8 @@ export COMPOSE_FILE=compose.yaml:compose.prod.yaml
 | projet Compose | `weeb`, volume `weeb_db_data` | `weeb-prod`, volumes `weeb-prod_db_data` et `weeb-prod_static_data` |
 
 Les deux piles portent des **noms de projet différents**, donc des conteneurs, des
-réseaux et des volumes distincts : un `docker compose down -v` lancé en
-développement ne touche pas aux données de la production, et l'inverse est vrai
-aussi. Depuis que le proxy est la seule façade de la production, elles ne se
+réseaux et des volumes distincts : un `down -v` lancé en développement ne touche
+pas aux données de la production, et l'inverse est vrai aussi. Depuis que le proxy est la seule façade de la production, elles ne se
 disputent plus aucun port de l'hôte et **peuvent tourner en même temps** — le
 développement sur `5173`, `8000` et `5432`, la production sur `80` et `443`.
 
@@ -272,12 +286,12 @@ indépendante de l'adresse publique du site — elle n'était jusqu'ici valable 
 pour une seule cible, l'adresse étant écrite **dans le bundle** à la
 construction, pas lue au démarrage.
 
-`compose.prod.yaml` déclare `env_file: .env.prod` sur le backend, et le socle y
-déclare déjà `.env` : Compose **concatène** les deux listes, dans cet ordre, et
-le dernier fichier l'emporte variable par variable. Tout ce que le `.env`
-apporte reste donc en place — clé secrète, identifiants de base, hôtes
-autorisés — et seules ces trois lignes sont réécrites. Inutile d'y répéter
-`.env` : un chemin dupliqué est ramené à sa première position.
+`compose.prod.yaml` déclare les **deux** fichiers sur son backend, dans cet
+ordre — `env_file: [.env, .env.prod]` — et le dernier de la liste l'emporte
+variable par variable. Tout ce que le `.env` apporte reste donc en place — clé
+secrète, identifiants de base, hôtes autorisés — et seules ces quatre lignes
+sont réécrites. L'ordre est écrit dans le fichier, il ne se déduit plus d'une
+règle de fusion.
 
 > ⚠️ **`env_file` n'alimente que l'intérieur du conteneur.** Ce qu'un fichier
 > Compose interpole lui-même avec `${...}` ne se lit que dans le `.env` de la
@@ -287,7 +301,7 @@ autorisés — et seules ces trois lignes sont réécrites. Inutile d'y répéte
 > |---|---|
 > | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `VITE_API_URL` | démarrage refusé, la variable nommée : elles s'écrivent `${VAR:?message}` |
 > | `PROXY_HTTP_PORT`, `PROXY_HTTPS_PORT` | **rien de visible** : le repli `${VAR:-défaut}` s'applique et la production démarre sur un autre port que celui voulu |
-> | `POSTGRES_PORT`, `BACKEND_PORT_DEV`, `FRONTEND_PORT_DEV` | rien en production, qui ne les interpole pas : `compose.override.yaml` est seul à le faire. C'est le **développement** qu'on déplace alors sur d'autres ports, sans le voir |
+> | `POSTGRES_PORT`, `BACKEND_PORT_DEV`, `FRONTEND_PORT_DEV` | rien en production, qui ne les interpole pas : `compose.dev.yaml` est seul à le faire. C'est le **développement** qu'on déplace alors sur d'autres ports, sans le voir |
 >
 > Les trois `POSTGRES_*` sont le piège de ce tableau : elles sont lues **des deux
 > côtés**, par Compose pour créer la base et par Django dans le conteneur. Être
@@ -296,8 +310,8 @@ autorisés — et seules ces trois lignes sont réécrites. Inutile d'y répéte
 >
 > Un cas à part, à ne pas confondre avec la troisième ligne : ce que Django lit
 > dans le conteneur pour `POSTGRES_HOST` et `POSTGRES_PORT` ne vient d'aucun
-> `env_file`, l'`environment:` du socle imposant `db:5432` par-dessus. Les poser
-> dans `.env.prod` ne changerait donc rien à la connexion à la base.
+> `env_file`, l'`environment:` du service imposant `db:5432` par-dessus. Les
+> poser dans `.env.prod` ne changerait donc rien à la connexion à la base.
 >
 > `.env.prod` manquant, `up` s'arrête avant de rien démarrer, en nommant le
 > chemin attendu — `ps`, `logs` et `down` continuent de fonctionner, une pile
@@ -385,17 +399,15 @@ déjà un — un Apache local sur le `80`, typiquement. Dans le conteneur, nginx
 > compare les deux et refuse. Y remédier demande un `CSRF_TRUSTED_ORIGINS`. Le
 > port HTTP, lui, se déplace sans conséquence.
 
-#### Sept pièges
+#### Six pièges
 
-- **Le nom des images.** Compose déduit `<projet>-<service>`, soit `weeb-backend`
-  et `weeb-frontend` — les noms mêmes des constructions manuelles décrites
-  ci-dessous. Sans `image:` explicite, il réutilise ces images-là plutôt que de
-  construire les siennes, **sans rien signaler** : la pile de développement s'est
-  retrouvée servie par le nginx de production. D'où les étiquettes `:dev` et
-  `:prod`.
-- **Le port publié de la base est dans `compose.override.yaml`, pas dans le
-  socle.** Compose sait ajouter une entrée héritée, jamais la retirer : une
-  publication posée dans `compose.yaml` serait impossible à enlever en production.
+- **Le nom des images.** Sans `image:` explicite, Compose déduit
+  `<projet>-<service>` : pour la pile de développement, dont le projet s'appelle
+  `weeb`, cela donne `weeb-backend` et `weeb-frontend` — les noms mêmes des
+  constructions manuelles décrites ci-dessous. Il réutilise alors ces images-là
+  plutôt que de construire les siennes, **sans rien signaler** : la pile de
+  développement s'est retrouvée servie par le nginx de production. D'où les
+  étiquettes `:dev` et `:prod`, posées des deux côtés.
 - **La pile de développement laisse un `frontend/node_modules` vide sur la
   machine**, appartenant à `root` — Docker crée le point de montage du volume
   anonyme côté hôte. Il bloque ensuite `npm ci` et `npm run lint` en `EACCES`.
@@ -413,8 +425,8 @@ déjà un — un Apache local sur le `80`, typiquement. Dans le conteneur, nginx
   copies sous `/app` — ce sont donc bien ceux de l'image qui s'exécutent, mais
   éditer `backend/docker-entrypoint.sh` ou `backend/healthcheck.py` sur la
   machine n'a plus d'effet sur le conteneur tant que l'image n'est pas
-  reconstruite (`docker compose up -d --build`). En échange, le bit exécutable
-  du dépôt n'entre plus dans l'équation.
+  reconstruite (`docker compose -f compose.dev.yaml up -d --build`). En échange,
+  le bit exécutable du dépôt n'entre plus dans l'équation.
 - **`proxy_pass` sans barre oblique finale, et c'est délibéré.**
   `proxy_pass http://$api_backend$request_uri` conserve le chemin complet ;
   `proxy_pass http://$api_backend/` remplacerait le préfixe `/api/` de la
@@ -425,8 +437,9 @@ déjà un — un Apache local sur le `80`, typiquement. Dans le conteneur, nginx
   backend lui vaudrait des 502 jusqu'à ce qu'on redémarre le proxy aussi.
 - **Les deux conteneurs de développement écrivent sous un uid fixe** : `1001`
   pour le backend, `1000` pour le front. Une commande qui crée un fichier dans le
-  dépôt à travers le montage — `docker compose exec backend python manage.py
-  makemigrations`, par exemple — échoue en `Permission denied` si l'utilisateur
+  dépôt à travers le montage — `docker compose -f compose.dev.yaml exec backend
+  python manage.py makemigrations`, par exemple — échoue en `Permission denied`
+  si l'utilisateur
   de la machine porte un autre uid (`id -u` pour le connaître). La lancer alors
   depuis le venv, où le fichier appartient d'emblée à la bonne personne.
 
@@ -628,9 +641,8 @@ Le token d'accès est valable 1 heure, celui de rafraîchissement 1 jour.
 .
 ├── .env.example              # modèle de configuration à copier en .env
 ├── .env.prod.example         # modèle des valeurs propres à la production
-├── compose.yaml              # socle : les trois services, les réseaux, le volume
-├── compose.override.yaml     # surcharge de développement, chargée d'office
-├── compose.prod.yaml         # surcharge de production, à passer par -f
+├── compose.dev.yaml          # pile de développement, autonome
+├── compose.prod.yaml         # pile de production, autonome
 ├── proxy/                    # terminateur TLS, seule façade de la production
 │   ├── Dockerfile            # nginx, une étape, compte non privilégié
 │   ├── nginx.conf            # routage, TLS, écrasement de X-Forwarded-Proto
@@ -690,9 +702,16 @@ cd backend && python manage.py shell -c "from accounts.models import CustomUser;
 ```
 
 **`connection to server at "localhost" ... failed: Connection refused`**
-La base n'est pas démarrée. Depuis la racine : `docker compose up -d --wait db`.
+La base n'est pas démarrée. Depuis la racine :
+`docker compose -f compose.dev.yaml up -d --wait db`.
 
-**`docker compose up` répond `required variable POSTGRES_DB is missing a value`**
+**`docker compose` répond `no configuration file provided: not found`**
+La commande a été tapée sans `-f`. Il n'y a pas de `compose.yaml` dans ce dépôt :
+chaque pile a son fichier, et c'est ce qui empêche une commande de viser la
+mauvaise. Ajouter `-f compose.dev.yaml` ou `-f compose.prod.yaml`, ou poser
+`export COMPOSE_FILE=compose.dev.yaml` pour la durée du terminal.
+
+**`up` répond `required variable POSTGRES_DB is missing a value`**
 Le `.env` est absent ou les variables `POSTGRES_*` n'y sont pas. Reprendre l'étape
 *La configuration*. Compose refuse volontairement de démarrer plutôt que de créer
 une base avec des identifiants improvisés.
@@ -700,7 +719,8 @@ une base avec des identifiants improvisés.
 **J'ai changé `POSTGRES_USER` ou `POSTGRES_DB` et la connexion échoue**
 Ces valeurs ne servent qu'à la **création** de la base, au tout premier démarrage.
 Un volume déjà initialisé les ignore. Pour repartir sur ces nouvelles valeurs :
-`docker compose down -v`, puis `docker compose up -d --wait db` et `python manage.py migrate`.
+`docker compose -f compose.dev.yaml down -v`, puis
+`docker compose -f compose.dev.yaml up -d --wait db` et `python manage.py migrate`.
 Attention, `-v` détruit toutes les données existantes.
 
 **Le port 5432 est déjà utilisé**
@@ -747,7 +767,7 @@ suffit, sans `sudo`.
 Une image `weeb-frontend` construite à la main traîne sur la machine et porte le
 nom que Compose déduirait. Les fichiers Compose nomment désormais les leurs
 `weeb-frontend:dev` et `weeb-frontend:prod` ; si le symptôme revient, forcer la
-construction avec `docker compose up -d --build --wait`.
+construction avec `docker compose -f compose.dev.yaml up -d --build --wait`.
 
 **Le front affiche une erreur CORS dans la console du navigateur**
 L'adresse du front n'est pas dans `CORS_ALLOWED_ORIGINS`. Y ajouter l'origine
