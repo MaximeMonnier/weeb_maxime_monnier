@@ -1144,7 +1144,8 @@ Traite aussi :
   conteneur est déclaré malade à tort.
 
 Vérifie ensuite que le conteneur passe bien `healthy` :
-`docker compose up -d --wait` puis `docker compose ps`. Donne-moi la sortie.
+`docker compose -f compose.dev.yaml up -d --wait` puis
+`docker compose -f compose.dev.yaml ps`. Donne-moi la sortie.
 ```
 
 ---
@@ -1715,8 +1716,9 @@ plan :
 - `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` passe — montre la sortie ;
 - `npm run lint` et `npm run build` passent — montre la sortie ;
 - `python manage.py check --deploy` ne remonte rien de nouveau ;
-- `docker compose up -d --wait` et la pile de production démarrent toujours, tous services
-  `healthy`.
+- les deux piles démarrent toujours, tous services `healthy` :
+  `docker compose -f compose.dev.yaml up -d --wait` et
+  `docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60`.
 
 Ensuite seulement, consulte `workflow-git` pour la marche à suivre : PR vers preprod, et
 FERMETURE MANUELLE des issues — `Closes #N` ne les ferme pas au merge dans preprod, GitHub ne
@@ -1783,7 +1785,7 @@ optimisation.
 Ces points sont **délibérément laissés de côté** : ils fonctionnent, et les toucher ferait plus
 de mal que de bien.
 
-- **Toute la couche Docker** (Dockerfiles, `nginx.conf`, les trois fichiers Compose) : c'est la
+- **Toute la couche Docker** (Dockerfiles, `nginx.conf`, les deux fichiers Compose) : c'est la
   partie la plus solide du dépôt — multi-stage, non-root des deux côtés, sonde qui lit la base,
   entrypoint avec garde, `.dockerignore` qui met le `.env` hors contexte. Seules deux tâches y
   touchent, et par la marge (0.1 et 6.2).

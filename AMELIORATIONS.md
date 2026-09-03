@@ -11,9 +11,9 @@ et pour les prochaines itérations).
 
 ## Docker — mise en ligne
 
-Quatre critères de l'epic de dockerisation qu'aucune sous-issue n'a couverts. Rien ici ne
-bloque le développement, et le premier — le seul qui rendait la production inutilisable —
-est livré.
+Quatre critères de l'epic de dockerisation qu'aucune sous-issue n'a couverts, plus une dette
+née du terminateur TLS — cinq entrées en tout. Rien ici ne bloque le développement, et le
+premier critère — le seul qui rendait la production inutilisable — est livré.
 
 - [x] **Terminateur TLS devant la production** — livré. Un service `proxy` (nginx,
       `proxy/`) est seul à publier des ports, termine le TLS et **écrase**
@@ -41,8 +41,10 @@ est livré.
       et la dette réelle. À reprendre le jour où une mise en ligne existe — ajouter le
       `push` au workflow sera une dizaine de lignes.
 - [ ] **Logs et métriques depuis une interface unique** : piste, Grafana + Loki pour les
-      logs, cAdvisor pour les métriques de conteneurs, dans un fichier Compose à part
-      que la production doit pouvoir ignorer. Périmètre à réduire avant de commencer.
+      logs, cAdvisor pour les métriques de conteneurs, dans un troisième fichier Compose
+      que la pile de production n'a pas à connaître : elle doit démarrer sans lui. Reste à
+      trancher s'il s'ajoute par un `-f` ou s'il est autonome avec son propre `name:`.
+      Périmètre à réduire avant de commencer.
 - [ ] **Exécution des tests en conteneur isolé** : sur l'image de production, avec un
       service `db` éphémère, jamais sur l'image de développement. À reprendre avec le
       chantier des tests, qui dépasse Docker.
