@@ -588,6 +588,60 @@ navigateur alors que le conteneur reste `healthy`.
 | `npm run lint` | Vérifie le code avec ESLint |
 | `npm run preview` | Sert localement le résultat de `npm run build` |
 
+## Intégration continue
+
+`.github/workflows/docker-images.yml` construit les **trois** images à chaque push sur
+`preprod` ou sur `main`, et sur chaque pull request qui vise l'une des deux. Un job par image,
+nommé comme elle, pour qu'un journal rouge désigne la construction en cause sans qu'il faille
+l'ouvrir. Les trois vont au bout même si l'une casse : une seule exécution suffit à connaître
+l'état des trois.
+
+Les deux branches et pas seulement `preprod` : `main` est celle qui part sur un serveur, et
+c'est donc elle que la publication d'images visera le jour où elle existera. Constater après
+coup qu'une image ne se construit plus ne servirait à rien.
+
+| Job | Contexte | Particularité |
+|---|---|---|
+| `backend` | `backend/` | — |
+| `frontend` | `frontend/` | cible `prod`, avec `VITE_API_URL=/api` |
+| `proxy` | `proxy/` | — |
+
+L'intérêt n'est pas de disposer des images : elles sont **jetées avec la machine**. Il est que
+cette machine parte de zéro — sans cache, sans `node_modules`, sans `venv`, sans `.env`. C'est
+le seul endroit où se voient un `.dockerignore` mal réglé, un fichier oublié dans `.gitignore`
+ou une dépendance absente de `requirements.txt` ; sur le poste, ces trois défauts sont masqués
+par ce qui y traîne déjà.
+
+Les layers sont mis en cache d'une exécution à l'autre, avec **une portée par image** : sans
+cela les trois écraseraient tour à tour le même cache et chaque passage réinstallerait Django
+et les dépendances du front.
+
+**Aucune publication vers un registre**, et c'est délibéré : pousser des images n'a de valeur
+que si quelqu'un fait `docker pull`, et il n'existe aujourd'hui aucun serveur où déployer. Le
+workflow ne déclare donc ni registre, ni permission `packages: write`. À reprendre le jour où
+une mise en ligne existe. La cible `dev` du front est hors périmètre pour la même raison : elle
+ne sert qu'au poste.
+
+Reproduire la même chose sur sa machine, avant de pousser. `git archive` exporte le **dernier
+commit**, donc sans rien de non versionné — mais sans les modifications pas encore committées
+non plus, exactement comme le checkout de la machine de GitHub :
+
+```bash
+mkdir -p /tmp/weeb-propre && git archive HEAD | tar -x -C /tmp/weeb-propre
+
+docker build --no-cache -t weeb-backend:ci /tmp/weeb-propre/backend
+docker build --no-cache -t weeb-frontend:ci \
+  --target prod --build-arg VITE_API_URL=/api /tmp/weeb-propre/frontend
+docker build --no-cache -t weeb-proxy:ci /tmp/weeb-propre/proxy
+
+# les trois images ne servent qu'à la vérification
+docker image rm weeb-backend:ci weeb-frontend:ci weeb-proxy:ci
+```
+
+Les nommer n'est pas cosmétique : sans `-t`, chaque construction laisse une image que
+`docker images` affiche `<none>`, à retrouver ensuite parmi les autres. Avec, la suppression
+ci-dessus ne laisse rien — les deux cas ont été mesurés.
+
 ## Configuration par environnement
 
 Les réglages Django sont découpés par environnement dans `backend/config/settings/` :
@@ -643,6 +697,7 @@ Le token d'accès est valable 1 heure, celui de rafraîchissement 1 jour.
 .
 ├── .env.example              # modèle de configuration à copier en .env
 ├── .env.prod.example         # modèle des valeurs propres à la production
+├── .github/workflows/        # construction des trois images sur preprod et main
 ├── compose.dev.yaml          # pile de développement, autonome
 ├── compose.prod.yaml         # pile de production, autonome
 ├── proxy/                    # terminateur TLS, seule façade de la production
