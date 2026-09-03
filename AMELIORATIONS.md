@@ -29,11 +29,17 @@ est livré.
       joignables depuis le réseau local, sans aucune limitation de débit. Pistes : un
       `limit_req_zone` nginx sur ces chemins, et un `allow`/`deny` sur `/admin/`. Rien
       d'urgent sur un poste, indispensable avant une vraie mise en ligne.
-- [ ] **Publication des images en intégration continue** : construire et pousser les deux
-      images vers un registre à chaque push sur `preprod`. Piste : GitHub Actions vers
-      `ghcr.io`, étiquetage par sha court **et** tag mobile, jamais `latest` seul. Le
-      point à trancher est levé : `VITE_API_URL` valant `/api` depuis le proxy ci-dessus,
-      l'image du front n'est plus liée à une cible.
+- [ ] **Construction des images en intégration continue** : construire les **trois** images
+      à chaque push sur `preprod`, et échouer si l'une casse. La machine de GitHub part de
+      zéro — sans cache, sans `node_modules`, sans `.env` — ce qui est le seul endroit où se
+      voient un `.dockerignore` mal réglé ou une dépendance absente de `requirements.txt`.
+      Piste : GitHub Actions, avec un cache de layers entre exécutions.
+
+      **La publication vers un registre est écartée volontairement** (décidé le 2026-09-03),
+      alors que l'epic #47 la demandait. Pousser des images n'a de valeur que si quelqu'un
+      fait `docker pull`, et il n'existe aucun serveur où déployer : le bénéfice serait nul
+      et la dette réelle. À reprendre le jour où une mise en ligne existe — ajouter le
+      `push` au workflow sera une dizaine de lignes.
 - [ ] **Logs et métriques depuis une interface unique** : piste, Grafana + Loki pour les
       logs, cAdvisor pour les métriques de conteneurs, dans un fichier Compose à part
       que la production doit pouvoir ignorer. Périmètre à réduire avant de commencer.
