@@ -12,8 +12,9 @@ et pour les prochaines itérations).
 ## Docker — mise en ligne
 
 Quatre critères de l'epic de dockerisation qu'aucune sous-issue n'a couverts, plus une dette
-née du terminateur TLS — cinq entrées en tout. Rien ici ne bloque le développement, et le
-premier critère — le seul qui rendait la production inutilisable — est livré.
+née du terminateur TLS — cinq entrées en tout, dont deux livrées : le terminateur TLS, seul
+critère qui rendait la production inutilisable, et la construction des images en intégration
+continue. Rien de ce qui reste ne bloque le développement.
 
 - [x] **Terminateur TLS devant la production** — livré. Un service `proxy` (nginx,
       `proxy/`) est seul à publier des ports, termine le TLS et **écrase**
@@ -29,17 +30,19 @@ premier critère — le seul qui rendait la production inutilisable — est livr
       joignables depuis le réseau local, sans aucune limitation de débit. Pistes : un
       `limit_req_zone` nginx sur ces chemins, et un `allow`/`deny` sur `/admin/`. Rien
       d'urgent sur un poste, indispensable avant une vraie mise en ligne.
-- [ ] **Construction des images en intégration continue** : construire les **trois** images
-      à chaque push sur `preprod`, et échouer si l'une casse. La machine de GitHub part de
-      zéro — sans cache, sans `node_modules`, sans `.env` — ce qui est le seul endroit où se
-      voient un `.dockerignore` mal réglé ou une dépendance absente de `requirements.txt`.
-      Piste : GitHub Actions, avec un cache de layers entre exécutions.
+- [x] **Construction des images en intégration continue** — livré.
+      `.github/workflows/docker-images.yml` construit les **trois** images à chaque push sur
+      `preprod` ou sur `main`, et sur chaque pull request qui vise l'une des deux — `main`
+      étant la branche qui partira sur un serveur, elle est vérifiée aussi. Un job par image,
+      avec un cache de layers dont la portée est propre à chacune. La machine de GitHub part
+      de zéro — sans cache, sans `node_modules`, sans `.env` — ce qui est le seul endroit où
+      se voient un `.dockerignore` mal réglé ou une dépendance absente de `requirements.txt`.
 
-      **La publication vers un registre est écartée volontairement** (décidé le 2026-09-03),
+      **La publication vers un registre reste écartée volontairement** (décidé le 2026-09-03),
       alors que l'epic #47 la demandait. Pousser des images n'a de valeur que si quelqu'un
       fait `docker pull`, et il n'existe aucun serveur où déployer : le bénéfice serait nul
       et la dette réelle. À reprendre le jour où une mise en ligne existe — ajouter le
-      `push` au workflow sera une dizaine de lignes.
+      `push` au workflow existant sera une dizaine de lignes.
 - [ ] **Logs et métriques depuis une interface unique** : piste, Grafana + Loki pour les
       logs, cAdvisor pour les métriques de conteneurs, dans un troisième fichier Compose
       que la pile de production n'a pas à connaître : elle doit démarrer sans lui. Reste à
