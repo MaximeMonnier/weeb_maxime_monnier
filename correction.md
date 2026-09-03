@@ -101,16 +101,16 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 
 ## 0.1 — Reprendre la main sur `frontend/node_modules`
 
-- [ ] **Fichiers** : `frontend/node_modules/` (hôte), `compose.override.yaml`, `CLAUDE.md`, `README.md`
+- [ ] **Fichiers** : `frontend/node_modules/` (hôte), `compose.dev.yaml`, `CLAUDE.md`, `README.md`
 - **Constat** : `frontend/node_modules` est un dossier **vide appartenant à `root`**. Il a été créé
   par Docker comme point de montage du volume anonyme `/app/node_modules` déclaré dans
-  `compose.override.yaml`. Toute commande npm lancée depuis la machine échoue en `EACCES`.
+  `compose.dev.yaml`. Toute commande npm lancée depuis la machine échoue en `EACCES`.
 - **Attendu** : le dossier est rendu à l'utilisateur, `npm ci` passe, `npm run lint` et
   `npm run build` s'exécutent. Le piège est documenté (voir 10.1).
 
 ```
 Contexte : `frontend/node_modules` est un dossier vide appartenant à root, créé par le volume
-anonyme `/app/node_modules` de `compose.override.yaml` quand la pile de développement tourne.
+anonyme `/app/node_modules` de `compose.dev.yaml` quand la pile de développement tourne.
 Conséquence : npm ci, npm run dev, npm run lint et npm run build échouent tous en EACCES.
 
 Consulte d'abord la skill `conventions-docker` pour confirmer que le volume anonyme est bien
@@ -120,7 +120,7 @@ nécessaire tel qu'il est déclaré, et qu'il n'existe pas d'alternative (montag
 Puis propose-moi un plan en deux temps :
 1. la remise en état immédiate de la machine (commande exacte, en me disant précisément ce
    qu'elle supprime avant de la lancer) ;
-2. la prévention — soit un ajustement de compose.override.yaml si une option propre existe,
+2. la prévention — soit un ajustement de compose.dev.yaml si une option propre existe,
    soit, si le volume anonyme reste la bonne solution, la simple consigne à documenter.
 
 Ne lance aucune commande destructive sans me la montrer d'abord. Termine en vérifiant que
@@ -1144,7 +1144,8 @@ Traite aussi :
   conteneur est déclaré malade à tort.
 
 Vérifie ensuite que le conteneur passe bien `healthy` :
-`docker compose up -d --wait` puis `docker compose ps`. Donne-moi la sortie.
+`docker compose -f compose.dev.yaml up -d --wait` puis
+`docker compose -f compose.dev.yaml ps`. Donne-moi la sortie.
 ```
 
 ---
@@ -1624,7 +1625,7 @@ site. Ne la bâcle pas.
 - [ ] **Fichiers** : `CLAUDE.md`, `README.md`
 - **Constat** : `CLAUDE.md` recense « six pièges de la pile » Docker, mais pas celui qui bloque
   effectivement le poste de travail : le volume anonyme `/app/node_modules` de
-  `compose.override.yaml` crée côté hôte un dossier vide appartenant à `root`, ce qui fait
+  `compose.dev.yaml` crée côté hôte un dossier vide appartenant à `root`, ce qui fait
   échouer toute commande npm ultérieure. Le fichier annonce par ailleurs `cx()` « redéfini dans
   trois composants `ui/` » alors qu'il l'est dans quatre.
 - **Attendu** : la documentation décrit le dépôt tel qu'il est après les lots 0 à 9.
@@ -1634,7 +1635,7 @@ Objectif : remettre CLAUDE.md et le README en accord avec le dépôt.
 
 Écarts relevés pendant la revue :
 1. CLAUDE.md liste « six pièges de la pile » Docker mais omet celui qui bloque réellement le
-   poste : le volume anonyme /app/node_modules de compose.override.yaml fait créer par Docker, du
+   poste : le volume anonyme /app/node_modules de compose.dev.yaml fait créer par Docker, du
    côté HÔTE, un frontend/node_modules vide appartenant à root. Toute commande npm lancée ensuite
    depuis la machine échoue en EACCES. C'est un septième piège, au même titre que les six autres.
 2. CLAUDE.md indique « cx(), redéfini dans trois composants ui/ » — il l'est dans quatre
@@ -1715,8 +1716,9 @@ plan :
 - `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` passe — montre la sortie ;
 - `npm run lint` et `npm run build` passent — montre la sortie ;
 - `python manage.py check --deploy` ne remonte rien de nouveau ;
-- `docker compose up -d --wait` et la pile de production démarrent toujours, tous services
-  `healthy`.
+- les deux piles démarrent toujours, tous services `healthy` :
+  `docker compose -f compose.dev.yaml up -d --wait` et
+  `docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60`.
 
 Ensuite seulement, consulte `workflow-git` pour la marche à suivre : PR vers preprod, et
 FERMETURE MANUELLE des issues — `Closes #N` ne les ferme pas au merge dans preprod, GitHub ne
@@ -1783,7 +1785,7 @@ optimisation.
 Ces points sont **délibérément laissés de côté** : ils fonctionnent, et les toucher ferait plus
 de mal que de bien.
 
-- **Toute la couche Docker** (Dockerfiles, `nginx.conf`, les trois fichiers Compose) : c'est la
+- **Toute la couche Docker** (Dockerfiles, `nginx.conf`, les deux fichiers Compose) : c'est la
   partie la plus solide du dépôt — multi-stage, non-root des deux côtés, sonde qui lit la base,
   entrypoint avec garde, `.dockerignore` qui met le `.env` hors contexte. Seules deux tâches y
   touchent, et par la marge (0.1 et 6.2).

@@ -22,7 +22,7 @@ CORS_ALLOWED_ORIGINS = env_list(
 )
 
 
-# Base PostgreSQL du poste local, servie par le conteneur `db` de compose.yaml.
+# Base PostgreSQL du poste local, servie par le conteneur `db` de compose.dev.yaml.
 # Les identifiants sont exigés : une base de développement accessible avec des
 # identifiants devinables finirait par être exposée telle quelle ailleurs.
 DATABASES = postgres_database()
