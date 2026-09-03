@@ -12,26 +12,28 @@ et pour les prochaines itérations).
 ## Docker — mise en ligne
 
 Quatre critères de l'epic de dockerisation qu'aucune sous-issue n'a couverts, plus une dette
-née du terminateur TLS — cinq entrées en tout, dont deux livrées : le terminateur TLS, seul
-critère qui rendait la production inutilisable, et la construction des images en intégration
-continue. Rien de ce qui reste ne bloque le développement.
+née de la façade — cinq entrées en tout, dont deux livrées : le terminateur TLS, dont le
+travail vit désormais hors du dépôt, et la construction des images en intégration continue.
+Rien de ce qui reste ne bloque le développement.
 
-- [x] **Terminateur TLS devant la production** — livré. Un service `proxy` (nginx,
-      `proxy/`) est seul à publier des ports, termine le TLS et **écrase**
-      `X-Forwarded-Proto` (`proxy_set_header X-Forwarded-Proto $scheme`). Le front et
-      l'API sont désormais sur la même origine : CORS a disparu de la production et
-      `VITE_API_URL` y vaut `/api`. Reste à faire le jour où un domaine réel existe :
-      Let's Encrypt à la place du certificat local, et HSTS remonté par paliers — il est
-      à 0 tant que la production est servie sur `localhost`, qu'elle partage avec la pile
-      de développement.
-- [ ] **Limiter ce que le proxy expose au réseau.** Depuis le point ci-dessus, la pile ne
-      publie plus sur `127.0.0.1` mais sur toutes les interfaces : `/admin/` et les routes
-      d'authentification (`/api/auth/login/`, `/api/auth/password-reset/`) sont donc
-      joignables depuis le réseau local, sans aucune limitation de débit. Pistes : un
-      `limit_req_zone` nginx sur ces chemins, et un `allow`/`deny` sur `/admin/`. Rien
-      d'urgent sur un poste, indispensable avant une vraie mise en ligne.
+- [x] **Terminateur TLS devant la production** — livré, puis **retiré du dépôt le
+      2026-09-03**. Un service `proxy` (nginx, `proxy/`) a porté le TLS, le routage et
+      l'écrasement de `X-Forwarded-Proto` jusqu'à ce qu'il apparaisse que le serveur de
+      production a déjà nginx : deux terminateurs empilés, dont le second ne payait rien.
+      Ce qui reste du travail est la **configuration de référence du nginx du serveur**,
+      au README, § « Déployer derrière le nginx du serveur ». La pile, elle, publie le
+      front et l'API en clair sur `127.0.0.1` et rien d'autre. Ce qui n'a pas bougé : le
+      site et l'API sur la même origine, donc pas de CORS en production et
+      `VITE_API_URL=/api`.
+- [ ] **Durcir la façade du serveur.** Le nginx du serveur ne fait aujourd'hui que router :
+      `/admin/` et les routes d'authentification (`/api/auth/login/`,
+      `/api/auth/password-reset/`) n'y ont aucune limitation de débit ni restriction
+      d'origine. Pistes : un `limit_req_zone` sur ces chemins, et un `allow`/`deny` sur
+      `/admin/`. S'y ajoutent les deux chantiers qu'un domaine réel ouvre : Let's Encrypt
+      et HSTS remonté par paliers, à `0` tant que la pile est jointe sur `localhost`,
+      qu'elle partage avec le développement.
 - [x] **Construction des images en intégration continue** — livré.
-      `.github/workflows/docker-images.yml` construit les **trois** images à chaque push sur
+      `.github/workflows/docker-images.yml` construit les **deux** images à chaque push sur
       `preprod` ou sur `main`, et sur chaque pull request qui vise l'une des deux — `main`
       étant la branche qui partira sur un serveur, elle est vérifiée aussi. Un job par image,
       avec un cache de layers dont la portée est propre à chacune. La machine de GitHub part
