@@ -45,6 +45,25 @@ DATABASES = postgres_database()
 # en ligne, passer à `verify-full` et fournir un `sslrootcert`.
 DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = env_str('POSTGRES_SSLMODE', 'require')
 
+# --- Emails ---
+# Un relais SMTP réel, dont l'adresse est EXIGÉE : sans canal d'envoi, la
+# réinitialisation de mot de passe n'a plus qu'à renvoyer son jeton au client,
+# ce qui est exactement la faille que ce réglage sert à refermer.
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = env_required('EMAIL_HOST')
+EMAIL_PORT = env_int('EMAIL_PORT', 587)
+EMAIL_HOST_USER = env_str('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = env_str('EMAIL_HOST_PASSWORD', '')
+
+# STARTTLS par défaut, comme le port 587 : sinon identifiants et messages
+# partent en clair. Le couper demande un `EMAIL_USE_TLS=0` explicite.
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
+
+# Exigée elle aussi, plutôt qu'héritée du .env : ces liens partent chez
+# l'utilisateur, et le défaut de développement enverrait tous les destinataires
+# sur `localhost` sans que rien n'échoue côté serveur.
+FRONTEND_URL = env_required('FRONTEND_URL').rstrip('/')
+
 # --- En-têtes et cookies de sécurité ---
 # Ces réglages n'ont de sens que derrière HTTPS, donc uniquement ici.
 SECURE_SSL_REDIRECT = True                  # redirige tout le trafic HTTP vers HTTPS

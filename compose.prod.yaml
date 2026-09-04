@@ -66,7 +66,8 @@ services:
     build: ./backend
 
     # DEUX fichiers, dans cet ordre : le .env porte le commun, .env.prod réécrit
-    # les quatre valeurs qui diffèrent, et le dernier de la liste l'emporte.
+    # les valeurs qui diffèrent et pose celles que la production seule exige —
+    # EMAIL_HOST et FRONTEND_URL. Le dernier de la liste l'emporte.
     # ⚠️ N'alimentent que l'INTÉRIEUR du conteneur — ce qu'un fichier Compose
     # interpole en `${...}` ne se lit que dans le .env. Partage exact au README.
     env_file:

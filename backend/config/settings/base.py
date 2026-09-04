@@ -257,3 +257,19 @@ SIMPLE_JWT = {
 # Les origines autorisées changent selon l'environnement : elles sont lues depuis
 # CORS_ALLOWED_ORIGINS, sous forme de liste séparée par des virgules.
 CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS')
+
+
+# --- Emails ---
+# EMAIL_BACKEND n'est PAS défini ici, pour la même raison que SECRET_KEY : le
+# canal d'envoi change du tout au tout d'un environnement à l'autre, et un
+# défaut hérité ferait qu'une suite de tests ouvrirait des connexions réseau.
+
+# Adresse expéditrice des messages, celle que verra le destinataire. Le défaut
+# ne vaut qu'en développement : un domaine `.local` est refusé par tout relais
+# réel, la production doit poser le sien.
+DEFAULT_FROM_EMAIL = env_str('DEFAULT_FROM_EMAIL', 'no-reply@weeb.local')
+
+# Racine des liens écrits DANS les emails, celui de réinitialisation de mot de
+# passe en tête. C'est l'adresse du front, pas celle de l'API : le destinataire
+# clique vers une page React. Sans barre oblique finale, un chemin s'y ajoute.
+FRONTEND_URL = env_str('FRONTEND_URL', 'http://localhost:5173').rstrip('/')
