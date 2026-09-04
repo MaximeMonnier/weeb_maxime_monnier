@@ -54,6 +54,18 @@ Rien de ce qui reste ne bloque le développement.
       service `db` éphémère, jamais sur l'image de développement. À reprendre avec le
       chantier des tests, qui dépasse Docker.
 
+## Frontend — sécurité
+
+- [ ] **`apiFetch` joint encore le token aux endpoints publics hors `/auth/`.** simplejwt
+      authentifie **avant** d'appliquer les permissions : un `localStorage.access` périmé
+      fait répondre `401` à une vue `AllowAny`, sans que rien ne le dise. `lib/api.ts`
+      n'envoie plus l'en-tête sur `/auth/` — les cinq routes y sont publiques, et le
+      parcours de réinitialisation en dépendait — mais `/api/contact/`, publique elle
+      aussi, reste exposée. La cause de fond demeure : aucun `logout` ne vide
+      `localStorage` dans le dépôt, donc un token mort y reste indéfiniment. Pistes :
+      lister les chemins publics plutôt que le seul préfixe `/auth/`, ou purger
+      `localStorage.access` à la réception d'un `401`.
+
 ## Backend — sécurité
 
 - [ ] **Envoyer les emails hors du cycle de la requête.** `PasswordResetRequestView` rend
@@ -69,15 +81,6 @@ Rien de ce qui reste ne bloque le développement.
       qui borne surtout un risque neuf : l'endpoint déclenche maintenant un aller-retour SMTP
       par requête non authentifiée, donc du mail-bombing contre n'importe quelle adresse
       inscrite. `ScopedRateThrottle` de DRF y suffit, sans nouvelle dépendance.
-- [ ] **`apiFetch` joint encore le token aux endpoints publics hors `/auth/`.** simplejwt
-      authentifie **avant** d'appliquer les permissions : un `localStorage.access` périmé
-      fait répondre `401` à une vue `AllowAny`, sans que rien ne le dise. `lib/api.ts`
-      n'envoie plus l'en-tête sur `/auth/` — les cinq routes y sont publiques, et le
-      parcours de réinitialisation en dépendait — mais `/api/contact/`, publique elle
-      aussi, reste exposée. La cause de fond demeure : aucun `logout` ne vide
-      `localStorage` dans le dépôt, donc un token mort y reste indéfiniment. Pistes :
-      lister les chemins publics plutôt que le seul préfixe `/auth/`, ou purger
-      `localStorage.access` à la réception d'un `401`.
 - [ ] **`/api/auth/register/` énumère les comptes.** L'`UniqueValidator` du champ `email`
       de `RegisterSerializer` fait répondre `400` en nommant l'adresse déjà inscrite. Le
       corps neutre posé sur `/password-reset/` par l'issue #68 ne protège donc rien tant
@@ -94,5 +97,15 @@ Rien de ce qui reste ne bloque le développement.
       sa seule trace ; faute de configuration, elle sort par le handler de dernier recours
       de Python, sans horodatage ni niveau, hors de portée de `mail_admins`. Un handler
       console explicite suffirait à rendre ce chemin d'échec lisible.
+
+## Intégration continue
+
+- [ ] **Aucun job de test dans la CI.** `.github/workflows/docker-images.yml` construit les
+      deux images et rien d'autre ; depuis l'issue #68 le dépôt a six tests, qui ne tournent
+      donc que sur la machine de qui pense à les lancer. Un job avec un service `postgres`
+      et les `POSTGRES_*` en variables suffit — `config/settings/test.py` appelle
+      `postgres_database()` et `env_required`, il lui faut une vraie base. À ne pas confondre
+      avec l'entrée « Exécution des tests en conteneur isolé » ci-dessus, qui vise l'image
+      de production et reste un chantier distinct.
 
 ## (à compléter au fil de l'eau)

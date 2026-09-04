@@ -15,8 +15,7 @@ function getToken(): string | null {
 
 // DRF authentifie AVANT d'appliquer les permissions : un token périmé resté en
 // localStorage fait répondre 401 à une vue AllowAny — inscription et réinitialisation
-// de mot de passe en tête. Le jour où une route /auth/ demandera d'être connecté,
-// lister les chemins publics plutôt que ce préfixe.
+// de mot de passe en tête. Toutes les routes /auth/ sont publiques à ce jour.
 function needsToken(path: string): boolean {
   return !path.startsWith("/auth/");
 }
