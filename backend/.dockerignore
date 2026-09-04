@@ -1,0 +1,67 @@
+# ============================================
+#  Contexte de build de l'image du backend
+# ============================================
+# Docker N'UTILISE PAS le .gitignore : sans ce fichier-ci, `docker build`
+# enverrait au démon tout le contenu de backend/, venv compris — plusieurs
+# centaines de mégaoctets à transférer avant même la première instruction.
+#
+# Deux enjeux distincts :
+#   - la taille du contexte, donc la durée de chaque build ;
+#   - le contenu de l'image, car un fichier exclu ici ne peut pas y entrer
+#     par accident, même via un `COPY . .`.
+#
+# Les chemins sont relatifs au contexte de build, c'est-à-dire à backend/,
+# et non à la racine du dépôt : on écrit `venv/`, pas `backend/venv/`.
+
+# --- Environnement virtuel local ---
+# Compilé pour la machine du développeur (Python 3.12 ici), inutilisable dans
+# l'image, qui réinstalle ses dépendances depuis requirements.txt.
+venv/
+.venv/
+
+# --- Caches Python ---
+# Régénérés à l'exécution. Des .pyc issus d'une autre version de Python
+# seraient au mieux ignorés, au pire une source de confusion.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Secrets ---
+# Le .env vit à la racine du dépôt, hors de ce contexte : il ne peut donc pas
+# entrer dans l'image. Cette ligne couvre le cas d'un .env déposé par erreur
+# dans backend/ — la seule façon dont un secret pourrait se retrouver dans un
+# layer, et de là dans `docker history`.
+# Deux motifs, parce qu'aucun ne suffit seul : `*.env` laisse passer un
+# `.env.prod`, qui ne se TERMINE pas par `.env`, et `.env*` laisse passer un
+# `secrets.env`, qui ne COMMENCE pas par. Même paire que dans le .gitignore.
+.env*
+*.env
+
+# --- Fichiers générés par Django ---
+# staticfiles/ est reconstruit par collectstatic au démarrage du conteneur ;
+# media/ contient des données d'exécution, qui n'ont rien à faire dans une image.
+staticfiles/
+media/
+*.log
+
+# --- Base SQLite résiduelle ---
+# Le projet est passé à PostgreSQL. Un db.sqlite3 oublié sur un poste ne doit
+# en aucun cas être embarqué dans une image.
+*.sqlite3
+
+# --- Fichiers de build eux-mêmes ---
+# Ils n'ont rien à faire DANS l'image : ils la décrivent, ils ne la servent pas.
+# Les exclure n'empêche pas le build — BuildKit reçoit le Dockerfile par un
+# canal distinct du contexte.
+Dockerfile
+.dockerignore
+
+# --- Outillage de développement ---
+.git/
+.gitignore
+.idea/
+.vscode/
+.DS_Store

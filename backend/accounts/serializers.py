@@ -15,7 +15,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # On passe par create_user (notre manager) → le mot de passe est HASHÉ
         user = CustomUser.objects.create_user(**validated_data)
-        # Compte créé mais EN ATTENTE de validation par un admin (ton Option A)
+        # Compte créé mais EN ATTENTE de validation par un admin
         user.is_active = False
         user.save()
         return user
