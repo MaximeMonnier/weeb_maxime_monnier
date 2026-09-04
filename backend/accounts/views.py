@@ -21,8 +21,8 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
-# Corps volontairement identiques : distinguer deux réponses dirait qui est inscrit.
-# Rendus par copie, ces dicts de module étant partagés par toutes les requêtes.
+# La première répond à tous les cas de sa vue, la seconde à tous ses échecs : deux
+# libellés diraient qui est inscrit. Rendues par copie, ces dicts étant partagés.
 NEUTRAL_RESPONSE = {
     "detail": "Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé."
 }
