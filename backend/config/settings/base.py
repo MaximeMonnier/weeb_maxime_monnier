@@ -259,9 +259,7 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS')
 
 
-# ============================================
-#  Emails
-# ============================================
+# --- Emails ---
 # EMAIL_BACKEND n'est PAS défini ici, pour la même raison que SECRET_KEY : le
 # canal d'envoi change du tout au tout d'un environnement à l'autre, et un
 # défaut hérité ferait qu'une suite de tests ouvrirait des connexions réseau.

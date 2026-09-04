@@ -91,9 +91,9 @@ services:
     # L'image pose `production`. En développement on veut l'inverse : page
     # d'erreur détaillée, pas de redirection HTTPS, CORS ouvert sur Vite.
     #
-    # Les quatre suivantes contredisent volontairement le .env, qui décrit la
-    # base et le serveur de mail vus depuis la machine. Ce n'est pas de la
-    # configuration mais la topologie du réseau déclaré plus bas.
+    # POSTGRES_HOST, POSTGRES_PORT, EMAIL_HOST et EMAIL_PORT contredisent
+    # volontairement le .env, qui décrit la base et le serveur de mail vus depuis
+    # la machine. Ce n'est pas de la configuration mais la topologie du réseau.
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.development
       POSTGRES_HOST: db

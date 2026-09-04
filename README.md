@@ -293,8 +293,14 @@ DJANGO_SETTINGS_MODULE=config.settings.development python manage.py shell -c \
   "from django.core.mail import send_mail; print(send_mail('essai', 'corps', None, ['test@site.fr']))"
 ```
 
-`1` s'affiche et le message apparaît dans l'interface. Depuis le conteneur, la
-même commande précédée de `docker compose -f compose.dev.yaml exec backend`.
+`1` s'affiche et le message apparaît dans l'interface. Depuis le conteneur, le
+`cd` n'a plus lieu d'être — le répertoire de travail de l'image est déjà celui
+du projet — et seul le `manage.py shell -c` se reprend :
+
+```bash
+docker compose -f compose.dev.yaml exec backend python manage.py shell -c \
+  "from django.core.mail import send_mail; print(send_mail('essai', 'corps', None, ['test@site.fr']))"
+```
 
 > ⚠️ **`up -d --wait db` seul ne suffit plus** pour travailler dans le venv dès
 > qu'un envoi est en jeu : sans Mailpit, la connexion SMTP est refusée et la
@@ -347,6 +353,12 @@ cp .env.prod.example .env.prod
 > **héritée** : `env_required` ne verrait rien de vide, la production
 > démarrerait, et croirait envoyer ses messages. Même piège que
 > `CORS_ALLOWED_ORIGINS`, en plus silencieux.
+
+Le tableau ne porte que les six qui tranchent quelque chose. `.env.prod.example`
+en pose quelques autres autour du relais SMTP — expéditeur, port, identifiants,
+STARTTLS — **toutes décommentées**, y compris celles qui reprennent le défaut du
+code : supprimer une de ces lignes ne fait pas retomber sur ce défaut, elle fait
+hériter du `.env`. Le modèle commente chacune.
 
 > ⚠️ **`DJANGO_BEHIND_PROXY=1` ne se justifie plus tout seul.** Du temps où un
 > service `proxy` était la seule porte de la pile, personne ne pouvait parler au

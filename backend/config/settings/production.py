@@ -64,7 +64,6 @@ EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
 # sur `localhost` sans que rien n'échoue côté serveur.
 FRONTEND_URL = env_required('FRONTEND_URL').rstrip('/')
 
-
 # --- En-têtes et cookies de sécurité ---
 # Ces réglages n'ont de sens que derrière HTTPS, donc uniquement ici.
 SECURE_SSL_REDIRECT = True                  # redirige tout le trafic HTTP vers HTTPS
