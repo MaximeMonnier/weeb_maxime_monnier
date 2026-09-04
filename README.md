@@ -362,8 +362,8 @@ cp .env.prod.example .env.prod
 > `CORS_ALLOWED_ORIGINS`, en plus silencieux.
 
 Le tableau ne porte que les six qui tranchent quelque chose. `.env.prod.example`
-en pose quelques autres autour du relais SMTP — expéditeur, port, identifiants,
-STARTTLS — **toutes décommentées**, y compris celles qui reprennent le défaut du
+en pose quelques autres autour du relais SMTP — expéditeur, port, délai de garde,
+identifiants, STARTTLS — **toutes décommentées**, y compris celles qui reprennent le défaut du
 code : supprimer une de ces lignes ne fait pas retomber sur ce défaut, elle fait
 hériter du `.env`. Le modèle commente chacune.
 

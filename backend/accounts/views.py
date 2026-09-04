@@ -21,8 +21,8 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
-# Corps volontairement identique que le compte existe ou non : distinguer les deux
-# réponses dirait à n'importe qui quelles adresses sont inscrites.
+# Corps volontairement identiques : distinguer deux réponses dirait qui est inscrit.
+# Rendus par copie, ces dicts de module étant partagés par toutes les requêtes.
 NEUTRAL_RESPONSE = {
     "detail": "Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé."
 }
@@ -95,7 +95,6 @@ class PasswordResetConfirmView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        # Décoder l'uid pour retrouver l'utilisateur
         # Message unique aux deux échecs : les distinguer dirait, un uid étant
         # base64(pk), quels identifiants correspondent à un compte actif.
         try:
