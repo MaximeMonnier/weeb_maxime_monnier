@@ -5,6 +5,8 @@ import re
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 from .models import CustomUser
 from .views import INVALID_LINK_RESPONSE, NEUTRAL_RESPONSE
@@ -72,12 +74,15 @@ class PasswordResetConfirmTests(TestCase):
         link = re.search(r"/reset-password\?uid=([^&]+)&token=(\S+)", mail.outbox[0].body)
         self.uid, self.token = link.group(1), link.group(2)
 
-    def confirm(self, new_password):
+    def post(self, uid, token, new_password="NouveauMotDePasse456"):
         return self.client.post(
             self.url,
-            {"uid": self.uid, "token": self.token, "new_password": new_password},
+            {"uid": uid, "token": token, "new_password": new_password},
             content_type="application/json",
         )
+
+    def confirm(self, new_password):
+        return self.post(self.uid, self.token, new_password)
 
     def test_le_lien_change_le_mot_de_passe(self):
         response = self.confirm("NouveauMotDePasse456")
@@ -92,6 +97,17 @@ class PasswordResetConfirmTests(TestCase):
         self.assertEqual(self.confirm("EncoreUnAutre789").status_code, 400)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NouveauMotDePasse456"))
+
+    def test_les_deux_echecs_sont_indistinguables(self):
+        """Un uid étant base64(pk), deux messages diraient quels pk sont des comptes actifs."""
+        unknown_uid = self.post(
+            urlsafe_base64_encode(force_bytes(self.user.pk + 10_000)), self.token
+        )
+        wrong_token = self.post(self.uid, "mauvais-token")
+
+        self.assertEqual(unknown_uid.status_code, 400)
+        self.assertEqual(unknown_uid.status_code, wrong_token.status_code)
+        self.assertEqual(unknown_uid.json(), wrong_token.json())
 
     def test_un_compte_desactive_entre_temps_ne_peut_plus_confirmer(self):
         self.user.is_active = False

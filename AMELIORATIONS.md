@@ -60,8 +60,10 @@ Rien de ce qui reste ne bloque le développement.
       authentifie **avant** d'appliquer les permissions : un `localStorage.access` périmé
       fait répondre `401` à une vue `AllowAny`, sans que rien ne le dise. `lib/api.ts`
       n'envoie plus l'en-tête sur `/auth/` — les cinq routes y sont publiques, et le
-      parcours de réinitialisation en dépendait — mais `/api/contact/`, publique elle
-      aussi, reste exposée. La cause de fond demeure : aucun `logout` ne vide
+      parcours de réinitialisation en dépendait — mais les publiques d'ailleurs restent
+      exposées : `POST /api/contact/`, et les lectures `GET /api/articles/` et
+      `/api/articles/{id}/`, que `IsAuthenticatedOrReadOnly` autorise sans jamais être
+      atteint. La cause de fond demeure : aucun `logout` ne vide
       `localStorage` dans le dépôt, donc un token mort y reste indéfiniment. Pistes :
       lister les chemins publics plutôt que le seul préfixe `/auth/`, ou purger
       `localStorage.access` à la réception d'un `401`.
