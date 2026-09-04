@@ -26,34 +26,35 @@ class PasswordResetRequestTests(TestCase):
         self.inactif.is_active = False
         self.inactif.save()
 
-    def demander(self, email):
+    def request_reset(self, email):
         return self.client.post(self.url, {"email": email}, content_type="application/json")
 
     def test_compte_actif_recoit_le_lien_sans_rien_renvoyer(self):
-        reponse = self.demander("actif@example.com")
+        response = self.request_reset("actif@example.com")
 
-        self.assertEqual(reponse.status_code, 200)
-        self.assertEqual(reponse.json(), NEUTRAL_RESPONSE)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), NEUTRAL_RESPONSE)
         # Le cœur de l'issue #68 : le client ne doit tenir ni l'uid ni le token.
-        self.assertNotIn("uid", reponse.json())
-        self.assertNotIn("token", reponse.json())
+        self.assertNotIn("uid", response.json())
+        self.assertNotIn("token", response.json())
         self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["actif@example.com"])
         self.assertIn("/reset-password?uid=", mail.outbox[0].body)
 
     def test_email_inconnu_repond_exactement_pareil(self):
-        connu = self.demander("actif@example.com")
+        known = self.request_reset("actif@example.com")
         mail.outbox.clear()
-        inconnu = self.demander("jamais-inscrit@example.com")
+        unknown = self.request_reset("jamais-inscrit@example.com")
 
-        self.assertEqual(inconnu.status_code, connu.status_code)
-        self.assertEqual(inconnu.json(), connu.json())
+        self.assertEqual(unknown.status_code, known.status_code)
+        self.assertEqual(unknown.json(), known.json())
         self.assertEqual(mail.outbox, [])
 
     def test_compte_inactif_repond_pareil_mais_ne_recoit_rien(self):
-        reponse = self.demander("inactif@example.com")
+        response = self.request_reset("inactif@example.com")
 
-        self.assertEqual(reponse.status_code, 200)
-        self.assertEqual(reponse.json(), NEUTRAL_RESPONSE)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), NEUTRAL_RESPONSE)
         self.assertEqual(mail.outbox, [])
 
 
@@ -68,30 +69,37 @@ class PasswordResetConfirmTests(TestCase):
         )
         self.client.post(reverse("password-reset"), {"email": self.user.email},
                          content_type="application/json")
-        lien = re.search(r"/reset-password\?uid=([^&]+)&token=(\S+)", mail.outbox[0].body)
-        self.uid, self.token = lien.group(1), lien.group(2)
+        link = re.search(r"/reset-password\?uid=([^&]+)&token=(\S+)", mail.outbox[0].body)
+        self.uid, self.token = link.group(1), link.group(2)
 
-    def confirmer(self, mot_de_passe):
+    def confirm(self, new_password):
         return self.client.post(
             self.url,
-            {"uid": self.uid, "token": self.token, "new_password": mot_de_passe},
+            {"uid": self.uid, "token": self.token, "new_password": new_password},
             content_type="application/json",
         )
 
     def test_le_lien_change_le_mot_de_passe(self):
-        reponse = self.confirmer("NouveauMotDePasse456")
+        response = self.confirm("NouveauMotDePasse456")
 
-        self.assertEqual(reponse.status_code, 200)
+        self.assertEqual(response.status_code, 200)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NouveauMotDePasse456"))
 
     def test_le_lien_ne_sert_quune_fois(self):
-        self.confirmer("NouveauMotDePasse456")
+        self.assertEqual(self.confirm("NouveauMotDePasse456").status_code, 200)
 
-        self.assertEqual(self.confirmer("EncoreUnAutre789").status_code, 400)
+        self.assertEqual(self.confirm("EncoreUnAutre789").status_code, 400)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NouveauMotDePasse456"))
 
     def test_un_compte_desactive_entre_temps_ne_peut_plus_confirmer(self):
         self.user.is_active = False
         self.user.save()
 
-        self.assertEqual(self.confirmer("NouveauMotDePasse456").status_code, 400)
+        response = self.confirm("NouveauMotDePasse456")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["detail"], "Lien invalide.")
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("AncienMotDePasse123"))

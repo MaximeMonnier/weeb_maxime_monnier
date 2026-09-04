@@ -11,6 +11,11 @@ const ForgotPassword = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    setError(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -37,11 +42,12 @@ const ForgotPassword = () => {
         />
 
         <div className="w-full max-w-md my-8 border border-primary p-6 rounded-lg">
-          {confirmation ? (
-            <p role="status" className="text-center">
-              {confirmation}
-            </p>
-          ) : (
+          {/* Monté en permanence : une région live apparue avec son texte n'est
+              pas annoncée de façon fiable. */}
+          <p role="status" className="text-center">
+            {confirmation}
+          </p>
+          {confirmation ? null : (
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">
                 <Input
@@ -50,7 +56,7 @@ const ForgotPassword = () => {
                   type="email"
                   placeholder="jean.dupont@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleChange}
                   error={error ?? undefined}
                   required
                   fullWidth
