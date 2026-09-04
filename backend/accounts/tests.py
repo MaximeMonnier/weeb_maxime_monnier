@@ -182,6 +182,13 @@ class PasswordValidationTests(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password(self.STRONG_PASSWORD))
 
+    def test_inscription_refuse_un_mot_de_passe_tire_de_l_email(self):
+        """Seule l'inscription tient l'identité du compte, donc seule elle joue la similarité."""
+        response = self.register("Chatonbleu42", email="Chatonbleu42@example.com")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("password", response.json())
+
     def test_les_quatre_validateurs_de_django_ne_suffisent_pas(self):
         """Assez long, ni courant ni numérique : seul le cinquième validateur le rejette."""
         response = self.register("motdepassesansrien")
