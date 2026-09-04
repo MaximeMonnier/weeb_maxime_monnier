@@ -54,4 +54,60 @@ Rien de ce qui reste ne bloque le développement.
       service `db` éphémère, jamais sur l'image de développement. À reprendre avec le
       chantier des tests, qui dépasse Docker.
 
+## Frontend — sécurité
+
+- [ ] **`apiFetch` joint encore le token aux endpoints publics hors `/auth/`.** simplejwt
+      authentifie **avant** d'appliquer les permissions : un `localStorage.access` périmé
+      fait répondre `401` à une vue `AllowAny`, sans que rien ne le dise. `lib/api.ts`
+      n'envoie plus l'en-tête sur `/auth/` — les cinq routes y sont publiques, et le
+      parcours de réinitialisation en dépendait — mais les publiques d'ailleurs restent
+      exposées : `POST /api/contact/`, et les lectures `GET /api/articles/` et
+      `/api/articles/{id}/`, que `IsAuthenticatedOrReadOnly` autorise sans jamais être
+      atteint. La cause de fond demeure : aucun `logout` ne vide
+      `localStorage` dans le dépôt, donc un token mort y reste indéfiniment. Pistes :
+      lister les chemins publics plutôt que le seul préfixe `/auth/`, ou purger
+      `localStorage.access` à la réception d'un `401`.
+
+## Backend — sécurité
+
+- [ ] **Envoyer les emails hors du cycle de la requête.** `PasswordResetRequestView` rend
+      désormais la même réponse que le compte existe ou non, mais elle n'envoie l'email que
+      dans le premier cas, et l'envoi est synchrone : mesuré sur Mailpit en local, 40 ms
+      contre 10 ms, soit un oracle de temps qui rétablit ce que le corps neutre masque.
+      L'écart se creuse avec un vrai serveur SMTP. Piste : une file de tâches (Celery, ou
+      `django-tasks`) ; le projet n'en a aucune aujourd'hui, et en poser une pour ce seul
+      envoi est disproportionné. Un `threading.Thread(daemon=True)` refermerait l'essentiel
+      de l'écart en trois lignes, mais un envoi perdu le serait en silence, sans réessai ni
+      trace : il déplace le problème plutôt qu'il ne le règle. À reprendre avec la limitation
+      de débit de l'issue #71, qui borne l'exploitation de l'oracle sans le supprimer — et
+      qui borne surtout un risque neuf : l'endpoint déclenche maintenant un aller-retour SMTP
+      par requête non authentifiée, donc du mail-bombing contre n'importe quelle adresse
+      inscrite. `ScopedRateThrottle` de DRF y suffit, sans nouvelle dépendance.
+- [ ] **`/api/auth/register/` énumère les comptes.** L'`UniqueValidator` du champ `email`
+      de `RegisterSerializer` fait répondre `400` en nommant l'adresse déjà inscrite. Le
+      corps neutre posé sur `/password-reset/` par l'issue #68 ne protège donc rien tant
+      que ce voisin répond : la même question se pose à l'inscription et obtient une
+      réponse franche. À traiter dans l'epic sécurité #65.
+- [ ] **Comparaison d'email sensible à la casse.** `CustomUser.objects.get(email=...)` est
+      exact sous Postgres, et `normalize_email` ne minuscule que le domaine : un compte
+      enregistré `Jean@x.fr` ne se reconnaît pas sous `jean@x.fr`, ni au login ni à la
+      réinitialisation. Depuis #68 la réinitialisation n'a plus de 404 pour le signaler,
+      la panne est donc muette. À trancher globalement — normaliser à l'inscription, ou
+      passer login et réinitialisation en `iexact` ensemble — jamais d'un seul côté.
+- [ ] **Aucun `LOGGING` dans `config/settings/`.** `send_password_reset_link` avale la
+      panne SMTP pour ne pas trahir l'existence du compte, et `logger.exception` est alors
+      sa seule trace ; faute de configuration, elle sort par le handler de dernier recours
+      de Python, sans horodatage ni niveau, hors de portée de `mail_admins`. Un handler
+      console explicite suffirait à rendre ce chemin d'échec lisible.
+
+## Intégration continue
+
+- [ ] **Aucun job de test dans la CI.** `.github/workflows/docker-images.yml` construit les
+      deux images et rien d'autre ; depuis l'issue #68 le dépôt a une suite de tests, qui ne
+      tourne donc que sur la machine de qui pense à la lancer. Un job avec un service `postgres`
+      et les `POSTGRES_*` en variables suffit — `config/settings/test.py` appelle
+      `postgres_database()` et `env_required`, il lui faut une vraie base. À ne pas confondre
+      avec l'entrée « Exécution des tests en conteneur isolé » ci-dessus, qui vise l'image
+      de production et reste un chantier distinct.
+
 ## (à compléter au fil de l'eau)

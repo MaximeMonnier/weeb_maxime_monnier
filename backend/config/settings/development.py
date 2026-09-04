@@ -40,6 +40,11 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = env_str('EMAIL_HOST', 'localhost')
 EMAIL_PORT = env_int('EMAIL_PORT', 1025)
 
+# Sans ce réglage, smtplib retombe sur le délai global des sockets, c'est-à-dire aucun :
+# un relais qui avale les paquets bloquerait le worker qui envoie le lien de
+# réinitialisation, dans une vue publique.
+EMAIL_TIMEOUT = env_int('EMAIL_TIMEOUT', 10)
+
 # En dur, pas lus : Mailpit n'attend ni compte ni TLS, et lui en imposer un
 # depuis un .env ferait échouer l'envoi sans que la cause soit visible.
 EMAIL_HOST_USER = ''

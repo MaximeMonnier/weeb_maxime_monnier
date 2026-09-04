@@ -1,33 +1,42 @@
 import { useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
 import { Input } from "../components/ui/Input";
 import MainButton from "../components/ui/Button/MainButton";
 import MainTitle from "../components/ui/Title/MainTitle";
 
-const ForgotPassword = () => {
-  const [email, setEmail] = useState("");
-  // L'API répond la même chose que le compte existe ou non : on affiche son message tel quel.
-  const [confirmation, setConfirmation] = useState<string | null>(null);
+const ResetPassword = () => {
+  const navigate = useNavigate();
+  // uid et token viennent du lien reçu par email, jamais d'une réponse de l'API.
+  const [searchParams] = useSearchParams();
+  const uid = searchParams.get("uid");
+  const token = searchParams.get("token");
+
+  const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
+    setNewPassword(e.target.value);
     setError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newPassword.length < 8) {
+      setError("Le mot de passe doit contenir au moins 8 caractères.");
+      return;
+    }
     setError(null);
     setIsSubmitting(true);
     try {
-      const data = await apiFetch<{ detail: string }>("/auth/password-reset/", {
+      await apiFetch<{ detail: string }>("/auth/password-reset/confirm/", {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ uid, token, new_password: newPassword }),
       });
-      setConfirmation(data.detail);
+      navigate("/login", { replace: true });
     } catch {
-      setError("Adresse email invalide ou service indisponible.");
+      setError("Ce lien est invalide ou a déjà servi. Demandez-en un nouveau.");
     } finally {
       setIsSubmitting(false);
     }
@@ -37,26 +46,33 @@ const ForgotPassword = () => {
     <div className="container-custom mt-32">
       <div className="flex flex-col items-center justify-center">
         <MainTitle
-          line1={<>Mot de passe oublié</>}
-          line2="Entrez votre email pour réinitialiser"
+          line1={<>Nouveau mot de passe</>}
+          line2="Choisissez le mot de passe de votre compte"
         />
 
         <div className="w-full max-w-md my-8 border border-primary p-6 rounded-lg">
-          {/* Monté en permanence : une région live apparue avec son texte n'est
-              pas annoncée de façon fiable. */}
-          <p role="status" className="text-center">
-            {confirmation}
-          </p>
-          {confirmation ? null : (
+          {!uid || !token ? (
+            <p className="text-center">
+              Ce lien est incomplet. Reprenez depuis la{" "}
+              <Link
+                to="/forgot-password"
+                className="text-accent hover:underline focus-ring-primary rounded"
+              >
+                demande de réinitialisation
+              </Link>
+              .
+            </p>
+          ) : (
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">
                 <Input
-                  label="Adresse email"
-                  name="email"
-                  type="email"
-                  placeholder="jean.dupont@example.com"
-                  value={email}
+                  label="Nouveau mot de passe"
+                  name="new_password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
                   onChange={handleChange}
+                  helperText="Minimum 8 caractères"
                   error={error ?? undefined}
                   required
                   fullWidth
@@ -72,7 +88,7 @@ const ForgotPassword = () => {
                   >
                     {isSubmitting
                       ? "Veuillez patienter…"
-                      : "Réinitialiser mon mot de passe"}
+                      : "Valider le nouveau mot de passe"}
                   </MainButton>
                 </div>
               </div>
@@ -84,4 +100,4 @@ const ForgotPassword = () => {
   );
 };
 
-export default ForgotPassword;
+export default ResetPassword;

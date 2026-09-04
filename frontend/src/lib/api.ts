@@ -13,6 +13,13 @@ function getToken(): string | null {
   return localStorage.getItem("access");
 }
 
+// DRF authentifie AVANT d'appliquer les permissions : un token périmé resté en
+// localStorage fait répondre 401 à une vue AllowAny — inscription et réinitialisation
+// de mot de passe en tête. Toutes les routes /auth/ sont publiques à ce jour.
+function needsToken(path: string): boolean {
+  return !path.startsWith("/auth/");
+}
+
 type ApiError = {
   status: number;
   data: unknown;
@@ -23,7 +30,7 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = getToken();
+  const token = needsToken(path) ? getToken() : null;
 
   const res = await fetch(`${API_URL}${path}`, {
     ...options,

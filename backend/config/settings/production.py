@@ -52,6 +52,10 @@ DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = env_str('POSTGRES_SS
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = env_required('EMAIL_HOST')
 EMAIL_PORT = env_int('EMAIL_PORT', 587)
+
+# Aucun délai de garde par défaut côté smtplib. L'envoi étant synchrone dans une vue
+# publique, un relais muet immobiliserait les workers Gunicorn l'un après l'autre.
+EMAIL_TIMEOUT = env_int('EMAIL_TIMEOUT', 10)
 EMAIL_HOST_USER = env_str('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = env_str('EMAIL_HOST_PASSWORD', '')
 

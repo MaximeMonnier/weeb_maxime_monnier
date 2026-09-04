@@ -303,8 +303,15 @@ docker compose -f compose.dev.yaml exec backend python manage.py shell -c \
 ```
 
 > ⚠️ **`up -d --wait db` seul ne suffit plus** pour travailler dans le venv dès
-> qu'un envoi est en jeu : sans Mailpit, la connexion SMTP est refusée et la
-> vue qui envoie remonte l'erreur. Lancer `db mailpit`.
+> qu'un envoi est en jeu : sans Mailpit, la connexion SMTP est refusée. La
+> réinitialisation de mot de passe ne le dira pas — elle répond `200` quoi qu'il
+> arrive, pour ne pas trahir l'existence du compte, et l'échec ne part que dans
+> les journaux du serveur. Lancer `db mailpit`.
+
+`EMAIL_TIMEOUT` borne l'attente à 10 secondes, dans les deux environnements.
+Python n'en pose aucune par défaut : l'envoi étant synchrone et déclenché depuis
+une vue publique, un relais qui ne répond pas immobiliserait le worker. La
+variable se déplace par le `.env` de la racine.
 
 **Interface web : http://127.0.0.1:8025** — les messages y arrivent en direct.
 Ils vivent en mémoire : un `down` les efface, ce qui est très bien pour du
@@ -344,7 +351,7 @@ cp .env.prod.example .env.prod
 | `CORS_ALLOWED_ORIGINS` | **vide** | le nginx du serveur sert le front et l'API sur la même origine : il n'y a plus rien à autoriser. La ligne doit rester, vide : elle **remplace** celle du `.env`, et l'omettre ferait hériter la production des origines Vite du développement |
 | `DJANGO_HSTS_SECONDS` | `0` | tant que la pile tourne sur un poste, elle est jointe sur `localhost`, le nom d'hôte de la pile de développement. Un HSTS posé sur `localhost` vaut pour **tous ses ports** : le navigateur refuserait ensuite `http://localhost:5173`. Monter les paliers le jour où il y a un vrai domaine |
 | `EMAIL_HOST` | le relais SMTP | **exigée** : sans elle le backend refuse de démarrer en nommant la variable. Le développement s'en passe, ses réglages ayant `localhost:1025` — Mailpit — pour défaut |
-| `FRONTEND_URL` | l'adresse publique du **front** | **exigée** aussi. C'est la racine des liens écrits DANS les emails, celui de réinitialisation de mot de passe en tête : le destinataire clique vers une page React, pas vers un endpoint |
+| `FRONTEND_URL` | l'adresse publique du **front** | **exigée** aussi. C'est la racine des liens écrits DANS les emails, celui de réinitialisation de mot de passe en tête — `FRONTEND_URL` + `/reset-password?uid=…&token=…` : le destinataire clique vers une page React, pas vers un endpoint |
 
 > ⚠️ **Les deux dernières ne surchargent rien, elles ajoutent.** Les quatre
 > premières corrigent une valeur que le `.env` donne déjà ; `EMAIL_HOST` et
@@ -355,8 +362,8 @@ cp .env.prod.example .env.prod
 > `CORS_ALLOWED_ORIGINS`, en plus silencieux.
 
 Le tableau ne porte que les six qui tranchent quelque chose. `.env.prod.example`
-en pose quelques autres autour du relais SMTP — expéditeur, port, identifiants,
-STARTTLS — **toutes décommentées**, y compris celles qui reprennent le défaut du
+en pose quelques autres autour du relais SMTP — expéditeur, port, délai de garde,
+identifiants, STARTTLS — **toutes décommentées**, y compris celles qui reprennent le défaut du
 code : supprimer une de ces lignes ne fait pas retomber sur ce défaut, elle fait
 hériter du `.env`. Le modèle commente chacune.
 
@@ -971,8 +978,8 @@ et le site sur la même origine.
 | `POST` | `/api/auth/register/` | public | Inscription. Le compte est créé **inactif**, un administrateur doit l'activer |
 | `POST` | `/api/auth/login/` | public | Connexion : renvoie un token d'accès et un token de rafraîchissement |
 | `POST` | `/api/auth/login/refresh/` | public | Renouvelle le token d'accès expiré |
-| `POST` | `/api/auth/password-reset/` | public | Demande de réinitialisation du mot de passe |
-| `POST` | `/api/auth/password-reset/confirm/` | public | Confirmation avec le nouveau mot de passe |
+| `POST` | `/api/auth/password-reset/` | public | Demande de réinitialisation. Envoie le lien **par email** et répond toujours `200` avec le même corps, que le compte existe ou non — un 404 dirait qui est inscrit |
+| `POST` | `/api/auth/password-reset/confirm/` | public | Confirmation : `uid` et `token` du lien reçu, plus le nouveau mot de passe |
 | `GET` | `/api/articles/` | public | Liste des articles |
 | `GET` | `/api/articles/{id}/` | public | Détail d'un article |
 | `POST` | `/api/articles/` | connecté | Crée un article, rattaché à son auteur |
@@ -1041,6 +1048,15 @@ l'autoriser explicitement.
 Le `.env` est absent ou la clé n'est pas renseignée. Reprendre l'étape *La configuration*.
 Ce n'est pas un bug : le serveur refuse volontairement de démarrer sans clé, plutôt
 que d'en utiliser une connue de tous.
+
+**Je demande une réinitialisation et je ne reçois rien**
+Trois causes, et la réponse de l'API est volontairement la même dans les trois — elle
+ne dit jamais si un compte existe. D'abord l'adresse peut n'être associée à aucun
+compte. Ensuite le compte peut être **inactif** : un inscrit non encore validé par un
+administrateur ne reçoit pas de lien, sans quoi il choisirait un mot de passe pour se
+heurter ensuite au login. Enfin l'envoi peut avoir échoué — l'erreur part alors dans
+les journaux du serveur, jamais dans la réponse. En développement, tout message part
+sur Mailpit : `http://127.0.0.1:8025`.
 
 **Je me suis inscrit mais je ne peux pas me connecter**
 C'est le comportement prévu : un compte est créé inactif. L'activer depuis
