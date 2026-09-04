@@ -62,7 +62,16 @@ Rien de ce qui reste ne bloque le développement.
       contre 10 ms, soit un oracle de temps qui rétablit ce que le corps neutre masque.
       L'écart se creuse avec un vrai serveur SMTP. Piste : une file de tâches (Celery, ou
       `django-tasks`) ; le projet n'en a aucune aujourd'hui, et en poser une pour ce seul
-      envoi est disproportionné. À reprendre avec la limitation de débit de l'issue #71,
-      qui borne l'exploitation de l'oracle sans le supprimer.
+      envoi est disproportionné. Un `threading.Thread(daemon=True)` refermerait l'essentiel
+      de l'écart en trois lignes, mais un envoi perdu le serait en silence, sans réessai ni
+      trace : il déplace le problème plutôt qu'il ne le règle. À reprendre avec la limitation
+      de débit de l'issue #71, qui borne l'exploitation de l'oracle sans le supprimer.
+- [ ] **`apiFetch` joint le token même aux endpoints publics.** `frontend/src/lib/api.ts:26`
+      pose systématiquement `Authorization: Bearer localStorage.access`, et simplejwt
+      authentifie **avant** d'appliquer les permissions : un token périmé fait répondre
+      `401` à `/auth/password-reset/`, `/auth/register/`, `/api/contact/` — et à
+      `/auth/login/` lui-même, qui devient injoignable. Vérifié en local avec un jeton
+      bidon. Aucun `logout` ne nettoie `localStorage` dans le dépôt. Deux pistes : ne pas
+      poser l'en-tête sur `/auth/`, ou vider `localStorage.access` sur un `401`.
 
 ## (à compléter au fil de l'eau)

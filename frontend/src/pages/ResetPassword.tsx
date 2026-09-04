@@ -1,30 +1,34 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
 import { Input } from "../components/ui/Input";
 import MainButton from "../components/ui/Button/MainButton";
 import MainTitle from "../components/ui/Title/MainTitle";
 
-// Message unique : dire lequel des deux a échoué apprendrait à un inconnu
-// si le lien qu'il tient est valide.
-const MESSAGE_ERREUR =
-  "Lien invalide ou expiré, ou mot de passe trop court (8 caractères minimum).";
-
-type Etat = "saisie" | "envoi" | "erreur";
-
 const ResetPassword = () => {
   const navigate = useNavigate();
   // uid et token viennent du lien reçu par email, jamais d'une réponse de l'API.
   const [searchParams] = useSearchParams();
-  const uid = searchParams.get("uid") ?? "";
-  const token = searchParams.get("token") ?? "";
+  const uid = searchParams.get("uid");
+  const token = searchParams.get("token");
 
   const [newPassword, setNewPassword] = useState("");
-  const [etat, setEtat] = useState<Etat>("saisie");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewPassword(e.target.value);
+    setError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setEtat("envoi");
+    if (newPassword.length < 8) {
+      setError("Le mot de passe doit contenir au moins 8 caractères.");
+      return;
+    }
+    setError(null);
+    setIsSubmitting(true);
     try {
       await apiFetch<{ detail: string }>("/auth/password-reset/confirm/", {
         method: "POST",
@@ -32,7 +36,9 @@ const ResetPassword = () => {
       });
       navigate("/login");
     } catch {
-      setEtat("erreur");
+      setError("Ce lien est invalide ou a déjà servi. Demandez-en un nouveau.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -44,39 +50,48 @@ const ResetPassword = () => {
           line2="Choisissez le mot de passe de votre compte"
         />
 
-        <form
-          onSubmit={handleSubmit}
-          className="w-full max-w-md my-8 border border-primary p-6 rounded-lg"
-        >
-          <div className="space-y-6">
-            <Input
-              label="Nouveau mot de passe"
-              name="new_password"
-              type="password"
-              placeholder="••••••••"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              helperText="Minimum 8 caractères"
-              error={etat === "erreur" ? MESSAGE_ERREUR : undefined}
-              required
-              fullWidth
-            />
+        <div className="w-full max-w-md my-8 border border-primary p-6 rounded-lg">
+          {!uid || !token ? (
+            <p className="text-center">
+              Ce lien est incomplet. Reprenez depuis la{" "}
+              <Link to="/forgot-password" className="underline">
+                demande de réinitialisation
+              </Link>
+              .
+            </p>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-6">
+                <Input
+                  label="Nouveau mot de passe"
+                  name="new_password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={handleChange}
+                  helperText="Minimum 8 caractères"
+                  error={error ?? undefined}
+                  required
+                  fullWidth
+                />
 
-            <div className="flex justify-center">
-              <MainButton
-                type="submit"
-                variant="primary"
-                size="lg"
-                disabled={etat === "envoi"}
-                fullWidth
-              >
-                {etat === "envoi"
-                  ? "Veuillez patienter…"
-                  : "Valider le nouveau mot de passe"}
-              </MainButton>
-            </div>
-          </div>
-        </form>
+                <div className="flex justify-center">
+                  <MainButton
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    disabled={isSubmitting}
+                    fullWidth
+                  >
+                    {isSubmitting
+                      ? "Veuillez patienter…"
+                      : "Valider le nouveau mot de passe"}
+                  </MainButton>
+                </div>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );
