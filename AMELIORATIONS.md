@@ -103,8 +103,8 @@ Rien de ce qui reste ne bloque le développement.
 ## Intégration continue
 
 - [ ] **Aucun job de test dans la CI.** `.github/workflows/docker-images.yml` construit les
-      deux images et rien d'autre ; depuis l'issue #68 le dépôt a six tests, qui ne tournent
-      donc que sur la machine de qui pense à les lancer. Un job avec un service `postgres`
+      deux images et rien d'autre ; depuis l'issue #68 le dépôt a une suite de tests, qui ne
+      tourne donc que sur la machine de qui pense à la lancer. Un job avec un service `postgres`
       et les `POSTGRES_*` en variables suffit — `config/settings/test.py` appelle
       `postgres_database()` et `env_required`, il lui faut une vraie base. À ne pas confondre
       avec l'entrée « Exécution des tests en conteneur isolé » ci-dessus, qui vise l'image
