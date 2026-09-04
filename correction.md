@@ -91,7 +91,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | — |
+| Clos le 2026-09-04 | — (issue #58, sans epic) | Lot 0 | — |
 
 **Grain de ticket** : epic + 2 sous-issues, une par tâche.
 
@@ -101,7 +101,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 
 ## 0.1 — Reprendre la main sur `frontend/node_modules`
 
-- [ ] **Fichiers** : `frontend/node_modules/` (hôte), `compose.dev.yaml`, `CLAUDE.md`, `README.md`
+- [x] **Fichiers** : `frontend/node_modules/` (hôte), `compose.dev.yaml`, `CLAUDE.md`, `README.md`
 - **Constat** : `frontend/node_modules` est un dossier **vide appartenant à `root`**. Il a été créé
   par Docker comme point de montage du volume anonyme `/app/node_modules` déclaré dans
   `compose.dev.yaml`. Toute commande npm lancée depuis la machine échoue en `EACCES`.
@@ -129,7 +129,7 @@ Ne lance aucune commande destructive sans me la montrer d'abord. Termine en vér
 
 ## 0.2 — Corriger les vulnérabilités des dépendances front
 
-- [ ] **Fichiers** : `frontend/package.json`, `frontend/package-lock.json`
+- [x] **Fichiers** : `frontend/package.json`, `frontend/package-lock.json`
 - **Constat** : `npm audit` remonte **7 vulnérabilités « high »** sur `vite` 7.2.4 (traversée de
   chemin, lecture de fichier arbitraire via le WebSocket du serveur de dev, contournement de
   `server.fs.deny`). Elles ne concernent que le serveur de développement, pas l'image de
