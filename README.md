@@ -252,7 +252,7 @@ export COMPOSE_FILE=compose.prod.yaml
 |---|---|---|
 | fichier | `compose.dev.yaml` | `compose.prod.yaml` |
 | services | `db`, `mailpit`, `backend`, `frontend` | `db`, `backend`, `frontend` |
-| mail | Mailpit, SMTP sur `127.0.0.1:1025`, interface sur `127.0.0.1:8025` | **aucun service** : un vrai relais |
+| mail | Mailpit, SMTP sur `127.0.0.1:1025`, interface sur `127.0.0.1:8025` | **aucun service** : ce sera un vrai relais |
 | front | Vite sur `5173`, code monté | nginx dans l'image, publié sur `127.0.0.1:8081` |
 | API | `runserver` sur `8000`, code monté | Gunicorn, aucun montage, publié sur `127.0.0.1:8001` |
 | base | publiée sur `127.0.0.1:5432` | **aucun port publié**, réseau `interne` fermé |
@@ -266,9 +266,10 @@ réseaux et des volumes distincts : un `down -v` lancé en développement ne tou
 pas aux données de la production, et l'inverse est vrai aussi. Les deux jeux de
 ports ne se recouvrent pas non plus, et **les deux piles peuvent tourner en même
 temps** — le développement sur `5173`, `8000`, `5432`, `1025` et `8025`, la
-production sur `8081` et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD` et `FRONTEND_PORT_PROD` :
-réutiliser les variables du développement remettrait les deux piles sur le même
-port, et le `up` de la seconde échouerait en `port is already allocated`.
+production sur `8081` et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD`
+et `FRONTEND_PORT_PROD` : réutiliser les variables du développement remettrait
+les deux piles sur le même port, et le `up` de la seconde échouerait en
+`port is already allocated`.
 
 Les services démarrent en file, chacun attendant que le précédent soit
 `healthy` : base et serveur de mail, puis API, puis front. `up --wait` rend donc
