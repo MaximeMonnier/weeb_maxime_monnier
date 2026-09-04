@@ -54,4 +54,15 @@ Rien de ce qui reste ne bloque le développement.
       service `db` éphémère, jamais sur l'image de développement. À reprendre avec le
       chantier des tests, qui dépasse Docker.
 
+## Backend — sécurité
+
+- [ ] **Envoyer les emails hors du cycle de la requête.** `PasswordResetRequestView` rend
+      désormais la même réponse que le compte existe ou non, mais elle n'envoie l'email que
+      dans le premier cas, et l'envoi est synchrone : mesuré sur Mailpit en local, 40 ms
+      contre 10 ms, soit un oracle de temps qui rétablit ce que le corps neutre masque.
+      L'écart se creuse avec un vrai serveur SMTP. Piste : une file de tâches (Celery, ou
+      `django-tasks`) ; le projet n'en a aucune aujourd'hui, et en poser une pour ce seul
+      envoi est disproportionné. À reprendre avec la limitation de débit de l'issue #71,
+      qui borne l'exploitation de l'oracle sans le supprimer.
+
 ## (à compléter au fil de l'eau)
