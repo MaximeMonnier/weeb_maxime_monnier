@@ -27,18 +27,20 @@ NEUTRAL_RESPONSE = {
     "detail": "Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé."
 }
 
+INVALID_LINK_RESPONSE = {"detail": "Lien invalide ou expiré."}
+
 
 def send_password_reset_link(user):
     """Adresse à l'utilisateur un lien vers le front, portant son uid et son token."""
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
-    lien = f"{settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}"
+    link = f"{settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}"
 
     message = (
         "Bonjour,\n\n"
         "Vous avez demandé la réinitialisation de votre mot de passe.\n"
         "Choisissez-en un nouveau en suivant ce lien :\n\n"
-        f"{lien}\n\n"
+        f"{link}\n\n"
         "Ce lien est à usage unique et devient caduc dès le mot de passe changé.\n"
         "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.\n"
     )
@@ -94,19 +96,18 @@ class PasswordResetConfirmView(APIView):
         data = serializer.validated_data
 
         # Décoder l'uid pour retrouver l'utilisateur
+        # Message unique aux deux échecs : les distinguer dirait, un uid étant
+        # base64(pk), quels identifiants correspondent à un compte actif.
         try:
             user_id = force_str(urlsafe_base64_decode(data["uid"]))
             # Même filtre qu'à la demande : un compte désactivé entre-temps ne doit
             # pas pouvoir consommer le lien qu'il a reçu.
             user = CustomUser.objects.get(pk=user_id, is_active=True)
         except (CustomUser.DoesNotExist, ValueError, TypeError):
-            return Response({"detail": "Lien invalide."},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(dict(INVALID_LINK_RESPONSE), status=status.HTTP_400_BAD_REQUEST)
 
-        # Vérifier que le token est bon (et ni expiré ni déjà utilisé)
         if not default_token_generator.check_token(user, data["token"]):
-            return Response({"detail": "Token invalide ou expiré."},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(dict(INVALID_LINK_RESPONSE), status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(data["new_password"])   # hashe le nouveau mdp
         user.save()

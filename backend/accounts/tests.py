@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .models import CustomUser
-from .views import NEUTRAL_RESPONSE
+from .views import INVALID_LINK_RESPONSE, NEUTRAL_RESPONSE
 
 
 class PasswordResetRequestTests(TestCase):
@@ -15,16 +15,16 @@ class PasswordResetRequestTests(TestCase):
 
     def setUp(self):
         self.url = reverse("password-reset")
-        self.actif = CustomUser.objects.create_user(
+        self.active_user = CustomUser.objects.create_user(
             email="actif@example.com", first_name="A", last_name="Actif",
             password="MotDePasseValide123",
         )
-        self.inactif = CustomUser.objects.create_user(
+        self.inactive_user = CustomUser.objects.create_user(
             email="inactif@example.com", first_name="I", last_name="Inactif",
             password="MotDePasseValide123",
         )
-        self.inactif.is_active = False
-        self.inactif.save()
+        self.inactive_user.is_active = False
+        self.inactive_user.save()
 
     def request_reset(self, email):
         return self.client.post(self.url, {"email": email}, content_type="application/json")
@@ -100,6 +100,6 @@ class PasswordResetConfirmTests(TestCase):
         response = self.confirm("NouveauMotDePasse456")
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["detail"], "Lien invalide.")
+        self.assertEqual(response.json(), INVALID_LINK_RESPONSE)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("AncienMotDePasse123"))
