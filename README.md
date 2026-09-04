@@ -251,11 +251,12 @@ export COMPOSE_FILE=compose.prod.yaml
 | | développement | production |
 |---|---|---|
 | fichier | `compose.dev.yaml` | `compose.prod.yaml` |
-| services | `db`, `backend`, `frontend` | les mêmes |
+| services | `db`, `mailpit`, `backend`, `frontend` | `db`, `backend`, `frontend` |
+| mail | Mailpit, SMTP sur `127.0.0.1:1025`, interface sur `127.0.0.1:8025` | **aucun service** : ce sera un vrai relais |
 | front | Vite sur `5173`, code monté | nginx dans l'image, publié sur `127.0.0.1:8081` |
 | API | `runserver` sur `8000`, code monté | Gunicorn, aucun montage, publié sur `127.0.0.1:8001` |
 | base | publiée sur `127.0.0.1:5432` | **aucun port publié**, réseau `interne` fermé |
-| entrée | trois ports en clair | deux ports en clair, sur la boucle locale, derrière le nginx du serveur |
+| entrée | cinq ports en clair, tous sur la boucle locale | deux ports en clair, sur la boucle locale, derrière le nginx du serveur |
 | redémarrage | aucun | `unless-stopped` sur les trois services |
 | images | `weeb-backend:dev`, `weeb-frontend:dev` | `weeb-backend:prod`, `weeb-frontend:prod` |
 | projet Compose | `weeb`, volume `weeb_db_data` | `weeb-prod`, volumes `weeb-prod_db_data` et `weeb-prod_static_data` |
@@ -264,14 +265,49 @@ Les deux piles portent des **noms de projet différents**, donc des conteneurs, 
 réseaux et des volumes distincts : un `down -v` lancé en développement ne touche
 pas aux données de la production, et l'inverse est vrai aussi. Les deux jeux de
 ports ne se recouvrent pas non plus, et **les deux piles peuvent tourner en même
-temps** — le développement sur `5173`, `8000` et `5432`, la production sur `8081`
-et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD` et `FRONTEND_PORT_PROD` :
-réutiliser les variables du développement remettrait les deux piles sur le même
-port, et le `up` de la seconde échouerait en `port is already allocated`.
+temps** — le développement sur `5173`, `8000`, `5432`, `1025` et `8025`, la
+production sur `8081` et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD`
+et `FRONTEND_PORT_PROD` : réutiliser les variables du développement remettrait
+les deux piles sur le même port, et le `up` de la seconde échouerait en
+`port is already allocated`.
 
 Les services démarrent en file, chacun attendant que le précédent soit
-`healthy` : base, puis API, puis front. `up --wait` rend donc la main quand la
-pile entière répond.
+`healthy` : base et serveur de mail, puis API, puis front. `up --wait` rend donc
+la main quand la pile entière répond.
+
+#### Le serveur de mail du développement
+
+Le quatrième service de `compose.dev.yaml` est **Mailpit**, un serveur SMTP
+jetable : Django lui parlera comme à un vrai relais, et son interface web
+affiche les messages reçus au lieu de les livrer. C'est ce qui permettra
+d'exercer le vrai code d'envoi, qu'un backend `console` court-circuiterait.
+
+> ⚠️ **Le service est posé, le câblage vient ensuite.** Aucun réglage Django ne
+> vise encore Mailpit : rien n'envoie de mail aujourd'hui, et la pile n'en
+> montrera donc aucun. Les réglages `EMAIL_*` sont l'objet du ticket suivant.
+> `up -d --wait db` reste suffisant pour travailler dans le venv tant que c'est
+> le cas.
+
+**Interface web : http://127.0.0.1:8025** — les messages y arriveront en direct.
+Ils vivent en mémoire : un `down` les efface, ce qui est très bien pour du
+développement.
+
+Ce service n'existe **que** dans la pile de développement. `compose.prod.yaml`
+ne le connaît pas, la CI non plus : en ligne, Django s'adressera à un vrai
+relais.
+
+Pour le lancer avec la base seule, les deux applications tournant sur la
+machine :
+
+```bash
+docker compose -f compose.dev.yaml up -d --wait db mailpit
+```
+
+Son port SMTP est publié sur `127.0.0.1:1025` pour cette raison précise — ce
+sera la voie du backend lancé dans le venv, exactement comme pour la base. Le
+backend en conteneur, lui, passera par le réseau `interne` et visera
+`mailpit:1025`. Les deux ports côté machine se déplacent par
+`MAILPIT_SMTP_PORT_DEV` et `MAILPIT_UI_PORT_DEV`, du `.env` de la racine.
 
 #### Ce que la production attend de la configuration
 
@@ -325,7 +361,7 @@ règle de fusion.
 > |---|---|
 > | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `VITE_API_URL` | démarrage refusé, la variable nommée : elles s'écrivent `${VAR:?message}` |
 > | `BACKEND_PORT_PROD`, `FRONTEND_PORT_PROD` | **rien de visible** : le repli `${VAR:-défaut}` s'applique et la production démarre sur un autre port que celui voulu |
-> | `POSTGRES_PORT`, `BACKEND_PORT_DEV`, `FRONTEND_PORT_DEV` | rien en production, qui ne les interpole pas : `compose.dev.yaml` est seul à le faire. C'est le **développement** qu'on déplace alors sur d'autres ports, sans le voir |
+> | `POSTGRES_PORT`, `BACKEND_PORT_DEV`, `FRONTEND_PORT_DEV`, `MAILPIT_SMTP_PORT_DEV`, `MAILPIT_UI_PORT_DEV` | rien en production, qui ne les interpole pas : `compose.dev.yaml` est seul à le faire. C'est le **développement** qu'on déplace alors sur d'autres ports, sans le voir |
 >
 > Les trois `POSTGRES_*` sont le piège de ce tableau : elles sont lues **des deux
 > côtés**, par Compose pour créer la base et par Django dans le conteneur. Être
@@ -998,6 +1034,12 @@ Attention, `-v` détruit toutes les données existantes.
 **Le port 5432 est déjà utilisé**
 Un PostgreSQL tourne déjà sur la machine. Changer `POSTGRES_PORT` dans le `.env`
 (par exemple `5433`) : Django et Compose lisent tous deux cette variable.
+
+**Le port 1025 ou 8025 est déjà utilisé**
+Un autre serveur de mail de développement occupe la place — ce sont les ports
+habituels de MailHog comme de Mailpit. Changer `MAILPIT_SMTP_PORT_DEV` ou
+`MAILPIT_UI_PORT_DEV` dans le `.env` : seul le côté machine bouge, le service
+continue d'écouter 1025 et 8025 dans son réseau.
 
 **Le conteneur du backend reste `unhealthy`**
 Regarder d'abord `docker logs <conteneur>` : une erreur de connexion à la base
