@@ -65,13 +65,34 @@ Rien de ce qui reste ne bloque le développement.
       envoi est disproportionné. Un `threading.Thread(daemon=True)` refermerait l'essentiel
       de l'écart en trois lignes, mais un envoi perdu le serait en silence, sans réessai ni
       trace : il déplace le problème plutôt qu'il ne le règle. À reprendre avec la limitation
-      de débit de l'issue #71, qui borne l'exploitation de l'oracle sans le supprimer.
-- [ ] **`apiFetch` joint le token même aux endpoints publics.** `frontend/src/lib/api.ts:26`
-      pose systématiquement `Authorization: Bearer localStorage.access`, et simplejwt
-      authentifie **avant** d'appliquer les permissions : un token périmé fait répondre
-      `401` à `/auth/password-reset/`, `/auth/register/`, `/api/contact/` — et à
-      `/auth/login/` lui-même, qui devient injoignable. Vérifié en local avec un jeton
-      bidon. Aucun `logout` ne nettoie `localStorage` dans le dépôt. Deux pistes : ne pas
-      poser l'en-tête sur `/auth/`, ou vider `localStorage.access` sur un `401`.
+      de débit de l'issue #71, qui borne l'exploitation de l'oracle sans le supprimer — et
+      qui borne surtout un risque neuf : l'endpoint déclenche maintenant un aller-retour SMTP
+      par requête non authentifiée, donc du mail-bombing contre n'importe quelle adresse
+      inscrite. `ScopedRateThrottle` de DRF y suffit, sans nouvelle dépendance.
+- [ ] **`apiFetch` joint encore le token aux endpoints publics hors `/auth/`.** simplejwt
+      authentifie **avant** d'appliquer les permissions : un `localStorage.access` périmé
+      fait répondre `401` à une vue `AllowAny`, sans que rien ne le dise. `lib/api.ts`
+      n'envoie plus l'en-tête sur `/auth/` — les cinq routes y sont publiques, et le
+      parcours de réinitialisation en dépendait — mais `/api/contact/`, publique elle
+      aussi, reste exposée. La cause de fond demeure : aucun `logout` ne vide
+      `localStorage` dans le dépôt, donc un token mort y reste indéfiniment. Pistes :
+      lister les chemins publics plutôt que le seul préfixe `/auth/`, ou purger
+      `localStorage.access` à la réception d'un `401`.
+- [ ] **`/api/auth/register/` énumère les comptes.** L'`UniqueValidator` du champ `email`
+      de `RegisterSerializer` fait répondre `400` en nommant l'adresse déjà inscrite. Le
+      corps neutre posé sur `/password-reset/` par l'issue #68 ne protège donc rien tant
+      que ce voisin répond : la même question se pose à l'inscription et obtient une
+      réponse franche. À traiter dans l'epic sécurité #65.
+- [ ] **Comparaison d'email sensible à la casse.** `CustomUser.objects.get(email=...)` est
+      exact sous Postgres, et `normalize_email` ne minuscule que le domaine : un compte
+      enregistré `Jean@x.fr` ne se reconnaît pas sous `jean@x.fr`, ni au login ni à la
+      réinitialisation. Depuis #68 la réinitialisation n'a plus de 404 pour le signaler,
+      la panne est donc muette. À trancher globalement — normaliser à l'inscription, ou
+      passer login et réinitialisation en `iexact` ensemble — jamais d'un seul côté.
+- [ ] **Aucun `LOGGING` dans `config/settings/`.** `send_password_reset_link` avale la
+      panne SMTP pour ne pas trahir l'existence du compte, et `logger.exception` est alors
+      sa seule trace ; faute de configuration, elle sort par le handler de dernier recours
+      de Python, sans horodatage ni niveau, hors de portée de `mail_admins`. Un handler
+      console explicite suffirait à rendre ce chemin d'échec lisible.
 
 ## (à compléter au fil de l'eau)

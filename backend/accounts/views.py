@@ -78,8 +78,6 @@ class PasswordResetRequestView(APIView):
         except CustomUser.DoesNotExist:
             user = None
 
-        # uid et token ne quittent jamais le serveur autrement que par la boîte mail
-        # du titulaire : les renvoyer ici ouvrirait le compte à qui connaît l'adresse.
         if user is not None:
             send_password_reset_link(user)
 
@@ -87,7 +85,7 @@ class PasswordResetRequestView(APIView):
 
 
 class PasswordResetConfirmView(APIView):
-    """Étape 2 : vérifie le token et applique le nouveau mot de passe."""
+    """Étape 2 : vérifie le token et applique le nouveau mot de passe. Endpoint PUBLIC (pas besoin d'être connecté)."""
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -98,7 +96,9 @@ class PasswordResetConfirmView(APIView):
         # Décoder l'uid pour retrouver l'utilisateur
         try:
             user_id = force_str(urlsafe_base64_decode(data["uid"]))
-            user = CustomUser.objects.get(pk=user_id)
+            # Même filtre qu'à la demande : un compte désactivé entre-temps ne doit
+            # pas pouvoir consommer le lien qu'il a reçu.
+            user = CustomUser.objects.get(pk=user_id, is_active=True)
         except (CustomUser.DoesNotExist, ValueError, TypeError):
             return Response({"detail": "Lien invalide."},
                             status=status.HTTP_400_BAD_REQUEST)

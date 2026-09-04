@@ -13,6 +13,14 @@ function getToken(): string | null {
   return localStorage.getItem("access");
 }
 
+// Les routes /auth/ sont toutes publiques, et simplejwt authentifie AVANT d'appliquer
+// les permissions : un token périmé encore en localStorage leur ferait répondre 401,
+// login et réinitialisation de mot de passe compris — soit les deux pages censées
+// débloquer quelqu'un qui l'est déjà.
+function needsToken(path: string): boolean {
+  return !path.startsWith("/auth/");
+}
+
 type ApiError = {
   status: number;
   data: unknown;
@@ -23,7 +31,7 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = getToken();
+  const token = needsToken(path) ? getToken() : null;
 
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
