@@ -211,7 +211,10 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+# Fixe la langue des messages rendus par Django et DRF — ceux des validateurs de mot
+# de passe compris. Aucun LocaleMiddleware : la langue ne suit pas l'Accept-Language
+# du client, tous les libellés écrits par le projet étant français.
+LANGUAGE_CODE = 'fr-fr'
 
 TIME_ZONE = 'UTC'
 
