@@ -34,7 +34,7 @@ const ResetPassword = () => {
         method: "POST",
         body: JSON.stringify({ uid, token, new_password: newPassword }),
       });
-      navigate("/login");
+      navigate("/login", { replace: true });
     } catch {
       setError("Ce lien est invalide ou a déjà servi. Demandez-en un nouveau.");
     } finally {
@@ -70,10 +70,11 @@ const ResetPassword = () => {
                   value={newPassword}
                   onChange={handleChange}
                   helperText="Minimum 8 caractères"
-                  error={error ?? undefined}
                   required
                   fullWidth
                 />
+
+                {error && <p className="form-error-message">{error}</p>}
 
                 <div className="flex justify-center">
                   <MainButton
