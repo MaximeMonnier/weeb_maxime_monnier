@@ -47,6 +47,36 @@ services:
       retries: 5
       start_period: 10s
 
+  mailpit:
+    # Serveur SMTP jetable : Django envoie pour de vrai et l'interface web montre
+    # le résultat, là où un backend `console` court-circuiterait le code d'envoi
+    # au lieu de l'exercer. Rien de tel en production, qui parle à un vrai relais
+    # — ce service n'existe que dans ce fichier.
+    image: axllent/mailpit:v1.31.0
+
+    # L'image ne pose aucun `USER` et démarrerait donc en root. Ses deux ports
+    # sont au-dessus de 1024 et elle n'écrit rien sur disque tant qu'aucune base
+    # ne lui est passée : un compte sans privilèges lui suffit.
+    user: "1000:1000"
+
+    # Le SMTP est publié en plus de l'interface, comme la base l'est : c'est par
+    # lui que le backend lancé dans le venv joint Mailpit. Celui en conteneur
+    # passera par le réseau `interne` et ignorera ces deux ports.
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_PORT_DEV:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_PORT_DEV:-8025}:8025"
+
+    networks:
+      - interne
+
+    # Sonde héritée de l'image — `mailpit readyz` —, seule sa cadence est reprise :
+    # les 15 s de l'image feraient attendre le backend, qui dépend de ce service.
+    healthcheck:
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
   backend:
     # `image:` explicite : sans elle Compose déduit `<projet>-<service>`, soit
     # `weeb-backend`, le nom même des constructions manuelles du README — qu'il
@@ -84,8 +114,12 @@ services:
 
     # `service_healthy` : Postgres accepte les connexions plusieurs secondes
     # après le démarrage du conteneur, et le `migrate` échouerait entre-temps.
+    # Mailpit à la même condition, pour qu'un envoi d'email lancé dès le
+    # démarrage trouve son destinataire debout.
     depends_on:
       db:
+        condition: service_healthy
+      mailpit:
         condition: service_healthy
 
     networks:
@@ -93,7 +127,7 @@ services:
       - public
 
     # Sonde héritée de l'image, seule sa cadence est reprise : les 30 s de
-    # l'image mèneraient la chaîne des trois services au-delà de la minute.
+    # l'image mèneraient la chaîne des services au-delà de la minute.
     healthcheck:
       interval: 5s
       timeout: 5s
@@ -135,9 +169,10 @@ services:
       start_period: 30s
 
 networks:
-  # La base n'est jointe que par le backend, qui est sur les deux réseaux, ce
-  # qui lui laisse une sortie. `interne` n'est PAS fermé ici, contrairement à la
-  # production : la base est justement publiée sur la machine.
+  # La base et Mailpit ne sont joints que par le backend, qui est sur les deux
+  # réseaux, ce qui lui laisse une sortie. `interne` n'est PAS fermé ici,
+  # contrairement à la production : les deux sont justement publiés sur la
+  # machine, pour le travail en venv.
   interne:
   public:
 
