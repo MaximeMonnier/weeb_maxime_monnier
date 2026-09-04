@@ -25,3 +25,10 @@ CORS_ALLOWED_ORIGINS = []
 # Contrepartie assumée : la suite exige un PostgreSQL joignable et les
 # variables POSTGRES_* renseignées, contrairement à SECRET_KEY.
 DATABASES = postgres_database()
+
+
+# --- Emails ---
+# Backend mémoire : aucun test n'ouvre de connexion SMTP, et chaque message
+# envoyé reste lisible dans `django.core.mail.outbox`. Le runner de Django
+# l'impose déjà de son côté ; l'écrire ici vaut pour tout ce qui sort du runner.
+EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
