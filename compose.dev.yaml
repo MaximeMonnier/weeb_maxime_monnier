@@ -48,8 +48,8 @@ services:
       start_period: 10s
 
   mailpit:
-    # Serveur SMTP jetable, posé AVANT le code qui s'en servira : aucun réglage
-    # Django ne le vise encore. Absent de la production, qui parlera à un vrai
+    # Serveur SMTP jetable : il affiche les messages au lieu de les livrer, sur
+    # http://127.0.0.1:8025. Absent de la production, qui parlera à un vrai
     # relais. Détail au README, § « Le serveur de mail du développement ».
     image: axllent/mailpit:v1.31.0
 
@@ -58,7 +58,7 @@ services:
     # `MP_DATA_FILE` ne lui est passé : un compte sans privilèges lui suffit.
     user: "1000:1000"
 
-    # Le SMTP est publié en plus de l'interface, comme la base l'est : ce sera la
+    # Le SMTP est publié en plus de l'interface, comme la base l'est : c'est la
     # voie du backend lancé dans le venv, celui en conteneur passant par le
     # réseau `interne`. Le POP3 de l'image, sur 1110, ne sert à rien ici.
     ports:
@@ -91,13 +91,15 @@ services:
     # L'image pose `production`. En développement on veut l'inverse : page
     # d'erreur détaillée, pas de redirection HTTPS, CORS ouvert sur Vite.
     #
-    # POSTGRES_HOST et POSTGRES_PORT contredisent volontairement le .env, qui
-    # décrit la base vue depuis la machine. Ce n'est pas de la configuration
-    # mais la topologie du réseau déclaré plus bas.
+    # POSTGRES_HOST, POSTGRES_PORT, EMAIL_HOST et EMAIL_PORT contredisent
+    # volontairement le .env, qui décrit la base et le serveur de mail vus depuis
+    # la machine. Ce n'est pas de la configuration mais la topologie du réseau.
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.development
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: 1025
 
     # Le code de la machine masque celui de l'image : `runserver` surveille ces
     # fichiers-là. Le conteneur y écrit sous l'uid 1001, voir le README.

@@ -278,17 +278,35 @@ la main quand la pile entière répond.
 #### Le serveur de mail du développement
 
 Le quatrième service de `compose.dev.yaml` est **Mailpit**, un serveur SMTP
-jetable : Django lui parlera comme à un vrai relais, et son interface web
-affiche les messages reçus au lieu de les livrer. C'est ce qui permettra
-d'exercer le vrai code d'envoi, qu'un backend `console` court-circuiterait.
+jetable : Django lui parle comme à un vrai relais, et son interface web affiche
+les messages reçus au lieu de les livrer. C'est ce qui permet d'exercer le vrai
+code d'envoi, qu'un backend `console` court-circuiterait.
 
-> ⚠️ **Le service est posé, le câblage vient ensuite.** Aucun réglage Django ne
-> vise encore Mailpit : rien n'envoie de mail aujourd'hui, et la pile n'en
-> montrera donc aucun. Les réglages `EMAIL_*` sont l'objet du ticket suivant.
-> `up -d --wait db` reste suffisant pour travailler dans le venv tant que c'est
-> le cas.
+`config/settings/development.py` le vise sans qu'aucune variable soit à
+renseigner : ses défauts sont `localhost` et `1025`, l'adresse de Mailpit vue
+depuis la machine. Le backend en conteneur, lui, reçoit `mailpit:1025` de
+l'`environment:` de `compose.dev.yaml`. Vérifier d'un bout à l'autre :
 
-**Interface web : http://127.0.0.1:8025** — les messages y arriveront en direct.
+```bash
+cd backend
+DJANGO_SETTINGS_MODULE=config.settings.development python manage.py shell -c \
+  "from django.core.mail import send_mail; print(send_mail('essai', 'corps', None, ['test@site.fr']))"
+```
+
+`1` s'affiche et le message apparaît dans l'interface. Depuis le conteneur, le
+`cd` n'a plus lieu d'être — le répertoire de travail de l'image est déjà celui
+du projet — et seul le `manage.py shell -c` se reprend :
+
+```bash
+docker compose -f compose.dev.yaml exec backend python manage.py shell -c \
+  "from django.core.mail import send_mail; print(send_mail('essai', 'corps', None, ['test@site.fr']))"
+```
+
+> ⚠️ **`up -d --wait db` seul ne suffit plus** pour travailler dans le venv dès
+> qu'un envoi est en jeu : sans Mailpit, la connexion SMTP est refusée et la
+> vue qui envoie remonte l'erreur. Lancer `db mailpit`.
+
+**Interface web : http://127.0.0.1:8025** — les messages y arrivent en direct.
 Ils vivent en mémoire : un `down` les efface, ce qui est très bien pour du
 développement.
 
@@ -311,10 +329,9 @@ backend en conteneur, lui, passera par le réseau `interne` et visera
 
 #### Ce que la production attend de la configuration
 
-Quatre variables doivent valoir **autre chose** qu'en développement. Elles ne
-vivent pas dans le `.env`, où les deux jeux se contrediraient sans que rien ne
-le signale, mais dans un fichier à part que la seule pile de production charge
-**par-dessus** :
+Six variables séparent la production du développement. Elles ne vivent pas dans
+le `.env`, où les deux jeux se contrediraient sans que rien ne le signale, mais
+dans un fichier à part que la seule pile de production charge **par-dessus** :
 
 ```bash
 cp .env.prod.example .env.prod
@@ -326,6 +343,22 @@ cp .env.prod.example .env.prod
 | `DJANGO_BEHIND_PROXY` | `1` | sans lui, la redirection HTTPS répond 301 à la sonde et le backend reste `unhealthy`. Cette valeur suppose que le nginx du serveur **écrase** `X-Forwarded-Proto`, et elle est bornée par le fait que la pile ne publie ses ports que sur `127.0.0.1` |
 | `CORS_ALLOWED_ORIGINS` | **vide** | le nginx du serveur sert le front et l'API sur la même origine : il n'y a plus rien à autoriser. La ligne doit rester, vide : elle **remplace** celle du `.env`, et l'omettre ferait hériter la production des origines Vite du développement |
 | `DJANGO_HSTS_SECONDS` | `0` | tant que la pile tourne sur un poste, elle est jointe sur `localhost`, le nom d'hôte de la pile de développement. Un HSTS posé sur `localhost` vaut pour **tous ses ports** : le navigateur refuserait ensuite `http://localhost:5173`. Monter les paliers le jour où il y a un vrai domaine |
+| `EMAIL_HOST` | le relais SMTP | **exigée** : sans elle le backend refuse de démarrer en nommant la variable. Le développement s'en passe, ses réglages ayant `localhost:1025` — Mailpit — pour défaut |
+| `FRONTEND_URL` | l'adresse publique du **front** | **exigée** aussi. C'est la racine des liens écrits DANS les emails, celui de réinitialisation de mot de passe en tête : le destinataire clique vers une page React, pas vers un endpoint |
+
+> ⚠️ **Les deux dernières ne surchargent rien, elles ajoutent.** Les quatre
+> premières corrigent une valeur que le `.env` donne déjà ; `EMAIL_HOST` et
+> `FRONTEND_URL` n'y figurent pas — `.env.example` les laisse commentées
+> exprès. Décommentée là-bas et oubliée ici, `EMAIL_HOST=localhost` serait
+> **héritée** : `env_required` ne verrait rien de vide, la production
+> démarrerait, et croirait envoyer ses messages. Même piège que
+> `CORS_ALLOWED_ORIGINS`, en plus silencieux.
+
+Le tableau ne porte que les six qui tranchent quelque chose. `.env.prod.example`
+en pose quelques autres autour du relais SMTP — expéditeur, port, identifiants,
+STARTTLS — **toutes décommentées**, y compris celles qui reprennent le défaut du
+code : supprimer une de ces lignes ne fait pas retomber sur ce défaut, elle fait
+hériter du `.env`. Le modèle commente chacune.
 
 > ⚠️ **`DJANGO_BEHIND_PROXY=1` ne se justifie plus tout seul.** Du temps où un
 > service `proxy` était la seule porte de la pile, personne ne pouvait parler au
@@ -903,9 +936,17 @@ Les réglages Django sont découpés par environnement dans `backend/config/sett
 | Module | Usage | Particularités |
 |---|---|---|
 | `base.py` | commun à tous | lit le `.env`, ne définit aucune clé secrète |
-| `development.py` | poste de développement | `DEBUG` actif, origines `localhost:5173` autorisées |
-| `test.py` | tests automatisés | clé factice, base `test_weeb` créée et détruite par Django, exige PostgreSQL |
-| `production.py` | serveur en ligne | `DEBUG` forcé à faux, hôtes obligatoires, en-têtes de sécurité HTTPS, TLS exigé jusqu'à la base |
+| `development.py` | poste de développement | `DEBUG` actif, origines `localhost:5173` autorisées, emails vers Mailpit |
+| `test.py` | tests automatisés | clé factice, base `test_weeb` créée et détruite par Django, exige PostgreSQL, emails en mémoire |
+| `production.py` | serveur en ligne | `DEBUG` forcé à faux, hôtes obligatoires, en-têtes de sécurité HTTPS, TLS exigé jusqu'à la base et jusqu'au relais SMTP |
+
+Trois réglages manquent **volontairement** à `base.py`, et chaque module dit
+d'où vient le sien : `SECRET_KEY`, `DATABASES` et `EMAIL_BACKEND`. Les deux
+premiers pour que l'import des réglages reste possible sans clé ni base ; le
+troisième parce qu'un canal d'envoi hérité ferait qu'une suite de tests
+ouvrirait des connexions SMTP sans le dire. Ce que `base.py` pose, ce sont les
+deux valeurs qui ne dépendent pas du canal : `DEFAULT_FROM_EMAIL` et
+`FRONTEND_URL`, la racine des liens écrits dans les messages.
 
 Le module utilisé est choisi par la variable `DJANGO_SETTINGS_MODULE`, à définir
 dans le terminal ou dans le conteneur — **pas** dans le `.env`, que Django lit trop tard.
