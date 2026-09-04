@@ -1,0 +1,147 @@
+# Pile de DÉVELOPPEMENT, autonome : ce fichier se lit de bout en bout et ne
+# fusionne avec rien. La production est dans compose.prod.yaml, tout aussi
+# autonome. Les deux se ressemblent, et c'est le prix assumé de leur lisibilité.
+#
+#   docker compose -f compose.dev.yaml up -d --wait
+#
+# Le `-f` n'est pas facultatif, et vaut pour TOUTES les commandes. Il n'y a plus
+# de `compose.yaml` : une commande qui l'oublie échoue en le disant, au lieu de
+# viser la mauvaise pile en silence. `export COMPOSE_FILE=compose.dev.yaml` le
+# pose une fois pour toutes dans le terminal.
+
+# Nom de projet figé : sans lui, Compose le déduit du nom du dossier, et les
+# conteneurs comme le volume de données changeraient de nom d'une machine à
+# l'autre. Distinct de `weeb-prod`, donc volume distinct : un `down -v` lancé
+# ici ne touche pas aux données de la production.
+name: weeb
+
+services:
+  db:
+    image: postgres:17-alpine
+
+    # `:?` interrompt le démarrage avec ce message quand la variable manque,
+    # plutôt que de créer une base aux identifiants surprise.
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:?absente du .env, voir .env.example}"
+      POSTGRES_USER: "${POSTGRES_USER:?absente du .env, voir .env.example}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?absente du .env, voir .env.example}"
+
+    # Sur 127.0.0.1 seul : la base reste joignable depuis cette machine — c'est
+    # ce qui permet de travailler dans le venv — jamais depuis le réseau local.
+    # La production ne publie rien de tout ça.
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+    networks:
+      - interne
+
+    # `-h 127.0.0.1` : sans lui, la sonde déclare le service sain avant qu'il
+    # écoute en TCP — voir le README. `$$` diffère la substitution au conteneur.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    # `image:` explicite : sans elle Compose déduit `<projet>-<service>`, soit
+    # `weeb-backend`, le nom même des constructions manuelles du README — qu'il
+    # réutiliserait alors au lieu de construire la sienne, sans rien signaler.
+    image: weeb-backend:dev
+
+    build: ./backend
+
+    # Le même .env que celui lu par Compose, cette fois versé dans le conteneur.
+    # Absent, il interrompt le démarrage au lieu de partir sur des valeurs vides.
+    env_file: .env
+
+    # L'image pose `production`. En développement on veut l'inverse : page
+    # d'erreur détaillée, pas de redirection HTTPS, CORS ouvert sur Vite.
+    #
+    # POSTGRES_HOST et POSTGRES_PORT contredisent volontairement le .env, qui
+    # décrit la base vue depuis la machine. Ce n'est pas de la configuration
+    # mais la topologie du réseau déclaré plus bas.
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+
+    # Le code de la machine masque celui de l'image : `runserver` surveille ces
+    # fichiers-là. Le conteneur y écrit sous l'uid 1001, voir le README.
+    volumes:
+      - ./backend:/app
+
+    ports:
+      - "127.0.0.1:${BACKEND_PORT_DEV:-8000}:8000"
+
+    # L'entrypoint ne prépare la base que devant `gunicorn` : cette commande-ci
+    # migre donc elle-même. `exec` pour que runserver reçoive le SIGTERM.
+    command: ["sh", "-c", "python manage.py migrate --noinput && exec python manage.py runserver 0.0.0.0:8000"]
+
+    # `service_healthy` : Postgres accepte les connexions plusieurs secondes
+    # après le démarrage du conteneur, et le `migrate` échouerait entre-temps.
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - interne
+      - public
+
+    # Sonde héritée de l'image, seule sa cadence est reprise : les 30 s de
+    # l'image mèneraient la chaîne des trois services au-delà de la minute.
+    healthcheck:
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  frontend:
+    image: weeb-frontend:dev
+
+    # `target: dev` sert par Vite ; la production construit le même Dockerfile
+    # en `target: prod`, servi par nginx. Ce ne sont pas deux réglages du même
+    # serveur, ce sont deux serveurs.
+    build:
+      context: ./frontend
+      target: dev
+
+    # Volume anonyme sur node_modules, EN PLUS du montage du code : sans lui, le
+    # frontend/ de la machine masque celui de l'image et Vite ne trouve rien.
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT_DEV:-5173}:5173"
+
+    # Le front n'appelle pas l'API depuis le conteneur — c'est le navigateur qui
+    # le fait. La dépendance n'ordonne que le démarrage.
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    networks:
+      - public
+
+    healthcheck:
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
+
+networks:
+  # La base n'est jointe que par le backend, qui est sur les deux réseaux, ce
+  # qui lui laisse une sortie. `interne` n'est PAS fermé ici, contrairement à la
+  # production : la base est justement publiée sur la machine.
+  interne:
+  public:
+
+volumes:
+  # Volume nommé, et non un dossier du dépôt : les données ne disparaissent
+  # qu'avec `docker compose -f compose.dev.yaml down -v`.
+  db_data:

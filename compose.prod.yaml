@@ -1,0 +1,187 @@
+# Pile de PRODUCTION, autonome : ce fichier se lit de bout en bout et ne
+# fusionne avec rien. Le développement est dans compose.dev.yaml.
+#
+#   docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60
+#
+# Cette pile ne termine PAS le TLS : elle publie le front et l'API en clair sur
+# 127.0.0.1, et c'est le nginx du serveur qui les sert au monde. Sa
+# configuration de référence est au README, § « Déployer derrière le nginx du
+# serveur » — elle porte le TLS, le routage et l'en-tête X-Forwarded-Proto.
+#
+# Le `-f` n'est pas facultatif, et vaut pour TOUTES les commandes — `ps`,
+# `logs`, `exec`, `down` compris. Il n'y a plus de `compose.yaml` : une commande
+# qui l'oublie échoue en le disant, au lieu de viser la pile de développement en
+# silence. `export COMPOSE_FILE=compose.prod.yaml` le pose une fois pour toutes.
+# Et `--wait` sans `--wait-timeout` attend indéfiniment, les services d'ici
+# rebouclant en `unless-stopped`.
+#
+# Cette pile lit DEUX fichiers de configuration, le .env et le .env.prod : le
+# partage des variables entre les deux est au README.
+
+# Nom distinct de celui du développement, donc conteneurs, réseaux et volumes
+# distincts. Sans ça, un `docker compose -f compose.dev.yaml down -v` détruirait
+# les données d'ici.
+name: weeb-prod
+
+services:
+  db:
+    image: postgres:17-alpine
+
+    # `:?` interrompt le démarrage avec ce message quand la variable manque,
+    # plutôt que de créer une base aux identifiants surprise.
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:?absente du .env, voir .env.example}"
+      POSTGRES_USER: "${POSTGRES_USER:?absente du .env, voir .env.example}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?absente du .env, voir .env.example}"
+
+    # Aucun `ports:` : la base n'est joignable que par le réseau `interne`,
+    # fermé plus bas. Rien n'est publié, donc rien n'est atteignable depuis
+    # l'extérieur du démon Docker.
+
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+    networks:
+      - interne
+
+    # `unless-stopped` et non `always` : le conteneur repart après un plantage
+    # ou un redémarrage de la machine, mais un arrêt volontaire le reste.
+    restart: unless-stopped
+
+    # `-h 127.0.0.1` : sans lui, la sonde déclare le service sain avant qu'il
+    # écoute en TCP — voir le README. `$$` diffère la substitution au conteneur.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    # `image:` explicite, et étiquetée : le même Dockerfile produit l'image de
+    # développement, qui n'a ni les mêmes réglages ni la même commande. Sans
+    # elle, Compose déduirait un nom du projet et les deux se confondraient.
+    image: weeb-backend:prod
+
+    build: ./backend
+
+    # DEUX fichiers, dans cet ordre : le .env porte le commun, .env.prod réécrit
+    # les quatre valeurs qui diffèrent, et le dernier de la liste l'emporte.
+    # ⚠️ N'alimentent que l'INTÉRIEUR du conteneur — ce qu'un fichier Compose
+    # interpole en `${...}` ne se lit que dans le .env. Partage exact au README.
+    env_file:
+      - .env
+      - .env.prod
+
+    # Redondant avec l'image, qui pose déjà `production` — écrit quand même, en
+    # regard de compose.dev.yaml qui impose l'inverse.
+    #
+    # POSTGRES_HOST et POSTGRES_PORT contredisent volontairement le .env, qui
+    # décrit la base vue depuis la machine. Ce n'est pas de la configuration
+    # mais la topologie du réseau déclaré plus bas.
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+
+    # `127.0.0.1:` et non un port nu : le nginx du serveur est sur la MÊME
+    # machine, et rien ici ne doit être joignable depuis le réseau. C'est ce qui
+    # borne DJANGO_BEHIND_PROXY=1 — l'en-tête X-Forwarded-Proto n'est plus
+    # écrasé par un service de la pile, seul le nginx du serveur le pose.
+    #
+    # Un port PROD distinct de BACKEND_PORT_DEV, jamais la même variable : les
+    # deux piles doivent pouvoir tourner en même temps, et un recouvrement a
+    # déjà été payé une fois.
+    ports:
+      - "127.0.0.1:${BACKEND_PORT_PROD:-8001}:8000"
+
+    # Volume nommé partagé avec le front : `collectstatic` le remplit au démarrage,
+    # et le nginx de l'image du front sert son contenu sur /static/. Django ne sert
+    # pas ses statiques avec DEBUG=False et l'image n'embarque pas whitenoise —
+    # sans ce partage, l'admin arrive sans style. Aucun montage de source,
+    # contrairement au développement.
+    volumes:
+      - static_data:/app/staticfiles
+
+    # `service_healthy` : Postgres accepte les connexions plusieurs secondes
+    # après le démarrage du conteneur, et l'entrypoint migre avant Gunicorn.
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - interne
+      - public
+
+    restart: unless-stopped
+
+    # Sonde héritée de l'image, seule sa cadence est reprise : les 30 s de
+    # l'image mèneraient la chaîne des trois services bien au-delà de la minute.
+    healthcheck:
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  frontend:
+    image: weeb-frontend:prod
+
+    # `target: prod` sert par nginx, sans Node ; le développement construit le
+    # même Dockerfile en `target: dev`, servi par Vite. Ce ne sont pas deux
+    # réglages du même serveur, ce sont deux serveurs.
+    build:
+      context: ./frontend
+      target: prod
+
+      # L'adresse de l'API est écrite DANS le bundle : elle doit être connue à la
+      # construction. `:?` interrompt le build plutôt que de livrer un front qui
+      # s'arrête au chargement.
+      args:
+        VITE_API_URL: "${VITE_API_URL:?absente du .env de la racine, voir .env.example}"
+
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT_PROD:-8081}:8080"
+
+    # L'autre bout du volume du backend, en lecture seule : ce nginx sert ces
+    # fichiers sur /static/, il ne les écrit jamais. Il les sert lui-même pour
+    # que le nginx du serveur n'ait pas à lire les volumes de Docker, dont le
+    # répertoire n'est traversable que par root.
+    volumes:
+      - static_data:/srv/static:ro
+
+    # Le front n'appelle pas l'API depuis le conteneur — c'est le navigateur qui
+    # le fait. La dépendance n'ordonne que le démarrage. Elle garantit en outre
+    # que `collectstatic` a rempli le volume avant que nginx le serve.
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    networks:
+      - public
+
+    restart: unless-stopped
+
+    healthcheck:
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
+
+networks:
+  # `internal` coupe le réseau de la passerelle de l'hôte : plus aucune entrée
+  # ni sortie. La base n'y perd rien, elle ne parle qu'au backend — qui garde
+  # `public` pour le reste.
+  interne:
+    internal: true
+  public:
+
+volumes:
+  # Volume nommé, et non un dossier du dépôt : les données ne disparaissent
+  # qu'avec `docker compose -f compose.prod.yaml down -v`.
+  db_data:
+
+  # Fichiers statiques de Django, produits par `collectstatic` au démarrage du
+  # backend et lus par le front, qui les sert sur /static/. Volume nommé et non
+  # dossier de la machine : un bind-mount n'hérite pas des droits posés par
+  # l'image, et `collectstatic` échouerait faute de pouvoir y écrire.
+  static_data:

@@ -11,6 +11,8 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+# Production par défaut : ce point d'entrée n'est utilisé que par un
+# serveur d'application. Le défaut le plus sûr est donc le plus strict.
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.production')
 
 application = get_wsgi_application()

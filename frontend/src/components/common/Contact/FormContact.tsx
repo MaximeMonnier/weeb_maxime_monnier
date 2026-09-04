@@ -91,7 +91,7 @@ const FormContact = () => {
         email: "",
         subject: "",
         message: "",
-      }); // reset
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -130,7 +130,6 @@ const FormContact = () => {
           />
         </div>
 
-        {/* Email */}
         <Input
           label="Adresse email"
           name="email"
@@ -144,7 +143,6 @@ const FormContact = () => {
           fullWidth
         />
 
-        {/* Sujet */}
         <Input
           label="Sujet"
           name="subject"
@@ -157,7 +155,6 @@ const FormContact = () => {
           fullWidth
         />
 
-        {/* Message */}
         <Textarea
           label="Message"
           name="message"
@@ -170,7 +167,6 @@ const FormContact = () => {
           fullWidth
         />
 
-        {/* Submit Button */}
         <div className="flex justify-center">
           <MainButton
             type="submit"

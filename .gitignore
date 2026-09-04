@@ -11,14 +11,17 @@ backend/venv/
 __pycache__/
 *.py[cod]
 
-# Base de données SQLite locale : contient des données de test, pas du code.
-*.sqlite3
-db.sqlite3
-
 # Secrets : SECRET_KEY Django, identifiants de base de données, etc.
 # NE JAMAIS committer un .env (sécurité).
 .env
 *.env
+
+# Les fichiers par pile, `.env.prod` en tête : `*.env` ci-dessus ne les attrape
+# pas, ils ne se TERMINENT pas par `.env`. Seuls les modèles en sont exclus —
+# ils ne portent aucune valeur réelle et doivent partir avec le dépôt.
+.env.*
+!.env.example
+!.env.*.example
 
 # Fichiers statiques/médias collectés par Django (générés).
 backend/staticfiles/
@@ -38,7 +41,7 @@ backend/media/
 CLAUDE.md
 GUIDE_RAPPORT.md
 PROMPT_REECRITURE_RAPPORT.md
-# Configuration Claude Code : ignorée SAUF les skills, qui portent les conventions
-# du projet et doivent être partagées avec le dépôt.
-.claude/*
-!.claude/skills/
+plan.md
+# Configuration Claude Code : entièrement ignorée. Skills, commandes et réglages
+# sont un outillage personnel, propre à la machine, et non un livrable du projet.
+.claude/
