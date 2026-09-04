@@ -1,7 +1,7 @@
 """Réglages de développement : machine du développeur, front Vite en local."""
 
 from .base import *  # noqa: F403 — on repart de tous les réglages communs
-from .base import env_bool, env_list, env_required, postgres_database
+from .base import env_bool, env_int, env_list, env_required, env_str, postgres_database
 
 # Même en développement, aucune valeur de repli : une clé connue de tous
 # finirait par se retrouver en production par simple oubli.
@@ -26,3 +26,22 @@ CORS_ALLOWED_ORIGINS = env_list(
 # Les identifiants sont exigés : une base de développement accessible avec des
 # identifiants devinables finirait par être exposée telle quelle ailleurs.
 DATABASES = postgres_database()
+
+
+# --- Emails ---
+# Un vrai SMTP, et non le backend `console` : c'est le code d'envoi réel qui
+# doit être exercé ici. En face, Mailpit affiche les messages au lieu de les
+# livrer — http://127.0.0.1:8025.
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+# Le défaut vise Mailpit publié sur la machine, pour le backend lancé dans le
+# venv. Celui qui tourne en conteneur reçoit `mailpit:1025` de compose.dev.yaml,
+# la topologie du réseau Compose.
+EMAIL_HOST = env_str('EMAIL_HOST', 'localhost')
+EMAIL_PORT = env_int('EMAIL_PORT', 1025)
+
+# En dur, pas lus : Mailpit n'attend ni compte ni TLS, et lui en imposer un
+# depuis un .env ferait échouer l'envoi sans que la cause soit visible.
+EMAIL_HOST_USER = ''
+EMAIL_HOST_PASSWORD = ''
+EMAIL_USE_TLS = False
