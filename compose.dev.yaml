@@ -48,14 +48,9 @@ services:
       start_period: 10s
 
   mailpit:
-    # Serveur SMTP jetable, posé AVANT le code qui s'en servira : il recevra les
-    # mails de Django et les montrera dans une interface web au lieu de les
-    # livrer, ce qui exercera le vrai code d'envoi plutôt que de le
-    # court-circuiter par un backend `console`. Aucun réglage Django ne le vise
-    # encore — c'est l'objet du ticket suivant.
-    #
-    # Rien de tel en production, qui parlera à un vrai relais — ce service
-    # n'existe que dans ce fichier.
+    # Serveur SMTP jetable, posé AVANT le code qui s'en servira : aucun réglage
+    # Django ne le vise encore. Absent de la production, qui parlera à un vrai
+    # relais. Détail au README, § « Le serveur de mail du développement ».
     image: axllent/mailpit:v1.31.0
 
     # L'image ne pose aucun `USER` et démarrerait donc en root. Ses ports sont
@@ -64,9 +59,8 @@ services:
     user: "1000:1000"
 
     # Le SMTP est publié en plus de l'interface, comme la base l'est : ce sera la
-    # voie du backend lancé dans le venv. Celui en conteneur passera par le
-    # réseau `interne` et ignorera ces deux ports. L'image expose aussi du POP3
-    # sur 1110, qui ne sert à rien ici et reste non publié.
+    # voie du backend lancé dans le venv, celui en conteneur passant par le
+    # réseau `interne`. Le POP3 de l'image, sur 1110, ne sert à rien ici.
     ports:
       - "127.0.0.1:${MAILPIT_SMTP_PORT_DEV:-1025}:1025"
       - "127.0.0.1:${MAILPIT_UI_PORT_DEV:-8025}:8025"
@@ -119,9 +113,7 @@ services:
 
     # `service_healthy` : Postgres accepte les connexions plusieurs secondes
     # après le démarrage du conteneur, et le `migrate` échouerait entre-temps.
-    # Mailpit à la même condition, pour que le code n'ait jamais à se demander si
-    # le serveur de mail est debout. Aucun envoi ne le sollicite encore : cette
-    # ligne ne coûte aujourd'hui que les secondes de démarrage de Mailpit.
+    # Mailpit à la même condition, pour que le code n'ait jamais à s'en assurer.
     depends_on:
       db:
         condition: service_healthy
