@@ -23,21 +23,15 @@ logger = logging.getLogger(__name__)
 
 # Corps volontairement identique que le compte existe ou non : distinguer les deux
 # réponses dirait à n'importe qui quelles adresses sont inscrites.
-REPONSE_NEUTRE = {
+NEUTRAL_RESPONSE = {
     "detail": "Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé."
 }
 
 
-class RegisterView(generics.CreateAPIView):
-    """Inscription d'un nouvel utilisateur. Endpoint PUBLIC (pas besoin d'être connecté)."""
-    serializer_class = RegisterSerializer
-    permission_classes = [AllowAny]
-
-
-def envoyer_lien_de_reinitialisation(user):
+def send_password_reset_link(user):
     """Adresse à l'utilisateur un lien vers le front, portant son uid et son token."""
-    uid = urlsafe_base64_encode(force_bytes(user.pk))   # l'id encodé (pour l'URL)
-    token = default_token_generator.make_token(user)    # jeton signé, à durée limitée
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
     lien = f"{settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}"
 
     message = (
@@ -62,6 +56,12 @@ def envoyer_lien_de_reinitialisation(user):
         logger.exception("Échec de l'envoi du lien de réinitialisation")
 
 
+class RegisterView(generics.CreateAPIView):
+    """Inscription d'un nouvel utilisateur. Endpoint PUBLIC (pas besoin d'être connecté)."""
+    serializer_class = RegisterSerializer
+    permission_classes = [AllowAny]
+
+
 class PasswordResetRequestView(APIView):
     """Étape 1 : envoie par email un lien de réinitialisation. Endpoint PUBLIC (pas besoin d'être connecté)."""
     permission_classes = [AllowAny]
@@ -71,17 +71,19 @@ class PasswordResetRequestView(APIView):
         serializer.is_valid(raise_exception=True)          # 400 auto si email manquant/invalide
         email = serializer.validated_data["email"]
 
+        # is_active : un compte créé mais pas encore validé par un administrateur
+        # choisirait un mot de passe pour se heurter ensuite au login.
         try:
-            user = CustomUser.objects.get(email=email)
+            user = CustomUser.objects.get(email=email, is_active=True)
         except CustomUser.DoesNotExist:
             user = None
 
         # uid et token ne quittent jamais le serveur autrement que par la boîte mail
         # du titulaire : les renvoyer ici ouvrirait le compte à qui connaît l'adresse.
         if user is not None:
-            envoyer_lien_de_reinitialisation(user)
+            send_password_reset_link(user)
 
-        return Response(REPONSE_NEUTRE, status=status.HTTP_200_OK)
+        return Response(NEUTRAL_RESPONSE, status=status.HTTP_200_OK)
 
 
 class PasswordResetConfirmView(APIView):
