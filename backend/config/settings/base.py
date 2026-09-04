@@ -200,6 +200,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
+    # Cinquième validateur, maison : les quatre de Django ignorent la casse et les
+    # chiffres, que le formulaire d'inscription exige déjà côté navigateur.
+    {
+        'NAME': 'accounts.validators.PasswordComplexityValidator',
+    },
 ]
 
 
