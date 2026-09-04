@@ -1010,12 +1010,19 @@ Une cinquième règle ne vaut qu'à l'inscription : le mot de passe ne doit pas 
 proche de l'email ou du nom. À la confirmation, le serializer ne connaît pas encore le
 titulaire — son `uid` n'est décodé qu'ensuite, dans la vue.
 
+Ces règles valent pour l'API. L'administration Django y échappe encore : son formulaire
+enregistre le mot de passe tel quel, sans le hacher — c'est l'objet de l'issue #70.
+
 Un refus est un `400` dont le message est rangé **sous la clé du champ** — `password` à
 l'inscription, `new_password` à la confirmation — et jamais à la racine de la réponse, où
 le formulaire ne l'afficherait sous aucun de ses champs :
 
 ```json
-{"password": ["Ce mot de passe est trop courant.", "Ce mot de passe est entièrement numérique."]}
+{"password": [
+  "Ce mot de passe est trop courant.",
+  "Ce mot de passe est entièrement numérique.",
+  "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre."
+]}
 ```
 
 ## Structure
