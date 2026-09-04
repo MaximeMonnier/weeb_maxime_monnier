@@ -54,7 +54,10 @@ const ResetPassword = () => {
           {!uid || !token ? (
             <p className="text-center">
               Ce lien est incomplet. Reprenez depuis la{" "}
-              <Link to="/forgot-password" className="underline">
+              <Link
+                to="/forgot-password"
+                className="text-accent hover:underline focus-ring-primary rounded"
+              >
                 demande de réinitialisation
               </Link>
               .
@@ -70,11 +73,10 @@ const ResetPassword = () => {
                   value={newPassword}
                   onChange={handleChange}
                   helperText="Minimum 8 caractères"
+                  error={error ?? undefined}
                   required
                   fullWidth
                 />
-
-                {error && <p className="form-error-message">{error}</p>}
 
                 <div className="flex justify-center">
                   <MainButton

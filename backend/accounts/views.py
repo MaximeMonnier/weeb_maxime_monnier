@@ -81,7 +81,7 @@ class PasswordResetRequestView(APIView):
         if user is not None:
             send_password_reset_link(user)
 
-        return Response(NEUTRAL_RESPONSE, status=status.HTTP_200_OK)
+        return Response(dict(NEUTRAL_RESPONSE), status=status.HTTP_200_OK)
 
 
 class PasswordResetConfirmView(APIView):

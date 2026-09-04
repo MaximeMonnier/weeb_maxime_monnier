@@ -38,7 +38,9 @@ const ForgotPassword = () => {
 
         <div className="w-full max-w-md my-8 border border-primary p-6 rounded-lg">
           {confirmation ? (
-            <p className="text-center">{confirmation}</p>
+            <p role="status" className="text-center">
+              {confirmation}
+            </p>
           ) : (
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">
@@ -49,11 +51,10 @@ const ForgotPassword = () => {
                   placeholder="jean.dupont@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  error={error ?? undefined}
                   required
                   fullWidth
                 />
-
-                {error && <p className="form-error-message">{error}</p>}
 
                 <div className="flex justify-center">
                   <MainButton

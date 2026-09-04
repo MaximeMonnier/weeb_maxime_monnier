@@ -303,8 +303,15 @@ docker compose -f compose.dev.yaml exec backend python manage.py shell -c \
 ```
 
 > ⚠️ **`up -d --wait db` seul ne suffit plus** pour travailler dans le venv dès
-> qu'un envoi est en jeu : sans Mailpit, la connexion SMTP est refusée et la
-> vue qui envoie remonte l'erreur. Lancer `db mailpit`.
+> qu'un envoi est en jeu : sans Mailpit, la connexion SMTP est refusée. La
+> réinitialisation de mot de passe ne le dira pas — elle répond `200` quoi qu'il
+> arrive, pour ne pas trahir l'existence du compte, et l'échec ne part que dans
+> les journaux du serveur. Lancer `db mailpit`.
+
+`EMAIL_TIMEOUT` borne l'attente à 10 secondes, dans les deux environnements.
+Python n'en pose aucune par défaut : l'envoi étant synchrone et déclenché depuis
+une vue publique, un relais qui ne répond pas immobiliserait le worker. La
+variable se déplace par le `.env` de la racine.
 
 **Interface web : http://127.0.0.1:8025** — les messages y arrivent en direct.
 Ils vivent en mémoire : un `down` les efface, ce qui est très bien pour du
@@ -1041,6 +1048,15 @@ l'autoriser explicitement.
 Le `.env` est absent ou la clé n'est pas renseignée. Reprendre l'étape *La configuration*.
 Ce n'est pas un bug : le serveur refuse volontairement de démarrer sans clé, plutôt
 que d'en utiliser une connue de tous.
+
+**Je demande une réinitialisation et je ne reçois rien**
+Trois causes, et la réponse de l'API est volontairement la même dans les trois — elle
+ne dit jamais si un compte existe. D'abord l'adresse peut n'être associée à aucun
+compte. Ensuite le compte peut être **inactif** : un inscrit non encore validé par un
+administrateur ne reçoit pas de lien, sans quoi il choisirait un mot de passe pour se
+heurter ensuite au login. Enfin l'envoi peut avoir échoué — l'erreur part alors dans
+les journaux du serveur, jamais dans la réponse. En développement, tout message part
+sur Mailpit : `http://127.0.0.1:8025`.
 
 **Je me suis inscrit mais je ne peux pas me connecter**
 C'est le comportement prévu : un compte est créé inactif. L'activer depuis

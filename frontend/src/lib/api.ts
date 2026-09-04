@@ -13,10 +13,10 @@ function getToken(): string | null {
   return localStorage.getItem("access");
 }
 
-// Les routes /auth/ sont toutes publiques, et simplejwt authentifie AVANT d'appliquer
-// les permissions : un token périmé encore en localStorage leur ferait répondre 401,
-// login et réinitialisation de mot de passe compris — soit les deux pages censées
-// débloquer quelqu'un qui l'est déjà.
+// DRF authentifie AVANT d'appliquer les permissions : un token périmé resté en
+// localStorage fait répondre 401 à une vue AllowAny — inscription et réinitialisation
+// de mot de passe en tête. Le jour où une route /auth/ demandera d'être connecté,
+// lister les chemins publics plutôt que ce préfixe.
 function needsToken(path: string): boolean {
   return !path.startsWith("/auth/");
 }
