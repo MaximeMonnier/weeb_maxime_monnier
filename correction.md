@@ -221,7 +221,8 @@ Travail demandé, dans cet ordre :
 
 Critères d'acceptation :
 - POST /api/auth/password-reset/ ne renvoie JAMAIS uid ni token, quel que soit l'email envoyé ;
-- en développement, le mail part sur la console et le lien est utilisable ;
+- en développement, le mail arrive dans Mailpit — service `mailpit` de `compose.dev.yaml`,
+  interface sur http://127.0.0.1:8025 — et le lien qu'il porte est utilisable ;
 - l'ancien parcours en deux étapes sur une seule page n'existe plus ;
 - .env.example documente chaque nouvelle variable.
 ```
