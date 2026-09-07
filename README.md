@@ -251,11 +251,12 @@ export COMPOSE_FILE=compose.prod.yaml
 | | développement | production |
 |---|---|---|
 | fichier | `compose.dev.yaml` | `compose.prod.yaml` |
-| services | `db`, `backend`, `frontend` | les mêmes |
+| services | `db`, `mailpit`, `backend`, `frontend` | `db`, `backend`, `frontend` |
+| mail | Mailpit, SMTP sur `127.0.0.1:1025`, interface sur `127.0.0.1:8025` | **aucun service** : ce sera un vrai relais |
 | front | Vite sur `5173`, code monté | nginx dans l'image, publié sur `127.0.0.1:8081` |
 | API | `runserver` sur `8000`, code monté | Gunicorn, aucun montage, publié sur `127.0.0.1:8001` |
 | base | publiée sur `127.0.0.1:5432` | **aucun port publié**, réseau `interne` fermé |
-| entrée | trois ports en clair | deux ports en clair, sur la boucle locale, derrière le nginx du serveur |
+| entrée | cinq ports en clair, tous sur la boucle locale | deux ports en clair, sur la boucle locale, derrière le nginx du serveur |
 | redémarrage | aucun | `unless-stopped` sur les trois services |
 | images | `weeb-backend:dev`, `weeb-frontend:dev` | `weeb-backend:prod`, `weeb-frontend:prod` |
 | projet Compose | `weeb`, volume `weeb_db_data` | `weeb-prod`, volumes `weeb-prod_db_data` et `weeb-prod_static_data` |
@@ -264,21 +265,80 @@ Les deux piles portent des **noms de projet différents**, donc des conteneurs, 
 réseaux et des volumes distincts : un `down -v` lancé en développement ne touche
 pas aux données de la production, et l'inverse est vrai aussi. Les deux jeux de
 ports ne se recouvrent pas non plus, et **les deux piles peuvent tourner en même
-temps** — le développement sur `5173`, `8000` et `5432`, la production sur `8081`
-et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD` et `FRONTEND_PORT_PROD` :
-réutiliser les variables du développement remettrait les deux piles sur le même
-port, et le `up` de la seconde échouerait en `port is already allocated`.
+temps** — le développement sur `5173`, `8000`, `5432`, `1025` et `8025`, la
+production sur `8081` et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD`
+et `FRONTEND_PORT_PROD` : réutiliser les variables du développement remettrait
+les deux piles sur le même port, et le `up` de la seconde échouerait en
+`port is already allocated`.
 
 Les services démarrent en file, chacun attendant que le précédent soit
-`healthy` : base, puis API, puis front. `up --wait` rend donc la main quand la
-pile entière répond.
+`healthy` : base et serveur de mail, puis API, puis front. `up --wait` rend donc
+la main quand la pile entière répond.
+
+#### Le serveur de mail du développement
+
+Le quatrième service de `compose.dev.yaml` est **Mailpit**, un serveur SMTP
+jetable : Django lui parle comme à un vrai relais, et son interface web affiche
+les messages reçus au lieu de les livrer. C'est ce qui permet d'exercer le vrai
+code d'envoi, qu'un backend `console` court-circuiterait.
+
+`config/settings/development.py` le vise sans qu'aucune variable soit à
+renseigner : ses défauts sont `localhost` et `1025`, l'adresse de Mailpit vue
+depuis la machine. Le backend en conteneur, lui, reçoit `mailpit:1025` de
+l'`environment:` de `compose.dev.yaml`. Vérifier d'un bout à l'autre :
+
+```bash
+cd backend
+DJANGO_SETTINGS_MODULE=config.settings.development python manage.py shell -c \
+  "from django.core.mail import send_mail; print(send_mail('essai', 'corps', None, ['test@site.fr']))"
+```
+
+`1` s'affiche et le message apparaît dans l'interface. Depuis le conteneur, le
+`cd` n'a plus lieu d'être — le répertoire de travail de l'image est déjà celui
+du projet — et seul le `manage.py shell -c` se reprend :
+
+```bash
+docker compose -f compose.dev.yaml exec backend python manage.py shell -c \
+  "from django.core.mail import send_mail; print(send_mail('essai', 'corps', None, ['test@site.fr']))"
+```
+
+> ⚠️ **`up -d --wait db` seul ne suffit plus** pour travailler dans le venv dès
+> qu'un envoi est en jeu : sans Mailpit, la connexion SMTP est refusée. La
+> réinitialisation de mot de passe ne le dira pas — elle répond `200` quoi qu'il
+> arrive, pour ne pas trahir l'existence du compte, et l'échec ne part que dans
+> les journaux du serveur. Lancer `db mailpit`.
+
+`EMAIL_TIMEOUT` borne l'attente à 10 secondes, dans les deux environnements.
+Python n'en pose aucune par défaut : l'envoi étant synchrone et déclenché depuis
+une vue publique, un relais qui ne répond pas immobiliserait le worker. La
+variable se déplace par le `.env` de la racine.
+
+**Interface web : http://127.0.0.1:8025** — les messages y arrivent en direct.
+Ils vivent en mémoire : un `down` les efface, ce qui est très bien pour du
+développement.
+
+Ce service n'existe **que** dans la pile de développement. `compose.prod.yaml`
+ne le connaît pas, la CI non plus : en ligne, Django s'adressera à un vrai
+relais.
+
+Pour le lancer avec la base seule, les deux applications tournant sur la
+machine :
+
+```bash
+docker compose -f compose.dev.yaml up -d --wait db mailpit
+```
+
+Son port SMTP est publié sur `127.0.0.1:1025` pour cette raison précise — ce
+sera la voie du backend lancé dans le venv, exactement comme pour la base. Le
+backend en conteneur, lui, passera par le réseau `interne` et visera
+`mailpit:1025`. Les deux ports côté machine se déplacent par
+`MAILPIT_SMTP_PORT_DEV` et `MAILPIT_UI_PORT_DEV`, du `.env` de la racine.
 
 #### Ce que la production attend de la configuration
 
-Quatre variables doivent valoir **autre chose** qu'en développement. Elles ne
-vivent pas dans le `.env`, où les deux jeux se contrediraient sans que rien ne
-le signale, mais dans un fichier à part que la seule pile de production charge
-**par-dessus** :
+Six variables séparent la production du développement. Elles ne vivent pas dans
+le `.env`, où les deux jeux se contrediraient sans que rien ne le signale, mais
+dans un fichier à part que la seule pile de production charge **par-dessus** :
 
 ```bash
 cp .env.prod.example .env.prod
@@ -290,6 +350,22 @@ cp .env.prod.example .env.prod
 | `DJANGO_BEHIND_PROXY` | `1` | sans lui, la redirection HTTPS répond 301 à la sonde et le backend reste `unhealthy`. Cette valeur suppose que le nginx du serveur **écrase** `X-Forwarded-Proto`, et elle est bornée par le fait que la pile ne publie ses ports que sur `127.0.0.1` |
 | `CORS_ALLOWED_ORIGINS` | **vide** | le nginx du serveur sert le front et l'API sur la même origine : il n'y a plus rien à autoriser. La ligne doit rester, vide : elle **remplace** celle du `.env`, et l'omettre ferait hériter la production des origines Vite du développement |
 | `DJANGO_HSTS_SECONDS` | `0` | tant que la pile tourne sur un poste, elle est jointe sur `localhost`, le nom d'hôte de la pile de développement. Un HSTS posé sur `localhost` vaut pour **tous ses ports** : le navigateur refuserait ensuite `http://localhost:5173`. Monter les paliers le jour où il y a un vrai domaine |
+| `EMAIL_HOST` | le relais SMTP | **exigée** : sans elle le backend refuse de démarrer en nommant la variable. Le développement s'en passe, ses réglages ayant `localhost:1025` — Mailpit — pour défaut |
+| `FRONTEND_URL` | l'adresse publique du **front** | **exigée** aussi. C'est la racine des liens écrits DANS les emails, celui de réinitialisation de mot de passe en tête — `FRONTEND_URL` + `/reset-password?uid=…&token=…` : le destinataire clique vers une page React, pas vers un endpoint |
+
+> ⚠️ **Les deux dernières ne surchargent rien, elles ajoutent.** Les quatre
+> premières corrigent une valeur que le `.env` donne déjà ; `EMAIL_HOST` et
+> `FRONTEND_URL` n'y figurent pas — `.env.example` les laisse commentées
+> exprès. Décommentée là-bas et oubliée ici, `EMAIL_HOST=localhost` serait
+> **héritée** : `env_required` ne verrait rien de vide, la production
+> démarrerait, et croirait envoyer ses messages. Même piège que
+> `CORS_ALLOWED_ORIGINS`, en plus silencieux.
+
+Le tableau ne porte que les six qui tranchent quelque chose. `.env.prod.example`
+en pose quelques autres autour du relais SMTP — expéditeur, port, délai de garde,
+identifiants, STARTTLS — **toutes décommentées**, y compris celles qui reprennent le défaut du
+code : supprimer une de ces lignes ne fait pas retomber sur ce défaut, elle fait
+hériter du `.env`. Le modèle commente chacune.
 
 > ⚠️ **`DJANGO_BEHIND_PROXY=1` ne se justifie plus tout seul.** Du temps où un
 > service `proxy` était la seule porte de la pile, personne ne pouvait parler au
@@ -325,7 +401,7 @@ règle de fusion.
 > |---|---|
 > | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `VITE_API_URL` | démarrage refusé, la variable nommée : elles s'écrivent `${VAR:?message}` |
 > | `BACKEND_PORT_PROD`, `FRONTEND_PORT_PROD` | **rien de visible** : le repli `${VAR:-défaut}` s'applique et la production démarre sur un autre port que celui voulu |
-> | `POSTGRES_PORT`, `BACKEND_PORT_DEV`, `FRONTEND_PORT_DEV` | rien en production, qui ne les interpole pas : `compose.dev.yaml` est seul à le faire. C'est le **développement** qu'on déplace alors sur d'autres ports, sans le voir |
+> | `POSTGRES_PORT`, `BACKEND_PORT_DEV`, `FRONTEND_PORT_DEV`, `MAILPIT_SMTP_PORT_DEV`, `MAILPIT_UI_PORT_DEV` | rien en production, qui ne les interpole pas : `compose.dev.yaml` est seul à le faire. C'est le **développement** qu'on déplace alors sur d'autres ports, sans le voir |
 >
 > Les trois `POSTGRES_*` sont le piège de ce tableau : elles sont lues **des deux
 > côtés**, par Compose pour créer la base et par Django dans le conteneur. Être
@@ -867,9 +943,17 @@ Les réglages Django sont découpés par environnement dans `backend/config/sett
 | Module | Usage | Particularités |
 |---|---|---|
 | `base.py` | commun à tous | lit le `.env`, ne définit aucune clé secrète |
-| `development.py` | poste de développement | `DEBUG` actif, origines `localhost:5173` autorisées |
-| `test.py` | tests automatisés | clé factice, base `test_weeb` créée et détruite par Django, exige PostgreSQL |
-| `production.py` | serveur en ligne | `DEBUG` forcé à faux, hôtes obligatoires, en-têtes de sécurité HTTPS, TLS exigé jusqu'à la base |
+| `development.py` | poste de développement | `DEBUG` actif, origines `localhost:5173` autorisées, emails vers Mailpit |
+| `test.py` | tests automatisés | clé factice, base `test_weeb` créée et détruite par Django, exige PostgreSQL, emails en mémoire, quotas de débit éteints |
+| `production.py` | serveur en ligne | `DEBUG` forcé à faux, hôtes obligatoires, en-têtes de sécurité HTTPS, TLS exigé jusqu'à la base et jusqu'au relais SMTP |
+
+Trois réglages manquent **volontairement** à `base.py`, et chaque module dit
+d'où vient le sien : `SECRET_KEY`, `DATABASES` et `EMAIL_BACKEND`. Les deux
+premiers pour que l'import des réglages reste possible sans clé ni base ; le
+troisième parce qu'un canal d'envoi hérité ferait qu'une suite de tests
+ouvrirait des connexions SMTP sans le dire. Ce que `base.py` pose, ce sont les
+deux valeurs qui ne dépendent pas du canal : `DEFAULT_FROM_EMAIL` et
+`FRONTEND_URL`, la racine des liens écrits dans les messages.
 
 Le module utilisé est choisi par la variable `DJANGO_SETTINGS_MODULE`, à définir
 dans le terminal ou dans le conteneur — **pas** dans le `.env`, que Django lit trop tard.
@@ -893,9 +977,10 @@ et le site sur la même origine.
 |---|---|---|---|
 | `POST` | `/api/auth/register/` | public | Inscription. Le compte est créé **inactif**, un administrateur doit l'activer |
 | `POST` | `/api/auth/login/` | public | Connexion : renvoie un token d'accès et un token de rafraîchissement |
-| `POST` | `/api/auth/login/refresh/` | public | Renouvelle le token d'accès expiré |
-| `POST` | `/api/auth/password-reset/` | public | Demande de réinitialisation du mot de passe |
-| `POST` | `/api/auth/password-reset/confirm/` | public | Confirmation avec le nouveau mot de passe |
+| `POST` | `/api/auth/login/refresh/` | public | Renouvelle le token d'accès expiré, et **rend un token de rafraîchissement neuf** en révoquant celui qui a servi |
+| `POST` | `/api/auth/logout/` | public | Déconnexion : révoque le token de rafraîchissement envoyé dans le corps |
+| `POST` | `/api/auth/password-reset/` | public | Demande de réinitialisation. Envoie le lien **par email** et répond toujours `200` avec le même corps, que le compte existe ou non — un 404 dirait qui est inscrit |
+| `POST` | `/api/auth/password-reset/confirm/` | public | Confirmation : `uid` et `token` du lien reçu, plus le nouveau mot de passe |
 | `GET` | `/api/articles/` | public | Liste des articles |
 | `GET` | `/api/articles/{id}/` | public | Détail d'un article |
 | `POST` | `/api/articles/` | connecté | Crée un article, rattaché à son auteur |
@@ -908,7 +993,104 @@ Les routes protégées attendent le token dans l'en-tête :
 Authorization: Bearer <token d'accès>
 ```
 
-Le token d'accès est valable 1 heure, celui de rafraîchissement 1 jour.
+Le token d'accès est valable 15 minutes, celui de rafraîchissement 1 jour — voir « Les jetons ».
+
+Les messages d'erreur sortent **en français** : `LANGUAGE_CODE` vaut `fr-fr` et aucun
+`LocaleMiddleware` n'est monté, la langue ne suit donc pas l'`Accept-Language` du client.
+
+### Les jetons
+
+Deux jetons, deux durées et deux rôles. Le **token d'accès** accompagne chaque requête
+protégée et vaut 15 minutes : il vit dans le `localStorage` du navigateur, donc à portée de
+tout script chargé par la page, et rien ne le révoque avant son échéance — pas même un mot
+de passe changé. Sa durée est la seule borne d'un vol, d'où 15 minutes et non l'heure d'avant.
+
+Le **token de rafraîchissement** vaut 1 jour, ne part que vers `login/refresh/` et `logout/`,
+et **tourne** : chaque appel en rend un neuf et met le précédent en liste noire. Le rejeu de
+l'ancien répond alors `401`. Sans cette liste noire, la rotation ne protégerait de rien — les
+deux jetons resteraient valables et un vol tiendrait ses 24 heures. C'est elle aussi qui donne
+son effet à `logout/` : la déconnexion est le même geste, sans jeton neuf en retour.
+
+Deux conséquences pratiques :
+
+- **un client qui rafraîchit doit stocker le `refresh` reçu en réponse**, sinon il se coupe
+  lui-même au prochain appel. Le front ne le fait pas encore : il ne rafraîchit pas du tout,
+  et la session s'arrête donc au bout de 15 minutes ;
+- **la révocation vit en base**, dans les tables de `rest_framework_simplejwt.token_blacklist`.
+  L'app est dans `INSTALLED_APPS` et ses migrations sont livrées avec le paquet : un
+  `python manage.py migrate` suffit, `makemigrations` ne doit rien produire. Ces tables
+  grossissent d'une ligne par connexion et par rafraîchissement, sans que rien ne les purge —
+  `python manage.py flushexpiredtokens`, livré par le paquet, est le ménage prévu pour ça.
+
+### Le mot de passe
+
+Les deux routes qui en reçoivent un — `register/` et `password-reset/confirm/` — appliquent
+les mêmes règles, celles de `AUTH_PASSWORD_VALIDATORS` : huit caractères au minimum, ni un
+mot de passe courant, ni entièrement numérique, et au moins une majuscule, une minuscule et
+un chiffre. Cette dernière règle est un validateur du dépôt, `accounts/validators.py` : les
+quatre de Django ignorent la casse et les chiffres, que le formulaire d'inscription exige
+déjà côté navigateur — l'API était donc plus permissive que son propre formulaire.
+
+Un des quatre validateurs de Django ne joue pas à la confirmation : celui qui refuse un mot
+de passe trop proche de l'email ou du nom. Le serializer n'y connaît pas encore le titulaire —
+son `uid` n'est décodé qu'ensuite, dans la vue.
+
+Ces règles valent aussi pour l'administration Django : son formulaire de création hache le
+mot de passe et rejoue les mêmes validateurs, et celui d'édition ne montre plus le hachage,
+mais le lien de changement de Django.
+
+Un refus est un `400` dont le message est rangé **sous la clé du champ** — `password` à
+l'inscription, `new_password` à la confirmation — et jamais à la racine, d'où aucun champ de
+formulaire ne pourrait le reprendre. Seul `ResetPassword.tsx` lit la sienne, `new_password` ;
+les autres formulaires affichent encore un message à eux. Un `12345678` soumis à l'inscription
+donne :
+
+```json
+{"password": [
+  "Ce mot de passe est trop courant.",
+  "Ce mot de passe est entièrement numérique.",
+  "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre."
+]}
+```
+
+### Le débit
+
+Quatre routes publiques sont limitées **par adresse IP**. Au-delà du quota, la réponse est
+un `429` portant un en-tête `Retry-After` en secondes :
+
+```json
+{"detail": "Requête ralentie. Disponible à nouveau dans 40 secondes."}
+```
+
+| Route | Quota par défaut | Variable |
+|---|---|---|
+| `POST /api/auth/login/` | 5 par minute | `THROTTLE_LOGIN` |
+| `POST /api/auth/register/` | 5 par heure | `THROTTLE_REGISTER` |
+| `POST /api/auth/password-reset/` | 3 par heure | `THROTTLE_PASSWORD_RESET` |
+| `POST /api/contact/` | 5 par heure | `THROTTLE_CONTACT` |
+
+Le compteur compte les **appels**, pas les échecs : la sixième connexion d'une même minute
+reçoit un `429` même avec le bon mot de passe. La fenêtre du login est courte parce que se
+tromper de mot de passe deux fois de suite est ordinaire et qu'on réessaie aussitôt —
+une fenêtre d'une heure punirait le distrait autant que le robot. Les trois autres sont des gestes qu'on ne répète
+pas dans l'heure, et la réinitialisation est la plus basse des quatre : chacun de ses appels
+envoie un vrai email.
+
+Le front l'affiche tel quel dans le formulaire, sans lui opposer un message à lui : celui-ci
+porte le délai restant, que toute reformulation perdrait. `frontend/src/lib/apiErrors.ts` tient
+cette table de correspondance.
+
+Le reste de l'API n'est pas limité. `ScopedRateThrottle` ne compte que les vues qui déclarent
+un `throttle_scope` : la lecture des articles reste libre, quel qu'en soit le rythme.
+
+Deux limites, assumées. Le compteur vit dans le cache **mémoire du processus** : les trois
+workers Gunicorn de l'image comptent chacun le leur, un quota peut donc laisser passer jusqu'au
+triple, et tout repart à zéro au redémarrage. Un attaquant qui change d'adresse IP repart à
+zéro lui aussi. Le but est de rendre l'abus lent, pas impossible — c'est ce qui dispense la
+pile d'un Redis.
+
+Les tests éteignent ces quotas (`backend/config/settings/test.py`) : sans quoi une suite qui
+enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'elle vérifie.
 
 ## Structure
 
@@ -941,6 +1123,7 @@ Le token d'accès est valable 1 heure, celui de rafraîchissement 1 jour.
         ├── layouts/           # gabarits partagés
         ├── hooks/             # hooks React
         ├── lib/api.ts         # point d'entrée unique des appels à l'API
+        ├── lib/apiErrors.ts   # refus de l'API traduits en messages de formulaire
         └── types/             # types TypeScript partagés
 ```
 
@@ -964,6 +1147,15 @@ l'autoriser explicitement.
 Le `.env` est absent ou la clé n'est pas renseignée. Reprendre l'étape *La configuration*.
 Ce n'est pas un bug : le serveur refuse volontairement de démarrer sans clé, plutôt
 que d'en utiliser une connue de tous.
+
+**Je demande une réinitialisation et je ne reçois rien**
+Trois causes, et la réponse de l'API est volontairement la même dans les trois — elle
+ne dit jamais si un compte existe. D'abord l'adresse peut n'être associée à aucun
+compte. Ensuite le compte peut être **inactif** : un inscrit non encore validé par un
+administrateur ne reçoit pas de lien, sans quoi il choisirait un mot de passe pour se
+heurter ensuite au login. Enfin l'envoi peut avoir échoué — l'erreur part alors dans
+les journaux du serveur, jamais dans la réponse. En développement, tout message part
+sur Mailpit : `http://127.0.0.1:8025`.
 
 **Je me suis inscrit mais je ne peux pas me connecter**
 C'est le comportement prévu : un compte est créé inactif. L'activer depuis
@@ -998,6 +1190,12 @@ Attention, `-v` détruit toutes les données existantes.
 **Le port 5432 est déjà utilisé**
 Un PostgreSQL tourne déjà sur la machine. Changer `POSTGRES_PORT` dans le `.env`
 (par exemple `5433`) : Django et Compose lisent tous deux cette variable.
+
+**Le port 1025 ou 8025 est déjà utilisé**
+Un autre serveur de mail de développement occupe la place — ce sont les ports
+habituels de MailHog comme de Mailpit. Changer `MAILPIT_SMTP_PORT_DEV` ou
+`MAILPIT_UI_PORT_DEV` dans le `.env` : seul le côté machine bouge, le service
+continue d'écouter 1025 et 8025 dans son réseau.
 
 **Le conteneur du backend reste `unhealthy`**
 Regarder d'abord `docker logs <conteneur>` : une erreur de connexion à la base

@@ -333,6 +333,50 @@
     color: var(--color-dark-error);
   }
 
+  /* Vide, le paragraphe ne porte que de la couleur : un bloc sans contenu ni boîte
+     n'occupe aucune hauteur. Le masquer par `display: none` le retirerait de l'arbre
+     d'accessibilité, et sa région live n'existerait qu'à partir du premier message —
+     donc trop tard pour être annoncée. */
+  .form-alert-error {
+    font-size: var(--text-body-sm);
+    color: var(--color-light-error);
+  }
+
+  .dark .form-alert-error {
+    color: var(--color-dark-error);
+  }
+
+  .form-alert-error:not(:empty) {
+    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-light-error);
+    border-radius: var(--radius-input);
+  }
+
+  .dark .form-alert-error:not(:empty) {
+    border-color: var(--color-dark-error);
+  }
+
+  .form-alert-success {
+    font-size: var(--text-body-sm);
+    color: var(--color-light-success);
+  }
+
+  .dark .form-alert-success {
+    color: var(--color-dark-success);
+  }
+
+  .form-alert-success:not(:empty) {
+    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-light-success);
+    border-radius: var(--radius-input);
+  }
+
+  .dark .form-alert-success:not(:empty) {
+    border-color: var(--color-dark-success);
+  }
+
   .form-helper-text {
     margin-top: 0.25rem;
     font-size: var(--text-body-sm);

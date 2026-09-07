@@ -116,6 +116,10 @@ INSTALLED_APPS = [
     # --- Bibliothèques tierces ---
     'rest_framework',   # Django REST Framework : la couche qui transforme Django en API JSON
     'corsheaders',      # Autorise le front React (:5173) à appeler l'API (:8000)
+    # Livrée avec simplejwt, mais inerte tant qu'elle n'est pas installée : c'est
+    # elle qui apporte les tables où atterrissent les refresh révoqués, donc la
+    # condition de BLACKLIST_AFTER_ROTATION comme de la vue de déconnexion.
+    'rest_framework_simplejwt.token_blacklist',
 
     # --- Applications ---
     'accounts',
@@ -200,13 +204,21 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
+    # Cinquième validateur, maison : les quatre de Django ignorent la casse et les
+    # chiffres, que le formulaire d'inscription exige déjà côté navigateur.
+    {
+        'NAME': 'accounts.validators.PasswordComplexityValidator',
+    },
 ]
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+# Fixe la langue des messages rendus par Django et DRF — ceux des validateurs de mot
+# de passe compris. Aucun LocaleMiddleware : la langue ne suit pas l'Accept-Language
+# du client, tous les libellés écrits par le projet étant français.
+LANGUAGE_CODE = 'fr-fr'
 
 TIME_ZONE = 'UTC'
 
@@ -239,14 +251,40 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    # Quotas d'appels, comptés par IP. ScopedRateThrottle ne compte QUE les vues
+    # qui déclarent un `throttle_scope` : les autres, articles compris, ne sont
+    # pas limitées. Un scope absent des taux ci-dessous fait échouer sa vue.
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.ScopedRateThrottle',
+    ),
+    # Format "<nombre>/<période>", la période lue à sa première lettre : `min`
+    # comme `minute`. Les défauts sont calés sur l'usage humain — on se trompe
+    # de mot de passe deux ou trois fois d'affilée, pas six.
+    #
+    # Le compteur vit dans le cache de Django, et faute de CACHES déclaré c'est
+    # LocMemCache : les trois workers Gunicorn comptent chacun le leur, donc 5/min
+    # en laisse passer jusqu'à 15. Assumé — borner l'abus suffit, pas de Redis ici.
+    'DEFAULT_THROTTLE_RATES': {
+        'login': env_str('THROTTLE_LOGIN', '5/min'),
+        'register': env_str('THROTTLE_REGISTER', '5/hour'),
+        'password_reset': env_str('THROTTLE_PASSWORD_RESET', '3/hour'),
+        'contact': env_str('THROTTLE_CONTACT', '5/hour'),
+    },
 }
 
 # ============================================
 #  JWT (djangorestframework-simplejwt)
 # ============================================
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),   # le token d'accès expire au bout d'1h
+    # 15 min et non 60 : le token d'accès vit dans localStorage, donc lisible par
+    # tout script de la page, et rien ne le révoque avant son échéance — même un
+    # mot de passe changé. Sa durée est la seule borne de la fenêtre de vol.
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),      # le token de rafraîchissement dure 1 jour
+    # Indissociables : la rotation seule laisserait l'ancien refresh valide jusqu'à
+    # son échéance. Détail au README, § « Les jetons ».
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # ============================================
@@ -257,3 +295,19 @@ SIMPLE_JWT = {
 # Les origines autorisées changent selon l'environnement : elles sont lues depuis
 # CORS_ALLOWED_ORIGINS, sous forme de liste séparée par des virgules.
 CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS')
+
+
+# --- Emails ---
+# EMAIL_BACKEND n'est PAS défini ici, pour la même raison que SECRET_KEY : le
+# canal d'envoi change du tout au tout d'un environnement à l'autre, et un
+# défaut hérité ferait qu'une suite de tests ouvrirait des connexions réseau.
+
+# Adresse expéditrice des messages, celle que verra le destinataire. Le défaut
+# ne vaut qu'en développement : un domaine `.local` est refusé par tout relais
+# réel, la production doit poser le sien.
+DEFAULT_FROM_EMAIL = env_str('DEFAULT_FROM_EMAIL', 'no-reply@weeb.local')
+
+# Racine des liens écrits DANS les emails, celui de réinitialisation de mot de
+# passe en tête. C'est l'adresse du front, pas celle de l'API : le destinataire
+# clique vers une page React. Sans barre oblique finale, un chemin s'y ajoute.
+FRONTEND_URL = env_str('FRONTEND_URL', 'http://localhost:5173').rstrip('/')

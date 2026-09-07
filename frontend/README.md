@@ -46,7 +46,12 @@ npm run lint
 | `/` | Page d'accueil avec hero banner et sections |
 | `/contact` | Formulaire de contact |
 | `/login` | Page de connexion |
+| `/forgot-password` | Demande d'un lien de réinitialisation, envoyé par email |
+| `/reset-password` | Saisie du nouveau mot de passe. Atteinte par le lien du mail, qui porte `uid` et `token` en paramètres d'URL |
 | `/subscribe` | Page d'inscription |
+| `/about` | Page de présentation |
+| `/blog` | Liste des articles |
+| `/articles/:id` | Détail d'un article |
 | `/*` | Page 404 personnalisée |
 
 ## ✨ Features

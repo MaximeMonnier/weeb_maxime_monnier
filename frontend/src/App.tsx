@@ -9,6 +9,7 @@ import About from "./pages/About";
 import Blog from "./pages/Blog/Blog";
 import ArticleDetails from "./pages/Blog/ArticleDetails";
 import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import "./index.css";
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/subscribe" element={<Subscribe />} />
           <Route path="/about" element={<About />} />
           <Route path="/blog" element={<Blog />} />
