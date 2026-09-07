@@ -64,6 +64,10 @@ class LoginView(TokenObtainPairView):
     # Sous-classe pour le seul quota : `throttle_scope` est un attribut de vue, et
     # celle de simplejwt est importée. Sans elle, la connexion resterait
     # bruteforçable. Le compteur compte les appels, pas les seuls échecs.
+    #
+    # AllowAny est redit alors que simplejwt le pose déjà : la convention du dépôt
+    # est qu'une vue publique le déclare, une vue muette étant fermée par défaut.
+    permission_classes = [AllowAny]
     throttle_scope = "login"
 
 

@@ -1046,8 +1046,8 @@ un `429` portant un en-tête `Retry-After` en secondes :
 
 Le compteur compte les **appels**, pas les échecs : la sixième connexion d'une même minute
 reçoit un `429` même avec le bon mot de passe. La fenêtre du login est courte parce que se
-retromper de mot de passe est ordinaire et qu'on réessaie aussitôt — une fenêtre d'une heure
-punirait le distrait autant que le robot. Les trois autres sont des gestes qu'on ne répète
+tromper de mot de passe deux fois de suite est ordinaire et qu'on réessaie aussitôt — une
+fenêtre d'une heure punirait le distrait autant que le robot. Les trois autres sont des gestes qu'on ne répète
 pas dans l'heure, et la réinitialisation est la plus basse des quatre : chacun de ses appels
 envoie un vrai email.
 
