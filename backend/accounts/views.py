@@ -4,6 +4,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -58,15 +59,29 @@ def send_password_reset_link(user):
         logger.exception("Échec de l'envoi du lien de réinitialisation")
 
 
+class LoginView(TokenObtainPairView):
+    """Connexion : délivre les tokens JWT. Endpoint PUBLIC (pas besoin d'être connecté)."""
+    # Redit alors que simplejwt le pose déjà : la convention du dépôt veut qu'une
+    # vue publique le déclare, une vue muette étant fermée par défaut.
+    permission_classes = [AllowAny]
+    # La seule raison de sous-classer : `throttle_scope` est un attribut de vue, et
+    # celle de simplejwt est importée. Le compteur compte les appels, pas les échecs.
+    throttle_scope = "login"
+
+
 class RegisterView(generics.CreateAPIView):
     """Inscription d'un nouvel utilisateur. Endpoint PUBLIC (pas besoin d'être connecté)."""
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
+    throttle_scope = "register"
 
 
 class PasswordResetRequestView(APIView):
     """Étape 1 : envoie par email un lien de réinitialisation. Endpoint PUBLIC (pas besoin d'être connecté)."""
     permission_classes = [AllowAny]
+    # Le quota le plus bas des quatre : chaque appel envoie un email réel, donc
+    # sans lui l'endpoint est un envoyeur gratuit qui fait blacklister le relais.
+    throttle_scope = "password_reset"
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)

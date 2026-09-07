@@ -247,6 +247,25 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    # Quotas d'appels, comptés par IP. ScopedRateThrottle ne compte QUE les vues
+    # qui déclarent un `throttle_scope` : les autres, articles compris, ne sont
+    # pas limitées. Un scope absent des taux ci-dessous fait échouer sa vue.
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.ScopedRateThrottle',
+    ),
+    # Format "<nombre>/<période>", la période lue à sa première lettre : `min`
+    # comme `minute`. Les défauts sont calés sur l'usage humain — on se trompe
+    # de mot de passe deux ou trois fois d'affilée, pas six.
+    #
+    # Le compteur vit dans le cache de Django, et faute de CACHES déclaré c'est
+    # LocMemCache : les trois workers Gunicorn comptent chacun le leur, donc 5/min
+    # en laisse passer jusqu'à 15. Assumé — borner l'abus suffit, pas de Redis ici.
+    'DEFAULT_THROTTLE_RATES': {
+        'login': env_str('THROTTLE_LOGIN', '5/min'),
+        'register': env_str('THROTTLE_REGISTER', '5/hour'),
+        'password_reset': env_str('THROTTLE_PASSWORD_RESET', '3/hour'),
+        'contact': env_str('THROTTLE_CONTACT', '5/hour'),
+    },
 }
 
 # ============================================
