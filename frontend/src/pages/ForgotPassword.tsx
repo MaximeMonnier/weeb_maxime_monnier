@@ -1,24 +1,29 @@
 import { useState } from "react";
 import { apiFetch } from "../lib/api";
+import { toFormErrors } from "../lib/apiErrors";
 import { Input } from "../components/ui/Input";
 import MainButton from "../components/ui/Button/MainButton";
 import MainTitle from "../components/ui/Title/MainTitle";
+import ErrorAlert from "../components/ui/Alert/ErrorAlert";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   // L'API répond la même chose que le compte existe ou non : on affiche son message tel quel.
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
     setError(null);
+    setFormError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setFormError(null);
     setIsSubmitting(true);
     try {
       const data = await apiFetch<{ detail: string }>("/auth/password-reset/", {
@@ -26,8 +31,12 @@ const ForgotPassword = () => {
         body: JSON.stringify({ email }),
       });
       setConfirmation(data.detail);
-    } catch {
-      setError("Adresse email invalide ou service indisponible.");
+    } catch (err) {
+      // Le quota le plus serré du projet, trois appels par heure : le message unique
+      // d'avant annonçait une adresse invalide à qui n'avait fait qu'attendre.
+      const { fieldErrors, formError } = toFormErrors(err, ["email"] as const);
+      setError(fieldErrors.email ?? null);
+      setFormError(formError);
     } finally {
       setIsSubmitting(false);
     }
@@ -50,6 +59,8 @@ const ForgotPassword = () => {
           {confirmation ? null : (
             <form onSubmit={handleSubmit}>
               <div className="space-y-6">
+                <ErrorAlert message={formError} />
+
                 <Input
                   label="Adresse email"
                   name="email"
