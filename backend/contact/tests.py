@@ -159,6 +159,7 @@ class ContactModeleTests(TestCase):
     """Le modèle tel qu'il est : cinq champs, aucun horodatage, le sujet pour étiquette."""
 
     def test_le_sujet_sert_d_etiquette(self):
-        """ContactAdmin.list_display s'appuie dessus ; le __str__ par défaut de Django
-        rendrait « Contact object (1) » dans toute la liste de l'admin."""
+        """Pas dans la liste de l'admin, dont ContactAdmin nomme les colonnes : dans le titre
+        du formulaire, la confirmation de suppression et les actions récentes, où le défaut de
+        Django rendrait « Contact object (1) »."""
         self.assertEqual(str(Contact.objects.create(**MESSAGE)), MESSAGE["subject"])
