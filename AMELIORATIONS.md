@@ -4,10 +4,16 @@ Liste des idées d'amélioration repérées en cours de développement (utile po
 et pour les prochaines itérations).
 
 ## Frontend — UX
-- [ ] **Toasts de succès / d'erreur** : afficher une notification (toast) après une action
-      (formulaire de contact envoyé, inscription réussie, erreur API…) au lieu de se
-      contenter d'un `console.error` ou d'un reset silencieux. Piste : librairie type
-      `react-hot-toast` ou `sonner`, ou un petit composant Toast maison.
+- [ ] **Toasts de succès / d'erreur** — la moitié « erreur » est livrée par l'issue #79 :
+      `lib/apiErrors.ts` traduit les refus de l'API et chaque formulaire les affiche, en
+      place des `console.error`. Ce qui reste est la notification **de succès**, qui n'existe
+      qu'à deux endroits : le formulaire de contact, dont le message est écrit dans la page,
+      et la demande de réinitialisation, qui affiche celui de l'API. Une inscription réussie
+      ne dit rien, elle : elle change de page, et l'écran d'arrivée ne sait pas d'où l'on
+      vient. Une publication d'article non plus, sans même ce prétexte — `onCreated` ferme la
+      modale et recharge la liste, sans quitter `/blog`. Piste inchangée : librairie type
+      `react-hot-toast` ou `sonner`, ou un composant Toast maison — c'est le point où ce
+      message survivrait à la navigation.
 
 ## Docker — mise en ligne
 
@@ -111,7 +117,10 @@ Rien de ce qui reste ne bloque le développement.
       de `RegisterSerializer` fait répondre `400` en nommant l'adresse déjà inscrite. Le
       corps neutre posé sur `/password-reset/` par l'issue #68 ne protège donc rien tant
       que ce voisin répond : la même question se pose à l'inscription et obtient une
-      réponse franche. À traiter dans l'epic sécurité #65.
+      réponse franche. À traiter dans l'epic sécurité #65. L'issue #79 a posé un cache
+      côté front — `FormSubscribe` remplace ce message par un libellé qui ne nomme pas
+      l'adresse — mais il ne vaut que pour qui passe par le formulaire : la réponse HTTP,
+      elle, n'a pas changé, et c'est elle qu'un script lit.
 - [ ] **Comparaison d'email sensible à la casse.** `CustomUser.objects.get(email=...)` est
       exact sous Postgres, et `normalize_email` ne minuscule que le domaine : un compte
       enregistré `Jean@x.fr` ne se reconnaît pas sous `jean@x.fr`, ni au login ni à la

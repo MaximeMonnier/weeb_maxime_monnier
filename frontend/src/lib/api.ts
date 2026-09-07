@@ -20,7 +20,8 @@ function needsToken(path: string): boolean {
   return !path.startsWith("/auth/");
 }
 
-type ApiError = {
+// Exporté pour `apiErrors.ts`, qui traduit ces refus en messages de formulaire.
+export type ApiError = {
   status: number;
   data: unknown;
 };
