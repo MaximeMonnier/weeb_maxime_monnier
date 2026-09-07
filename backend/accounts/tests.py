@@ -1,6 +1,7 @@
 """Tests des mots de passe et des jetons : ce que la réponse ne doit pas révéler, ce qu'elle
-doit refuser, ce que l'admin doit hasher, à partir de quand l'API refuse de répondre, et
-jusqu'à quand un refresh reste bon."""
+doit refuser, ce que l'admin doit hasher, à partir de quand l'API refuse de répondre,
+jusqu'à quand un refresh reste bon, et à qui la connexion en délivre — l'inscription ne
+créant qu'un compte en attente."""
 
 import re
 from unittest.mock import patch
@@ -407,3 +408,76 @@ class JWTRotationTests(TestCase):
         self.deconnecter(self.refresh)
 
         self.assertEqual(self.deconnecter(self.refresh).status_code, 401)
+
+
+class RegisterTests(TestCase):
+    """Ce que l'inscription crée : un compte en attente, dont la réponse tait le mot de passe."""
+
+    PASSWORD = "MotDePasseValide123"
+
+    def setUp(self):
+        self.url = reverse("register")
+
+    def inscrire(self):
+        return self.client.post(
+            self.url,
+            {
+                "email": "nouveau@example.com", "first_name": "N", "last_name": "Nouveau",
+                "password": self.PASSWORD,
+            },
+            content_type="application/json",
+        )
+
+    def test_le_compte_cree_attend_sa_validation(self):
+        """Le modèle pose is_active à True : seule la ligne de create() le remet à False."""
+        response = self.inscrire()
+
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(CustomUser.objects.get(email="nouveau@example.com").is_active)
+
+    def test_la_reponse_ne_renvoie_pas_le_mot_de_passe(self):
+        """write_only retiré, le ModelSerializer rendrait le champ du modèle : le hash."""
+        response = self.inscrire()
+
+        self.assertEqual(response.status_code, 201)
+        self.assertNotIn("password", response.json())
+
+
+class LoginTests(TestCase):
+    """La porte d'entrée ne s'ouvre qu'aux comptes validés."""
+
+    PASSWORD = "MotDePasseValide123"
+
+    def setUp(self):
+        self.url = reverse("login")
+        self.membre = CustomUser.objects.create_user(
+            email="membre@example.com", first_name="M", last_name="Embre",
+            password=self.PASSWORD,
+        )
+
+    def connecter(self):
+        return self.client.post(
+            self.url,
+            {"email": self.membre.email, "password": self.PASSWORD},
+            content_type="application/json",
+        )
+
+    def test_un_compte_valide_obtient_ses_deux_jetons(self):
+        response = self.connecter()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("access", response.json())
+        self.assertIn("refresh", response.json())
+
+    def test_un_compte_en_attente_n_obtient_aucun_jeton(self):
+        """Le compte inactif est refusé par authenticate(), en amont de la vue : rien
+        dans accounts ne porte ce filtre, un backend d'authentification changé l'ôterait."""
+        self.membre.is_active = False
+        self.membre.save()
+
+        response = self.connecter()
+
+        # Le code autant que les clés : un 200 au corps vide passerait le seul test des clés.
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn("access", response.json())
+        self.assertNotIn("refresh", response.json())
