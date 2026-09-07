@@ -159,7 +159,7 @@ Commit `chore:` séparé, avec le package-lock.json.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — sécurité |
+| En cours — 1.1 et 1.3 livrées | #65 | — (à la clôture du lot) | Bloc 1 — sécurité |
 
 **Grain de ticket** : epic + 6 sous-issues, une par tâche.
 
@@ -169,7 +169,7 @@ Commit `chore:` séparé, avec le package-lock.json.
 
 ## 1.1 — Réinitialisation de mot de passe : ne plus renvoyer le jeton au client
 
-- [ ] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/serializers.py`,
+- [x] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/serializers.py`,
   `backend/config/settings/base.py`, `development.py`, `production.py`, `test.py`,
   `frontend/src/pages/ForgotPassword.tsx`, `.env.example`
 - **Constat** : `accounts/views.py:41` renvoie `uid` et `token` dans le corps de la réponse, sur
@@ -263,7 +263,9 @@ sur un email inconnu, produisent exactement le même code HTTP et le même corps
 
 ## 1.3 — Appliquer les validateurs de mot de passe de Django
 
-- [ ] **Fichiers** : `backend/accounts/serializers.py`
+- [x] **Fichiers** : `backend/accounts/serializers.py`, `backend/accounts/validators.py`,
+  `backend/config/settings/base.py`, `backend/accounts/tests.py`,
+  `frontend/src/pages/ResetPassword.tsx`
 - **Constat** : `AUTH_PASSWORD_VALIDATORS` est déclaré (`base.py:190`) mais **aucun code ne
   l'appelle**. `RegisterSerializer` (`serializers.py:9`) ne pose que `min_length=8`, et
   `PasswordResetConfirmSerializer` (`serializers.py:32`) idem. `12345678` passe à l'inscription et
