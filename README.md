@@ -944,7 +944,7 @@ Les réglages Django sont découpés par environnement dans `backend/config/sett
 |---|---|---|
 | `base.py` | commun à tous | lit le `.env`, ne définit aucune clé secrète |
 | `development.py` | poste de développement | `DEBUG` actif, origines `localhost:5173` autorisées, emails vers Mailpit |
-| `test.py` | tests automatisés | clé factice, base `test_weeb` créée et détruite par Django, exige PostgreSQL, emails en mémoire |
+| `test.py` | tests automatisés | clé factice, base `test_weeb` créée et détruite par Django, exige PostgreSQL, emails en mémoire, quotas de débit éteints |
 | `production.py` | serveur en ligne | `DEBUG` forcé à faux, hôtes obligatoires, en-têtes de sécurité HTTPS, TLS exigé jusqu'à la base et jusqu'au relais SMTP |
 
 Trois réglages manquent **volontairement** à `base.py`, et chaque module dit
@@ -1027,6 +1027,41 @@ donne :
   "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre."
 ]}
 ```
+
+### Le débit
+
+Quatre routes publiques sont limitées **par adresse IP**. Au-delà du quota, la réponse est
+un `429` portant un en-tête `Retry-After` en secondes :
+
+```json
+{"detail": "Requête ralentie. Disponible à nouveau dans 40 secondes."}
+```
+
+| Route | Quota par défaut | Variable |
+|---|---|---|
+| `POST /api/auth/login/` | 5 par minute | `THROTTLE_LOGIN` |
+| `POST /api/auth/register/` | 5 par heure | `THROTTLE_REGISTER` |
+| `POST /api/auth/password-reset/` | 3 par heure | `THROTTLE_PASSWORD_RESET` |
+| `POST /api/contact/` | 5 par heure | `THROTTLE_CONTACT` |
+
+Le compteur compte les **appels**, pas les échecs : la sixième connexion d'une même minute
+reçoit un `429` même avec le bon mot de passe. La fenêtre du login est courte parce que se
+retromper de mot de passe est ordinaire et qu'on réessaie aussitôt — une fenêtre d'une heure
+punirait le distrait autant que le robot. Les trois autres sont des gestes qu'on ne répète
+pas dans l'heure, et la réinitialisation est la plus basse des quatre : chacun de ses appels
+envoie un vrai email.
+
+Le reste de l'API n'est pas limité. `ScopedRateThrottle` ne compte que les vues qui déclarent
+un `throttle_scope` : la lecture des articles reste libre, quel qu'en soit le rythme.
+
+Deux limites, assumées. Le compteur vit dans le cache **mémoire du processus** : les trois
+workers Gunicorn de l'image comptent chacun le leur, un quota peut donc laisser passer jusqu'au
+triple, et tout repart à zéro au redémarrage. Un attaquant qui change d'adresse IP repart à
+zéro lui aussi. Le but est de rendre l'abus lent, pas impossible — c'est ce qui dispense la
+pile d'un Redis.
+
+Les tests éteignent ces quotas (`backend/config/settings/test.py`) : sans quoi une suite qui
+enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'elle vérifie.
 
 ## Structure
 
