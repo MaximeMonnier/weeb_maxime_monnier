@@ -1,9 +1,14 @@
 """Tests du formulaire de contact : ce qu'un visiteur sans compte peut envoyer, ce que
-l'API refuse d'enregistrer et ce qu'elle ne rend jamais en lecture — la permission
-publique, les longueurs de champ et l'absence de lecture vivant chacune ailleurs."""
+l'API refuse d'enregistrer, ce qu'elle ne rend jamais en lecture et à partir de quel
+rang elle cesse de répondre — la permission publique, les longueurs de champ, l'absence
+de route de lecture et le taux du quota vivant chacune dans un fichier différent."""
 
+from unittest.mock import patch
+
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import AccessToken
 
 from accounts.models import CustomUser
@@ -119,3 +124,41 @@ class ContactLectureTests(TestCase):
 
         self.assertEqual(response.status_code, 405)
         self.assertNotIn(MESSAGE["email"], response.content.decode())
+
+
+class ContactThrottleTests(TestCase):
+    """Le quota est le seul frein au remplissage de la table : l'endpoint est public,
+    et rien d'autre n'y limite le nombre d'écritures."""
+
+    def setUp(self):
+        # Le compteur vit dans un cache de processus, que rien ne vide entre deux tests.
+        cache.clear()
+
+    # Le taux est éteint pour toute la suite par config/settings/test.py : il faut le
+    # réarmer ici, sinon ce test seul ne verrait jamais de refus.
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"contact": "5/hour"})
+    def test_le_sixieme_message_de_l_heure_est_refuse(self):
+        for _ in range(5):
+            self.assertEqual(envoyer(self.client, MESSAGE).status_code, 201)
+
+        self.assertEqual(envoyer(self.client, MESSAGE).status_code, 429)
+        self.assertEqual(Contact.objects.count(), 5)
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"contact": "5/hour"})
+    def test_un_envoi_refuse_consomme_le_quota(self):
+        """DRF compte avant d'entrer dans la vue : cinq corps invalides ferment la porte
+        au sixième, valide — sans quoi le quota se contournerait par des 400."""
+        for _ in range(5):
+            self.assertEqual(envoyer(self.client, {}).status_code, 400)
+
+        self.assertEqual(envoyer(self.client, MESSAGE).status_code, 429)
+        self.assertEqual(Contact.objects.count(), 0)
+
+
+class ContactModeleTests(TestCase):
+    """Le modèle tel qu'il est : cinq champs, aucun horodatage, le sujet pour étiquette."""
+
+    def test_le_sujet_sert_d_etiquette(self):
+        """ContactAdmin.list_display s'appuie dessus ; le __str__ par défaut de Django
+        rendrait « Contact object (1) » dans toute la liste de l'admin."""
+        self.assertEqual(str(Contact.objects.create(**MESSAGE)), MESSAGE["subject"])
