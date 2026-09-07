@@ -9,6 +9,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 from .models import CustomUser
+from .validators import PasswordComplexityValidator
 from .views import INVALID_LINK_RESPONSE, NEUTRAL_RESPONSE
 
 
@@ -196,8 +197,14 @@ class PasswordValidationTests(TestCase):
         self.assertIn("password", response.json())
 
     def test_les_quatre_validateurs_de_django_ne_suffisent_pas(self):
-        """Assez long, ni courant ni numérique : seul le cinquième validateur le rejette."""
-        response = self.register("motdepassesansrien")
+        """Assez longs, ni courants ni numériques : seul le cinquième validateur les rejette."""
+        # Une classe manquante par cas : sans le message, une règle réduite au seul
+        # chiffre refuserait encore le premier et le test resterait vert.
+        for password in ("motdepassesansrien", "motdepasse123", "MOTDEPASSE123"):
+            with self.subTest(password=password):
+                response = self.register(password)
 
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("password", response.json())
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(
+                    response.json()["password"], [PasswordComplexityValidator.MESSAGE]
+                )

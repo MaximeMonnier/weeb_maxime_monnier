@@ -79,7 +79,7 @@ const ResetPassword = () => {
                   placeholder="••••••••"
                   value={newPassword}
                   onChange={handleChange}
-                  helperText="Minimum 8 caractères"
+                  helperText="Au moins 8 caractères avec majuscule, minuscule et chiffre"
                   error={error ?? undefined}
                   required
                   fullWidth

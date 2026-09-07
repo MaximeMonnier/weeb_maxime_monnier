@@ -1015,8 +1015,9 @@ enregistre le mot de passe tel quel, sans le hacher — c'est l'objet de l'issue
 
 Un refus est un `400` dont le message est rangé **sous la clé du champ** — `password` à
 l'inscription, `new_password` à la confirmation — et jamais à la racine, d'où aucun champ de
-formulaire ne pourrait le reprendre. Les formulaires du front ne lisent pas encore ces clés :
-ils affichent un message à eux. Un `12345678` soumis à l'inscription donne :
+formulaire ne pourrait le reprendre. Seul `ResetPassword.tsx` lit la sienne, `new_password` ;
+les autres formulaires affichent encore un message à eux. Un `12345678` soumis à l'inscription
+donne :
 
 ```json
 {"password": [
