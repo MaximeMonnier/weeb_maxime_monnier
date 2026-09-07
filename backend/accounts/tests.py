@@ -411,7 +411,7 @@ class JWTRotationTests(TestCase):
 
 
 class RegisterTests(TestCase):
-    """Ce que l'inscription crée et ce qu'elle renvoie : un compte en attente, sans son mot de passe."""
+    """Ce que l'inscription crée : un compte en attente, dont la réponse tait le mot de passe."""
 
     PASSWORD = "MotDePasseValide123"
 
@@ -429,7 +429,7 @@ class RegisterTests(TestCase):
         )
 
     def test_le_compte_cree_attend_sa_validation(self):
-        """Le modèle pose is_active à True : seul create() le retourne, et rien d'autre ne le dirait."""
+        """Le modèle pose is_active à True : seule la ligne de create() le remet à False."""
         response = self.inscrire()
 
         self.assertEqual(response.status_code, 201)
