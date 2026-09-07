@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
+import { toFormErrors } from "../lib/apiErrors";
 import { Input } from "../components/ui/Input";
 import MainButton from "../components/ui/Button/MainButton";
 import MainTitle from "../components/ui/Title/MainTitle";
+import ErrorAlert from "../components/ui/Alert/ErrorAlert";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -14,11 +16,13 @@ const ResetPassword = () => {
 
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewPassword(e.target.value);
     setError(null);
+    setFormError(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,6 +32,7 @@ const ResetPassword = () => {
       return;
     }
     setError(null);
+    setFormError(null);
     setIsSubmitting(true);
     try {
       await apiFetch<{ detail: string }>("/auth/password-reset/confirm/", {
@@ -36,13 +41,18 @@ const ResetPassword = () => {
       });
       navigate("/login", { replace: true });
     } catch (err) {
-      // Deux refus distincts sous le même 400 : le lien mort n'a qu'un "detail", le mot de
-      // passe rejeté porte "new_password". Les confondre enverrait l'utilisateur redemander
-      // un lien alors que le sien est bon — il retomberait sur le même message.
-      const data = (err as { data?: { new_password?: string[] } }).data;
-      setError(
-        data?.new_password?.[0] ??
-          "Ce lien est invalide ou a déjà servi. Demandez-en un nouveau.",
+      const { fieldErrors, formError } = toFormErrors(err, ["new_password"]);
+      setError(fieldErrors.new_password ?? null);
+      // Le lien mort est le seul refus que l'API rende sans dire quoi faire — son
+      // "detail" tient en trois mots. Un 429 ou une panne gardent leur message : les
+      // ramener au lien invalide ferait redemander un lien encore bon.
+      const lienRefuse =
+        !fieldErrors.new_password &&
+        (err as { status?: number }).status === 400;
+      setFormError(
+        lienRefuse
+          ? "Ce lien est invalide ou a déjà servi. Demandez-en un nouveau."
+          : formError,
       );
     } finally {
       setIsSubmitting(false);
@@ -71,6 +81,8 @@ const ResetPassword = () => {
             </p>
           ) : (
             <form onSubmit={handleSubmit}>
+              <ErrorAlert message={formError} />
+
               <div className="space-y-6">
                 <Input
                   label="Nouveau mot de passe"
