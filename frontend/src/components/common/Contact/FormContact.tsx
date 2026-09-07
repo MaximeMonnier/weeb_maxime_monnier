@@ -90,8 +90,8 @@ const FormContact = () => {
 
     setFormError(null);
     setConfirmation(null);
-    // Manquait : le bouton restait actif pendant l'envoi, et chaque double clic
-    // entamait un quota de cinq messages par heure.
+    // Désactive le bouton : sans cela, un double clic entame un quota de cinq
+    // messages par heure.
     setIsSubmitting(true);
 
     try {
@@ -112,8 +112,8 @@ const FormContact = () => {
         subject: "",
         message: "",
       });
-      // Le formulaire se vidait sans rien dire : rien ne distinguait l'envoi réussi
-      // de l'échec muet.
+      // Le formulaire se vide au succès : sans ce message, rien ne le distinguerait
+      // d'un échec.
       setConfirmation("Votre message est parti. Nous vous répondrons par email.");
     } catch (err) {
       const { fieldErrors, formError } = toFormErrors(err, CHAMPS);

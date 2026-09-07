@@ -32,8 +32,8 @@ const ForgotPassword = () => {
       });
       setConfirmation(data.detail);
     } catch (err) {
-      // Le quota le plus serré du projet, trois appels par heure : le message unique
-      // d'avant annonçait une adresse invalide à qui n'avait fait qu'attendre.
+      // Le quota le plus serré du projet, trois appels par heure : un message unique
+      // annoncerait une adresse invalide à qui n'a fait qu'attendre.
       const { fieldErrors, formError } = toFormErrors(err, ["email"] as const);
       setError(fieldErrors.email ?? null);
       setFormError(formError);
