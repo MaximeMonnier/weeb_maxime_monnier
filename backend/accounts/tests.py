@@ -191,7 +191,7 @@ class PasswordValidationTests(TestCase):
         self.assertIn("Ce mot de passe est trop courant.", response.json()["password"])
 
     def test_inscription_refuse_un_mot_de_passe_tire_de_l_email(self):
-        """Seule l'inscription tient l'identité du compte, donc seule elle joue la similarité."""
+        """La confirmation ne tient pas encore l'identité du compte, la similarité y est muette."""
         response = self.register("Chatonbleu42", email="Chatonbleu42@example.com")
 
         self.assertEqual(response.status_code, 400)
@@ -266,7 +266,7 @@ class CustomUserAdminTests(TestCase):
         membre.is_active = False
         membre.save()
 
-        # Les deux comptes sont listés dans l'ordre de `ordering`, donc admin puis membre.
+        # La liste affiche les deux comptes, donc le navigateur poste les deux sous-formulaires.
         response = self.client.post(
             reverse("admin:accounts_customuser_changelist"),
             {
