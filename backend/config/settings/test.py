@@ -1,7 +1,7 @@
 """Réglages des tests automatisés : aucun secret Django réel, mais une vraie base PostgreSQL."""
 
 from .base import *  # noqa: F403 — on repart de tous les réglages communs
-from .base import postgres_database
+from .base import postgres_database, REST_FRAMEWORK
 
 # Un test ne doit jamais dépendre de la page d'erreur détaillée pour passer.
 DEBUG = False
@@ -25,3 +25,22 @@ CORS_ALLOWED_ORIGINS = []
 # Contrepartie assumée : la suite exige un PostgreSQL joignable et les
 # variables POSTGRES_* renseignées, contrairement à SECRET_KEY.
 DATABASES = postgres_database()
+
+
+# --- Emails ---
+# Backend mémoire : aucun test n'ouvre de connexion SMTP, et chaque message
+# envoyé reste lisible dans `django.core.mail.outbox`. Le runner de Django
+# l'impose déjà de son côté ; l'écrire ici vaut pour tout ce qui sort du runner.
+EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+
+
+# --- Quotas de débit ---
+# Un taux à None éteint son scope : DRF laisse tout passer, aucun test ne se voit
+# refuser une requête. C'est le taux qu'on neutralise et non la classe, figée à
+# l'import de DRF : une classe retirée ne se réarmerait plus, un taux si.
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_THROTTLE_RATES': {
+        scope: None for scope in REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']
+    },
+}

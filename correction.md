@@ -91,7 +91,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | — |
+| Clos le 2026-09-04 | — (issue #58, sans epic) | Lot 0 | — |
 
 **Grain de ticket** : epic + 2 sous-issues, une par tâche.
 
@@ -101,7 +101,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 
 ## 0.1 — Reprendre la main sur `frontend/node_modules`
 
-- [ ] **Fichiers** : `frontend/node_modules/` (hôte), `compose.dev.yaml`, `CLAUDE.md`, `README.md`
+- [x] **Fichiers** : `frontend/node_modules/` (hôte), `compose.dev.yaml`, `CLAUDE.md`, `README.md`
 - **Constat** : `frontend/node_modules` est un dossier **vide appartenant à `root`**. Il a été créé
   par Docker comme point de montage du volume anonyme `/app/node_modules` déclaré dans
   `compose.dev.yaml`. Toute commande npm lancée depuis la machine échoue en `EACCES`.
@@ -129,7 +129,7 @@ Ne lance aucune commande destructive sans me la montrer d'abord. Termine en vér
 
 ## 0.2 — Corriger les vulnérabilités des dépendances front
 
-- [ ] **Fichiers** : `frontend/package.json`, `frontend/package-lock.json`
+- [x] **Fichiers** : `frontend/package.json`, `frontend/package-lock.json`
 - **Constat** : `npm audit` remonte **7 vulnérabilités « high »** sur `vite` 7.2.4 (traversée de
   chemin, lecture de fichier arbitraire via le WebSocket du serveur de dev, contournement de
   `server.fs.deny`). Elles ne concernent que le serveur de développement, pas l'image de
@@ -159,7 +159,7 @@ Commit `chore:` séparé, avec le package-lock.json.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — sécurité |
+| Clos le 2026-09-07 — 1.2 pour moitié, le reste renvoyé | #65, **laissée ouverte** | Lot 1 | Bloc 1 — sécurité |
 
 **Grain de ticket** : epic + 6 sous-issues, une par tâche.
 
@@ -169,7 +169,7 @@ Commit `chore:` séparé, avec le package-lock.json.
 
 ## 1.1 — Réinitialisation de mot de passe : ne plus renvoyer le jeton au client
 
-- [ ] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/serializers.py`,
+- [x] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/serializers.py`,
   `backend/config/settings/base.py`, `development.py`, `production.py`, `test.py`,
   `frontend/src/pages/ForgotPassword.tsx`, `.env.example`
 - **Constat** : `accounts/views.py:41` renvoie `uid` et `token` dans le corps de la réponse, sur
@@ -221,14 +221,23 @@ Travail demandé, dans cet ordre :
 
 Critères d'acceptation :
 - POST /api/auth/password-reset/ ne renvoie JAMAIS uid ni token, quel que soit l'email envoyé ;
-- en développement, le mail part sur la console et le lien est utilisable ;
+- en développement, le mail arrive dans Mailpit — service `mailpit` de `compose.dev.yaml`,
+  interface sur http://127.0.0.1:8025 — et le lien qu'il porte est utilisable ;
 - l'ancien parcours en deux étapes sur une seule page n'existe plus ;
 - .env.example documente chaque nouvelle variable.
 ```
 
 ## 1.2 — Neutraliser l'énumération de comptes
 
-- [ ] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/serializers.py`
+- [x] **Moitié réinitialisation livrée par l'issue #68** : le `404 "Aucun compte associé à cet
+  email."` a disparu, la vue rend le même corps qu'un compte soit actif, inactif ou inconnu, et
+  trois tests le verrouillent.
+- [ ] **Moitié inscription non livrée** : l'`UniqueValidator` du champ `email` de
+  `RegisterSerializer` nomme toujours l'adresse déjà prise. L'issue #79 pose un cache côté
+  front — `FormSubscribe` ne relaie pas ce message — mais la réponse HTTP n'a pas bougé, et
+  c'est elle qu'un script lit. **Reste à traiter dans l'epic #65**, qui n'est donc pas fermée
+  avec le lot ; l'entrée est à `AMELIORATIONS.md`, § « Backend — sécurité ».
+- **Fichiers** : `backend/accounts/views.py`, `backend/accounts/serializers.py`
 - **Constat** : `accounts/views.py:35-36` répond `404 "Aucun compte associé à cet email."` — on
   apprend qui est inscrit. Même fuite à l'inscription : l'unicité de l'email produit un 400
   explicite. Côté front, `ForgotPassword.tsx:33` affiche le message.
@@ -262,7 +271,9 @@ sur un email inconnu, produisent exactement le même code HTTP et le même corps
 
 ## 1.3 — Appliquer les validateurs de mot de passe de Django
 
-- [ ] **Fichiers** : `backend/accounts/serializers.py`
+- [x] **Fichiers** : `backend/accounts/serializers.py`, `backend/accounts/validators.py`,
+  `backend/config/settings/base.py`, `backend/accounts/tests.py`,
+  `frontend/src/pages/ResetPassword.tsx`
 - **Constat** : `AUTH_PASSWORD_VALIDATORS` est déclaré (`base.py:190`) mais **aucun code ne
   l'appelle**. `RegisterSerializer` (`serializers.py:9`) ne pose que `min_length=8`, et
   `PasswordResetConfirmSerializer` (`serializers.py:32`) idem. `12345678` passe à l'inscription et
@@ -299,7 +310,10 @@ Critère d'acceptation : POST /api/auth/register/ avec le mot de passe « 123456
 
 ## 1.4 — Sécuriser l'administration des utilisateurs
 
-- [ ] **Fichiers** : `backend/accounts/admin.py`
+- [x] **Livrée par l'issue #70** : `CustomUserAdmin` hérite de `UserAdmin`, dont les deux listes
+  de champs sont réécrites — celles du paquet décrivent un modèle à `username`, que `CustomUser`
+  n'a pas. `list_editable = ("is_active",)` est conservé. Trois tests.
+- [x] **Fichiers** : `backend/accounts/admin.py`
 - **Constat** : `accounts/admin.py:6` — `CustomUserAdmin` hérite de `admin.ModelAdmin` et non de
   `UserAdmin`. Le champ `password` s'affiche donc comme un input texte : le hash est visible, et
   **tout ce qui est tapé est enregistré tel quel, non hashé**. Le compte devient inconnectable et
@@ -330,8 +344,11 @@ plus le mot de passe.
 
 ## 1.5 — Limiter le débit des endpoints publics
 
-- [ ] **Fichiers** : `backend/config/settings/base.py`, `backend/accounts/views.py`,
-  `backend/contact/views.py`, `.env.example`
+- [x] **Livrée par l'issue #71** : `ScopedRateThrottle`, quatre scopes réglables par variable
+  d'environnement. `LoginView` n'existe que pour porter le sien, `throttle_scope` étant un
+  attribut de vue et celle de simplejwt étant importée. Quatre tests.
+- [x] **Fichiers** : `backend/config/settings/base.py`, `backend/accounts/views.py`,
+  `backend/contact/views.py`, `backend/config/settings/test.py`, `.env.example`
 - **Constat** : aucun `DEFAULT_THROTTLE_CLASSES` dans `base.py:231`. `/api/auth/login/` accepte
   une infinité de tentatives → bruteforce du mot de passe. `/api/contact/` est public et sans
   quota → spam illimité, table qui grossit sans borne. `/api/auth/password-reset/` devient un
@@ -369,7 +386,12 @@ Critère d'acceptation : la 6e tentative de connexion échouée depuis la même 
 
 ## 1.6 — Rotation et invalidation des jetons JWT
 
-- [ ] **Fichiers** : `backend/config/settings/base.py`, `backend/requirements.txt`
+- [x] **Livrée par l'issue #72** : rotation, mise en liste noire après rotation, et l'app
+  `token_blacklist` qui porte les tables — trois pièces qui n'ont de sens qu'ensemble.
+  `ACCESS_TOKEN_LIFETIME` passe de 60 à 15 min et `POST /api/auth/logout/` est ouvert, pour la
+  tâche 5.3. Quatre tests. Aucun écran du front ne l'appelle encore : consigné à
+  `AMELIORATIONS.md`.
+- [x] **Fichiers** : `backend/config/settings/base.py`, `backend/accounts/urls.py`
 - **Constat** : `SIMPLE_JWT` (`base.py:247`) ne définit que les durées de vie. Ni
   `ROTATE_REFRESH_TOKENS`, ni blacklist. Conséquence : après un changement de mot de passe, les
   jetons d'accès déjà émis restent valides jusqu'à une heure. Il n'existe par ailleurs aucun
@@ -408,14 +430,15 @@ doit être lancé et le fichier committé.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — qualité |
+| À faire — 2.1 entamée par le lot 1 | — | — | Bloc 1 — qualité |
 
 **Grain de ticket** : epic + 3 sous-issues, une par app testée.
 
 > **Dépendances : lot 1.**
-> Les trois `tests.py` ne contiennent aujourd'hui qu'un `from django.test import TestCase`.
-> Zéro test sur un projet qui a une authentification, des permissions de propriété et une
-> réinitialisation de mot de passe. **Un seul test aurait attrapé la faille 1.1.**
+> `articles/tests.py` et `contact/tests.py` ne contiennent toujours qu'un
+> `from django.test import TestCase` : aucune permission de propriété n'est vérifiée.
+> `accounts/tests.py`, lui, a été écrit au fil du lot 1 — **un seul de ces tests aurait attrapé
+> la faille 1.1**, ce qui est exactement l'argument de ce lot.
 > Ce lot verrouille le lot 1 et protège tous les refactorings des lots 3 à 9.
 >
 > Rappel d'exécution : `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test`,
@@ -424,7 +447,13 @@ doit être lancé et le fichier committé.
 ## 2.1 — Tests de l'app `accounts`
 
 - [ ] **Fichiers** : `backend/accounts/tests.py`
-- **Constat** : fichier vide (une ligne d'import).
+- **Constat** : le fichier n'est plus vide — le lot 1 y a laissé 25 tests, écrits comme verrous
+  de ses propres corrections et non comme la suite demandée ici. Sont déjà couverts : le mot de
+  passe faible refusé, la réponse sans `uid` ni `token`, l'identité des réponses pour un email
+  inscrit et inconnu, le lien à usage unique, le hachage depuis l'admin, les quotas et la
+  rotation des jetons. **Restent à écrire** les quatre cas d'inscription et de connexion :
+  compte créé inactif, mot de passe absent de la réponse, compte inactif qui n'obtient pas de
+  jeton, compte actif qui obtient `access` et `refresh`.
 - **Attendu** : l'inscription, la connexion, la réinitialisation et l'énumération sont couvertes,
   et la faille 1.1 ne peut plus revenir sans faire échouer la suite.
 
