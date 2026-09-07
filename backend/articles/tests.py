@@ -196,7 +196,7 @@ class ArticleDatesImposeesTests(TestCase):
         article = Article.objects.create(
             title="Article existant", content="Contenu.", author=self.auteur,
         )
-        creation = article.created_at
+        creation, modification = article.created_at, article.updated_at
 
         response = self.client.patch(
             reverse("article-detail", args=[article.pk]),
@@ -209,6 +209,7 @@ class ArticleDatesImposeesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         article.refresh_from_db()
         self.assertEqual(article.created_at, creation)
-        # Plus fort qu'une simple date récente : prouve que l'auto_now a bien retiré,
-        # ce qu'un updated_at resté à sa valeur de création passerait aussi.
-        self.assertGreater(article.updated_at, creation)
+        # Comparer à l'updated_at d'avant la requête, jamais à created_at : les deux
+        # champs appellent now() chacun de leur côté et tombent souvent sur la même
+        # microseconde, si bien qu'un updated_at resté figé passerait le test.
+        self.assertGreater(article.updated_at, modification)
