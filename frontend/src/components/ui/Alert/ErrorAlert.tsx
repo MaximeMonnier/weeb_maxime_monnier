@@ -7,8 +7,8 @@ type ErrorAlertProps = {
  * Message d'erreur portant sur un formulaire entier, annoncé par les lecteurs d'écran.
  */
 export default function ErrorAlert({ message }: ErrorAlertProps) {
-  // Monté en permanence et masqué à vide par `:empty` : une région live apparue avec
-  // son texte n'est pas annoncée de façon fiable.
+  // Rendu même sans message, et vide il n'occupe aucune hauteur : une région live
+  // apparue en même temps que son texte n'est pas annoncée de façon fiable.
   return (
     <p role="alert" className="form-alert-error">
       {message}

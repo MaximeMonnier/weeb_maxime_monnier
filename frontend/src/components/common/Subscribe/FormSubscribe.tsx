@@ -125,9 +125,9 @@ const FormSubscribe = () => {
       onSubmit={handleSubmit}
       className="w-full max-w-2xl my-8 border border-primary p-6 rounded-lg"
     >
-      <div className="space-y-6">
-        <ErrorAlert message={formError} />
+      <ErrorAlert message={formError} />
 
+      <div className="space-y-6">
         {/* Nom et Prénom */}
         <div className="flex gap-4">
           <Input
