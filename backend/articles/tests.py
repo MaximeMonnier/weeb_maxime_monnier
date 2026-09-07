@@ -72,8 +72,9 @@ class ArticleProprieteTests(TestCase):
         self.url = reverse("article-detail", args=[self.article.pk])
 
     def test_l_auteur_envoye_par_le_client_est_ignore(self):
-        """Deux lignes protègent ce champ, le read_only du serializer et le perform_create
-        de la vue : le test tombe si l'une des deux part, l'article restant sans auteur."""
+        """À la création, c'est perform_create qui impose l'auteur : il écrase ce que le
+        corps propose, et l'article partirait sans auteur si la ligne s'en allait. Le champ
+        déclaré en lecture seule, lui, ne tient ici que la forme rendue, l'email et non l'id."""
         response = self.client.post(
             reverse("article-list"),
             {"title": "Article signé d'un autre", "content": "Contenu.",
@@ -85,6 +86,18 @@ class ArticleProprieteTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["author"], self.auteur.email)
         self.assertEqual(Article.objects.get(pk=response.json()["id"]).author, self.auteur)
+
+    def test_l_auteur_ne_cede_pas_son_article_par_une_modification(self):
+        """Rien ne surcharge perform_update : à la modification, le champ déclaré en lecture
+        seule est seul à empêcher un auteur de signer son article du nom d'un autre."""
+        response = self.client.patch(
+            self.url, {"title": "Titre corrigé", "author": self.intrus.pk},
+            content_type="application/json", headers=porteur(self.auteur),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.author, self.auteur)
 
     def test_l_auteur_modifie_son_article(self):
         response = self.client.patch(
@@ -196,4 +209,6 @@ class ArticleDatesImposeesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         article.refresh_from_db()
         self.assertEqual(article.created_at, creation)
-        self.assertTrue(self.recent(article.updated_at))
+        # Plus fort qu'une simple date récente : prouve que l'auto_now a bien retiré,
+        # ce qu'un updated_at resté à sa valeur de création passerait aussi.
+        self.assertGreater(article.updated_at, creation)
