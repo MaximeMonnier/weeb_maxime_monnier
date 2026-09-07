@@ -4,6 +4,7 @@ ce que l'admin doit hasher, et à partir de quand l'API refuse de répondre."""
 import re
 from unittest.mock import patch
 
+from django.conf import settings
 from django.core import mail
 from django.core.cache import cache
 from django.test import Client, SimpleTestCase, TestCase
@@ -291,9 +292,10 @@ class CustomUserAdminTests(TestCase):
 
 
 class ThrottleScopeTests(SimpleTestCase):
-    """Chaque endpoint public porte son scope : sans lui, il n'est compté par personne."""
+    """Chaque endpoint public porte son scope, et chaque scope a son taux."""
 
     def test_chaque_endpoint_public_porte_son_scope(self):
+        taux = settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
         for nom_de_route, scope in {
             "login": "login",
             "register": "register",
@@ -303,6 +305,9 @@ class ThrottleScopeTests(SimpleTestCase):
             with self.subTest(route=nom_de_route):
                 vue = resolve(reverse(nom_de_route)).func
                 self.assertEqual(getattr(vue.cls, "throttle_scope", None), scope)
+                # Un scope sans taux ne laisse pas passer : il fait répondre 500.
+                # Renommer une clé de base.py se verrait ici, pas en production.
+                self.assertIn(scope, taux)
 
 
 class LoginThrottleTests(TestCase):

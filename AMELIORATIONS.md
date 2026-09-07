@@ -29,7 +29,9 @@ Rien de ce qui reste ne bloque le développement.
       `/admin/` et les routes d'authentification (`/api/auth/login/`,
       `/api/auth/password-reset/`) n'y ont aucune limitation de débit ni restriction
       d'origine. Pistes : un `limit_req_zone` sur ces chemins, et un `allow`/`deny` sur
-      `/admin/`. S'y ajoutent les deux chantiers qu'un domaine réel ouvre : Let's Encrypt
+      `/admin/`. Moins urgent depuis l'issue #71 : Django limite ces deux routes lui-même.
+      Le faire aussi devant garderait l'abus hors du processus Python, et couvrirait
+      `/admin/`, que le throttling de DRF ne voit pas. S'y ajoutent les deux chantiers qu'un domaine réel ouvre : Let's Encrypt
       et HSTS remonté par paliers, à `0` tant que la pile est jointe sur `localhost`,
       qu'elle partage avec le développement.
 - [x] **Construction des images en intégration continue** — livré.
@@ -78,11 +80,11 @@ Rien de ce qui reste ne bloque le développement.
       `django-tasks`) ; le projet n'en a aucune aujourd'hui, et en poser une pour ce seul
       envoi est disproportionné. Un `threading.Thread(daemon=True)` refermerait l'essentiel
       de l'écart en trois lignes, mais un envoi perdu le serait en silence, sans réessai ni
-      trace : il déplace le problème plutôt qu'il ne le règle. À reprendre avec la limitation
-      de débit de l'issue #71, qui borne l'exploitation de l'oracle sans le supprimer — et
-      qui borne surtout un risque neuf : l'endpoint déclenche maintenant un aller-retour SMTP
-      par requête non authentifiée, donc du mail-bombing contre n'importe quelle adresse
-      inscrite. `ScopedRateThrottle` de DRF y suffit, sans nouvelle dépendance.
+      trace : il déplace le problème plutôt qu'il ne le règle. La moitié « débit » de cette
+      entrée est livrée par l'issue #71 : `ScopedRateThrottle` limite la demande de
+      réinitialisation à 3 appels par heure et par adresse IP, ce qui borne l'exploitation de
+      l'oracle sans le supprimer, et ferme surtout le mail-bombing que l'envoi SMTP par
+      requête non authentifiée avait ouvert. L'écart de temps, lui, reste entier.
 - [ ] **Le validateur de similarité est muet à la réinitialisation.** `UserAttributeSimilarityValidator`
       compare le mot de passe aux attributs du compte, et l'issue #69 le lui donne à
       l'inscription — mais pas à la confirmation : `PasswordResetConfirmSerializer` valide

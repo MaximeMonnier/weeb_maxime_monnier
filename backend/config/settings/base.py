@@ -253,9 +253,13 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_CLASSES': (
         'rest_framework.throttling.ScopedRateThrottle',
     ),
-    # Format "<nombre>/<période>", la période parmi second, minute, hour, day.
-    # Les défauts sont calés sur l'usage humain : on se retrompe de mot de passe
-    # trois fois, on ne s'inscrit pas cinq fois par heure.
+    # Format "<nombre>/<période>", la période lue à sa première lettre : `min`
+    # comme `minute`. Les défauts sont calés sur l'usage humain — on se trompe
+    # de mot de passe deux ou trois fois d'affilée, pas six.
+    #
+    # Le compteur vit dans le cache de Django, et faute de CACHES déclaré c'est
+    # LocMemCache : les trois workers Gunicorn comptent chacun le leur, donc 5/min
+    # en laisse passer jusqu'à 15. Assumé — borner l'abus suffit, pas de Redis ici.
     'DEFAULT_THROTTLE_RATES': {
         'login': env_str('THROTTLE_LOGIN', '5/min'),
         'register': env_str('THROTTLE_REGISTER', '5/hour'),
@@ -263,10 +267,6 @@ REST_FRAMEWORK = {
         'contact': env_str('THROTTLE_CONTACT', '5/hour'),
     },
 }
-
-# Le compteur vit dans le cache de Django, et faute de CACHES déclaré c'est
-# LocMemCache : les trois workers Gunicorn comptent chacun le leur, donc 5/min
-# en laisse passer jusqu'à 15. Assumé — borner l'abus suffit, pas de Redis ici.
 
 # ============================================
 #  JWT (djangorestframework-simplejwt)
