@@ -61,13 +61,11 @@ def send_password_reset_link(user):
 
 class LoginView(TokenObtainPairView):
     """Connexion : délivre les tokens JWT. Endpoint PUBLIC (pas besoin d'être connecté)."""
-    # Sous-classe pour le seul quota : `throttle_scope` est un attribut de vue, et
-    # celle de simplejwt est importée. Sans elle, la connexion resterait
-    # bruteforçable. Le compteur compte les appels, pas les seuls échecs.
-    #
-    # AllowAny est redit alors que simplejwt le pose déjà : la convention du dépôt
-    # est qu'une vue publique le déclare, une vue muette étant fermée par défaut.
+    # Redit alors que simplejwt le pose déjà : la convention du dépôt veut qu'une
+    # vue publique le déclare, une vue muette étant fermée par défaut.
     permission_classes = [AllowAny]
+    # La seule raison de sous-classer : `throttle_scope` est un attribut de vue, et
+    # celle de simplejwt est importée. Le compteur compte les appels, pas les échecs.
     throttle_scope = "login"
 
 
