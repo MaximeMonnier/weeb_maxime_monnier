@@ -89,7 +89,7 @@ Rien de ce qui reste ne bloque le développement.
       avant que la vue n'ait décodé l'`uid`, donc sans titulaire, et Django ignore alors ce
       validateur en silence. Un compte peut ainsi reprendre son propre email comme mot de
       passe, ce que l'inscription lui refuse — dès lors que cet email porte une majuscule et
-      un chiffre, le validateur de complexité étant seul à filtrer les autres. Lui passer l'utilisateur suppose de décoder
+      un chiffre et huit caractères, la complexité et la longueur filtrant les autres. Lui passer l'utilisateur suppose de décoder
       l'`uid` et de vérifier le token **avant** la validation du mot de passe, donc de
       déplacer dans le serializer ce que la vue tient aujourd'hui — et l'issue #68 vient d'y
       régler l'indistinguabilité des deux échecs, qu'un tel déplacement rejouerait. À

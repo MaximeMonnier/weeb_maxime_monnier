@@ -29,5 +29,5 @@ def validate_password_strength(password, field_name, user=None):
         password_validation.validate_password(password, user=user)
     except DjangoValidationError as error:
         # Django lève une erreur sans champ ; sans ce dict, DRF la rendrait à la racine
-        # de la réponse, où le front ne l'affiche sous aucun des champs du formulaire.
+        # de la réponse, d'où aucun champ de formulaire ne peut la reprendre.
         raise serializers.ValidationError({field_name: list(error.messages)}) from error
