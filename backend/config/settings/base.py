@@ -116,6 +116,10 @@ INSTALLED_APPS = [
     # --- Bibliothèques tierces ---
     'rest_framework',   # Django REST Framework : la couche qui transforme Django en API JSON
     'corsheaders',      # Autorise le front React (:5173) à appeler l'API (:8000)
+    # Livrée avec simplejwt, mais inerte tant qu'elle n'est pas installée : c'est
+    # elle qui apporte les tables où atterrissent les refresh révoqués, donc la
+    # condition de BLACKLIST_AFTER_ROTATION comme de la vue de déconnexion.
+    'rest_framework_simplejwt.token_blacklist',
 
     # --- Applications ---
     'accounts',
@@ -272,8 +276,15 @@ REST_FRAMEWORK = {
 #  JWT (djangorestframework-simplejwt)
 # ============================================
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),   # le token d'accès expire au bout d'1h
+    # 15 min et non 60 : le token d'accès vit dans localStorage, donc lisible par
+    # tout script de la page, et rien ne le révoque avant son échéance — même un
+    # mot de passe changé. Sa durée est la seule borne de la fenêtre de vol.
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),      # le token de rafraîchissement dure 1 jour
+    # Indissociables : la rotation seule laisserait l'ancien refresh valide jusqu'à
+    # son échéance. Détail au README, § « Les jetons ».
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # ============================================
