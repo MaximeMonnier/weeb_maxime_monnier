@@ -1,5 +1,6 @@
-"""Tests des mots de passe : ce que la réponse ne doit pas révéler, ce qu'elle doit refuser,
-ce que l'admin doit hasher, et à partir de quand l'API refuse de répondre."""
+"""Tests des mots de passe et des jetons : ce que la réponse ne doit pas révéler, ce qu'elle
+doit refuser, ce que l'admin doit hasher, à partir de quand l'API refuse de répondre, et
+jusqu'à quand un refresh reste bon."""
 
 import re
 from unittest.mock import patch
@@ -350,3 +351,59 @@ class LoginThrottleTests(TestCase):
         """Sans quoi un test enchaînant six appels échouerait sans rapport avec son sujet."""
         for _ in range(6):
             self.assertEqual(self.tentative(self.PASSWORD).status_code, 200)
+
+
+class JWTRotationTests(TestCase):
+    """Ce que valent les jetons après usage : la rotation seule ne révoque rien."""
+
+    PASSWORD = "MotDePasseValide123"
+
+    def setUp(self):
+        self.refresh_url = reverse("login-refresh")
+        self.logout_url = reverse("logout")
+        CustomUser.objects.create_user(
+            email="membre@example.com", first_name="M", last_name="Embre",
+            password=self.PASSWORD,
+        )
+        self.refresh = self.client.post(
+            reverse("login"),
+            {"email": "membre@example.com", "password": self.PASSWORD},
+            content_type="application/json",
+        ).json()["refresh"]
+
+    def rafraichir(self, refresh):
+        return self.client.post(
+            self.refresh_url, {"refresh": refresh}, content_type="application/json"
+        )
+
+    def deconnecter(self, refresh):
+        return self.client.post(
+            self.logout_url, {"refresh": refresh}, content_type="application/json"
+        )
+
+    def test_le_rafraichissement_rend_un_refresh_neuf(self):
+        """Sans ROTATE_REFRESH_TOKENS, la réponse ne porte que `access` et ce test échoue."""
+        response = self.rafraichir(self.refresh)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotEqual(response.json()["refresh"], self.refresh)
+
+    def test_le_refresh_consomme_ne_ressert_pas(self):
+        """La moitié qui manquerait sans BLACKLIST_AFTER_ROTATION : les deux resteraient bons."""
+        self.rafraichir(self.refresh)
+
+        self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
+
+    def test_la_deconnexion_revoque_le_refresh(self):
+        # Aucun en-tête d'authentification ici : la vue est publique, et le refresh
+        # envoyé est la seule preuve exigée. Un IsAuthenticated hérité la fermerait.
+        self.assertEqual(self.deconnecter(self.refresh).status_code, 200)
+
+        self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
+
+    def test_la_deconnexion_refuse_un_refresh_deja_revoque(self):
+        """L'app token_blacklist retirée d'INSTALLED_APPS, les deux appels rendraient 200 :
+        simplejwt avale l'AttributeError et la vue révoque dans le vide, sans rien dire."""
+        self.deconnecter(self.refresh)
+
+        self.assertEqual(self.deconnecter(self.refresh).status_code, 401)

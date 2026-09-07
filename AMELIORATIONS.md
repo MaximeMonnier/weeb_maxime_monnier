@@ -61,14 +61,25 @@ Rien de ce qui reste ne bloque le développement.
 - [ ] **`apiFetch` joint encore le token aux endpoints publics hors `/auth/`.** simplejwt
       authentifie **avant** d'appliquer les permissions : un `localStorage.access` périmé
       fait répondre `401` à une vue `AllowAny`, sans que rien ne le dise. `lib/api.ts`
-      n'envoie plus l'en-tête sur `/auth/` — les cinq routes y sont publiques, et le
+      n'envoie plus l'en-tête sur `/auth/` — les six routes y sont publiques, et le
       parcours de réinitialisation en dépendait — mais les publiques d'ailleurs restent
       exposées : `POST /api/contact/`, et les lectures `GET /api/articles/` et
       `/api/articles/{id}/`, que `IsAuthenticatedOrReadOnly` autorise sans jamais être
-      atteint. La cause de fond demeure : aucun `logout` ne vide
-      `localStorage` dans le dépôt, donc un token mort y reste indéfiniment. Pistes :
+      atteint. La cause de fond demeure : l'issue #72 a ouvert
+      `POST /api/auth/logout/` côté API, mais aucun écran du front ne l'appelle ni ne vide
+      `localStorage`, donc un token mort y reste indéfiniment. Pistes :
       lister les chemins publics plutôt que le seul préfixe `/auth/`, ou purger
       `localStorage.access` à la réception d'un `401`.
+- [ ] **Le front ne rafraîchit pas ses jetons, et la session dure 15 minutes.**
+      `FormLogin.tsx` range `access` et `refresh` dans `localStorage`, mais aucun fichier
+      n'appelle `/api/auth/login/refresh/` : le jeton d'accès expire sans être renouvelé et
+      l'utilisateur se retrouve déconnecté. L'issue #72 a resserré `ACCESS_TOKEN_LIFETIME`
+      de 60 à 15 minutes — le bon arbitrage pour un jeton logé dans `localStorage`, mais il
+      raccourcit d'autant une session que rien ne prolonge. Le lot 5.2 doit poser ce
+      rafraîchissement, et **stocker le `refresh` renvoyé en réponse** : depuis la même
+      issue, `login/refresh/` en rend un neuf et révoque celui qui a servi, donc un client
+      qui garde l'ancien se coupe lui-même au deuxième appel. La déconnexion existe côté
+      API, `POST /api/auth/logout/`, et attend le même geste côté front.
 
 ## Backend — sécurité
 
@@ -112,6 +123,14 @@ Rien de ce qui reste ne bloque le développement.
       sa seule trace ; faute de configuration, elle sort par le handler de dernier recours
       de Python, sans horodatage ni niveau, hors de portée de `mail_admins`. Un handler
       console explicite suffirait à rendre ce chemin d'échec lisible.
+- [ ] **Rien ne purge les tables de `token_blacklist`.** Depuis l'issue #72, chaque connexion
+      et chaque rafraîchissement y écrivent une ligne qu'aucun processus ne reprend :
+      `OutstandingToken` et `BlacklistedToken` ne font que croître, y compris pour des jetons
+      expirés depuis longtemps et donc sans effet. simplejwt livre la commande
+      `python manage.py flushexpiredtokens` pour ce ménage, mais rien ne la déclenche — le
+      dépôt n'a ni tâche planifiée ni cron dans ses conteneurs. Sans conséquence à l'échelle
+      d'un projet pédagogique ; à reprendre le jour où une file de tâches entrera, la même
+      qui manque à l'envoi des emails ci-dessus.
 
 ## Intégration continue
 
