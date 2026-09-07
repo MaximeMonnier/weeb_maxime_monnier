@@ -44,8 +44,8 @@ const ResetPassword = () => {
       const { fieldErrors, formError } = toFormErrors(err, ["new_password"]);
       setError(fieldErrors.new_password ?? null);
       // Le lien mort est le seul refus que l'API rende sans dire quoi faire — son
-      // "detail" tient en trois mots. Un 429 ou une panne gardent leur message : les
-      // ramener au lien invalide ferait redemander un lien encore bon.
+      // "detail" tient en trois mots. Une panne ou un serveur injoignable gardent le
+      // leur : les ramener au lien invalide ferait redemander un lien encore bon.
       const lienRefuse =
         !fieldErrors.new_password &&
         (err as { status?: number }).status === 400;
