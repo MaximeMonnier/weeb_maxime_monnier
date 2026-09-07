@@ -24,15 +24,24 @@ function isApiError(err: unknown): err is ApiError {
 }
 
 // DRF range les erreurs de validation en listes, et les autres refus dans une chaîne
-// unique sous "detail". Un seul message suffit à l'affichage : les suivants répètent.
-function firstMessage(value: unknown): string | null {
+// unique sous "detail". Toutes sont rendues : un mot de passe faible en récolte trois
+// à la fois, et n'en montrer qu'une ferait corriger le même champ trois fois de suite.
+function messagesOf(value: unknown): string | null {
   if (typeof value === "string") return value || null;
+
   if (Array.isArray(value)) {
-    for (const item of value) {
-      const message = firstMessage(item);
-      if (message) return message;
-    }
+    const messages = value
+      .map(messagesOf)
+      .filter((message): message is string => message !== null);
+    return messages.length > 0 ? messages.join(" ") : null;
   }
+
+  // Un champ imbriqué arrive sous forme d'objet : ses clés ne veulent rien dire au
+  // lecteur, ses messages si.
+  if (typeof value === "object" && value !== null) {
+    return messagesOf(Object.values(value));
+  }
+
   return null;
 }
 
@@ -60,7 +69,7 @@ export function toFormErrors<F extends string>(
     const general: string[] = [];
 
     for (const [key, value] of Object.entries(body)) {
-      const message = firstMessage(value);
+      const message = messagesOf(value);
       if (!message) continue;
       // Une clé que le formulaire n'affiche pas — "detail", "non_field_errors", ou un
       // champ qu'il n'a pas — resterait invisible si on ne la remontait pas ici.
@@ -94,12 +103,12 @@ export function toFormErrors<F extends string>(
   // Seul message de l'API repris tel quel : il porte le délai restant en secondes,
   // que le réécrire ferait perdre. DRF le rend déjà en français.
   if (err.status === 429) {
-    return { fieldErrors, formError: firstMessage(body.detail) ?? THROTTLED };
+    return { fieldErrors, formError: messagesOf(body.detail) ?? THROTTLED };
   }
 
   if (err.status >= 500) {
     return { fieldErrors, formError: SERVER };
   }
 
-  return { fieldErrors, formError: firstMessage(body.detail) ?? UNEXPECTED };
+  return { fieldErrors, formError: messagesOf(body.detail) ?? UNEXPECTED };
 }
