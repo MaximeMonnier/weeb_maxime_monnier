@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
 import { apiFetch } from "../../../lib/api";
+import { toFormErrors } from "../../../lib/apiErrors";
+import ErrorAlert from "../../ui/Alert/ErrorAlert";
 import { useNavigate } from "react-router-dom";
 
 type FormData = {
@@ -11,6 +13,8 @@ type FormData = {
 };
 
 type FormErrors = Partial<Record<keyof FormData, string>>;
+
+const CHAMPS = ["email", "password"] as const;
 
 const FormLogin = () => {
   const [formData, setFormData] = useState<FormData>({
@@ -21,11 +25,13 @@ const FormLogin = () => {
   const navigate = useNavigate();
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormError(null);
     // Clear error when user starts typing
     if (errors[name as keyof FormData]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -59,6 +65,7 @@ const FormLogin = () => {
       return;
     }
 
+    setFormError(null);
     setIsSubmitting(true);
 
     try {
@@ -76,7 +83,14 @@ const FormLogin = () => {
       localStorage.setItem("refresh", data.refresh);
       navigate("/");
     } catch (err) {
-      console.error(err); // 401 = mauvais identifiants OU compte non validé
+      // Un mot de passe faux et un compte pas encore validé donnent le même 401, en
+      // anglais : les distinguer dirait à un inconnu quelles adresses sont inscrites.
+      const { fieldErrors, formError } = toFormErrors(err, CHAMPS, {
+        unauthorized:
+          "Connexion impossible. Vérifiez votre email et votre mot de passe ; un compte tout juste créé doit d'abord être validé par un administrateur.",
+      });
+      setErrors(fieldErrors);
+      setFormError(formError);
     } finally {
       setIsSubmitting(false);
     }
@@ -88,6 +102,8 @@ const FormLogin = () => {
       className="w-full max-w-md my-8 border border-primary p-6 rounded-lg"
     >
       <div className="space-y-6">
+        <ErrorAlert message={formError} />
+
         {/* Email */}
         <Input
           label="Adresse email"
