@@ -58,9 +58,9 @@ const ForgotPassword = () => {
           </p>
           {confirmation ? null : (
             <form onSubmit={handleSubmit}>
-              <div className="space-y-6">
-                <ErrorAlert message={formError} />
+              <ErrorAlert message={formError} />
 
+              <div className="space-y-6">
                 <Input
                   label="Adresse email"
                   name="email"

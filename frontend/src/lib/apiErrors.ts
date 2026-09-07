@@ -100,8 +100,8 @@ export function toFormErrors<F extends string>(
     return { fieldErrors, formError: FORBIDDEN };
   }
 
-  // Seul message de l'API repris tel quel : il porte le délai restant en secondes,
-  // que le réécrire ferait perdre. DRF le rend déjà en français.
+  // Le seul refus sans message maison : celui de l'API porte le délai restant en
+  // secondes, qu'une reformulation perdrait. DRF le rend déjà en français.
   if (err.status === 429) {
     return { fieldErrors, formError: messagesOf(body.detail) ?? THROTTLED };
   }

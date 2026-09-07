@@ -1076,9 +1076,9 @@ une fenêtre d'une heure punirait le distrait autant que le robot. Les trois aut
 pas dans l'heure, et la réinitialisation est la plus basse des quatre : chacun de ses appels
 envoie un vrai email.
 
-Ce message part tel quel dans le formulaire du front, seul de l'API à ne pas être réécrit :
-il porte le délai restant, que toute reformulation perdrait. `frontend/src/lib/apiErrors.ts`
-traduit les autres.
+Le front l'affiche tel quel dans le formulaire, seul refus auquel il n'oppose pas un message
+à lui : celui-ci porte le délai restant, que toute reformulation perdrait.
+`frontend/src/lib/apiErrors.ts` tient cette table de correspondance.
 
 Le reste de l'API n'est pas limité. `ScopedRateThrottle` ne compte que les vues qui déclarent
 un `throttle_scope` : la lecture des articles reste libre, quel qu'en soit le rythme.

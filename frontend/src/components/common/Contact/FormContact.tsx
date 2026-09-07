@@ -129,14 +129,14 @@ const FormContact = () => {
       onSubmit={handleSubmit}
       className="w-full max-w-2xl my-8 border border-primary p-6 rounded-lg"
     >
-      <div className="space-y-6">
-        <ErrorAlert message={formError} />
-        {/* Monté en permanence : une région live apparue avec son texte n'est pas
-            annoncée de façon fiable. */}
-        <p role="status" className="form-alert-success">
-          {confirmation}
-        </p>
+      <ErrorAlert message={formError} />
+      {/* Monté en permanence : une région live apparue avec son texte n'est pas
+          annoncée de façon fiable. */}
+      <p role="status" className="form-alert-success">
+        {confirmation}
+      </p>
 
+      <div className="space-y-6">
         <div className="flex gap-4">
           <Input
             label="Nom"

@@ -333,40 +333,48 @@
     color: var(--color-dark-error);
   }
 
+  /* Vide, le paragraphe ne porte que de la couleur : un bloc sans contenu ni boîte
+     n'occupe aucune hauteur. Le masquer par `display: none` le retirerait de l'arbre
+     d'accessibilité, et sa région live n'existerait qu'à partir du premier message —
+     donc trop tard pour être annoncée. */
   .form-alert-error {
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--color-light-error);
-    border-radius: var(--radius-input);
     font-size: var(--text-body-sm);
     color: var(--color-light-error);
   }
 
   .dark .form-alert-error {
-    border-color: var(--color-dark-error);
     color: var(--color-dark-error);
   }
 
-  /* Le composant reste monté pour que sa région live soit annoncée : sans ceci, il
-     laisserait une bordure vide au-dessus de chaque formulaire. */
-  .form-alert-error:empty {
-    display: none;
+  .form-alert-error:not(:empty) {
+    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-light-error);
+    border-radius: var(--radius-input);
+  }
+
+  .dark .form-alert-error:not(:empty) {
+    border-color: var(--color-dark-error);
   }
 
   .form-alert-success {
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--color-light-success);
-    border-radius: var(--radius-input);
     font-size: var(--text-body-sm);
     color: var(--color-light-success);
   }
 
   .dark .form-alert-success {
-    border-color: var(--color-dark-success);
     color: var(--color-dark-success);
   }
 
-  .form-alert-success:empty {
-    display: none;
+  .form-alert-success:not(:empty) {
+    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-light-success);
+    border-radius: var(--radius-input);
+  }
+
+  .dark .form-alert-success:not(:empty) {
+    border-color: var(--color-dark-success);
   }
 
   .form-helper-text {

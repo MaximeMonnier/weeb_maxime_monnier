@@ -101,9 +101,9 @@ const FormLogin = () => {
       onSubmit={handleSubmit}
       className="w-full max-w-md my-8 border border-primary p-6 rounded-lg"
     >
-      <div className="space-y-6">
-        <ErrorAlert message={formError} />
+      <ErrorAlert message={formError} />
 
+      <div className="space-y-6">
         {/* Email */}
         <Input
           label="Adresse email"
