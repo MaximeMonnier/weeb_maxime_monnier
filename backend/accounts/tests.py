@@ -1,9 +1,10 @@
-"""Tests des mots de passe : ce que la réponse ne doit pas révéler, et ce qu'elle doit refuser."""
+"""Tests des mots de passe : ce que la réponse ne doit pas révéler, ce qu'elle doit refuser,
+et ce que l'admin doit hasher."""
 
 import re
 
 from django.core import mail
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -190,7 +191,7 @@ class PasswordValidationTests(TestCase):
         self.assertIn("Ce mot de passe est trop courant.", response.json()["password"])
 
     def test_inscription_refuse_un_mot_de_passe_tire_de_l_email(self):
-        """Seule l'inscription tient l'identité du compte, donc seule elle joue la similarité."""
+        """La confirmation ne tient pas encore l'identité du compte, la similarité y est muette."""
         response = self.register("Chatonbleu42", email="Chatonbleu42@example.com")
 
         self.assertEqual(response.status_code, 400)
@@ -208,3 +209,79 @@ class PasswordValidationTests(TestCase):
                 self.assertEqual(
                     response.json()["password"], [PasswordComplexityValidator.MESSAGE]
                 )
+
+
+class CustomUserAdminTests(TestCase):
+    """L'admin des utilisateurs hashe le mot de passe saisi et ne montre jamais le hash."""
+
+    PASSWORD = "MotDePasseValide123"
+
+    def setUp(self):
+        self.admin = CustomUser.objects.create_superuser(
+            email="admin@example.com", first_name="Ad", last_name="Min",
+            password=self.PASSWORD,
+        )
+        self.client.force_login(self.admin)
+
+    def test_un_compte_cree_depuis_l_admin_peut_se_connecter(self):
+        """Le cœur de l'issue #70 : ModelAdmin enregistrait la saisie sans la hasher."""
+        response = self.client.post(
+            reverse("admin:accounts_customuser_add"),
+            {
+                "email": "nouveau@example.com",
+                "first_name": "N",
+                "last_name": "Nouveau",
+                "usable_password": "true",
+                "password1": self.PASSWORD,
+                "password2": self.PASSWORD,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        cree = CustomUser.objects.get(email="nouveau@example.com")
+        self.assertNotEqual(cree.password, self.PASSWORD)
+        # Le seul contrôle qui vaille : le compte passe la porte d'entrée réelle.
+        login = Client().post(
+            reverse("login"),
+            {"email": "nouveau@example.com", "password": self.PASSWORD},
+            content_type="application/json",
+        )
+        self.assertEqual(login.status_code, 200)
+
+    def test_le_formulaire_d_edition_masque_le_hash(self):
+        response = self.client.get(
+            reverse("admin:accounts_customuser_change", args=[self.admin.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, self.admin.password)
+        self.assertContains(response, "../password/")
+
+    def test_is_active_reste_modifiable_depuis_la_liste(self):
+        """La seule façon d'activer un compte, l'inscription le créant inactif."""
+        membre = CustomUser.objects.create_user(
+            email="membre@example.com", first_name="M", last_name="Embre",
+            password=self.PASSWORD,
+        )
+        membre.is_active = False
+        membre.save()
+
+        # La liste affiche les deux comptes, donc le navigateur poste les deux sous-formulaires.
+        response = self.client.post(
+            reverse("admin:accounts_customuser_changelist"),
+            {
+                "form-TOTAL_FORMS": "2",
+                "form-INITIAL_FORMS": "2",
+                "form-MIN_NUM_FORMS": "0",
+                "form-MAX_NUM_FORMS": "1000",
+                "form-0-id": str(self.admin.pk),
+                "form-0-is_active": "on",
+                "form-1-id": str(membre.pk),
+                "form-1-is_active": "on",
+                "_save": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        membre.refresh_from_db()
+        self.assertTrue(membre.is_active)
