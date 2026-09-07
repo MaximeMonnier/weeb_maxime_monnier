@@ -670,7 +670,7 @@ même état qu'avant. Donne-moi leur sortie.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — qualité |
+| En cours — 4.2 et 4.4 livrées | — (issue #79, sans epic) | — (à la clôture du lot) | Bloc 1 — qualité |
 
 **Grain de ticket** : epic + 4 sous-issues, une par tâche. 4.1 en premier.
 
@@ -731,8 +731,15 @@ traite pas ici, ou le diff deviendra illisible.
 
 ## 4.2 — Afficher les erreurs et les succès de l'API
 
-- [ ] **Fichiers** : `frontend/src/hooks/useForm.ts`, les quatre formulaires,
-  `frontend/src/lib/api.ts`
+- [x] **Livrée par l'issue #79**, sans attendre 4.1 : le traitement des refus est sorti dans
+  `frontend/src/lib/apiErrors.ts`, pas dans le hook. Six formulaires branchés au lieu de
+  quatre — `ForgotPassword` et `ResetPassword` avaient le même défaut sous une autre forme,
+  un message unique faux dès que l'échec n'était pas celui qu'il nommait. La confirmation de
+  succès n'est posée qu'au formulaire de contact ; le reste de cette moitié est à
+  `AMELIORATIONS.md`.
+- [x] **Fichiers** : `frontend/src/lib/apiErrors.ts`, `frontend/src/components/ui/Alert/ErrorAlert.tsx`,
+  les quatre formulaires, `ForgotPassword.tsx`, `ResetPassword.tsx`, `frontend/src/lib/api.ts`,
+  `frontend/src/index.css`
 - **Constat** : les quatre formulaires se contentent d'un `console.error(err)`
   (`FormContact.tsx:96`, `FormLogin.tsx:79`, `FormSubscribe.tsx:99`, `FormArticle.tsx:74`).
   Mauvais mot de passe, compte non validé par l'admin, email déjà pris, article refusé faute de
@@ -829,7 +836,10 @@ Consulte `frontend-react-ts`, puis :
 
 ## 4.4 — Corriger l'état d'envoi de `FormContact`
 
-- [ ] **Fichiers** : `FormContact.tsx`
+- [x] **Livrée par l'issue #79**, en même temps que 4.2 : le `setIsSubmitting(true)` manquant
+  est posé, et le quota de cinq envois par heure de l'issue #71 a rendu le doublon plus cher
+  qu'une ligne en base — chaque double clic en consommait un.
+- [x] **Fichiers** : `FormContact.tsx`
 - **Constat** : `FormContact.tsx:26` déclare `isSubmitting`, `:98` le remet à `false` dans le
   `finally` — mais **`setIsSubmitting(true)` n'est jamais appelé**. Le bouton n'est donc jamais
   désactivé, n'affiche jamais « Envoi en cours… », et un double clic crée un doublon en base. Les
