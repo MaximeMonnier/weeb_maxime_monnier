@@ -281,10 +281,8 @@ SIMPLE_JWT = {
     # mot de passe changé. Sa durée est la seule borne de la fenêtre de vol.
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),      # le token de rafraîchissement dure 1 jour
-    # Chaque rafraîchissement rend un refresh neuf et met l'ancien en liste noire.
-    # Les deux vont ensemble : la rotation seule laisserait les deux jetons valides,
-    # et un refresh volé resterait utilisable jusqu'à son échéance. Avec elle, le
-    # rejeu du précédent répond 401 — c'est aussi ce qui donne un sens à logout/.
+    # Indissociables : la rotation seule laisserait l'ancien refresh valide jusqu'à
+    # son échéance. Détail au README, § « Les jetons ».
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }

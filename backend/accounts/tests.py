@@ -402,7 +402,8 @@ class JWTRotationTests(TestCase):
         self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
 
     def test_la_deconnexion_refuse_un_refresh_deja_revoque(self):
-        """L'app token_blacklist retirée d'INSTALLED_APPS, cet appel lèverait au lieu de refuser."""
+        """L'app token_blacklist retirée d'INSTALLED_APPS, les deux appels rendraient 200 :
+        simplejwt avale l'AttributeError et la vue révoque dans le vide, sans rien dire."""
         self.deconnecter(self.refresh)
 
         self.assertEqual(self.deconnecter(self.refresh).status_code, 401)

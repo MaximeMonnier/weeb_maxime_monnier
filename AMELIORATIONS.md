@@ -123,6 +123,14 @@ Rien de ce qui reste ne bloque le développement.
       sa seule trace ; faute de configuration, elle sort par le handler de dernier recours
       de Python, sans horodatage ni niveau, hors de portée de `mail_admins`. Un handler
       console explicite suffirait à rendre ce chemin d'échec lisible.
+- [ ] **Rien ne purge les tables de `token_blacklist`.** Depuis l'issue #72, chaque connexion
+      et chaque rafraîchissement y écrivent une ligne qu'aucun processus ne reprend :
+      `OutstandingToken` et `BlacklistedToken` ne font que croître, y compris pour des jetons
+      expirés depuis longtemps et donc sans effet. simplejwt livre la commande
+      `python manage.py flushexpiredtokens` pour ce ménage, mais rien ne la déclenche — le
+      dépôt n'a ni tâche planifiée ni cron dans ses conteneurs. Sans conséquence à l'échelle
+      d'un projet pédagogique ; à reprendre le jour où une file de tâches entrera, la même
+      qui manque à l'envoi des emails ci-dessus.
 
 ## Intégration continue
 
