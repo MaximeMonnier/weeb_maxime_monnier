@@ -1,4 +1,4 @@
-"""Tests de la réinitialisation de mot de passe : la réponse ne doit rien révéler."""
+"""Tests des mots de passe : ce que la réponse ne doit pas révéler, et ce qu'elle doit refuser."""
 
 import re
 
@@ -9,6 +9,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 from .models import CustomUser
+from .validators import PasswordComplexityValidator
 from .views import INVALID_LINK_RESPONSE, NEUTRAL_RESPONSE
 
 
@@ -119,3 +120,91 @@ class PasswordResetConfirmTests(TestCase):
         self.assertEqual(response.json(), INVALID_LINK_RESPONSE)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("AncienMotDePasse123"))
+
+
+class PasswordValidationTests(TestCase):
+    """Les deux endpoints qui reçoivent un mot de passe passent par AUTH_PASSWORD_VALIDATORS."""
+
+    WEAK_PASSWORD = "12345678"
+    STRONG_PASSWORD = "MotDePasseValide123"
+
+    def setUp(self):
+        self.register_url = reverse("register")
+        self.confirm_url = reverse("password-reset-confirm")
+        self.user = CustomUser.objects.create_user(
+            email="actif@example.com", first_name="A", last_name="Actif",
+            password="AncienMotDePasse123",
+        )
+        self.client.post(reverse("password-reset"), {"email": self.user.email},
+                         content_type="application/json")
+        link = re.search(r"/reset-password\?uid=([^&]+)&token=(\S+)", mail.outbox[0].body)
+        self.uid, self.token = link.group(1), link.group(2)
+
+    def register(self, password, email="nouveau@example.com"):
+        return self.client.post(
+            self.register_url,
+            {"email": email, "first_name": "N", "last_name": "Nouveau", "password": password},
+            content_type="application/json",
+        )
+
+    def confirm(self, new_password):
+        return self.client.post(
+            self.confirm_url,
+            {"uid": self.uid, "token": self.token, "new_password": new_password},
+            content_type="application/json",
+        )
+
+    def test_inscription_refuse_un_mot_de_passe_faible(self):
+        response = self.register(self.WEAK_PASSWORD)
+
+        self.assertEqual(response.status_code, 400)
+        # Sous la clé du champ, et non à la racine : c'est là que le formulaire l'affiche.
+        self.assertIn("password", response.json())
+        self.assertEqual(CustomUser.objects.filter(email="nouveau@example.com").count(), 0)
+
+    def test_inscription_accepte_un_mot_de_passe_conforme(self):
+        response = self.register(self.STRONG_PASSWORD)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(CustomUser.objects.filter(email="nouveau@example.com").exists())
+
+    def test_confirmation_refuse_un_mot_de_passe_faible(self):
+        response = self.confirm(self.WEAK_PASSWORD)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("new_password", response.json())
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("AncienMotDePasse123"))
+
+    def test_confirmation_accepte_un_mot_de_passe_conforme(self):
+        response = self.confirm(self.STRONG_PASSWORD)
+
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.STRONG_PASSWORD))
+
+    def test_les_messages_de_refus_sortent_en_francais(self):
+        """LANGUAGE_CODE tient les libellés de Django, que le README publie tels quels."""
+        response = self.register(self.WEAK_PASSWORD)
+
+        self.assertIn("Ce mot de passe est trop courant.", response.json()["password"])
+
+    def test_inscription_refuse_un_mot_de_passe_tire_de_l_email(self):
+        """Seule l'inscription tient l'identité du compte, donc seule elle joue la similarité."""
+        response = self.register("Chatonbleu42", email="Chatonbleu42@example.com")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("password", response.json())
+
+    def test_les_quatre_validateurs_de_django_ne_suffisent_pas(self):
+        """Assez longs, ni courants ni numériques : seul le cinquième validateur les rejette."""
+        # Une classe manquante par cas : sans le message, une règle réduite au seul
+        # chiffre refuserait encore le premier et le test resterait vert.
+        for password in ("motdepassesansrien", "motdepasse123", "MOTDEPASSE123"):
+            with self.subTest(password=password):
+                response = self.register(password)
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(
+                    response.json()["password"], [PasswordComplexityValidator.MESSAGE]
+                )

@@ -994,6 +994,39 @@ Authorization: Bearer <token d'accès>
 
 Le token d'accès est valable 1 heure, celui de rafraîchissement 1 jour.
 
+Les messages d'erreur sortent **en français** : `LANGUAGE_CODE` vaut `fr-fr` et aucun
+`LocaleMiddleware` n'est monté, la langue ne suit donc pas l'`Accept-Language` du client.
+
+### Le mot de passe
+
+Les deux routes qui en reçoivent un — `register/` et `password-reset/confirm/` — appliquent
+les mêmes règles, celles de `AUTH_PASSWORD_VALIDATORS` : huit caractères au minimum, ni un
+mot de passe courant, ni entièrement numérique, et au moins une majuscule, une minuscule et
+un chiffre. Cette dernière règle est un validateur du dépôt, `accounts/validators.py` : les
+quatre de Django ignorent la casse et les chiffres, que le formulaire d'inscription exige
+déjà côté navigateur — l'API était donc plus permissive que son propre formulaire.
+
+Un des quatre validateurs de Django ne joue qu'à l'inscription : celui qui refuse un mot de
+passe trop proche de l'email ou du nom. À la confirmation, le serializer ne connaît pas encore
+le titulaire — son `uid` n'est décodé qu'ensuite, dans la vue.
+
+Ces règles valent pour l'API. L'administration Django y échappe encore : son formulaire
+enregistre le mot de passe tel quel, sans le hacher — c'est l'objet de l'issue #70.
+
+Un refus est un `400` dont le message est rangé **sous la clé du champ** — `password` à
+l'inscription, `new_password` à la confirmation — et jamais à la racine, d'où aucun champ de
+formulaire ne pourrait le reprendre. Seul `ResetPassword.tsx` lit la sienne, `new_password` ;
+les autres formulaires affichent encore un message à eux. Un `12345678` soumis à l'inscription
+donne :
+
+```json
+{"password": [
+  "Ce mot de passe est trop courant.",
+  "Ce mot de passe est entièrement numérique.",
+  "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre."
+]}
+```
+
 ## Structure
 
 ```

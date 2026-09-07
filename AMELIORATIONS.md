@@ -83,6 +83,17 @@ Rien de ce qui reste ne bloque le développement.
       qui borne surtout un risque neuf : l'endpoint déclenche maintenant un aller-retour SMTP
       par requête non authentifiée, donc du mail-bombing contre n'importe quelle adresse
       inscrite. `ScopedRateThrottle` de DRF y suffit, sans nouvelle dépendance.
+- [ ] **Le validateur de similarité est muet à la réinitialisation.** `UserAttributeSimilarityValidator`
+      compare le mot de passe aux attributs du compte, et l'issue #69 le lui donne à
+      l'inscription — mais pas à la confirmation : `PasswordResetConfirmSerializer` valide
+      avant que la vue n'ait décodé l'`uid`, donc sans titulaire, et Django ignore alors ce
+      validateur en silence. Un compte peut ainsi reprendre son propre email comme mot de
+      passe, ce que l'inscription lui refuse — dès lors que cet email porte une majuscule et
+      un chiffre et huit caractères, la complexité et la longueur filtrant les autres. Lui passer l'utilisateur suppose de décoder
+      l'`uid` et de vérifier le token **avant** la validation du mot de passe, donc de
+      déplacer dans le serializer ce que la vue tient aujourd'hui — et l'issue #68 vient d'y
+      régler l'indistinguabilité des deux échecs, qu'un tel déplacement rejouerait. À
+      reprendre avec l'epic sécurité #65, d'un seul tenant.
 - [ ] **`/api/auth/register/` énumère les comptes.** L'`UniqueValidator` du champ `email`
       de `RegisterSerializer` fait répondre `400` en nommant l'adresse déjà inscrite. Le
       corps neutre posé sur `/password-reset/` par l'issue #68 ne protège donc rien tant

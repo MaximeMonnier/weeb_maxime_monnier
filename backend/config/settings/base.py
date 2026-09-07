@@ -200,13 +200,21 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
+    # Cinquième validateur, maison : les quatre de Django ignorent la casse et les
+    # chiffres, que le formulaire d'inscription exige déjà côté navigateur.
+    {
+        'NAME': 'accounts.validators.PasswordComplexityValidator',
+    },
 ]
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+# Fixe la langue des messages rendus par Django et DRF — ceux des validateurs de mot
+# de passe compris. Aucun LocaleMiddleware : la langue ne suit pas l'Accept-Language
+# du client, tous les libellés écrits par le projet étant français.
+LANGUAGE_CODE = 'fr-fr'
 
 TIME_ZONE = 'UTC'
 
