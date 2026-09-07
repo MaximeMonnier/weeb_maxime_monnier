@@ -35,8 +35,15 @@ const ResetPassword = () => {
         body: JSON.stringify({ uid, token, new_password: newPassword }),
       });
       navigate("/login", { replace: true });
-    } catch {
-      setError("Ce lien est invalide ou a déjà servi. Demandez-en un nouveau.");
+    } catch (err) {
+      // Deux refus distincts sous le même 400 : le lien mort n'a qu'un "detail", le mot de
+      // passe rejeté porte "new_password". Les confondre enverrait l'utilisateur redemander
+      // un lien alors que le sien est bon — il retomberait sur le même message.
+      const data = (err as { data?: { new_password?: string[] } }).data;
+      setError(
+        data?.new_password?.[0] ??
+          "Ce lien est invalide ou a déjà servi. Demandez-en un nouveau.",
+      );
     } finally {
       setIsSubmitting(false);
     }

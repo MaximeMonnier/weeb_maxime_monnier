@@ -182,6 +182,12 @@ class PasswordValidationTests(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password(self.STRONG_PASSWORD))
 
+    def test_les_messages_de_refus_sortent_en_francais(self):
+        """LANGUAGE_CODE tient les libellés de Django, que le README publie tels quels."""
+        response = self.register(self.WEAK_PASSWORD)
+
+        self.assertIn("Ce mot de passe est trop courant.", response.json()["password"])
+
     def test_inscription_refuse_un_mot_de_passe_tire_de_l_email(self):
         """Seule l'inscription tient l'identité du compte, donc seule elle joue la similarité."""
         response = self.register("Chatonbleu42", email="Chatonbleu42@example.com")

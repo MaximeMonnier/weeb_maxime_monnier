@@ -1006,16 +1006,17 @@ un chiffre. Cette dernière règle est un validateur du dépôt, `accounts/valid
 quatre de Django ignorent la casse et les chiffres, que le formulaire d'inscription exige
 déjà côté navigateur — l'API était donc plus permissive que son propre formulaire.
 
-Une cinquième règle ne vaut qu'à l'inscription : le mot de passe ne doit pas être trop
-proche de l'email ou du nom. À la confirmation, le serializer ne connaît pas encore le
-titulaire — son `uid` n'est décodé qu'ensuite, dans la vue.
+Un des quatre validateurs de Django ne joue qu'à l'inscription : celui qui refuse un mot de
+passe trop proche de l'email ou du nom. À la confirmation, le serializer ne connaît pas encore
+le titulaire — son `uid` n'est décodé qu'ensuite, dans la vue.
 
 Ces règles valent pour l'API. L'administration Django y échappe encore : son formulaire
 enregistre le mot de passe tel quel, sans le hacher — c'est l'objet de l'issue #70.
 
 Un refus est un `400` dont le message est rangé **sous la clé du champ** — `password` à
-l'inscription, `new_password` à la confirmation — et jamais à la racine de la réponse, où
-le formulaire ne l'afficherait sous aucun de ses champs :
+l'inscription, `new_password` à la confirmation — et jamais à la racine, d'où aucun champ de
+formulaire ne pourrait le reprendre. Les formulaires du front ne lisent pas encore ces clés :
+ils affichent un message à eux. Un `12345678` soumis à l'inscription donne :
 
 ```json
 {"password": [
