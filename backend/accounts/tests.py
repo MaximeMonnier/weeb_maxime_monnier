@@ -1,13 +1,17 @@
 """Tests des mots de passe : ce que la réponse ne doit pas révéler, ce qu'elle doit refuser,
-et ce que l'admin doit hasher."""
+ce que l'admin doit hasher, et à partir de quand l'API refuse de répondre."""
 
 import re
+from unittest.mock import patch
 
+from django.conf import settings
 from django.core import mail
-from django.test import Client, TestCase
-from django.urls import reverse
+from django.core.cache import cache
+from django.test import Client, SimpleTestCase, TestCase
+from django.urls import resolve, reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from rest_framework.throttling import ScopedRateThrottle
 
 from .models import CustomUser
 from .validators import PasswordComplexityValidator
@@ -285,3 +289,64 @@ class CustomUserAdminTests(TestCase):
         self.assertEqual(response.status_code, 302)
         membre.refresh_from_db()
         self.assertTrue(membre.is_active)
+
+
+class ThrottleScopeTests(SimpleTestCase):
+    """Chaque endpoint public porte son scope, et chaque scope a son taux."""
+
+    def test_chaque_endpoint_public_porte_son_scope(self):
+        taux = settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
+        for nom_de_route, scope in {
+            "login": "login",
+            "register": "register",
+            "password-reset": "password_reset",
+            "contact": "contact",
+        }.items():
+            with self.subTest(route=nom_de_route):
+                vue = resolve(reverse(nom_de_route)).func
+                self.assertEqual(getattr(vue.cls, "throttle_scope", None), scope)
+                # Un scope sans taux ne laisse pas passer : il fait répondre 500.
+                # Renommer une clé de base.py se verrait ici, pas en production.
+                self.assertIn(scope, taux)
+
+
+class LoginThrottleTests(TestCase):
+    """Le quota de connexion, seul réarmé : la suite tourne sinon avec des taux éteints."""
+
+    PASSWORD = "MotDePasseValide123"
+
+    def setUp(self):
+        self.url = reverse("login")
+        CustomUser.objects.create_user(
+            email="membre@example.com", first_name="M", last_name="Embre",
+            password=self.PASSWORD,
+        )
+        # Le compteur vit dans un cache de processus, que rien ne vide entre deux tests.
+        cache.clear()
+
+    def tentative(self, mot_de_passe):
+        return self.client.post(
+            self.url,
+            {"email": "membre@example.com", "password": mot_de_passe},
+            content_type="application/json",
+        )
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"login": "5/min"})
+    def test_la_sixieme_tentative_est_refusee(self):
+        for _ in range(5):
+            self.assertEqual(self.tentative("MauvaisMotDePasse123").status_code, 401)
+
+        self.assertEqual(self.tentative("MauvaisMotDePasse123").status_code, 429)
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"login": "5/min"})
+    def test_le_quota_compte_les_appels_et_non_les_echecs(self):
+        """DRF compte avant d'entrer dans la vue : le bon mot de passe consomme aussi."""
+        for _ in range(5):
+            self.assertEqual(self.tentative(self.PASSWORD).status_code, 200)
+
+        self.assertEqual(self.tentative(self.PASSWORD).status_code, 429)
+
+    def test_les_taux_sont_eteints_dans_la_suite(self):
+        """Sans quoi un test enchaînant six appels échouerait sans rapport avec son sujet."""
+        for _ in range(6):
+            self.assertEqual(self.tentative(self.PASSWORD).status_code, 200)

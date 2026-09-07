@@ -9,3 +9,5 @@ class ContactCreateView(generics.CreateAPIView):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
     permission_classes = [AllowAny]
+    # Sans quota, la table Contact grossit sans borne au rythme d'un script.
+    throttle_scope = "contact"
