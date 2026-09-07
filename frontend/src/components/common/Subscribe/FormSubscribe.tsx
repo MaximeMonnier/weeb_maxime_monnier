@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
 import { apiFetch } from "../../../lib/api";
+import { toFormErrors } from "../../../lib/apiErrors";
+import ErrorAlert from "../../ui/Alert/ErrorAlert";
 import { useNavigate } from "react-router-dom";
 
 type FormData = {
@@ -14,6 +16,14 @@ type FormData = {
 };
 
 type FormErrors = Partial<Record<keyof FormData, string>>;
+
+// `confirmPassword` n'est pas envoyé : l'API ne le connaît pas et ne peut rien en dire.
+const CHAMPS = ["first_name", "last_name", "email", "password"] as const;
+
+// L'API nomme l'adresse déjà inscrite (AMELIORATIONS.md, à reprendre avec #65).
+// Relayer son message ferait du formulaire un test d'existence de compte.
+const REFUS_NEUTRE =
+  "Impossible de créer un compte avec ces informations. Si vous avez déjà un compte, connectez-vous.";
 
 const FormSubscribe = () => {
   const [formData, setFormData] = useState<FormData>({
@@ -27,11 +37,13 @@ const FormSubscribe = () => {
   const navigate = useNavigate();
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormError(null);
     // Clear error when user starts typing
     if (errors[name as keyof FormData]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -82,6 +94,7 @@ const FormSubscribe = () => {
       return;
     }
 
+    setFormError(null);
     setIsSubmitting(true);
 
     try {
@@ -96,7 +109,12 @@ const FormSubscribe = () => {
       });
       navigate("/login"); // compte créé mais INACTIF → on l'envoie vers la connexion
     } catch (err) {
-      console.error(err);
+      const { fieldErrors, formError } = toFormErrors(err, CHAMPS);
+      // Le message part sous le formulaire et non sous le champ : le seul fait de
+      // pointer l'adresse dirait déjà qu'elle est prise.
+      const { email, ...autres } = fieldErrors;
+      setErrors(autres);
+      setFormError(email ? REFUS_NEUTRE : formError);
     } finally {
       setIsSubmitting(false);
     }
@@ -108,6 +126,8 @@ const FormSubscribe = () => {
       className="w-full max-w-2xl my-8 border border-primary p-6 rounded-lg"
     >
       <div className="space-y-6">
+        <ErrorAlert message={formError} />
+
         {/* Nom et Prénom */}
         <div className="flex gap-4">
           <Input

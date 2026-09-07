@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Input, Textarea } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
 import { apiFetch } from "../../../lib/api";
+import { toFormErrors } from "../../../lib/apiErrors";
+import ErrorAlert from "../../ui/Alert/ErrorAlert";
 
 type FormData = {
   title: string;
@@ -9,6 +11,8 @@ type FormData = {
 };
 
 type FormErrors = Partial<Record<keyof FormData, string>>;
+
+const CHAMPS = ["title", "content"] as const;
 
 // Le parent (Blog) passe une fonction appelée après une création réussie
 type FormArticleProps = { onCreated?: () => void };
@@ -20,6 +24,7 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (
@@ -27,6 +32,7 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormError(null);
     // Clear error when user starts typing
     if (errors[name as keyof FormData]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -57,6 +63,7 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
       return;
     }
 
+    setFormError(null);
     setIsSubmitting(true);
     try {
       // Le token (utilisateur connecté) est ajouté automatiquement par apiFetch.
@@ -71,7 +78,14 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
       setFormData({ title: "", content: "" });
       onCreated?.(); // prévient le Blog : ferme la modale + recharge la liste
     } catch (err) {
-      console.error(err); // 401 si l'utilisateur n'est pas connecté
+      // Le jeton d'accès ne vaut que quinze minutes et rien ne le renouvelle : le 401
+      // frappe surtout un article rédigé lentement, dont le texte est encore à l'écran.
+      const { fieldErrors, formError } = toFormErrors(err, CHAMPS, {
+        unauthorized:
+          "Vous devez être connecté pour publier, et votre session a peut-être expiré. Reconnectez-vous : votre texte reste dans le formulaire.",
+      });
+      setErrors(fieldErrors);
+      setFormError(formError);
     } finally {
       setIsSubmitting(false);
     }
@@ -83,6 +97,8 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
       className="w-full max-w-2xl my-8 border border-primary p-6 rounded-lg"
     >
       <div className="space-y-6">
+        <ErrorAlert message={formError} />
+
         <Input
           label="Titre de l'article"
           name="title"

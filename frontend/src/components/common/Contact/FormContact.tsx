@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Input, Textarea } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
 import { apiFetch } from "../../../lib/api";
+import { toFormErrors } from "../../../lib/apiErrors";
+import ErrorAlert from "../../ui/Alert/ErrorAlert";
 
 type FormData = {
   first_name: string;
@@ -13,6 +15,14 @@ type FormData = {
 
 type FormErrors = Partial<Record<keyof FormData, string>>;
 
+const CHAMPS = [
+  "first_name",
+  "last_name",
+  "email",
+  "subject",
+  "message",
+] as const;
+
 const FormContact = () => {
   const [formData, setFormData] = useState<FormData>({
     first_name: "",
@@ -23,6 +33,8 @@ const FormContact = () => {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (
@@ -30,6 +42,8 @@ const FormContact = () => {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormError(null);
+    setConfirmation(null);
     // Clear error when user starts typing
     if (errors[name as keyof FormData]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -74,6 +88,12 @@ const FormContact = () => {
       return;
     }
 
+    setFormError(null);
+    setConfirmation(null);
+    // Manquait : le bouton restait actif pendant l'envoi, et chaque double clic
+    // entamait un quota de cinq messages par heure.
+    setIsSubmitting(true);
+
     try {
       await apiFetch("/contact/", {
         method: "POST",
@@ -92,8 +112,13 @@ const FormContact = () => {
         subject: "",
         message: "",
       });
+      // Le formulaire se vidait sans rien dire : rien ne distinguait l'envoi réussi
+      // de l'échec muet.
+      setConfirmation("Votre message est parti. Nous vous répondrons par email.");
     } catch (err) {
-      console.error(err);
+      const { fieldErrors, formError } = toFormErrors(err, CHAMPS);
+      setErrors(fieldErrors);
+      setFormError(formError);
     } finally {
       setIsSubmitting(false);
     }
@@ -105,6 +130,13 @@ const FormContact = () => {
       className="w-full max-w-2xl my-8 border border-primary p-6 rounded-lg"
     >
       <div className="space-y-6">
+        <ErrorAlert message={formError} />
+        {/* Monté en permanence : une région live apparue avec son texte n'est pas
+            annoncée de façon fiable. */}
+        <p role="status" className="form-alert-success">
+          {confirmation}
+        </p>
+
         <div className="flex gap-4">
           <Input
             label="Nom"
