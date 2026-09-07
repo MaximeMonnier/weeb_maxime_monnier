@@ -1005,8 +1005,8 @@ protégée et vaut 15 minutes : il vit dans le `localStorage` du navigateur, don
 tout script chargé par la page, et rien ne le révoque avant son échéance — pas même un mot
 de passe changé. Sa durée est la seule borne d'un vol, d'où 15 minutes et non l'heure d'avant.
 
-Le **token de rafraîchissement** vaut 1 jour, ne sort jamais que vers `login/refresh/`, et
-**tourne** : chaque appel en rend un neuf et met le précédent en liste noire. Le rejeu de
+Le **token de rafraîchissement** vaut 1 jour, ne part que vers `login/refresh/` et `logout/`,
+et **tourne** : chaque appel en rend un neuf et met le précédent en liste noire. Le rejeu de
 l'ancien répond alors `401`. Sans cette liste noire, la rotation ne protégerait de rien — les
 deux jetons resteraient valables et un vol tiendrait ses 24 heures. C'est elle aussi qui donne
 son effet à `logout/` : la déconnexion est le même geste, sans jeton neuf en retour.
@@ -1018,7 +1018,9 @@ Deux conséquences pratiques :
   et la session s'arrête donc au bout de 15 minutes ;
 - **la révocation vit en base**, dans les tables de `rest_framework_simplejwt.token_blacklist`.
   L'app est dans `INSTALLED_APPS` et ses migrations sont livrées avec le paquet : un
-  `python manage.py migrate` suffit, `makemigrations` ne doit rien produire.
+  `python manage.py migrate` suffit, `makemigrations` ne doit rien produire. Ces tables
+  grossissent d'une ligne par connexion et par rafraîchissement, sans que rien ne les purge —
+  `python manage.py flushexpiredtokens`, livré par le paquet, est le ménage prévu pour ça.
 
 ### Le mot de passe
 
