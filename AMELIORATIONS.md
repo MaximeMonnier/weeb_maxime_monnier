@@ -7,11 +7,13 @@ et pour les prochaines itérations).
 - [ ] **Toasts de succès / d'erreur** — la moitié « erreur » est livrée par l'issue #79 :
       `lib/apiErrors.ts` traduit les refus de l'API et chaque formulaire les affiche, en
       place des `console.error`. Ce qui reste est la notification **de succès**, qui n'existe
-      qu'au formulaire de contact et à la demande de réinitialisation, chacune en dur dans sa
-      page. Une inscription ou une publication d'article réussies ne disent toujours rien :
-      elles changent de page, et l'écran d'arrivée ne sait pas d'où l'on vient. Piste
-      inchangée : librairie type `react-hot-toast` ou `sonner`, ou un composant Toast maison
-      — c'est le point où ce message survivrait à la navigation.
+      qu'à deux endroits : le formulaire de contact, dont le message est écrit dans la page,
+      et la demande de réinitialisation, qui affiche celui de l'API. Une inscription réussie
+      ne dit rien, elle : elle change de page, et l'écran d'arrivée ne sait pas d'où l'on
+      vient. Une publication d'article non plus, sans même ce prétexte — `onCreated` ferme la
+      modale et recharge la liste, sans quitter `/blog`. Piste inchangée : librairie type
+      `react-hot-toast` ou `sonner`, ou un composant Toast maison — c'est le point où ce
+      message survivrait à la navigation.
 
 ## Docker — mise en ligne
 
