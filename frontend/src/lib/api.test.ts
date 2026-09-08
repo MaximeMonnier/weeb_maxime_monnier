@@ -31,8 +31,8 @@ beforeEach(() => {
   globalThis.fetch = appelReseau as unknown as typeof fetch;
 });
 
-// Vitest isole les fichiers, jamais les cas d'un même fichier : sans ce vidage,
-// le jeton posé par un cas vaudrait encore pour le suivant.
+// Le global est rendu comme on l'a trouvé. Et Vitest isole les fichiers, jamais
+// les cas d'un même fichier : sans ce vidage, le jeton d'un cas vaudrait pour le suivant.
 afterEach(() => {
   globalThis.fetch = FETCH_ORIGINAL;
   localStorage.clear();
