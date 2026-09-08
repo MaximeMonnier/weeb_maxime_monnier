@@ -1,6 +1,6 @@
 # Lance les deux suites à chaque intégration. Fichier distinct de
-# docker-images.yml, dont l'objet est la construction d'images : réunis, un
-# journal de tests attendrait derrière deux builds pour se lire.
+# docker-images.yml, dont l'objet est la construction d'images : deux workflows
+# donnent deux journaux, et l'un se modifie sans risquer l'autre.
 
 name: Tests
 

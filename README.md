@@ -978,9 +978,9 @@ l'identifiant du compte de test.
 **Deux workflows, deux objets** : `.github/workflows/tests.yml` lance les suites,
 `.github/workflows/docker-images.yml` construit les images. Les deux partent sur les mêmes
 déclencheurs — un push sur `preprod` ou sur `main`, et chaque pull request qui vise l'une des
-deux — et aucun ne publie quoi que ce soit. Les séparer n'est pas cosmétique : réunis, un
-journal de tests attendrait derrière deux constructions complètes pour se lire, et le cache
-d'images serait invalidé par un changement qui ne concerne que la suite.
+deux — et aucun ne publie quoi que ce soit. Les séparer donne deux journaux : la liste des
+checks d'une pull request montre « Tests » et « Images Docker » côte à côte, et un rouge se
+lit sans ouvrir l'autre. Chacun se modifie ensuite sans risquer le second.
 
 Les deux branches et pas seulement `preprod` : `main` est celle qui part sur un serveur.
 Constater après coup qu'une image ne se construit plus, ou qu'un test est rouge, ne servirait
@@ -1230,7 +1230,7 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
 .
 ├── .env.example              # modèle de configuration à copier en .env
 ├── .env.prod.example         # modèle des valeurs propres à la production
-├── .github/workflows/        # construction des deux images sur preprod et main
+├── .github/workflows/        # les suites de tests, et la construction des images
 ├── compose.dev.yaml          # pile de développement, autonome
 ├── compose.prod.yaml         # pile de production, autonome
 ├── backend/
