@@ -171,6 +171,7 @@ import { Textarea } from "./components/ui/Input";
 | `npm run build` | Build de production dans `/dist` |
 | `npm run preview` | Preview du build de production |
 | `npm run lint` | Vérification ESLint |
+| `npm test` | Lance la suite Vitest, sans base ni conteneur |
 
 ## 🎨 Design System
 
@@ -312,7 +313,7 @@ export default function MonFormulaire() {
 
 - [ ] Connexion à une API backend
 - [ ] Authentification JWT
-- [ ] Tests (Vitest + React Testing Library)
+- [x] Tests (Vitest + React Testing Library)
 - [ ] Internationalisation (i18n)
 - [ ] PWA (Progressive Web App)
 - [ ] Optimisation des images (WebP)
