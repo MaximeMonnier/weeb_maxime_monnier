@@ -889,6 +889,19 @@ Les tests sont écrits à côté du fichier qu'ils couvrent, sous le nom `<sourc
 (`.test.tsx` pour un composant), et `npm test` ne demande ni base, ni conteneur, ni API
 démarrée. Vitest se règle dans `vite.config.ts`, avec le reste de la configuration du front.
 
+Un composant se teste **rendu**, avec Testing Library : `FormLogin.test.tsx` monte le
+formulaire dans un `MemoryRouter` — il pose un `Link` et appelle `useNavigate` —, atteint les
+champs par leur libellé et le message d'ensemble par son `role="alert"`, et coupe le réseau à
+`globalThis.fetch` plutôt qu'à `apiFetch` : la chaîne réelle est alors traversée, de l'adresse
+et du corps que reçoit le réseau jusqu'à la traduction du refus par `toFormErrors`.
+
+Deux conséquences de `globals: false`, qu'aucun des deux fichiers ne donne à lire seul : les
+matchers de `jest-dom` s'importent **dans le fichier de test**
+(`import "@testing-library/jest-dom/vitest"`), faute d'un `setupFiles` où les poser une fois ;
+et le `cleanup` entre les cas est **explicite**, Testing Library ne s'inscrivant lui-même que
+s'il trouve un `afterEach` global. Sans lui, le formulaire du cas précédent reste dans le DOM
+et toute recherche par libellé y devient ambiguë.
+
 ## Intégration continue
 
 `.github/workflows/docker-images.yml` construit les **deux** images à chaque push sur
