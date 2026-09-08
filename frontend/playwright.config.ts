@@ -23,6 +23,11 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
 
+  // Un `test.only` oublié réduirait la suite sans que rien ne le signale. La
+  // garde ne vaut que sur une machine d'intégration : sur le poste, isoler un
+  // cas le temps de le corriger est légitime.
+  forbidOnly: !!process.env.CI,
+
   // Aucune reprise, et un seul worker : l'API n'accepte que cinq connexions par
   // minute. Rejouer un cas raté ferait répondre 429 à la reprise, et le journal
   // montrerait un quota là où il y avait un vrai défaut.
