@@ -171,6 +171,7 @@ import { Textarea } from "./components/ui/Input";
 | `npm run build` | Build de production dans `/dist` |
 | `npm run preview` | Preview du build de production |
 | `npm run lint` | Vérification ESLint |
+| `npm test` | Lance la suite Vitest, sans base ni conteneur |
 
 ## 🎨 Design System
 
