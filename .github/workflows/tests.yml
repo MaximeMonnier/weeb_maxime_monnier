@@ -1,0 +1,123 @@
+# Lance les deux suites à chaque intégration. Fichier distinct de
+# docker-images.yml, dont l'objet est la construction d'images : réunis, un
+# journal de tests attendrait derrière deux builds pour se lire.
+
+name: Tests
+
+# Les mêmes branches que la construction d'images : une suite rouge doit se voir
+# avant la fusion, pas après.
+on:
+  push:
+    branches: [preprod, main]
+  pull_request:
+    branches: [preprod, main]
+
+# Le groupe porte le nom du workflow : celui-ci et docker-images.yml s'annulent
+# chacun de leur côté sans jamais se couper l'un l'autre.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Lecture seule : rien n'est publié, donc rien n'a besoin d'être écrit.
+permissions:
+  contents: read
+
+# Aucun `needs` entre les deux jobs : ils partent ensemble et vont au bout
+# chacun de leur côté, donc une seule exécution suffit à connaître l'état des
+# deux suites.
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      db:
+        # La version de compose.dev.yaml : tester sur un autre moteur que celui
+        # du poste et de la production ne prouverait pas grand-chose.
+        image: postgres:17-alpine
+
+        # Identifiants en clair et assumés : la base est jetée avec la machine
+        # et n'est joignable que d'elle. Un secret n'y protégerait rien.
+        # Ils sont écrits deux fois, ici et dans `env` plus bas, parce que le
+        # contexte `env` n'est pas lisible depuis un bloc `services`.
+        env:
+          POSTGRES_DB: weeb
+          POSTGRES_USER: weeb
+          POSTGRES_PASSWORD: mot-de-passe-de-ci
+
+        # Le port doit être publié : la suite tourne sur la machine, pas dans un
+        # conteneur du même réseau.
+        ports:
+          - 5432:5432
+
+        # `-h 127.0.0.1` comme dans compose.dev.yaml : sans lui la sonde déclare
+        # le service prêt avant qu'il écoute en TCP, et la première connexion de
+        # Django tombe sur un port fermé.
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U weeb -d weeb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      POSTGRES_DB: weeb
+      POSTGRES_USER: weeb
+      POSTGRES_PASSWORD: mot-de-passe-de-ci
+      # Hôte et port ont un défaut dans base.py ; les écrire ici évite d'avoir à
+      # ouvrir les settings pour savoir où la suite se connecte.
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          # La version du backend/Dockerfile : la suite doit tourner sur le
+          # Python qui part en ligne.
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      # DJANGO_SETTINGS_MODULE vient de `env` : test.py pose une clé factice et
+      # éteint les quotas de débit, et lui seul crée puis détruit `test_weeb`.
+      - name: Suite Django
+        run: python manage.py test
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    env:
+      # lib/api.ts lève à l'import quand elle manque, et deux fichiers de test
+      # l'importent. frontend/.env n'étant pas versionné, la valeur vient d'ici.
+      VITE_API_URL: /api
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          # La version du frontend/Dockerfile, pour la même raison que Python.
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # npm ci et non install : il respecte le verrou au lieu de le réécrire.
+      - run: npm ci
+
+      # `npm test` est Vitest seul. Playwright reste dehors : il exige la pile
+      # Compose debout et l'installation d'un navigateur — voir le README.
+      - name: Suite Vitest
+        run: npm test
