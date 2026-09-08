@@ -8,8 +8,7 @@ const BASE = import.meta.env.VITE_API_URL;
 
 const FETCH_ORIGINAL = globalThis.fetch;
 
-// apiFetch ne lit que ok, status et json() : une Response complète n'apporterait
-// rien, et jsdom n'en construit pas sans corps réel.
+// apiFetch ne lit que ok, status et json() : le doublon s'en tient là.
 function reponse(status: number, corps: unknown = {}) {
   return {
     ok: status >= 200 && status < 300,
@@ -20,10 +19,11 @@ function reponse(status: number, corps: unknown = {}) {
 
 const appelReseau = vi.fn();
 
-// Les options passées au dernier appel, pour lire l'URL et les en-têtes posés.
+// Ce que fetch a reçu au dernier appel du cas : adresse, options relayées et
+// en-têtes posés.
 function dernierAppel() {
-  const [url, options] = appelReseau.mock.calls[0] as [string, RequestInit];
-  return { url, entetes: options.headers as Record<string, string> };
+  const [url, options] = appelReseau.mock.calls.at(-1) as [string, RequestInit];
+  return { url, options, entetes: options.headers as Record<string, string> };
 }
 
 beforeEach(() => {
@@ -31,14 +31,14 @@ beforeEach(() => {
   globalThis.fetch = appelReseau as unknown as typeof fetch;
 });
 
-// Sans ce rétablissement, une suite voisine hériterait du doublon ; sans le vidage,
-// le jeton d'un cas fuirait dans le suivant.
+// Vitest isole les fichiers, jamais les cas d'un même fichier : sans ce vidage,
+// le jeton posé par un cas vaudrait encore pour le suivant.
 afterEach(() => {
   globalThis.fetch = FETCH_ORIGINAL;
   localStorage.clear();
 });
 
-describe("apiFetch — adresse appelée", () => {
+describe("apiFetch — requête envoyée", () => {
   it("préfixe le chemin par VITE_API_URL", async () => {
     appelReseau.mockResolvedValue(reponse(200, []));
 
@@ -53,6 +53,17 @@ describe("apiFetch — adresse appelée", () => {
     await apiFetch("/contact/", { method: "POST", body: "{}" });
 
     expect(dernierAppel().entetes["Content-Type"]).toBe("application/json");
+  });
+
+  it("relaie la méthode et le corps que l'appelant donne", async () => {
+    appelReseau.mockResolvedValue(reponse(201, {}));
+
+    await apiFetch("/contact/", { method: "POST", body: '{"nom":"Ada"}' });
+
+    expect(dernierAppel().options).toMatchObject({
+      method: "POST",
+      body: '{"nom":"Ada"}',
+    });
   });
 });
 
@@ -102,7 +113,9 @@ describe("apiFetch — lecture de la réponse", () => {
     const sansContenu = reponse(204);
     appelReseau.mockResolvedValue(sansContenu);
 
-    await expect(apiFetch("/articles/1/", { method: "DELETE" })).resolves.toBeNull();
+    const rendu = await apiFetch("/articles/1/", { method: "DELETE" });
+
+    expect(rendu).toBeNull();
     expect(sansContenu.json).not.toHaveBeenCalled();
   });
 });
