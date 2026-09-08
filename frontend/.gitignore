@@ -24,6 +24,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Playwright : rapport HTML et traces des échecs, régénérés à chaque exécution.
+# Playwright : traces des échecs, régénérées à chaque exécution, et le rapport HTML
+# qu'un `--reporter=html` produirait — la configuration s'en tient à `list`.
 playwright-report/
 test-results/

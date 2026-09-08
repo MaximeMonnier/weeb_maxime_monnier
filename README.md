@@ -910,8 +910,8 @@ doublon, et la suite du backend s'arrête au client de test de Django. Un chemin
 côté, une `VITE_API_URL` mal réglée ou une réponse dont la forme a changé laisserait les deux
 vertes. `npm run test:e2e` ouvre un vrai Chromium sur le site rendu et le fait parler à l'API.
 
-Le navigateur ne vient pas avec `npm install` : il pèse une centaine de mégaoctets et se
-télécharge une fois par machine.
+Le navigateur ne vient pas avec `npm install` : il se télécharge une fois par machine, et
+laisse **660 Mo** dans `~/.cache/ms-playwright` — mesuré, pas estimé.
 
 ```bash
 cd frontend
@@ -941,10 +941,10 @@ d'échouer sur un refus de connexion.
 E2E_EMAIL=... E2E_PASSWORD=... npm run test:e2e
 ```
 
-Le parcours vise `127.0.0.1:5173` alors que `VITE_API_URL` pointe sur `localhost:8000` : ce
-sont deux origines, et cela ne passe que parce que `CORS_ALLOWED_ORIGINS` les liste **toutes
-les deux**. Réduite à `localhost`, la suite afficherait « Le serveur est injoignable » et
-ferait accuser la pile.
+Le parcours ouvre le site sur `127.0.0.1:5173` quand `npm run dev` se visite d'ordinaire sur
+`localhost:5173`. Ce sont deux origines distinctes pour le navigateur, et si l'appel à l'API
+passe, c'est parce que `CORS_ALLOWED_ORIGINS` liste **les deux écritures** — voir `.env`.
+N'en garder qu'une ferait afficher « Le serveur est injoignable » et accuser la pile.
 
 Quatre points ne se lisent dans aucun de ces fichiers pris seul :
 
@@ -968,6 +968,10 @@ Sur échec, la trace est conservée et rejoue le parcours pas à pas, requêtes 
 ```bash
 npx playwright show-trace test-results/<dossier-du-cas>/trace.zip
 ```
+
+Elle porte donc le mot de passe en clair, saisi dans le champ puis envoyé dans le corps de la
+requête. `.gitignore` la retient, mais transmettre une trace revient à transmettre
+l'identifiant du compte de test.
 
 ## Intégration continue
 
