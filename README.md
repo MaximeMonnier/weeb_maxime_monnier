@@ -991,7 +991,7 @@ Constater après coup qu'une image ne se construit plus, ou qu'un test est rouge
 | Job | Ce qu'il lance | Ce qu'il lui faut |
 |---|---|---|
 | `backend` | `python manage.py test` sur `config.settings.test` | Python 3.13, un service `postgres:17-alpine` |
-| `frontend` | `npm test`, c'est-à-dire Vitest seul | Node 22 |
+| `frontend` | `npm run lint`, `npm test` et `npm run build` | Node 22 |
 
 Les versions ne sont pas choisies là : ce sont celles des deux Dockerfile, et celle de la base
 est celle de `compose.dev.yaml`. Tester sur un autre Python, un autre Node ou un autre moteur
@@ -1001,24 +1001,32 @@ Les deux jobs ne se déclarent aucun `needs` : ils partent ensemble et vont au b
 leur côté, donc une seule exécution suffit à connaître l'état des deux suites. Et le nom du job
 nomme la suite : un journal rouge désigne la coupable sans qu'il faille l'ouvrir.
 
+À l'intérieur du job frontend, les trois étapes portent la même règle : un `if: !cancelled()`
+les fait toutes tourner, un style refusé ne cache donc pas l'état des tests ni celui du build.
+Le job reste rouge dès que l'une échoue. Le build n'est pas décoratif à côté des tests : il
+enchaîne `tsc -b` sur les **trois** projets TypeScript — `src/`, `vite.config.ts` et `e2e/` —
+et c'est le seul endroit où le parcours Playwright est compilé, faute d'être exécuté.
+
 Trois choses ne se lisent pas dans le seul `tests.yml` :
 
 - **les identifiants PostgreSQL y sont en clair, et c'est voulu** : la base est jetée avec la
   machine et n'est joignable que d'elle — un secret n'y protégerait rien, et le poser rendrait
   le workflow inexécutable sur un fork. Ils sont écrits **deux fois**, dans le bloc `services`
   et dans l'`env` du job, parce que le contexte `env` n'est pas lisible depuis `services` ;
-- **`VITE_API_URL` est posée dans le job front alors qu'il ne construit aucun bundle** :
-  `lib/api.ts` lève à l'import quand elle manque, et deux fichiers de test l'importent.
-  `frontend/.env` n'étant pas versionné, la machine d'intégration n'en a aucune — sans cette
-  ligne, deux suites sur trois échouent sur l'erreur de configuration et non sur un défaut ;
+- **`VITE_API_URL` est posée dans le job front, et elle y sert deux fois** : `lib/api.ts` lève
+  à l'import quand elle manque — deux fichiers de test l'importent —, et `vite.config.ts`
+  interrompt le build de production sans elle. `frontend/.env` n'étant pas versionné, la
+  machine d'intégration n'en a aucune : sans cette ligne, deux suites sur trois et le build
+  échouent sur l'erreur de configuration, et non sur un défaut ;
 - **Playwright n'y tourne pas** : il exige la pile Compose debout, un compte actif en base et
   660 Mo de navigateur. C'est aussi pourquoi `playwright.config.ts` pose
   `forbidOnly: !!process.env.CI` : un `test.only` oublié réduirait la suite en silence. La
   garde reste muette sur le poste, où isoler un cas le temps de le corriger est légitime, et
   dort ici jusqu'au jour où la CI lancera le parcours.
 
-Reproduire sur sa machine avant de pousser : les deux commandes du § « Commandes utiles »,
-`DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` et `npm test`.
+Reproduire sur sa machine avant de pousser : les commandes du § « Commandes utiles »,
+`DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` côté backend, puis
+`npm run lint`, `npm test` et `npm run build` côté frontend.
 
 ### Les images Docker
 
