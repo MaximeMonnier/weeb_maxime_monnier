@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 // Aucun repli : un identifiant écrit ici deviendrait un compte réel sur toute
 // machine qui lance la suite. Une variable présente mais vide vaut absente.
@@ -37,8 +36,8 @@ test.describe("Connexion", () => {
     await seConnecter(page, MOT_DE_PASSE);
 
     await expect(page).toHaveURL("/");
-    // Trois segments séparés par des points, la forme d'un JWT : se contenter
-    // d'une valeur non vide laisserait passer un jeton forgé par le front.
+    // Trois segments séparés par des points, la forme d'un JWT : une valeur
+    // seulement non vide laisserait passer "undefined" ou un objet sérialisé.
     expect(await jeton(page, "access")).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
     expect(await jeton(page, "refresh")).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
   });
@@ -53,6 +52,9 @@ test.describe("Connexion", () => {
     // donc si l'API n'est pas là, au lieu de passer sur un refus de façade.
     await expect(page.getByRole("alert")).toContainText("Connexion impossible.");
     await expect(page).toHaveURL("/login");
+    // Les deux, et pas seulement le premier : un refus qui écrirait quand même
+    // le jeton de rafraîchissement rendrait une session récupérable.
     expect(await jeton(page, "access")).toBeNull();
+    expect(await jeton(page, "refresh")).toBeNull();
   });
 });
