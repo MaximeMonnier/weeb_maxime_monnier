@@ -883,6 +883,7 @@ navigateur alors que le conteneur reste `healthy`.
 | `npm run build` | Compile la version de production dans `dist/` |
 | `npm run lint` | Vérifie le code avec ESLint |
 | `npm test` | Lance la suite Vitest |
+| `npm run test:e2e` | Rejoue la connexion dans un navigateur, contre la pile de développement |
 | `npm run preview` | Sert localement le résultat de `npm run build` |
 
 Les tests sont écrits à côté du fichier qu'ils couvrent, sous le nom `<source>.test.ts`
@@ -901,6 +902,76 @@ matchers de `jest-dom` s'importent **dans le fichier de test**
 et le `cleanup` entre les cas est **explicite**, Testing Library ne s'inscrivant lui-même que
 s'il trouve un `afterEach` global. Sans lui, le formulaire du cas précédent reste dans le DOM
 et toute recherche par libellé y devient ambiguë.
+
+#### Le parcours en navigateur
+
+`npm test` ne dit rien de la conversation entre le front et l'API : il remplace `fetch` par un
+doublon, et la suite du backend s'arrête au client de test de Django. Un chemin renommé d'un
+côté, une `VITE_API_URL` mal réglée ou une réponse dont la forme a changé laisserait les deux
+vertes. `npm run test:e2e` ouvre un vrai Chromium sur le site rendu et le fait parler à l'API.
+
+Le navigateur ne vient pas avec `npm install` : il se télécharge une fois par machine, et
+laisse **660 Mo** dans `~/.cache/ms-playwright` — mesuré, pas estimé.
+
+```bash
+cd frontend
+npx playwright install chromium
+```
+
+Sur une machine nue, il peut manquer les bibliothèques système que Chromium charge au
+démarrage ; `npx playwright install --with-deps chromium` les pose en même temps, au prix d'un
+`sudo`.
+
+La pile doit tourner, et un compte **actif** exister en base. `createsuperuser` demande le mot
+de passe de façon interactive : il ne passe donc ni par la ligne de commande, ni par
+l'historique du shell, ni par le dépôt.
+
+```bash
+docker compose -f compose.dev.yaml up -d --wait
+
+docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
+# email, prénom, nom, puis le mot de passe deux fois
+```
+
+Les identifiants sont lus dans l'environnement et nulle part ailleurs — aucun `.env` n'est
+chargé par Playwright. Absent l'un des deux, la suite s'arrête en le nommant plutôt que
+d'échouer sur un refus de connexion.
+
+```bash
+E2E_EMAIL=... E2E_PASSWORD=... npm run test:e2e
+```
+
+Le parcours ouvre le site sur `127.0.0.1:5173` quand `npm run dev` se visite d'ordinaire sur
+`localhost:5173`. Ce sont deux origines distinctes pour le navigateur, et si l'appel à l'API
+passe, c'est parce que `CORS_ALLOWED_ORIGINS` liste **les deux écritures** — voir `.env`.
+N'en garder qu'une ferait afficher « Le serveur est injoignable » et accuser la pile.
+
+Quatre points ne se lisent dans aucun de ces fichiers pris seul :
+
+- **l'API n'accepte que cinq connexions par minute** — le scope `login`, § « Le débit ». La
+  suite en consomme deux : relancée trois fois d'affilée, elle reçoit un 429 et échoue sur un
+  message de quota, pas de connexion. Attendre une minute ;
+- **aucune reprise n'est configurée**, pour cette raison même : rejouer un cas raté ferait
+  répondre 429 à la reprise, et le journal montrerait un quota là où il y avait un vrai défaut ;
+- **Playwright ne démarre pas la pile.** Un bloc `webServer` relancerait Vite sans la base ni
+  l'API derrière, et le parcours cesserait de prouver ce pour quoi il existe. C'est aussi ce qui
+  rend son échec informatif : `docker compose -f compose.dev.yaml stop backend`, et les deux cas
+  tombent — le premier faute de redirection, le second parce que le message affiché devient
+  « Le serveur est injoignable » au lieu du refus attendu ;
+- **les champs se cherchent par une part de leur libellé, pas par son texte exact** : la règle
+  `.form-label-required::after` ajoute « * » aux libellés obligatoires, et un vrai navigateur
+  verse ce contenu généré dans le nom accessible. jsdom n'applique aucune feuille de style et
+  ne montre pas ce décalage — c'est le genre d'écart que cette suite existe pour attraper.
+
+Sur échec, la trace est conservée et rejoue le parcours pas à pas, requêtes réseau comprises :
+
+```bash
+npx playwright show-trace test-results/<dossier-du-cas>/trace.zip
+```
+
+Elle porte donc le mot de passe en clair, saisi dans le champ puis envoyé dans le corps de la
+requête. `.gitignore` la retient, mais transmettre une trace revient à transmettre
+l'identifiant du compte de test.
 
 ## Intégration continue
 
