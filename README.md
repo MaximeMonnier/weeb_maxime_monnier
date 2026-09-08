@@ -882,7 +882,12 @@ navigateur alors que le conteneur reste `healthy`.
 | `npm run dev` | Démarre l'interface avec rechargement à chaud |
 | `npm run build` | Compile la version de production dans `dist/` |
 | `npm run lint` | Vérifie le code avec ESLint |
+| `npm test` | Lance la suite Vitest |
 | `npm run preview` | Sert localement le résultat de `npm run build` |
+
+Les tests sont écrits à côté du fichier qu'ils couvrent, sous le nom `<source>.test.ts`
+(`.test.tsx` pour un composant), et `npm test` ne demande ni base, ni conteneur, ni API
+démarrée. Vitest se règle dans `vite.config.ts`, avec le reste de la configuration du front.
 
 ## Intégration continue
 
