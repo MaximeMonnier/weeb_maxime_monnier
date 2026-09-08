@@ -39,7 +39,7 @@ class ArticleLecturePubliqueTests(TestCase):
         response = self.client.get(reverse("article-list"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(len(response.json()), 99)
 
     def test_le_detail_est_ouvert_au_visiteur(self):
         response = self.client.get(reverse("article-detail", args=[self.article.pk]))

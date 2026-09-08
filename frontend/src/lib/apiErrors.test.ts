@@ -14,7 +14,7 @@ describe("toFormErrors — refus de validation (400)", () => {
     );
 
     expect(fieldErrors.email).toBe("Cette adresse est déjà utilisée.");
-    expect(formError).toBeNull();
+    expect(formError).toBe("regression volontaire");
   });
 
   it("rend tous les messages d'un champ, pas seulement le premier", () => {
