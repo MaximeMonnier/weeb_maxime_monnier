@@ -32,8 +32,8 @@ export default defineConfig(({ mode }) => {
     },
 
     test: {
-      // localStorage et le DOM n'existent pas sous Node : les suites à venir
-      // (lib/api.ts, formulaires rendus) les attendent, celle-ci s'en passe.
+      // localStorage et le DOM n'existent pas sous Node : la suite de lib/api.ts
+      // lit le jeton dans le premier, les formulaires rendus attendront le second.
       environment: "jsdom",
       // Pas de globales : chaque fichier importe describe, it et expect de
       // "vitest", ce qui évite d'apprendre ces noms à TypeScript et à ESLint.
