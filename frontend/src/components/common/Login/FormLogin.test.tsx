@@ -9,7 +9,8 @@ import FormLogin from "./FormLogin";
 const FETCH_ORIGINAL = globalThis.fetch;
 
 // Le réseau est coupé à `fetch` et non à `apiFetch` : le test traverse alors la
-// vraie chaîne, de la pose du jeton jusqu'à la traduction du refus.
+// vraie chaîne, de l'adresse et du corps que reçoit le réseau jusqu'à la
+// traduction du refus.
 const appelReseau = vi.fn();
 
 // apiFetch ne lit que ok, status et json() : le doublon s'en tient là.
