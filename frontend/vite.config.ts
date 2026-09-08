@@ -1,4 +1,7 @@
-import { defineConfig, loadEnv } from "vite";
+// defineConfig vient de vitest/config et non de vite : lui seul connaît la clé
+// `test` ci-dessous, absente du type de configuration de Vite.
+import { defineConfig } from "vitest/config";
+import { loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -26,6 +29,15 @@ export default defineConfig(({ mode }) => {
       watch: {
         usePolling: process.env.DEV_POLLING === "1",
       },
+    },
+
+    test: {
+      // localStorage et le DOM n'existent pas sous Node : les suites à venir
+      // (lib/api.ts, formulaires rendus) les attendent, celle-ci s'en passe.
+      environment: "jsdom",
+      // Pas de globales : chaque fichier importe describe, it et expect de
+      // "vitest", ce qui évite d'apprendre ces noms à TypeScript et à ESLint.
+      globals: false,
     },
   };
 });
