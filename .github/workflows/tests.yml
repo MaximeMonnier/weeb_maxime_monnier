@@ -100,8 +100,9 @@ jobs:
         working-directory: frontend
 
     env:
-      # lib/api.ts lève à l'import quand elle manque, et deux fichiers de test
-      # l'importent. frontend/.env n'étant pas versionné, la valeur vient d'ici.
+      # Lue deux fois : lib/api.ts lève à l'import quand elle manque, et
+      # vite.config.ts interrompt le build de production sans elle. Sa valeur
+      # est celle du .env de la racine, frontend/.env n'étant pas versionné.
       VITE_API_URL: /api
 
     steps:
@@ -117,7 +118,21 @@ jobs:
       # npm ci et non install : il respecte le verrou au lieu de le réécrire.
       - run: npm ci
 
+      - name: Contrôle du style
+        run: npm run lint
+
+      # `!cancelled()` sur les deux étapes suivantes : sans lui, un style refusé
+      # arrêterait le job et cacherait l'état des tests et du build jusqu'à la
+      # correction. Le job reste rouge dès qu'une des trois échoue.
+      #
       # `npm test` est Vitest seul. Playwright reste dehors : il exige la pile
       # Compose debout et l'installation d'un navigateur — voir le README.
       - name: Suite Vitest
+        if: ${{ !cancelled() }}
         run: npm test
+
+      # `tsc -b` puis Vite : le contrôle de types couvre src/, vite.config.ts et
+      # e2e/, que Vitest n'exécute pas et que rien d'autre ne compilerait ici.
+      - name: Build de production
+        if: ${{ !cancelled() }}
+        run: npm run build
