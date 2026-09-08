@@ -975,15 +975,66 @@ l'identifiant du compte de test.
 
 ## Intégration continue
 
+**Deux workflows, deux objets** : `.github/workflows/tests.yml` lance les suites,
+`.github/workflows/docker-images.yml` construit les images. Les deux partent sur les mêmes
+déclencheurs — un push sur `preprod` ou sur `main`, et chaque pull request qui vise l'une des
+deux — et aucun ne publie quoi que ce soit. Les séparer donne deux journaux : la liste des
+checks d'une pull request montre « Tests » et « Images Docker » côte à côte, et un rouge se
+lit sans ouvrir l'autre. Chacun se modifie ensuite sans risquer le second.
+
+Les deux branches et pas seulement `preprod` : `main` est celle qui part sur un serveur.
+Constater après coup qu'une image ne se construit plus, ou qu'un test est rouge, ne servirait
+à rien.
+
+### Les suites de tests
+
+| Job | Ce qu'il lance | Ce qu'il lui faut |
+|---|---|---|
+| `backend` | `python manage.py test` sur `config.settings.test` | Python 3.13, un service `postgres:17-alpine` |
+| `frontend` | `npm run lint`, `npm test` et `npm run build` | Node 22 |
+
+Les versions ne sont pas choisies là : ce sont celles des deux Dockerfile, et celle de la base
+est celle de `compose.dev.yaml`. Tester sur un autre Python, un autre Node ou un autre moteur
+que ceux qui partent en ligne prouverait autre chose que ce qui tourne.
+
+Les deux jobs ne se déclarent aucun `needs` : ils partent ensemble et vont au bout chacun de
+leur côté, donc une seule exécution suffit à connaître l'état des deux suites. Et le nom du job
+nomme la suite : un journal rouge désigne la coupable sans qu'il faille l'ouvrir.
+
+À l'intérieur du job frontend, les trois étapes portent la même règle : un `if: !cancelled()`
+les fait toutes tourner, un style refusé ne cache donc pas l'état des tests ni celui du build.
+Le job reste rouge dès que l'une échoue. Le build n'est pas décoratif à côté des tests : il
+enchaîne `tsc -b` sur les **trois** projets TypeScript — `src/`, `vite.config.ts` et `e2e/` —
+et c'est le seul endroit où le parcours Playwright est compilé, faute d'être exécuté.
+
+Trois choses ne se lisent pas dans le seul `tests.yml` :
+
+- **les identifiants PostgreSQL y sont en clair, et c'est voulu** : la base est jetée avec la
+  machine et n'est joignable que d'elle — un secret n'y protégerait rien, et le poser rendrait
+  le workflow inexécutable sur un fork. Ils sont écrits **deux fois**, dans le bloc `services`
+  et dans l'`env` du job, parce que le contexte `env` n'est pas lisible depuis `services` ;
+- **`VITE_API_URL` est posée dans le job front, et elle y sert deux fois** : `lib/api.ts` lève
+  à l'import quand elle manque — deux fichiers de test l'importent —, et `vite.config.ts`
+  interrompt le build de production sans elle. `frontend/.env` n'étant pas versionné, la
+  machine d'intégration n'en a aucune : sans cette ligne, deux suites sur trois et le build
+  échouent sur l'erreur de configuration, et non sur un défaut ;
+- **Playwright n'y tourne pas** : il exige la pile Compose debout, un compte actif en base et
+  660 Mo de navigateur. C'est aussi pourquoi `playwright.config.ts` pose
+  `forbidOnly: !!process.env.CI` : un `test.only` oublié réduirait la suite en silence. La
+  garde reste muette sur le poste, où isoler un cas le temps de le corriger est légitime, et
+  dort ici jusqu'au jour où la CI lancera le parcours.
+
+Reproduire sur sa machine avant de pousser : les commandes du § « Commandes utiles »,
+`DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` côté backend, puis
+`npm run lint`, `npm test` et `npm run build` côté frontend.
+
+### Les images Docker
+
 `.github/workflows/docker-images.yml` construit les **deux** images à chaque push sur
 `preprod` ou sur `main`, et sur chaque pull request qui vise l'une des deux. Un job par image,
 nommé comme elle, pour qu'un journal rouge désigne la construction en cause sans qu'il faille
 l'ouvrir. Les deux vont au bout même si l'une casse : une seule exécution suffit à connaître
 l'état des deux.
-
-Les deux branches et pas seulement `preprod` : `main` est celle qui part sur un serveur, et
-c'est donc elle que la publication d'images visera le jour où elle existera. Constater après
-coup qu'une image ne se construit plus ne servirait à rien.
 
 | Job | Contexte | Particularité |
 |---|---|---|
@@ -1187,7 +1238,7 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
 .
 ├── .env.example              # modèle de configuration à copier en .env
 ├── .env.prod.example         # modèle des valeurs propres à la production
-├── .github/workflows/        # construction des deux images sur preprod et main
+├── .github/workflows/        # les suites de tests, et la construction des images
 ├── compose.dev.yaml          # pile de développement, autonome
 ├── compose.prod.yaml         # pile de production, autonome
 ├── backend/
