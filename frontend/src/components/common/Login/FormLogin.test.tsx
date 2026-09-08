@@ -35,6 +35,18 @@ function afficherFormulaire() {
   );
 }
 
+// Ce que le réseau a reçu au dernier appel. Le doublon répond 200 quels que
+// soient ses arguments : sans cette lecture, une route ou un corps changés
+// laisseraient la suite verte.
+function requeteEnvoyee() {
+  const [url, options] = appelReseau.mock.calls.at(-1) as [string, RequestInit];
+  return {
+    url,
+    methode: options.method,
+    corps: JSON.parse(options.body as string) as unknown,
+  };
+}
+
 const champEmail = () => screen.getByLabelText("Adresse email");
 const champMotDePasse = () => screen.getByLabelText("Mot de passe");
 const bouton = () => screen.getByRole("button");
@@ -119,8 +131,18 @@ describe("FormLogin — réponse de l'API", () => {
     await remplirEtEnvoyer("jean.dupont@example.com", "motdepasse123");
 
     expect(await screen.findByText("Page d'accueil")).toBeInTheDocument();
-    // Le premier est celui qu'apiFetch relira à chaque appel ; le second est la
-    // seule façon d'en obtenir un neuf.
+    // Le chemin est vérifié par sa fin seule : le préfixe vient de VITE_API_URL,
+    // et c'est apiFetch qui le pose — api.test.ts s'en charge.
+    expect(requeteEnvoyee()).toEqual({
+      url: expect.stringMatching(/\/auth\/login\/$/),
+      methode: "POST",
+      corps: {
+        email: "jean.dupont@example.com",
+        password: "motdepasse123",
+      },
+    });
+    // Le premier jeton est celui qu'apiFetch relira à chaque appel ; le second
+    // est la seule façon d'en obtenir un neuf.
     expect(localStorage.getItem("access")).toBe("jeton-acces");
     expect(localStorage.getItem("refresh")).toBe("jeton-renouvellement");
   });
@@ -130,7 +152,7 @@ describe("FormLogin — envoi en cours", () => {
   it("annonce l'attente et ferme le bouton jusqu'à la réponse", async () => {
     // La réponse est retenue à la main : « Connexion... » ne s'affiche que
     // pendant ce laps, et une promesse déjà résolue le traverserait sans arrêt.
-    let repondre: (corps: unknown) => void = () => {};
+    let repondre: (reponseHttp: unknown) => void = () => {};
     appelReseau.mockReturnValue(
       new Promise((resolve) => {
         repondre = resolve;

@@ -892,8 +892,8 @@ démarrée. Vitest se règle dans `vite.config.ts`, avec le reste de la configur
 Un composant se teste **rendu**, avec Testing Library : `FormLogin.test.tsx` monte le
 formulaire dans un `MemoryRouter` — il pose un `Link` et appelle `useNavigate` —, atteint les
 champs par leur libellé et le message d'ensemble par son `role="alert"`, et coupe le réseau à
-`globalThis.fetch` plutôt qu'à `apiFetch` : la chaîne réelle est alors traversée, de la pose du
-jeton jusqu'à la traduction du refus par `toFormErrors`.
+`globalThis.fetch` plutôt qu'à `apiFetch` : la chaîne réelle est alors traversée, de l'adresse
+et du corps que reçoit le réseau jusqu'à la traduction du refus par `toFormErrors`.
 
 Deux conséquences de `globals: false`, qu'aucun des deux fichiers ne donne à lire seul : les
 matchers de `jest-dom` s'importent **dans le fichier de test**
