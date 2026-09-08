@@ -918,6 +918,10 @@ cd frontend
 npx playwright install chromium
 ```
 
+Sur une machine nue, il peut manquer les bibliothèques système que Chromium charge au
+démarrage ; `npx playwright install --with-deps chromium` les pose en même temps, au prix d'un
+`sudo`.
+
 La pile doit tourner, et un compte **actif** exister en base. `createsuperuser` demande le mot
 de passe de façon interactive : il ne passe donc ni par la ligne de commande, ni par
 l'historique du shell, ni par le dépôt.
@@ -936,6 +940,11 @@ d'échouer sur un refus de connexion.
 ```bash
 E2E_EMAIL=... E2E_PASSWORD=... npm run test:e2e
 ```
+
+Le parcours vise `127.0.0.1:5173` alors que `VITE_API_URL` pointe sur `localhost:8000` : ce
+sont deux origines, et cela ne passe que parce que `CORS_ALLOWED_ORIGINS` les liste **toutes
+les deux**. Réduite à `localhost`, la suite afficherait « Le serveur est injoignable » et
+ferait accuser la pile.
 
 Quatre points ne se lisent dans aucun de ces fichiers pris seul :
 
