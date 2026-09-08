@@ -1,6 +1,6 @@
 // defineConfig vient de vitest/config et non de vite : lui seul connaît la clé
 // `test` ci-dessous, absente du type de configuration de Vite.
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import { loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -38,6 +38,10 @@ export default defineConfig(({ mode }) => {
       // Pas de globales : chaque fichier importe describe, it et expect de
       // "vitest", ce qui évite d'apprendre ces noms à TypeScript et à ESLint.
       globals: false,
+      // e2e/ appartient à Playwright, qui a son propre lanceur : Vitest y verrait
+      // des `test(...)` qu'il exécuterait sans navigateur. Les défauts sont repris
+      // à la main — les remplacer ferait relire node_modules et dist.
+      exclude: [...configDefaults.exclude, "e2e/**"],
     },
   };
 });
