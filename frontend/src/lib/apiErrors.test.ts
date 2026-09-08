@@ -132,13 +132,18 @@ describe("toFormErrors — quota de débit (429)", () => {
 });
 
 describe("toFormErrors — panne du service et du réseau", () => {
-  it("annonce une indisponibilité passagère à partir de 500", () => {
-    const { formError } = toFormErrors({ status: 502, data: {} }, CHAMPS);
+  // 500 et 502 encadrent la borne : le premier la tient, le second prouve qu'elle
+  // vaut pour tout ce qui suit.
+  it.each([500, 502])(
+    "annonce une indisponibilité passagère sur un %i",
+    (status) => {
+      const { formError } = toFormErrors({ status, data: {} }, CHAMPS);
 
-    expect(formError).toBe(
-      "Le service est momentanément indisponible. Réessayez dans un instant.",
-    );
-  });
+      expect(formError).toBe(
+        "Le service est momentanément indisponible. Réessayez dans un instant.",
+      );
+    },
+  );
 
   it("reprend le detail d'un statut qu'aucune branche ne traite", () => {
     const { formError } = toFormErrors(
