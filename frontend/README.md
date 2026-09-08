@@ -312,7 +312,7 @@ export default function MonFormulaire() {
 
 - [ ] Connexion à une API backend
 - [ ] Authentification JWT
-- [ ] Tests (Vitest + React Testing Library)
+- [x] Tests (Vitest + React Testing Library)
 - [ ] Internationalisation (i18n)
 - [ ] PWA (Progressive Web App)
 - [ ] Optimisation des images (WebP)
