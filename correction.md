@@ -75,7 +75,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 |---|---|---|---|
 | 0 | Débloquer l'environnement de travail | 2 | Rien n'est vérifiable tant que le front ne s'installe pas |
 | 1 | Sécurité de l'API — **bloquant** | 6 | Prise de contrôle de compte possible en production |
-| 2 | Tests automatisés | 3 | Verrouille le lot 1 et protège tous les refactorings suivants |
+| 2 | Tests automatisés | 3 (+5) | Verrouille le lot 1 et protège tous les refactorings suivants |
 | 3 | Qualité et performance de l'API | 4 | Corrections backend isolées, sans impact sur le contrat d'API |
 | 4 | Socle des formulaires front | 4 | Une seule extraction règle quatre copier-coller à la fois |
 | 5 | Authentification côté front | 4 | S'appuie sur le socle du lot 4 |
@@ -430,9 +430,10 @@ doit être lancé et le fichier committé.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire — 2.1 entamée par le lot 1 | — | — | Bloc 1 — qualité |
+| Clos le 2026-09-08 — élargi au front et à la CI | #83 | Lot 2 | Bloc 1 — qualité |
 
-**Grain de ticket** : epic + 3 sous-issues, une par app testée.
+**Grain de ticket** : epic + 3 sous-issues, une par app testée. **Livré en 8** : les cinq
+dernières (#87 à #91) n'étaient pas au plan — voir 2.4 à 2.8.
 
 > **Dépendances : lot 1.**
 > `articles/tests.py` et `contact/tests.py` ne contiennent toujours qu'un
@@ -446,7 +447,7 @@ doit être lancé et le fichier committé.
 
 ## 2.1 — Tests de l'app `accounts`
 
-- [ ] **Fichiers** : `backend/accounts/tests.py`
+- [x] **Fichiers** : `backend/accounts/tests.py`
 - **Constat** : le fichier n'est plus vide — le lot 1 y a laissé 25 tests, écrits comme verrous
   de ses propres corrections et non comme la suite demandée ici. Sont déjà couverts : le mot de
   passe faible refusé, la réponse sans `uid` ni `token`, l'identité des réponses pour un email
@@ -493,7 +494,7 @@ Lance la suite et donne-moi sa sortie réelle. Ne me dis pas qu'elle passe sans 
 
 ## 2.2 — Tests de l'app `articles` (permissions de propriété)
 
-- [ ] **Fichiers** : `backend/articles/tests.py`
+- [x] **Fichiers** : `backend/articles/tests.py`
 - **Constat** : fichier vide. Or `IsOwnerOrReadOnly` + l'injection de l'auteur dans
   `perform_create` sont la pièce la plus délicate du backend, et ne sont vérifiées par rien.
 - **Attendu** : le modèle de propriété est prouvé par des tests.
@@ -530,7 +531,7 @@ Lance la suite et donne-moi sa sortie réelle.
 
 ## 2.3 — Tests de l'app `contact`
 
-- [ ] **Fichiers** : `backend/contact/tests.py`
+- [x] **Fichiers** : `backend/contact/tests.py`
 - **Constat** : fichier vide.
 - **Attendu** : l'endpoint public est couvert, y compris son quota (tâche 1.5).
 
@@ -557,6 +558,21 @@ tel qu'il est.
 
 Lance la suite et donne-moi sa sortie réelle.
 ```
+
+## 2.4 à 2.8 — Suite front et intégration continue (hors plan initial)
+
+- [x] **Fichiers** : `frontend/vite.config.ts`, `frontend/src/lib/apiErrors.test.ts`,
+  `frontend/src/lib/api.test.ts`,
+  `frontend/src/components/common/Login/FormLogin.test.tsx`, `frontend/playwright.config.ts`,
+  `frontend/tsconfig.e2e.json`, `frontend/e2e/connexion.spec.ts`, `.github/workflows/tests.yml`
+- **Constat** : le plan ne prévoyait que le backend. Trois suites vertes n'empêchaient ni un
+  refus d'API traduit de travers côté front — la partie que l'utilisateur lit — ni une
+  régression fusionnée sans que personne n'ait rien lancé.
+- **Livré** : #87 Vitest et la traduction des refus · #88 le point d'appel réseau · #89 le
+  formulaire de connexion rendu · #90 le parcours de connexion en navigateur · #91 les deux
+  suites en intégration continue.
+- **Attendu** : atteint. Le front a 33 cas Vitest et 2 parcours Playwright, et toute pull
+  request vers `preprod` ou `main` lance les suites d'elle-même.
 
 ---
 
@@ -1774,6 +1790,11 @@ Cette skill ne pousse jamais rien : elle lit et elle rapporte. Le push reste ma 
 | 2.1 | Tests `accounts` | Structurant | 1 | Bloc 1 — qualité |
 | 2.2 | Tests `articles` (propriété) | Structurant | 1 | Bloc 1 — qualité |
 | 2.3 | Tests `contact` | Structurant | 1 | Bloc 1 — qualité |
+| 2.4 | Vitest et traduction des refus d'API | Structurant | 0 | Bloc 1 — qualité |
+| 2.5 | Tests du point d'appel réseau | Structurant | 2.4 | Bloc 1 — qualité |
+| 2.6 | Test du formulaire de connexion rendu | Structurant | 2.4 | Bloc 1 — qualité |
+| 2.7 | Parcours de connexion en navigateur | Structurant | 2.6 | Bloc 1 — qualité |
+| 2.8 | Suites lancées en intégration continue | Structurant | 2.1-2.7 | Bloc 1 — qualité |
 | 3.1 | N+1 sur la liste des articles | Performance | 2 | Bloc 1 — optimisation |
 | 3.2 | Utilisateur créé en deux écritures | Faible | 2 | Bloc 1 — optimisation |
 | 3.3 | `Contact` sans horodatage | Moyen | 2 | Bloc 1 — qualité |
