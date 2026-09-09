@@ -432,7 +432,7 @@ class RegisterTests(TestCase):
         )
 
     def test_le_compte_cree_attend_sa_validation(self):
-        """Le modèle pose is_active à True : seul l'argument passé à create() l'en écarte."""
+        """Le modèle pose is_active à True : seul l'argument donné à create_user l'en écarte."""
         response = self.inscrire()
 
         self.assertEqual(response.status_code, 201)
@@ -441,18 +441,23 @@ class RegisterTests(TestCase):
     def test_l_inscription_n_ecrit_la_ligne_qu_une_fois(self):
         """is_active remis à False après create_user, la ligne existerait ACTIVE entre les
         deux requêtes : une connexion concurrente y trouverait un compte que personne n'a
-        encore validé. C'est cette fenêtre que l'absence d'UPDATE ferme."""
-        table = CustomUser._meta.db_table
+        encore validé. C'est cette fenêtre que l'écriture unique ferme."""
+        # \b écarte les tables dérivées, accounts_customuser_groups et sa voisine,
+        # dont le nom contient celui du compte sans qu'une écriture y touche.
+        table = re.compile(rf"\b{CustomUser._meta.db_table}\b")
 
         with CaptureQueriesContext(connection) as requetes:
             response = self.inscrire()
 
         self.assertEqual(response.status_code, 201)
-        modifications = [
-            requete["sql"] for requete in requetes
-            if "UPDATE" in requete["sql"] and table in requete["sql"]
+        # Les SELECT restent comptés avec le reste : le contrôle d'unicité de l'email en
+        # émet un, et c'est le verbe qu'on regarde, une lecture n'ouvrant aucune fenêtre.
+        verbes = [
+            requete["sql"].split(maxsplit=1)[0] for requete in requetes
+            if table.search(requete["sql"])
         ]
-        self.assertEqual(modifications, [])
+        self.assertEqual(verbes.count("INSERT"), 1, verbes)
+        self.assertEqual(verbes.count("UPDATE"), 0, verbes)
 
     def test_la_reponse_ne_renvoie_pas_le_mot_de_passe(self):
         """write_only retiré, le ModelSerializer rendrait le champ du modèle : le hash."""
