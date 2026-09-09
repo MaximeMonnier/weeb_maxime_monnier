@@ -136,3 +136,74 @@ minute rend `429` avec `{"detail": "Requête ralentie. Disponible à nouveau dan
 hachage depuis l'admin, lui, n'a pas de trace côté API : c'est
 `test_un_compte_cree_depuis_l_admin_peut_se_connecter` qui le tient, en créant un compte par le
 formulaire de l'admin puis en demandant un jeton avec le mot de passe saisi.
+
+---
+
+## Lot 2 — Tests automatisés
+
+Clos le 2026-09-08 · Epic #83 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — au 6 septembre, `backend/articles/tests.py` et `backend/contact/tests.py`
+ne contenaient **aucun** `def test_`. La propriété d'un article et l'`AllowAny` de l'endpoint
+public de contact — deux pièces dont les garanties se répartissent sur trois fichiers chacune —
+n'étaient donc vérifiées par rien. `accounts` en avait 25, écrits pendant le lot 1 comme verrous
+de ses propres corrections. Côté front, `frontend/package.json` n'avait ni script `test` ni le
+moindre fichier de test, et aucun workflow ne lançait quoi que ce soit : `docker-images.yml`
+construisait deux images, c'est tout.
+
+**Décision et justification** — quatre arbitrages.
+
+Les tests backend tournent sur un **PostgreSQL réel**, jamais sur SQLite, retiré du projet à
+l'issue #49 : une requête qui passe en test passe en ligne. Le prix est une suite qui exige une
+base joignable, y compris en intégration continue.
+
+Vitest est réglé **dans `vite.config.ts`** et non dans un `vitest.config.ts` séparé : la garde
+`VITE_API_URL` et les réglages du serveur restent lus d'une seule source. Avec `globals: false`,
+chaque fichier importe `describe`, `it` et `expect`, ce qui dispense `tsconfig.app.json` et
+`eslint.config.js` de connaître ces noms. Conséquence assumée, faute d'un `setupFiles` : les
+matchers de `jest-dom` et le `cleanup` entre les cas s'écrivent dans chaque fichier de test.
+
+Playwright est un **second lanceur**, qui ne partage rien avec Vitest, et **sans bloc
+`webServer`** : la pile vient de `compose.dev.yaml`. Un Vite relancé sans base ni API derrière
+ferait passer un parcours qui ne prouve plus rien.
+
+Playwright reste **hors de l'intégration continue** : il lui faudrait la pile Compose debout, un
+compte actif en base et 660 Mo de navigateur. Un workflow unique a été écarté aussi : deux
+fichiers donnent deux journaux, et `docker-images.yml` n'avait pas à bouger pour ça.
+
+**Ce qui a surpris** — quatre fois, et trois fois c'est un outil qui vérifie autre chose que ce
+qu'on croit.
+
+`jsdom` n'applique **aucune feuille de style**. La règle `.form-label-required::after` ajoute
+« * » aux libellés obligatoires, et un vrai navigateur verse ce contenu généré dans le nom
+accessible : les champs se cherchent donc par une **part** de leur libellé, jamais par son texte
+exact. Une recherche exacte passe sous Vitest et tombe sous Playwright — exactement l'écart que
+le parcours en navigateur existe pour attraper.
+
+`npm test` échoue **avant le premier cas** quand `VITE_API_URL` manque : `lib/api.ts` lève à
+l'import, et deux des trois fichiers l'importent. Sur le poste, `frontend/.env` masque
+entièrement le problème ; il n'apparaît que sur une machine vierge, c'est-à-dire précisément là
+où la CI l'a trouvé. Le job front pose donc la variable alors même qu'il ne construisait, au
+départ, aucun bundle.
+
+Le quota de connexion posé au lot 1 **borne la suite qui le vérifie** : cinq connexions par
+minute, deux consommées par parcours, d'où `retries: 0` — une reprise recevrait un 429, et le
+journal montrerait un quota là où il y avait un vrai défaut.
+
+Enfin, la raison d'abord écrite pour justifier deux workflows était fausse sur ses deux points :
+des jobs réunis dans un même fichier partent en parallèle eux aussi, et le cache buildx est clé
+par le contexte de build, jamais par le fichier qui déclare le job. C'est `revue-avant-push` qui
+l'a relevé, sur un texte qui paraissait solide parce qu'il était plausible.
+
+**Preuve de la correction** — `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` :
+`Ran 53 tests`, `OK` — 29 pour `accounts`, 12 pour `articles`, 12 pour `contact`. `npm test` :
+`3 passed`, `33 passed`. `npm run lint` et `npm run build` verts. En intégration continue,
+exécution `34240762774` sur le commit exact de la PR #102 : job `backend` vert, job `frontend`
+vert sur ses trois étapes.
+
+Les rouges ont été éprouvés autant que les verts, sur deux pull requests jetables ouvertes puis
+refermées. Une assertion cassée de chaque côté rend les deux jobs rouges, chacun nommant son
+test (`34238183958`) ; un style volontairement refusé laisse tourner les deux étapes suivantes
+(`34240590478`) — la suite Vitest verte, le build rouge sur la même variable inutilisée, que
+`tsc` refuse comme ESLint. Un `test.only` oublié est refusé par `forbidOnly` dès que `CI` est
+posée, et ignoré sans elle.
