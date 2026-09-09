@@ -9,7 +9,9 @@ from unittest.mock import patch
 from django.conf import settings
 from django.core import mail
 from django.core.cache import cache
+from django.db import connection
 from django.test import Client, SimpleTestCase, TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import resolve, reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
@@ -411,7 +413,8 @@ class JWTRotationTests(TestCase):
 
 
 class RegisterTests(TestCase):
-    """Ce que l'inscription crée : un compte en attente, dont la réponse tait le mot de passe."""
+    """Ce que l'inscription crée : un compte en attente, écrit inactif du premier coup, dont
+    la réponse tait le mot de passe."""
 
     PASSWORD = "MotDePasseValide123"
 
@@ -429,11 +432,27 @@ class RegisterTests(TestCase):
         )
 
     def test_le_compte_cree_attend_sa_validation(self):
-        """Le modèle pose is_active à True : seule la ligne de create() le remet à False."""
+        """Le modèle pose is_active à True : seul l'argument passé à create() l'en écarte."""
         response = self.inscrire()
 
         self.assertEqual(response.status_code, 201)
         self.assertFalse(CustomUser.objects.get(email="nouveau@example.com").is_active)
+
+    def test_l_inscription_n_ecrit_la_ligne_qu_une_fois(self):
+        """is_active remis à False après create_user, la ligne existerait ACTIVE entre les
+        deux requêtes : une connexion concurrente y trouverait un compte que personne n'a
+        encore validé. C'est cette fenêtre que l'absence d'UPDATE ferme."""
+        table = CustomUser._meta.db_table
+
+        with CaptureQueriesContext(connection) as requetes:
+            response = self.inscrire()
+
+        self.assertEqual(response.status_code, 201)
+        modifications = [
+            requete["sql"] for requete in requetes
+            if "UPDATE" in requete["sql"] and table in requete["sql"]
+        ]
+        self.assertEqual(modifications, [])
 
     def test_la_reponse_ne_renvoie_pas_le_mot_de_passe(self):
         """write_only retiré, le ModelSerializer rendrait le champ du modèle : le hash."""
