@@ -2,7 +2,7 @@
 l'API refuse d'enregistrer, ce qu'elle ne rend jamais en lecture, la date qu'elle pose
 sur le message et à partir de quel rang elle cesse de répondre — la permission publique,
 les longueurs de champ, l'absence de route de lecture, le tri du modèle et le taux du
-quota vivant chacun dans un fichier différent."""
+quota se répartissant entre la vue, le modèle, les routes et les settings."""
 
 from datetime import timedelta
 from unittest.mock import patch
