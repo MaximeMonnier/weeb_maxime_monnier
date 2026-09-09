@@ -207,3 +207,64 @@ test (`34238183958`) ; un style volontairement refusé laisse tourner les deux �
 (`34240590478`) — la suite Vitest verte, le build rouge sur la même variable inutilisée, que
 `tsc` refuse comme ESLint. Un `test.only` oublié est refusé par `forbidOnly` dès que `CI` est
 posée, et ignoré sans elle.
+
+---
+
+## Lot 3 — Qualité et performance de l'API
+
+Clos le 2026-09-09 · Epic #105 · Alimente : Bloc 1 — optimisation
+
+**Constat mesuré** — trois défauts chiffrables et un reste de scaffold. `GET /api/articles/`
+exécutait **31 requêtes pour 30 articles** contre 4 avec la jointure : le serializer rend
+l'auteur par son `__str__`, qui lit son email, et la liste allait le chercher une fois par
+ligne. `POST /api/auth/register/` écrivait **deux fois** — un `INSERT` par `create_user()`,
+puis un `UPDATE` posant `is_active = False` — laissant entre les deux une ligne valide en base.
+`backend/contact/models.py` n'avait **aucun champ de date** : les messages étaient intriables et
+impurgeables. Et `contact/apps.py:4` nommait sa classe `ContactesConfig` depuis le `startapp`
+d'origine.
+
+**Décision et justification** — trois arbitrages.
+
+Le N+1 se **prouve par mesure, jamais par un compte écrit en dur**. Les deux tests mesurent la
+liste à 3 articles, puis exigent le même nombre à 30 : c'est leur égalité qui fait la preuve. Un
+`assertNumQueries(4)` littéral aurait menti dès qu'une requête de session ou un filtre d'admin
+se serait ajouté ailleurs.
+
+L'écriture unique du compte se garde par les **verbes SQL**, pas par l'état final. Une assertion
+sur `is_active` ne distingue pas une écriture de deux : le test capture les requêtes du `POST` et
+exige un `INSERT` et aucun `UPDATE` sur la table du compte, en écartant par `\b` les tables
+dérivées dont le nom contient le sien.
+
+`created_at` reprend `Article` — `auto_now_add` et `Meta.ordering` — plutôt qu'une convention
+neuve. La migration donne aux lignes déjà en base la date du jour où elle passe, avec
+`preserve_default=False` : le défaut ne survit pas à un champ `auto_now_add`, et devait donc être
+transitoire.
+
+**Ce qui a surpris** — trois fois, et deux fois c'est le plan qui se trompait, pas le code.
+
+La **liste de l'admin partait en N+1 elle aussi**, ce que le plan ne prévoyait pas : 36 requêtes
+pour 30 articles, ramenées à 9. La première explication écrite était fausse — `ChangeList`
+n'applique `select_related()` de lui-même que si `list_select_related` **manque** ; dès qu'elle
+porte un tuple non vide, c'est elle qui décide. La revue l'a relevée sur un texte qui paraissait
+solide parce qu'il était plausible.
+
+L'**écart annoncé par la tâche 3.4 n'existait pas**. Le plan présentait `default_auto_field`
+comme une divergence avec les migrations. Contrôle fait : sous Django 6.0.6,
+`global_settings.DEFAULT_AUTO_FIELD` vaut déjà `django.db.models.BigAutoField`, et les trois
+migrations initiales posent bien un `BigAutoField`. La déclaration n'explicite qu'un défaut, et
+`makemigrations --check` le confirme en ne produisant rien. Une tâche entière du lot était une
+mise en forme, pas une correction — et il valait mieux le vérifier que le supposer.
+
+`read_only_fields` sur `created_at` s'est révélé **redondant** : `auto_now_add` suffit déjà à ce
+que DRF refuse une date envoyée par le client. La ligne reste, parce qu'elle dit l'intention à un
+lecteur qui ne connaît pas ce détail de DRF, mais elle ne protège rien à elle seule.
+
+**Preuve de la correction** — `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` :
+`Ran 59 tests`, `OK` — 53 avant le lot, 30 pour `accounts`, 14 pour `articles`, 15 pour `contact`.
+`python manage.py check` : « System check identified no issues (0 silenced). »
+`python manage.py makemigrations --check --dry-run` : « No changes detected ».
+
+Les rouges ont été éprouvés autant que les verts : retirer le `select_related` de la vue fait
+passer la liste de l'API de 4 à 31 requêtes, vider le `list_select_related` de l'admin la fait
+passer de 9 à 36, et retirer le `Meta.ordering` de `Contact` fait tomber le cas du tri — qui crée
+ses trois messages dans le désordre pour ne pas retomber par hasard sur l'ordre des identifiants.
