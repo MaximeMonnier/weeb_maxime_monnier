@@ -10,5 +10,10 @@ class Contact(models.Model):
     subject = models.CharField(max_length=150)
     message = models.TextField()
 
+    created_at = models.DateTimeField(auto_now_add=True)   # rempli UNE fois, à l'arrivée
+
+    class Meta:
+        ordering = ["-created_at"]       # les plus récents affichés en premier
+
     def __str__(self):
         return self.subject
