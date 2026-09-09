@@ -25,12 +25,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        # On passe par create_user (notre manager) → le mot de passe est HASHÉ
-        user = CustomUser.objects.create_user(**validated_data)
-        # Compte créé mais EN ATTENTE de validation par un admin
-        user.is_active = False
-        user.save()
-        return user
+        # On passe par create_user (notre manager) → le mot de passe est HASHÉ.
+        # is_active dès l'appel : le désactiver après coup laisserait le compte
+        # ouvert entre l'INSERT et l'UPDATE, le temps qu'une connexion s'y glisse.
+        return CustomUser.objects.create_user(**validated_data, is_active=False)
 
 class PasswordResetRequestSerializer(serializers.Serializer):
     """Valide la demande : on a juste besoin de l'email."""
