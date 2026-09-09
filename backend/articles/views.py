@@ -9,7 +9,7 @@ from .permissions import IsOwnerOrReadOnly
 class ArticleViewSet(viewsets.ModelViewSet):
     """CRUD complet des articles (liste, création, détail, modif, suppression)."""
     # Jointure et non requête par ligne : le serializer rend l'auteur par son
-    # __str__, que la liste appellerait sinon une fois par article.
+    # __str__, et la liste irait sinon le chercher en base une fois par article.
     queryset = Article.objects.select_related("author")
     serializer_class = ArticleSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]

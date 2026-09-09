@@ -225,11 +225,11 @@ class ArticleCoutDesListesTests(TestCase):
     jointure, un nombre en dur ne prouvant que lui-même et cédant à la première requête
     ajoutée ailleurs, session ou filtre de l'admin.
 
-    Côté admin, la jointure ne vient pas de la ligne list_select_related mais de
-    ChangeList, qui joint dès qu'une relation figure dans list_display. Ce que le test
-    garde là, c'est ce qui ferait perdre cette jointure sans toucher à la liste : une
-    colonne author remplacée par une méthode qui irait lire l'email elle-même, ou un
-    list_select_related vidé — un tuple vide n'étant plus le défaut qui déclenche tout."""
+    Côté admin, deux jointures se relaient : celle que déclare list_select_related, et
+    celle que ChangeList applique de lui-même dès qu'une relation figure dans
+    list_display. Ce que le test garde là, c'est leur perte à toutes les deux d'un coup,
+    un list_select_related vidé n'étant plus le défaut qui déclenche la seconde : les
+    neuf requêtes de la page en deviennent alors trente-six."""
 
     def setUp(self):
         # Plusieurs auteurs : un seul ferait tomber le test tout autant, l'ORM ne
