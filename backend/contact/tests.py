@@ -1,13 +1,17 @@
 """Tests du formulaire de contact : ce qu'un visiteur sans compte peut envoyer, ce que
-l'API refuse d'enregistrer, ce qu'elle ne rend jamais en lecture et à partir de quel
-rang elle cesse de répondre — la permission publique, les longueurs de champ, l'absence
-de route de lecture et le taux du quota vivant chacune dans un fichier différent."""
+l'API refuse d'enregistrer, ce qu'elle ne rend jamais en lecture, la date qu'elle pose
+sur le message et à partir de quel rang elle cesse de répondre — la permission publique,
+les longueurs de champ, l'absence de route de lecture, le tri du modèle et le taux du
+quota se répartissant entre la vue, le modèle, les routes et les settings."""
 
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import AccessToken
 
@@ -98,6 +102,28 @@ class ContactValidationTests(TestCase):
         self.assertEqual(response.status_code, 201)
 
 
+class ContactDateImposeeTests(TestCase):
+    """La date d'arrivée vient du serveur, quoi qu'en dise le corps envoyé.
+
+    auto_now_add suffit déjà à ce que DRF rende le champ read_only : ces cas verrouillent
+    le comportement, pas la ligne read_only_fields, qui ne fait que l'écrire."""
+
+    def test_la_date_envoyee_par_le_client_est_ignoree(self):
+        response = envoyer(self.client, {**MESSAGE, "created_at": "2000-01-01T00:00:00Z"})
+
+        self.assertEqual(response.status_code, 201)
+        # Vraie date de traitement, à une minute près : la suite ne date rien de 2000.
+        self.assertGreater(Contact.objects.get().created_at, timezone.now() - timedelta(minutes=1))
+
+    def test_la_reponse_de_creation_porte_la_date(self):
+        """Le seul endroit d'où elle sort : contact n'expose aucune route de lecture."""
+        response = envoyer(self.client, MESSAGE)
+
+        self.assertEqual(
+            parse_datetime(response.json()["created_at"]), Contact.objects.get().created_at,
+        )
+
+
 class ContactLectureTests(TestCase):
     """Les messages reçus ne ressortent jamais par l'API : ils ne se lisent que dans l'admin."""
 
@@ -155,8 +181,30 @@ class ContactThrottleTests(TestCase):
         self.assertEqual(Contact.objects.count(), 0)
 
 
+class ContactOrdreTests(TestCase):
+    """Les messages sortent du plus récent au plus ancien, et seul Meta.ordering le dit :
+    l'app n'a ni vue de liste ni queryset ordonné où le relire."""
+
+    def setUp(self):
+        # Les trois messages sont créés dans le désordre : sans cela, l'ordre attendu
+        # serait aussi celui des identifiants, et un Meta.ordering retiré passerait.
+        # auto_now_add écrase toute date passée à create(), d'où l'UPDATE qui suit.
+        for sujet, jours in (("Intermédiaire", 1), ("Ancien", 2), ("Récent", 0)):
+            contact = Contact.objects.create(**{**MESSAGE, "subject": sujet})
+            Contact.objects.filter(pk=contact.pk).update(
+                created_at=timezone.now() - timedelta(days=jours),
+            )
+
+    def test_les_messages_vont_du_plus_recent_au_plus_ancien(self):
+        self.assertEqual(
+            [contact.subject for contact in Contact.objects.all()],
+            ["Récent", "Intermédiaire", "Ancien"],
+        )
+
+
 class ContactModeleTests(TestCase):
-    """Le modèle tel qu'il est : cinq champs, aucun horodatage, le sujet pour étiquette."""
+    """Le modèle tel qu'il est : cinq champs saisis, une date posée par le serveur, le
+    sujet pour étiquette."""
 
     def test_le_sujet_sert_d_etiquette(self):
         """Pas dans la liste de l'admin, dont ContactAdmin nomme les colonnes : dans le titre
