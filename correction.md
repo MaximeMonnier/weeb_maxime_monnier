@@ -580,20 +580,24 @@ Lance la suite et donne-moi sa sortie réelle.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — optimisation |
+| Clos le 2026-09-09 | #105 | Lot 3 | Bloc 1 — optimisation |
 
-**Grain de ticket** : epic + 4 sous-issues, une par tâche.
+**Grain de ticket** : epic + 4 sous-issues, une par tâche. **Livré tel quel** : #106, #107,
+#108, #109 — aucune tâche ajoutée, aucune écartée.
 
 > **Dépendances : lot 2** (les tests protègent ces changements).
 > Aucune de ces tâches ne modifie le contrat d'API : le front n'a rien à adapter.
 
 ## 3.1 — Supprimer le N+1 sur la liste des articles
 
-- [ ] **Fichiers** : `backend/articles/views.py`
+- [x] **Fichiers** : `backend/articles/views.py`
 - **Constat** : `articles/views.py:11` — `Article.objects.all()` combiné au
   `StringRelatedField` sur `author` (`serializers.py:9`) déclenche **une requête par article**
   pour afficher l'email de l'auteur. 50 articles = 51 requêtes.
 - **Attendu** : une seule requête, quel que soit le nombre d'articles.
+- **Livré** : la vue, plus `backend/articles/admin.py`, hors plan — la question posée au point 3
+  du prompt (« vérifie si le même problème existe ailleurs ») a sorti la liste de l'admin, qui
+  partait en N+1 elle aussi. Les deux listes sont désormais gardées par un test chacune.
 
 ```
 Objectif : supprimer le N+1 sur GET /api/articles/.
@@ -615,7 +619,7 @@ Ne change ni le serializer ni la forme de la réponse : cette tâche ne doit rie
 
 ## 3.2 — Créer l'utilisateur en une seule écriture
 
-- [ ] **Fichiers** : `backend/accounts/serializers.py`
+- [x] **Fichiers** : `backend/accounts/serializers.py`
 - **Constat** : `serializers.py:17-20` — `create_user()` puis `is_active = False` puis `save()`.
   Deux écritures, et une fenêtre pendant laquelle le compte est **actif** en base.
 - **Attendu** : une seule écriture, compte inactif dès l'INSERT.
@@ -640,7 +644,7 @@ suite et donne-moi sa sortie.
 
 ## 3.3 — Horodater les messages de contact
 
-- [ ] **Fichiers** : `backend/contact/models.py`, `backend/contact/admin.py`,
+- [x] **Fichiers** : `backend/contact/models.py`, `backend/contact/admin.py`,
   `backend/contact/serializers.py`, migration
 - **Constat** : le modèle `Contact` n'a **aucun champ de date**. Impossible de trier les messages,
   de savoir quand ils sont arrivés, ni de purger les anciens. L'admin
@@ -674,12 +678,14 @@ lance la suite de tests.
 
 ## 3.4 — Assainir la configuration des trois apps
 
-- [ ] **Fichiers** : `backend/contact/apps.py`, `backend/accounts/apps.py`,
+- [x] **Fichiers** : `backend/contact/apps.py`, `backend/accounts/apps.py`,
   `backend/articles/apps.py`, `backend/articles/views.py`
 - **Constat** :
   - `contact/apps.py:4` : la classe s'appelle `ContactesConfig` (faute de frappe) ;
-  - aucune des trois apps ne déclare `default_auto_field`, alors que les migrations existantes
-    utilisent `BigAutoField` — l'écart est silencieux aujourd'hui, il ne le restera pas ;
+  - aucune des trois apps ne déclare `default_auto_field` ; **le constat annonçait un écart
+    avec les migrations, il n'y en avait pas** : sous Django 6.0.6, `DEFAULT_AUTO_FIELD` vaut
+    déjà `BigAutoField`, et les trois migrations initiales posent bien un `BigAutoField`. La
+    déclaration est une explicitation, pas une correction ;
   - `articles/views.py:1` : `from django.shortcuts import render` n'est jamais utilisé (reste du
     scaffold Django).
 - **Attendu** : trois `apps.py` cohérents, plus aucun import mort.
