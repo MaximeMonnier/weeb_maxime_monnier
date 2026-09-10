@@ -3,6 +3,9 @@ import { Input, Textarea } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
 import { apiFetch } from "../../../lib/api";
 import { toFormErrors } from "../../../lib/apiErrors";
+import { isValidEmail } from "../../../lib/validationRules";
+import { useForm } from "../../../hooks/useForm";
+import type { FormErrors } from "../../../hooks/useForm";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
 
 type FormData = {
@@ -13,8 +16,6 @@ type FormData = {
   message: string;
 };
 
-type FormErrors = Partial<Record<keyof FormData, string>>;
-
 const CHAMPS = [
   "first_name",
   "last_name",
@@ -23,68 +24,67 @@ const CHAMPS = [
   "message",
 ] as const;
 
+const VALEURS_INITIALES: FormData = {
+  first_name: "",
+  last_name: "",
+  email: "",
+  subject: "",
+  message: "",
+};
+
+const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
+  const newErrors: FormErrors<FormData> = {};
+
+  if (!formData.first_name.trim()) {
+    newErrors.first_name = "Le nom est requis";
+  }
+
+  if (!formData.last_name.trim()) {
+    newErrors.last_name = "Le prénom est requis";
+  }
+
+  if (!formData.email.trim()) {
+    newErrors.email = "L'email est requis";
+  } else if (!isValidEmail(formData.email)) {
+    newErrors.email = "L'email n'est pas valide";
+  }
+
+  if (!formData.subject.trim()) {
+    newErrors.subject = "Le sujet est requis";
+  }
+
+  if (!formData.message.trim()) {
+    newErrors.message = "Le message est requis";
+  } else if (formData.message.trim().length < 10) {
+    newErrors.message = "Le message doit contenir au moins 10 caractères";
+  }
+
+  return newErrors;
+};
+
 const FormContact = () => {
-  const [formData, setFormData] = useState<FormData>({
-    first_name: "",
-    last_name: "",
-    email: "",
-    subject: "",
-    message: "",
-  });
-
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setFormError(null);
-    setConfirmation(null);
-    // Clear error when user starts typing
-    if (errors[name as keyof FormData]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!formData.first_name.trim()) {
-      newErrors.first_name = "Le nom est requis";
-    }
-
-    if (!formData.last_name.trim()) {
-      newErrors.last_name = "Le prénom est requis";
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = "L'email est requis";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "L'email n'est pas valide";
-    }
-
-    if (!formData.subject.trim()) {
-      newErrors.subject = "Le sujet est requis";
-    }
-
-    if (!formData.message.trim()) {
-      newErrors.message = "Le message est requis";
-    } else if (formData.message.trim().length < 10) {
-      newErrors.message = "Le message doit contenir au moins 10 caractères";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const {
+    formData,
+    setFormData,
+    errors,
+    setErrors,
+    formError,
+    setFormError,
+    isSubmitting,
+    setIsSubmitting,
+    handleChange,
+    validate,
+  } = useForm<FormData>(VALEURS_INITIALES, {
+    // La confirmation parle du message parti : la première frappe du suivant la périme.
+    onChange: () => setConfirmation(null),
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (!validate(reglesDeSaisie)) {
       return;
     }
 
@@ -105,13 +105,7 @@ const FormContact = () => {
           message: formData.message,
         }),
       });
-      setFormData({
-        first_name: "",
-        last_name: "",
-        email: "",
-        subject: "",
-        message: "",
-      });
+      setFormData(VALEURS_INITIALES);
       // Le formulaire se vide au succès : sans ce message, rien ne le distinguerait
       // d'un échec.
       setConfirmation("Votre message est parti. Nous vous répondrons par email.");

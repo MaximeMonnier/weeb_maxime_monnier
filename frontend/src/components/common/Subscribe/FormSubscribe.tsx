@@ -1,9 +1,11 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
 import { apiFetch } from "../../../lib/api";
 import { toFormErrors } from "../../../lib/apiErrors";
+import { isValidEmail } from "../../../lib/validationRules";
+import { useForm } from "../../../hooks/useForm";
+import type { FormErrors } from "../../../hooks/useForm";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
 import { useNavigate } from "react-router-dom";
 
@@ -15,8 +17,6 @@ type FormData = {
   confirmPassword: string;
 };
 
-type FormErrors = Partial<Record<keyof FormData, string>>;
-
 // `confirmPassword` n'est pas envoyé : l'API ne le connaît pas et ne peut rien en dire.
 const CHAMPS = ["first_name", "last_name", "email", "password"] as const;
 
@@ -25,72 +25,68 @@ const CHAMPS = ["first_name", "last_name", "email", "password"] as const;
 const REFUS_NEUTRE =
   "Impossible de créer un compte avec ces informations. Si vous avez déjà un compte, connectez-vous.";
 
-const FormSubscribe = () => {
-  const [formData, setFormData] = useState<FormData>({
-    first_name: "",
-    last_name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
+const VALEURS_INITIALES: FormData = {
+  first_name: "",
+  last_name: "",
+  email: "",
+  password: "",
+  confirmPassword: "",
+};
 
+const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
+  const newErrors: FormErrors<FormData> = {};
+
+  if (!formData.first_name.trim()) {
+    newErrors.first_name = "Le nom est requis";
+  }
+
+  if (!formData.last_name.trim()) {
+    newErrors.last_name = "Le prénom est requis";
+  }
+
+  if (!formData.email.trim()) {
+    newErrors.email = "L'email est requis";
+  } else if (!isValidEmail(formData.email)) {
+    newErrors.email = "L'email n'est pas valide";
+  }
+
+  if (!formData.password.trim()) {
+    newErrors.password = "Le mot de passe est requis";
+  } else if (formData.password.length < 8) {
+    newErrors.password = "Le mot de passe doit contenir au moins 8 caractères";
+  } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+    newErrors.password =
+      "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre";
+  }
+
+  if (!formData.confirmPassword.trim()) {
+    newErrors.confirmPassword = "La confirmation du mot de passe est requise";
+  } else if (formData.password !== formData.confirmPassword) {
+    newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
+  }
+
+  return newErrors;
+};
+
+const FormSubscribe = () => {
   const navigate = useNavigate();
 
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setFormError(null);
-    // Clear error when user starts typing
-    if (errors[name as keyof FormData]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!formData.first_name.trim()) {
-      newErrors.first_name = "Le nom est requis";
-    }
-
-    if (!formData.last_name.trim()) {
-      newErrors.last_name = "Le prénom est requis";
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = "L'email est requis";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "L'email n'est pas valide";
-    }
-
-    if (!formData.password.trim()) {
-      newErrors.password = "Le mot de passe est requis";
-    } else if (formData.password.length < 8) {
-      newErrors.password =
-        "Le mot de passe doit contenir au moins 8 caractères";
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-      newErrors.password =
-        "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre";
-    }
-
-    if (!formData.confirmPassword.trim()) {
-      newErrors.confirmPassword = "La confirmation du mot de passe est requise";
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const {
+    formData,
+    errors,
+    setErrors,
+    formError,
+    setFormError,
+    isSubmitting,
+    setIsSubmitting,
+    handleChange,
+    validate,
+  } = useForm<FormData>(VALEURS_INITIALES);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (!validate(reglesDeSaisie)) {
       return;
     }
 
