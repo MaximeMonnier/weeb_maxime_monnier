@@ -36,11 +36,11 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
   const newErrors: FormErrors<FormData> = {};
 
   if (!formData.first_name.trim()) {
-    newErrors.first_name = "Le nom est requis";
+    newErrors.first_name = "Le prénom est requis";
   }
 
   if (!formData.last_name.trim()) {
-    newErrors.last_name = "Le prénom est requis";
+    newErrors.last_name = "Le nom est requis";
   }
 
   if (!formData.email.trim()) {
@@ -133,10 +133,10 @@ const FormContact = () => {
       <div className="space-y-6">
         <div className="flex gap-4">
           <Input
-            label="Nom"
+            label="Prénom"
             name="first_name"
             type="text"
-            placeholder="Dupont"
+            placeholder="Jean"
             value={formData.first_name}
             onChange={handleChange}
             error={errors.first_name}
@@ -144,10 +144,10 @@ const FormContact = () => {
             fullWidth
           />
           <Input
-            label="Prénom"
+            label="Nom"
             name="last_name"
             type="text"
-            placeholder="Jean"
+            placeholder="Dupont"
             value={formData.last_name}
             onChange={handleChange}
             error={errors.last_name}
