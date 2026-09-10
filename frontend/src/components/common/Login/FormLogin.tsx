@@ -1,9 +1,11 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
 import { apiFetch } from "../../../lib/api";
 import { toFormErrors } from "../../../lib/apiErrors";
+import { isValidEmail } from "../../../lib/validationRules";
+import { useForm } from "../../../hooks/useForm";
+import type { FormErrors } from "../../../hooks/useForm";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
 import { useNavigate } from "react-router-dom";
 
@@ -12,56 +14,50 @@ type FormData = {
   password: string;
 };
 
-type FormErrors = Partial<Record<keyof FormData, string>>;
-
 const CHAMPS = ["email", "password"] as const;
 
-const FormLogin = () => {
-  const [formData, setFormData] = useState<FormData>({
-    email: "",
-    password: "",
-  });
+const VALEURS_INITIALES: FormData = {
+  email: "",
+  password: "",
+};
 
+const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
+  const newErrors: FormErrors<FormData> = {};
+
+  if (!formData.email.trim()) {
+    newErrors.email = "L'email est requis";
+  } else if (!isValidEmail(formData.email)) {
+    newErrors.email = "L'email n'est pas valide";
+  }
+
+  if (!formData.password.trim()) {
+    newErrors.password = "Le mot de passe est requis";
+  } else if (formData.password.length < 8) {
+    newErrors.password = "Le mot de passe doit contenir au moins 8 caractères";
+  }
+
+  return newErrors;
+};
+
+const FormLogin = () => {
   const navigate = useNavigate();
 
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setFormError(null);
-    // Clear error when user starts typing
-    if (errors[name as keyof FormData]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!formData.email.trim()) {
-      newErrors.email = "L'email est requis";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "L'email n'est pas valide";
-    }
-
-    if (!formData.password.trim()) {
-      newErrors.password = "Le mot de passe est requis";
-    } else if (formData.password.length < 8) {
-      newErrors.password =
-        "Le mot de passe doit contenir au moins 8 caractères";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const {
+    formData,
+    errors,
+    setErrors,
+    formError,
+    setFormError,
+    isSubmitting,
+    setIsSubmitting,
+    handleChange,
+    validate,
+  } = useForm<FormData>(VALEURS_INITIALES);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (!validate(reglesDeSaisie)) {
       return;
     }
 

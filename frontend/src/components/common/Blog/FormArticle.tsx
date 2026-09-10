@@ -1,8 +1,9 @@
-import { useState } from "react";
 import { Input, Textarea } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
 import { apiFetch } from "../../../lib/api";
 import { toFormErrors } from "../../../lib/apiErrors";
+import { useForm } from "../../../hooks/useForm";
+import type { FormErrors } from "../../../hooks/useForm";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
 
 type FormData = {
@@ -10,56 +11,50 @@ type FormData = {
   content: string;
 };
 
-type FormErrors = Partial<Record<keyof FormData, string>>;
-
 const CHAMPS = ["title", "content"] as const;
+
+const VALEURS_INITIALES: FormData = {
+  title: "",
+  content: "",
+};
+
+const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
+  const newErrors: FormErrors<FormData> = {};
+
+  if (!formData.title.trim()) {
+    newErrors.title = "Le titre est requis";
+  }
+
+  if (!formData.content.trim()) {
+    newErrors.content = "Le contenu est requis";
+  } else if (formData.content.trim().length < 10) {
+    newErrors.content = "Le contenu doit contenir au moins 10 caractères";
+  }
+
+  return newErrors;
+};
 
 // Le parent (Blog) passe une fonction appelée après une création réussie
 type FormArticleProps = { onCreated?: () => void };
 
 const FormArticle = ({ onCreated }: FormArticleProps) => {
-  const [formData, setFormData] = useState<FormData>({
-    title: "",
-    content: "",
-  });
-
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    setFormError(null);
-    // Clear error when user starts typing
-    if (errors[name as keyof FormData]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!formData.title.trim()) {
-      newErrors.title = "Le titre est requis";
-    }
-
-    if (!formData.content.trim()) {
-      newErrors.content = "Le contenu est requis";
-    } else if (formData.content.trim().length < 10) {
-      newErrors.content = "Le contenu doit contenir au moins 10 caractères";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const {
+    formData,
+    setFormData,
+    errors,
+    setErrors,
+    formError,
+    setFormError,
+    isSubmitting,
+    setIsSubmitting,
+    handleChange,
+    validate,
+  } = useForm<FormData>(VALEURS_INITIALES);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (!validate(reglesDeSaisie)) {
       return;
     }
 
@@ -75,7 +70,7 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
           content: formData.content,
         }),
       });
-      setFormData({ title: "", content: "" });
+      setFormData(VALEURS_INITIALES);
       onCreated?.(); // prévient le Blog : ferme la modale + recharge la liste
     } catch (err) {
       // Le jeton d'accès ne vaut que quinze minutes et rien ne le renouvelle : le 401
