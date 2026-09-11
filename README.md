@@ -261,10 +261,12 @@ export COMPOSE_FILE=compose.prod.yaml
 | images | `weeb-backend:dev`, `weeb-frontend:dev` | `weeb-backend:prod`, `weeb-frontend:prod` |
 | projet Compose | `weeb`, volume `weeb_db_data` | `weeb-prod`, volumes `weeb-prod_db_data` et `weeb-prod_static_data` |
 
-Les deux piles portent des **noms de projet différents**, donc des conteneurs, des
-réseaux et des volumes distincts : un `down -v` lancé en développement ne touche
-pas aux données de la production, et l'inverse est vrai aussi. Les deux jeux de
-ports ne se recouvrent pas non plus, et **les deux piles peuvent tourner en même
+Les deux piles portent des **noms de projet différents**, posés par le `name:` en
+tête de chaque fichier : sans lui, Compose déduit le nom du répertoire du dépôt,
+le même pour les deux, et elles partageraient tout. Chacune a donc ses conteneurs,
+ses réseaux et ses volumes : un `down -v` lancé en développement ne touche pas
+aux données de la production, et l'inverse est vrai aussi. Les deux jeux de ports
+ne se recouvrent pas non plus, et **les deux piles peuvent tourner en même
 temps** — le développement sur `5173`, `8000`, `5432`, `1025` et `8025`, la
 production sur `8081` et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD`
 et `FRONTEND_PORT_PROD` : réutiliser les variables du développement remettrait
@@ -718,8 +720,10 @@ pour la même raison.
   copies sous `/app` — ce sont donc bien ceux de l'image qui s'exécutent, mais
   éditer `backend/docker-entrypoint.sh` ou `backend/healthcheck.py` sur la
   machine n'a plus d'effet sur le conteneur tant que l'image n'est pas
-  reconstruite (`docker compose -f compose.dev.yaml up -d --build`). En échange,
-  le bit exécutable du dépôt n'entre plus dans l'équation.
+  reconstruite (`docker compose -f compose.dev.yaml up -d --build`). Le
+  `Dockerfile` les copie **avant** son `COPY . .`, pour que leur layer survive à
+  chaque modification de code, et pose le bit exécutable par un `RUN chmod +x` :
+  en échange, celui du dépôt n'entre plus dans l'équation.
 - **La production ne se joint pas sur les ports du développement.**
   `BACKEND_PORT_PROD` et `FRONTEND_PORT_PROD` valent `8001` et `8081`, et non
   `8000` et `5173` : deux jeux de variables, pour que les deux piles tournent
