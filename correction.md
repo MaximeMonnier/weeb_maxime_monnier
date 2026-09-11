@@ -64,7 +64,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 - **Avant chaque push** : dérouler `revue-avant-push`, qui rend un verdict
   `BLOQUANT / À CORRIGER / OK`.
 - **Outillage** : `/plan-chapitre <lot>` pour créer les tickets du lot, puis `/ticket <n>` pour
-  chaque issue. **`/lot` ne s'applique pas ici** : il lit `plan.md`, un autre fichier, et ne
+  chaque issue. **Jamais `/ticket lot <n>`** : ce mode lit `plan.md`, un autre fichier, et ne
   déroule pas `inventaire-avant-dev`, que les prompts de ce fichier exigent.
 
 ---
