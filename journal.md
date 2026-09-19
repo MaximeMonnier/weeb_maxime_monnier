@@ -268,3 +268,74 @@ Les rouges ont été éprouvés autant que les verts : retirer le `select_relate
 passer la liste de l'API de 4 à 31 requêtes, vider le `list_select_related` de l'admin la fait
 passer de 9 à 36, et retirer le `Meta.ordering` de `Contact` fait tomber le cas du tri — qui crée
 ses trois messages dans le désordre pour ne pas retomber par hasard sur l'ordre des identifiants.
+
+---
+
+## Lot 4 — Socle des formulaires front
+
+Clos le 2026-09-19 · Epic #116 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — six formulaires — `FormContact`, `FormLogin`, `FormSubscribe`,
+`FormArticle`, `ForgotPassword`, `ResetPassword`, 999 lignes en tout — recopiaient le même
+socle : `handleChange` écrit **6 fois**, `type FormErrors` **4 fois**, le squelette de
+`validateForm` **4 fois**, l'expression d'adresse email **3 fois**. Deux défauts vivaient dans
+cette copie. Dans `FormContact` et `FormSubscribe`, le libellé « Nom » coiffait le champ
+`first_name` et « Prénom » le champ `last_name`, messages de validation compris : un visiteur
+rangeait son nom dans le prénom du modèle. Et `FormSubscribe.tsx:110` renvoyait vers `/login`
+dès le compte créé, que `RegisterSerializer` pose pourtant `is_active=False` — l'inscription
+finissait sur un 401 que rien n'expliquait.
+
+**Décision et justification** — quatre arbitrages.
+
+Le hook ne porte **aucune règle de validation**. Chacun des six formulaires garde les siennes
+dans une fonction pure, hors du composant, que `validate` applique. Les faire remonter aurait
+réuni six jeux de contraintes sans rapport dans un fichier commun, et lié chaque formulaire aux
+cinq autres. `lib/validationRules.ts` ne reçoit que ce qui sert à plus d'un appelant :
+l'adresse email, partagée par trois formulaires. La regex de complexité du mot de passe reste
+chez `FormSubscribe`, son seul consommateur — et doit rester alignée sur
+`PasswordComplexityValidator` côté API.
+
+`isSubmitting` **monte dans le hook** plutôt que de rester local. C'est ce qui vide la tâche 4.4
+du plan : l'oubli du `setIsSubmitting(true)` qu'elle corrigeait n'a plus d'endroit où se
+produire.
+
+L'inscription **reste sur sa page** au lieu de rediriger vers `/login`. Le message ne peut pas
+voyager : la page d'arrivée ne sait pas d'où l'on vient, et rien dans le front ne fait survivre
+une confirmation à la navigation. Plutôt que de tirer une librairie de toasts pour un seul
+message, le formulaire garde l'utilisateur sur place et annonce l'activation à venir dans une
+région `role="status"`. La piste du toast reste ouverte dans `AMELIORATIONS.md`.
+
+Aucune **migration de données** pour l'inversion nom / prénom : rien de ce qui était en base ne
+venait de ces deux formulaires.
+
+**Ce qui a surpris** — quatre fois.
+
+**Le plan comptait quatre formulaires, il y en avait six.** `ForgotPassword` et `ResetPassword`
+portaient le même `handleChange`, mais sur un état scalaire — une chaîne à la place de l'objet
+de champs. Les migrer a demandé de retyper cet état en objet à **une** clé, seule forme que le
+hook sache indexer.
+
+**Deux des quatre tâches du lot étaient déjà faites** trois jours avant que l'epic ne soit
+écrite : l'issue #79 avait créé `lib/apiErrors.ts` (tâche 4.2) et posé au passage le
+`setIsSubmitting(true)` manquant de `FormContact` (tâche 4.4). Le plan, lui, datait du
+2026-09-03, et rien ne l'en avertissait. Trois des quatre points de la tâche 4.3 se sont révélés sans objet de la
+même façon : aucun `helperText` sur ces champs, aucun bloc à déplacer, et l'inversion absente
+de l'admin Django comme du parcours Playwright.
+
+**L'extraction n'a pas fait maigrir les formulaires** : 999 lignes avant, 1007 après, plus 70
+pour le hook et les règles. Le gain n'est pas le volume, c'est qu'il ne reste qu'un seul
+endroit où ce socle puisse être faux.
+
+**Le doublon s'est déplacé dans les tests.** `FormSubscribe.test.tsx`, deuxième test de
+composant rendu, a recopié de `FormLogin.test.tsx` la trentaine de lignes qui substituent
+`globalThis.fetch` et modélisent le contrat d'`apiFetch`. Le seuil d'extraction est posé à un
+troisième formulaire testé, dans `AMELIORATIONS.md`.
+
+**Preuve de la correction** — depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend
+`Test Files  5 passed (5)` et `Tests  45 passed (45)` — 33 avant le lot —, et `npm run build`
+`✓ built in 3.23s`. Les quatre contrôles de l'epic #116 : `grep -rn "type FormErrors"
+frontend/src` ne sort que `hooks/useForm.ts`, `grep -rn "const handleChange" frontend/src`
+aucune ligne, `grep -rnF 's@' frontend/src` la seule ligne de `lib/validationRules.ts`, et les
+six formulaires importent le hook. Le parcours Playwright a été rejoué à la livraison de #117
+et de #118, pile `compose.dev.yaml` levée ; il ne couvre pas l'inscription, et n'a donc pas été
+relancé après #119.
