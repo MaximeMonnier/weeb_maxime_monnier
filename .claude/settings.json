@@ -1,0 +1,6 @@
+{
+  "_pourquoi": "Coupé pour ce dépôt seul — les autres projets gardent superpowers. Huit de ses skills se substituent en silence aux étapes de /ticket et /plan-chapitre : la revue perd ses six axes, et l'issue reste ouverte après la PR. Audit du 2026-09-18. Ne pas réactiver sans relire .claude/commands/ticket.md, les étapes de branche, de revue et de PR.",
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": false
+  }
+}
