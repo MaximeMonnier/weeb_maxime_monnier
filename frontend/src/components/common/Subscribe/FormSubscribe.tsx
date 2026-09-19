@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
@@ -7,7 +8,6 @@ import { isValidEmail } from "../../../lib/validationRules";
 import { useForm } from "../../../hooks/useForm";
 import type { FormErrors } from "../../../hooks/useForm";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
-import { useNavigate } from "react-router-dom";
 
 type FormData = {
   first_name: string;
@@ -69,10 +69,11 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
 };
 
 const FormSubscribe = () => {
-  const navigate = useNavigate();
+  const [confirmation, setConfirmation] = useState<string | null>(null);
 
   const {
     formData,
+    setFormData,
     errors,
     setErrors,
     formError,
@@ -81,7 +82,11 @@ const FormSubscribe = () => {
     setIsSubmitting,
     handleChange,
     validate,
-  } = useForm<FormData>(VALEURS_INITIALES);
+  } = useForm<FormData>(VALEURS_INITIALES, {
+    // La confirmation parle du compte créé : la première frappe de l'inscription
+    // suivante la périme.
+    onChange: () => setConfirmation(null),
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +96,7 @@ const FormSubscribe = () => {
     }
 
     setFormError(null);
+    setConfirmation(null);
     setIsSubmitting(true);
 
     try {
@@ -103,7 +109,12 @@ const FormSubscribe = () => {
           password: formData.password,
         }),
       });
-      navigate("/login"); // compte créé mais INACTIF → on l'envoie vers la connexion
+      setFormData(VALEURS_INITIALES);
+      // Le compte est créé INACTIF : sans ce message, la connexion qui suit
+      // renverrait un refus que rien n'explique.
+      setConfirmation(
+        "Votre compte est créé. Un administrateur doit l'activer avant votre première connexion.",
+      );
     } catch (err) {
       const { fieldErrors, formError } = toFormErrors(err, CHAMPS);
       // Le message part sous le formulaire et non sous le champ : le seul fait de
@@ -122,6 +133,11 @@ const FormSubscribe = () => {
       className="w-full max-w-2xl my-8 border border-primary p-6 rounded-lg"
     >
       <ErrorAlert message={formError} />
+      {/* Monté en permanence : une région live apparue avec son texte n'est pas
+          annoncée de façon fiable. */}
+      <p role="status" className="form-alert-success">
+        {confirmation}
+      </p>
 
       <div className="space-y-6">
         {/* Prénom et nom */}
