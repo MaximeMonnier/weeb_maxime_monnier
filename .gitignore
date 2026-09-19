@@ -42,6 +42,11 @@ CLAUDE.md
 GUIDE_RAPPORT.md
 PROMPT_REECRITURE_RAPPORT.md
 plan.md
-# Configuration Claude Code : entièrement ignorée. Skills, commandes et réglages
-# sont un outillage personnel, propre à la machine, et non un livrable du projet.
-.claude/
+# Configuration Claude Code : ignorée, SAUF settings.json. Skills, commandes et
+# réglages locaux restent un outillage personnel, propre à la machine. Seul
+# settings.json est versionné, parce qu'il coupe un plugin dont les skills se
+# substituent aux étapes de /ticket : un checkout qui l'effacerait réactiverait
+# le plugin sans rien signaler. Le motif doit rester `.claude/*` — sous
+# `.claude/`, git n'entre pas dans le dossier et la négation est inerte.
+.claude/*
+!.claude/settings.json

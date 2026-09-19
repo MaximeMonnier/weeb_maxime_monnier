@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from .models import Article
@@ -8,7 +7,9 @@ from .permissions import IsOwnerOrReadOnly
 
 class ArticleViewSet(viewsets.ModelViewSet):
     """CRUD complet des articles (liste, création, détail, modif, suppression)."""
-    queryset = Article.objects.all()
+    # Jointure et non requête par ligne : le serializer rend l'auteur par son
+    # __str__, et la liste irait sinon le chercher en base une fois par article.
+    queryset = Article.objects.select_related("author")
     serializer_class = ArticleSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 

@@ -1,41 +1,49 @@
 import { useState } from "react";
 import { apiFetch } from "../lib/api";
 import { toFormErrors } from "../lib/apiErrors";
+import { useForm } from "../hooks/useForm";
 import { Input } from "../components/ui/Input";
 import MainButton from "../components/ui/Button/MainButton";
 import MainTitle from "../components/ui/Title/MainTitle";
 import ErrorAlert from "../components/ui/Alert/ErrorAlert";
 
+// Un seul champ, mais la même forme que les autres formulaires : le hook indexe les
+// erreurs sur les clés de l'état.
+type FormData = { email: string };
+
+const VALEURS_INITIALES: FormData = { email: "" };
+
 const ForgotPassword = () => {
-  const [email, setEmail] = useState("");
   // L'API répond la même chose que le compte existe ou non : on affiche son message tel quel.
   const [confirmation, setConfirmation] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-    setError(null);
-    setFormError(null);
-  };
+  const {
+    formData,
+    errors,
+    setErrors,
+    formError,
+    setFormError,
+    isSubmitting,
+    setIsSubmitting,
+    handleChange,
+  } = useForm<FormData>(VALEURS_INITIALES);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setErrors({});
     setFormError(null);
     setIsSubmitting(true);
     try {
       const data = await apiFetch<{ detail: string }>("/auth/password-reset/", {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: formData.email }),
       });
       setConfirmation(data.detail);
     } catch (err) {
       // Le quota le plus serré du projet, trois appels par heure : un message unique
       // annoncerait une adresse invalide à qui n'a fait qu'attendre.
       const { fieldErrors, formError } = toFormErrors(err, ["email"] as const);
-      setError(fieldErrors.email ?? null);
+      setErrors(fieldErrors);
       setFormError(formError);
     } finally {
       setIsSubmitting(false);
@@ -66,9 +74,9 @@ const ForgotPassword = () => {
                   name="email"
                   type="email"
                   placeholder="jean.dupont@example.com"
-                  value={email}
+                  value={formData.email}
                   onChange={handleChange}
-                  error={error ?? undefined}
+                  error={errors.email}
                   required
                   fullWidth
                 />

@@ -1,11 +1,27 @@
-import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
 import { toFormErrors } from "../lib/apiErrors";
+import { useForm } from "../hooks/useForm";
+import type { FormErrors } from "../hooks/useForm";
 import { Input } from "../components/ui/Input";
 import MainButton from "../components/ui/Button/MainButton";
 import MainTitle from "../components/ui/Title/MainTitle";
 import ErrorAlert from "../components/ui/Alert/ErrorAlert";
+
+// La clé porte le nom du champ côté API : `toFormErrors` range son refus dessous.
+type FormData = { new_password: string };
+
+const VALEURS_INITIALES: FormData = { new_password: "" };
+
+const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
+  const newErrors: FormErrors<FormData> = {};
+
+  if (formData.new_password.length < 8) {
+    newErrors.new_password = "Le mot de passe doit contenir au moins 8 caractères.";
+  }
+
+  return newErrors;
+};
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -14,35 +30,38 @@ const ResetPassword = () => {
   const uid = searchParams.get("uid");
   const token = searchParams.get("token");
 
-  const [newPassword, setNewPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNewPassword(e.target.value);
-    setError(null);
-    setFormError(null);
-  };
+  const {
+    formData,
+    errors,
+    setErrors,
+    formError,
+    setFormError,
+    isSubmitting,
+    setIsSubmitting,
+    handleChange,
+    validate,
+  } = useForm<FormData>(VALEURS_INITIALES);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword.length < 8) {
-      setError("Le mot de passe doit contenir au moins 8 caractères.");
+    if (!validate(reglesDeSaisie)) {
       return;
     }
-    setError(null);
     setFormError(null);
     setIsSubmitting(true);
     try {
       await apiFetch<{ detail: string }>("/auth/password-reset/confirm/", {
         method: "POST",
-        body: JSON.stringify({ uid, token, new_password: newPassword }),
+        body: JSON.stringify({
+          uid,
+          token,
+          new_password: formData.new_password,
+        }),
       });
       navigate("/login", { replace: true });
     } catch (err) {
       const { fieldErrors, formError } = toFormErrors(err, ["new_password"]);
-      setError(fieldErrors.new_password ?? null);
+      setErrors(fieldErrors);
       // Le lien mort est le seul refus que l'API rende sans dire quoi faire — son
       // "detail" tient en trois mots. Une panne ou un serveur injoignable gardent le
       // leur : les ramener au lien invalide ferait redemander un lien encore bon.
@@ -89,10 +108,10 @@ const ResetPassword = () => {
                   name="new_password"
                   type="password"
                   placeholder="••••••••"
-                  value={newPassword}
+                  value={formData.new_password}
                   onChange={handleChange}
                   helperText="Au moins 8 caractères avec majuscule, minuscule et chiffre"
-                  error={error ?? undefined}
+                  error={errors.new_password}
                   required
                   fullWidth
                 />

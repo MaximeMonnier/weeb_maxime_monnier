@@ -6,5 +6,6 @@ from .models import Contact
 class ContactAdmin(admin.ModelAdmin):
     """Lecture des messages de contact dans l'admin Django."""
 
-    list_display = ("subject", "first_name", "last_name", "email")
+    list_display = ("subject", "first_name", "last_name", "email", "created_at")
+    list_filter = ("created_at",)
     search_fields = ("email", "subject")
