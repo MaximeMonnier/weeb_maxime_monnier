@@ -1,10 +1,13 @@
 """Tests des articles : ce que le visiteur lit sans compte, ce que l'API refuse d'écrire,
 à qui l'article appartient quoi qu'en dise le corps envoyé, et dans quel ordre la liste
-sort — le tri, l'auteur et les dates ne venant jamais du client."""
+sort — le tri, l'auteur et les dates ne venant jamais du client. Et ce que coûtent les
+deux listes, celle de l'API et celle de l'admin, quand le nombre d'articles grandit."""
 
 from datetime import timedelta
 
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import AccessToken
@@ -213,3 +216,66 @@ class ArticleDatesImposeesTests(TestCase):
         # champs appellent now() chacun de leur côté et tombent souvent sur la même
         # microseconde, si bien qu'un updated_at resté figé passerait le test.
         self.assertGreater(article.updated_at, modification)
+
+
+class ArticleCoutDesListesTests(TestCase):
+    """Les deux listes tiennent en un nombre de requêtes que le nombre d'articles ne change
+    pas : l'auteur, rendu par son __str__ des deux côtés, coûterait sinon une requête par
+    ligne. Aucun des deux comptes n'est écrit ici — c'est leur égalité qui prouve la
+    jointure, un nombre en dur ne prouvant que lui-même et cédant à la première requête
+    ajoutée ailleurs, session ou filtre de l'admin.
+
+    Côté admin, deux jointures se relaient : celle que déclare list_select_related, et
+    celle que ChangeList applique de lui-même dès qu'une relation figure dans
+    list_display. Ce que le test garde là, c'est leur perte à toutes les deux d'un coup,
+    un list_select_related vidé n'étant plus le défaut qui déclenche la seconde : les
+    neuf requêtes de la page en deviennent alors trente-six."""
+
+    def setUp(self):
+        # Plusieurs auteurs : un seul ferait tomber le test tout autant, l'ORM ne
+        # partageant aucun cache entre deux instances, mais pas une liste réelle.
+        self.auteurs = [membre(f"auteur{rang}@example.com") for rang in range(3)]
+        self.admin = CustomUser.objects.create_superuser(
+            email="admin@example.com", first_name="A", last_name="Dmin",
+            password="MotDePasseValide123",
+        )
+
+    def publier(self, nombre):
+        """Ajoute `nombre` articles, répartis entre les auteurs."""
+        Article.objects.bulk_create([
+            Article(title=f"Article {rang}", content="Contenu.",
+                    author=self.auteurs[rang % len(self.auteurs)])
+            for rang in range(nombre)
+        ])
+
+    def compter(self, url):
+        """Le nombre de requêtes d'un GET, mesuré plutôt que supposé."""
+        with CaptureQueriesContext(connection) as requetes:
+            reponse = self.client.get(url)
+
+        self.assertEqual(reponse.status_code, 200)
+        return len(requetes)
+
+    def test_la_liste_de_l_api_coute_autant_a_30_articles_qu_a_3(self):
+        url = reverse("article-list")
+        self.publier(3)
+        reference = self.compter(url)
+
+        self.publier(27)
+
+        with self.assertNumQueries(reference):
+            reponse = self.client.get(url)
+        self.assertEqual(len(reponse.json()), 30)
+
+    def test_la_liste_de_l_admin_coute_autant_a_30_articles_qu_a_3(self):
+        # force_login et non un jeton porteur : l'API ne monte que JWTAuthentication,
+        # quand l'admin n'ouvre ses pages qu'à une session.
+        self.client.force_login(self.admin)
+        url = reverse("admin:articles_article_changelist")
+        self.publier(3)
+        reference = self.compter(url)
+
+        self.publier(27)
+
+        with self.assertNumQueries(reference):
+            self.assertEqual(self.client.get(url).status_code, 200)
