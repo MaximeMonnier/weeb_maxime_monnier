@@ -7,11 +7,11 @@ et pour les prochaines itérations).
 - [ ] **Toasts de succès / d'erreur** — la moitié « erreur » est livrée par l'issue #79 :
       `lib/apiErrors.ts` traduit les refus de l'API et chaque formulaire les affiche, en
       place des `console.error`. Ce qui reste est la notification **de succès**, qui n'existe
-      qu'à deux endroits : le formulaire de contact, dont le message est écrit dans la page,
-      et la demande de réinitialisation, qui affiche celui de l'API. Une inscription réussie
-      ne dit rien, elle : elle change de page, et l'écran d'arrivée ne sait pas d'où l'on
-      vient. Une publication d'article non plus, sans même ce prétexte — `onCreated` ferme la
-      modale et recharge la liste, sans quitter `/blog`. Piste inchangée : librairie type
+      qu'à trois endroits, tous écrits dans la page : le formulaire de contact, la demande de
+      réinitialisation, qui affiche le message de l'API, et l'inscription depuis l'issue #119,
+      qui ne quitte plus la page pour cette raison même. Une publication d'article ne dit rien,
+      elle — `onCreated` ferme la modale et recharge la liste, sans quitter `/blog`. Piste
+      inchangée : librairie type
       `react-hot-toast` ou `sonner`, ou un composant Toast maison — c'est le point où ce
       message survivrait à la navigation.
 
@@ -150,5 +150,16 @@ Rien de ce qui reste ne bloque le développement.
       `postgres_database()` et `env_required`, il lui faut une vraie base. À ne pas confondre
       avec l'entrée « Exécution des tests en conteneur isolé » ci-dessus, qui vise l'image
       de production et reste un chantier distinct.
+
+## Tests
+
+- [ ] **Doublon réseau d'un test rendu à l'autre.** `FormLogin.test.tsx` et
+      `FormSubscribe.test.tsx` portent chacun leur `reponse()`, leur `requeteEnvoyee()` et le
+      couple `beforeEach`/`afterEach` qui substitue `globalThis.fetch` — une trentaine de
+      lignes identiques. Elles modélisent le contrat d'`apiFetch` (`ok`, `status`, `json()`) :
+      à deux endroits, elles dériveront séparément le jour où `lib/api.ts` changera. Un
+      troisième formulaire testé impose l'extraction. Piste : un module de test partagé,
+      importé explicitement par chaque fichier — surtout pas un `setupFiles`, `globals`
+      restant à `false`. Repéré à l'issue #119.
 
 ## (à compléter au fil de l'eau)
