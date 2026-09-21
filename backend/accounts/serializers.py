@@ -54,8 +54,8 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 class RefreshSerializer(TokenRefreshSerializer):
     """Renouvelle les jetons, et refuse en 401 un compte supprimé comme un compte désactivé."""
 
-    # La traduction de simplejwt, marquée fuzzy, n'est pas compilée : le libellé sortait
-    # en anglais. Le compte désactivé et le compte supprimé le partagent.
+    # simplejwt n'est pas dans INSTALLED_APPS, donc son catalogue n'est pas chargé ; et
+    # ce libellé-ci, marqué fuzzy, resterait anglais même chargé. Les deux refus le partagent.
     default_error_messages = {
         "no_active_account": "Aucun compte actif ne correspond à ce jeton.",
     }
