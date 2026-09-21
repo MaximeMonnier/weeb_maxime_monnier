@@ -1,11 +1,24 @@
 // Réglages du parcours en navigateur, lus par `npm run test:e2e` seul. Vitest,
 // lui, se règle dans vite.config.ts : les deux lanceurs ne partagent rien.
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
 import { defineConfig, devices } from "@playwright/test";
+
+// Le port que compose.dev.yaml publie, lu où Compose le lit, avec son défaut.
+// Seule cette clé est tirée du .env : les identifiants ne viennent que du shell.
+function portPublieParCompose(): string {
+  try {
+    const env = parseEnv(readFileSync(new URL("../.env", import.meta.url), "utf8"));
+    return env.FRONTEND_PORT_DEV || "5173";
+  } catch {
+    return "5173";
+  }
+}
 
 // Le serveur Vite de compose.dev.yaml, publié sur la boucle locale seule. Pas de
 // `webServer` ici : Playwright relancerait Vite sans la base ni l'API derrière,
 // et le parcours cesserait de prouver que le front et l'API se parlent.
-const ADRESSE_DU_SITE = "http://127.0.0.1:5173";
+const ADRESSE_DU_SITE = `http://127.0.0.1:${portPublieParCompose()}`;
 
 export default defineConfig({
   // Hors de src/ : ces fichiers ne partent pas dans le bundle, et vite.config.ts
