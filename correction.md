@@ -944,7 +944,7 @@ seulement celui-ci.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — sécurité |
+| Tickets créés le 2026-09-21 | #128 | — | Bloc 1 — sécurité |
 
 **Grain de ticket** : epic + 4 sous-issues, une par tâche.
 
