@@ -1168,8 +1168,10 @@ Deux conséquences pratiques :
   `refresh` serait refusé. Un renouvellement refusé efface les deux jetons et rejoue la requête
   **sans** jeton : l'API seule sait si la route est publique, et `/blog` s'affiche au lieu de
   répondre `401`. Une panne du renouvellement (réseau, `5xx`) garde les jetons et rend le `401`
-  d'origine. Chaque `refresh` neuf repartant pour un jour, la session dure jusqu'à un jour sans
-  renouvellement, et non plus 15 minutes ;
+  d'origine. C'est pourquoi `login/refresh/` répond `401`, et non `500`, pour un compte supprimé
+  depuis la connexion : simplejwt laissait l'erreur sortir, d'où `LoginRefreshView`. Chaque
+  `refresh` neuf repartant pour un jour, la session dure jusqu'à un jour sans renouvellement,
+  et non plus 15 minutes ;
 - **la révocation vit en base**, dans les tables de `rest_framework_simplejwt.token_blacklist`.
   L'app est dans `INSTALLED_APPS` et ses migrations sont livrées avec le paquet : un
   `python manage.py migrate` suffit, `makemigrations` ne doit rien produire. Ces tables

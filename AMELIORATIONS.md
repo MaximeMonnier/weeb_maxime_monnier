@@ -132,15 +132,6 @@ Rien de ce qui reste ne bloque le développement.
       dépôt n'a ni tâche planifiée ni cron dans ses conteneurs. Sans conséquence à l'échelle
       d'un projet pédagogique ; à reprendre le jour où une file de tâches entrera, la même
       qui manque à l'envoi des emails ci-dessus.
-- [ ] **`login/refresh/` répond `500` pour un compte supprimé.** simplejwt 5.5.1 relit
-      l'utilisateur par `objects.get()` sans intercepter `DoesNotExist`. Or `apiFetch`, depuis
-      l'issue #130, ne tient pour refus qu'un `401` et voit un `5xx` comme une panne passagère
-      qui garde les jetons : un compte supprimé pendant une session ouverte garde donc ses
-      jetons morts jusqu'à l'échéance du refresh, 24 heures. Pendant ce temps `/blog` reste
-      vide, le formulaire de contact répond « session expirée » et `useIsAuthenticated` le
-      tient pour connecté. Un compte **désactivé**, lui, reçoit bien un `401`. Piste :
-      envelopper `TokenRefreshView` dans `accounts/views.py`, comme `LoginView`, pour rendre
-      un `401` sur `DoesNotExist`, test à l'appui.
 
 ## Intégration continue
 
