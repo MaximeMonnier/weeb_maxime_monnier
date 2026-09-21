@@ -397,6 +397,13 @@ class JWTRotationTests(TestCase):
 
         self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
 
+    def test_un_compte_supprime_ne_rafraichit_plus(self):
+        """Monté sur TokenRefreshView, login/refresh/ répondrait 500 : le front y voit une
+        panne passagère et garde des jetons morts jusqu'à l'échéance du refresh."""
+        CustomUser.objects.get(email="membre@example.com").delete()
+
+        self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
+
     def test_la_deconnexion_revoque_le_refresh(self):
         # Aucun en-tête d'authentification ici : la vue est publique, et le refresh
         # envoyé est la seule preuve exigée. Un IsAuthenticated hérité la fermerait.
