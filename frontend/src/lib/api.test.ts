@@ -125,6 +125,8 @@ describe("apiFetch — jeton d'accès expiré", () => {
 
     expect(dernierAppel().url).toBe(`${BASE}/articles/`);
     expect(dernierAppel().entetes.Authorization).toBe("Bearer acces-neuf");
+    // Rejouée en GET, la publication répondrait 200 sans créer l'article.
+    expect(dernierAppel().options).toMatchObject({ method: "POST", body: "{}" });
   });
 
   // Le refresh neuf compris : login/refresh/ met l'ancien en liste noire, et le
