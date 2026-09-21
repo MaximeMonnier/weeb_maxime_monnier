@@ -1,3 +1,5 @@
+import { getAccessToken } from "./tokens";
+
 // L'URL vient de frontend/.env : Vite ne lit jamais le .env de la racine.
 // Tout ce qui est préfixé VITE_ part en clair dans le bundle — aucun secret ici.
 const API_URL = import.meta.env.VITE_API_URL;
@@ -7,10 +9,6 @@ if (!API_URL) {
   throw new Error(
     "VITE_API_URL est absente : copier frontend/.env.example en frontend/.env, puis relancer Vite.",
   );
-}
-
-function getToken(): string | null {
-  return localStorage.getItem("access");
 }
 
 // DRF authentifie AVANT d'appliquer les permissions : un token périmé resté en
@@ -31,7 +29,7 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = needsToken(path) ? getToken() : null;
+  const token = needsToken(path) ? getAccessToken() : null;
 
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
