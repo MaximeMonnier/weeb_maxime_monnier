@@ -140,7 +140,11 @@ describe("apiFetch — jeton d'accès expiré", () => {
     await apiFetch("/articles/");
 
     const [, options] = appelsA(RENOUVELLEMENT)[0] as [string, RequestInit];
-    expect(options.body).toBe('{"refresh":"refresh-valide"}');
+    // Sans POST, le navigateur refuse l'envoi d'un corps : la panne serait permanente.
+    expect(options).toMatchObject({
+      method: "POST",
+      body: '{"refresh":"refresh-valide"}',
+    });
     expect(localStorage.getItem("access")).toBe("acces-neuf");
     expect(localStorage.getItem("refresh")).toBe("refresh-neuf");
   });
