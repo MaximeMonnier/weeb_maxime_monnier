@@ -77,7 +77,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 | 1 | Sécurité de l'API — **bloquant** | 6 | Prise de contrôle de compte possible en production |
 | 2 | Tests automatisés | 3 (+5) | Verrouille le lot 1 et protège tous les refactorings suivants |
 | 3 | Qualité et performance de l'API | 4 | Corrections backend isolées, sans impact sur le contrat d'API |
-| 4 | Socle des formulaires front | 4 | Une seule extraction règle quatre copier-coller à la fois |
+| 4 | Socle des formulaires front | 4 (+2) | Une seule extraction règle quatre copier-coller à la fois |
 | 5 | Authentification côté front | 4 | S'appuie sur le socle du lot 4 |
 | 6 | Pagination bout en bout | 2 | Change le contrat d'API : après la stabilisation du front |
 | 7 | Navigation, liens et pages manquantes | 4 | Corrections de surface, sans dépendance |
@@ -718,9 +718,12 @@ même état qu'avant. Donne-moi leur sortie.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — qualité |
+| Clos le 2026-09-19 — élargi à la confirmation d'inscription et aux tests du socle | #116 | Lot 4 | Bloc 1 — qualité |
 
-**Grain de ticket** : epic + 4 sous-issues, une par tâche. 4.1 en premier.
+**Grain de ticket** : epic + 4 sous-issues, une par tâche. 4.1 en premier. **Livré en 4, mais
+pas les quatre prévues** : #117 (4.1) et #118 (4.3) ; **4.2 et 4.4 étaient déjà réglées** par
+l'issue #79, le 2026-09-07, avant que l'epic ne soit écrite ; #119 et #120 se sont ajoutées en
+chemin — voir 4.5 et 4.6.
 
 > **Dépendances : lot 0.** Indépendant des lots 1 à 3, peut être mené en parallèle.
 > ⚠️ **Traiter 4.1 en premier** : les trois autres tâches se règlent alors en un seul endroit
@@ -728,13 +731,19 @@ même état qu'avant. Donne-moi leur sortie.
 
 ## 4.1 — Extraire `hooks/useForm.ts`
 
-- [ ] **Fichiers** : `frontend/src/hooks/useForm.ts` (à créer),
+- [x] **Fichiers** : `frontend/src/hooks/useForm.ts` (à créer),
   `FormContact.tsx`, `FormLogin.tsx`, `FormSubscribe.tsx`, `FormArticle.tsx`
 - **Constat** : `handleChange`, le type `FormErrors` et le squelette de `validateForm` sont
   **copiés à l'identique dans quatre formulaires**. `CLAUDE.md` et la skill `revue-avant-push`
   posent déjà la règle : un 5ᵉ copier-coller est bloquant. Puisque les tâches 4.2, 4.3 et 4.4
   demandent de modifier les quatre, autant extraire maintenant — une correction au lieu de quatre.
 - **Attendu** : un hook unique, les quatre formulaires branchés dessus, comportement inchangé.
+- **Livré** : #117, sur **six** formulaires et non quatre — `pages/ForgotPassword.tsx` et
+  `pages/ResetPassword.tsx` recopiaient le même `handleChange` sans que le plan les compte, et
+  leur état scalaire est devenu un objet à une clé, seule forme que le hook sache indexer. Le
+  regex d'adresse email est sorti ici plutôt que dans une tâche à part, dans
+  `frontend/src/lib/validationRules.ts` : 4 `FormErrors`, 6 `handleChange` et 3 regex ramenés à
+  1 chacun. `isSubmitting` est remonté dans le hook, ce qui a vidé la tâche 4.4 de son objet.
 
 ```
 Objectif : extraire la logique de formulaire dupliquée dans un hook réutilisable.
@@ -779,7 +788,7 @@ traite pas ici, ou le diff deviendra illisible.
 
 ## 4.2 — Afficher les erreurs et les succès de l'API
 
-- [ ] **Fichiers** : `frontend/src/hooks/useForm.ts`, les quatre formulaires,
+- [x] **Fichiers** : `frontend/src/hooks/useForm.ts`, les quatre formulaires,
   `frontend/src/lib/api.ts`
 - **Constat** : les quatre formulaires se contentent d'un `console.error(err)`
   (`FormContact.tsx:96`, `FormLogin.tsx:79`, `FormSubscribe.tsx:99`, `FormArticle.tsx:74`).
@@ -788,6 +797,10 @@ traite pas ici, ou le diff deviendra illisible.
   C'est le défaut le plus visible pour un utilisateur réel.
 - **Attendu** : chaque échec produit un message lisible à l'écran, chaque succès une confirmation.
 - **Dépend de** : 4.1
+- **Livré hors lot** : l'issue #79 a créé `frontend/src/lib/apiErrors.ts` et branché les
+  formulaires dessus le 2026-09-07, trois jours avant l'ouverture de l'epic — la tâche était
+  sans objet quand le lot a démarré. Le seul succès qui manquait encore, celui de l'inscription, est
+  devenu la tâche 4.5.
 
 ```
 Objectif : afficher à l'utilisateur les erreurs et les succès renvoyés par l'API. Aujourd'hui les
@@ -834,7 +847,7 @@ sans ouvrir la console.
 
 ## 4.3 — Corriger l'inversion nom / prénom
 
-- [ ] **Fichiers** : `FormContact.tsx`, `FormSubscribe.tsx`
+- [x] **Fichiers** : `FormContact.tsx`, `FormSubscribe.tsx`
 - **Constat** : dans les deux formulaires, le champ `name="first_name"` porte le label
   **« Nom »** et le placeholder **« Dupont »**, tandis que `last_name` porte « Prénom » / « Jean »
   (`FormContact.tsx:109-130`, `FormSubscribe.tsx:113-134`). Les messages de `validateForm` sont
@@ -842,6 +855,11 @@ sans ouvrir la console.
   données déjà saisies sont fausses.
 - **Attendu** : les labels correspondent aux champs, à l'écran comme en base.
 - **Dépend de** : 4.1
+- **Livré** : #118, sur les deux fichiers prévus et rien d'autre. Trois des quatre points du
+  prompt se sont révélés sans objet — aucun `helperText` sur ces champs, aucun bloc à déplacer
+  (`first_name` était déjà le champ de gauche, l'ordre se redresse du seul renommage), et
+  l'inversion est absente de l'admin Django comme du parcours Playwright. **Aucune donnée à
+  reprendre** : rien de ce qui est en base n'est venu de ces deux formulaires.
 
 ```
 Objectif : corriger l'inversion nom / prénom dans deux formulaires.
@@ -877,13 +895,16 @@ Consulte `frontend-react-ts`, puis :
 
 ## 4.4 — Corriger l'état d'envoi de `FormContact`
 
-- [ ] **Fichiers** : `FormContact.tsx`
+- [x] **Fichiers** : `FormContact.tsx`
 - **Constat** : `FormContact.tsx:26` déclare `isSubmitting`, `:98` le remet à `false` dans le
   `finally` — mais **`setIsSubmitting(true)` n'est jamais appelé**. Le bouton n'est donc jamais
   désactivé, n'affiche jamais « Envoi en cours… », et un double clic crée un doublon en base. Les
   trois autres formulaires le font correctement.
 - **Attendu** : le bouton est désactivé pendant l'envoi.
 - **Dépend de** : 4.1 (si `isSubmitting` remonte dans le hook, la tâche disparaît d'elle-même)
+- **Livré hors lot, puis rendu impossible** : l'issue #79 avait déjà posé le
+  `setIsSubmitting(true)` manquant. La tâche 4.1 a ensuite fait remonter l'état d'envoi dans le
+  hook, comme cette dépendance l'envisageait : aucun formulaire ne peut plus l'oublier.
 
 ```
 Objectif : corriger l'état d'envoi de FormContact.
@@ -903,6 +924,19 @@ Consulte `frontend-react-ts`. La skill `revue-avant-push` impose par ailleurs qu
 formulaire remette isSubmitting à false dans un finally : vérifie que les quatre le font, pas
 seulement celui-ci.
 ```
+
+## 4.5 et 4.6 — Confirmation d'inscription et tests du socle (hors plan initial)
+
+- [x] **Fichiers** : `frontend/src/components/common/Subscribe/FormSubscribe.tsx`,
+  `frontend/src/components/common/Subscribe/FormSubscribe.test.tsx`,
+  `frontend/src/hooks/useForm.test.ts`, `AMELIORATIONS.md`
+- **Constat** : deux trous que le plan ne voyait pas. `FormSubscribe.tsx:110` redirigeait vers
+  `/login` dès le compte créé, alors que `RegisterSerializer` le crée inactif : l'inscription
+  finissait sur un 401 que rien n'expliquait. Et le hook extrait en 4.1, socle des six
+  formulaires, n'était éprouvé qu'au travers de deux d'entre eux, tous deux à champs courts.
+- **Livré** : #119 la confirmation, annoncée dans une région `role="status"` sans quitter la
+  page · #120 sept cas sur le hook seul, montés par `renderHook`.
+- **Attendu** : atteint. Le front passe de 33 à 45 cas Vitest.
 
 ---
 
@@ -1809,6 +1843,8 @@ Cette skill ne pousse jamais rien : elle lit et elle rapporte. Le push reste ma 
 | 4.2 | **Erreurs API jamais affichées** | Élevé (UX) | 4.1 | Bloc 1 — qualité |
 | 4.3 | Nom et prénom inversés | Élevé (données) | 4.1 | Bloc 1 — qualité |
 | 4.4 | `isSubmitting` jamais activé (contact) | Moyen | 4.1 | Bloc 1 — qualité |
+| 4.5 | Inscription réussie sans confirmation | Moyen (UX) | 4.1 | Bloc 1 — qualité |
+| 4.6 | Socle des formulaires non testé | Structurant | 4.1 | Bloc 1 — qualité |
 | 5.1 | Aucun état d'authentification | Structurant | 4 | Bloc 1 — sécurité |
 | 5.2 | Refresh token jamais utilisé | Élevé (UX) | 5.1, 1.6 | Bloc 1 — sécurité |
 | 5.3 | Aucune déconnexion | Élevé | 5.1, 1.6 | Bloc 1 — sécurité |
