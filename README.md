@@ -271,7 +271,9 @@ temps** — le développement sur `5173`, `8000`, `5432`, `1025` et `8025`, la
 production sur `8081` et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD`
 et `FRONTEND_PORT_PROD` : réutiliser les variables du développement remettrait
 les deux piles sur le même port, et le `up` de la seconde échouerait en
-`port is already allocated`.
+`port is already allocated`. La même erreur vient d'un autre projet de la machine
+qui tient déjà le port de l'API ou du front : le déplacer dans le `.env`, et reporter
+les deux lignes que `.env.example` nomme au-dessus de `BACKEND_PORT_DEV`.
 
 Les services démarrent en file, chacun attendant que le précédent soit
 `healthy` : base et serveur de mail, puis API, puis front. `up --wait` rend donc
@@ -937,16 +939,17 @@ docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
 # email, prénom, nom, puis le mot de passe deux fois
 ```
 
-Les identifiants sont lus dans l'environnement et nulle part ailleurs — aucun `.env` n'est
-chargé par Playwright. Absent l'un des deux, la suite s'arrête en le nommant plutôt que
-d'échouer sur un refus de connexion.
+Les identifiants sont lus dans l'environnement et nulle part ailleurs : du `.env` de la racine,
+Playwright ne tire que `FRONTEND_PORT_DEV`, le port où Compose publie Vite. Absent l'un des
+deux identifiants, la suite s'arrête en le nommant plutôt que d'échouer sur un refus de connexion.
 
 ```bash
 E2E_EMAIL=... E2E_PASSWORD=... npm run test:e2e
 ```
 
-Le parcours ouvre le site sur `127.0.0.1:5173` quand `npm run dev` se visite d'ordinaire sur
-`localhost:5173`. Ce sont deux origines distinctes pour le navigateur, et si l'appel à l'API
+Le parcours ouvre le site sur `127.0.0.1:5173` — ou le port que `FRONTEND_PORT_DEV` y met —
+quand `npm run dev` se visite d'ordinaire sur `localhost:5173`. Ce sont deux origines
+distinctes pour le navigateur, et si l'appel à l'API
 passe, c'est parce que `CORS_ALLOWED_ORIGINS` liste **les deux écritures** — voir `.env`.
 N'en garder qu'une ferait afficher « Le serveur est injoignable » et accuser la pile.
 
@@ -1261,15 +1264,17 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
     ├── Dockerfile            # un fichier, deux images : --target dev ou prod
     ├── nginx.conf            # serveur de l'image prod : site React et /static/
     └── src/
-        ├── components/ui/         # composants réutilisables, sans logique métier
-        ├── components/common/     # composants liés à un domaine du projet
-        ├── pages/                 # une page par route
-        ├── layouts/               # gabarits partagés
-        ├── hooks/                 # hooks React, dont useForm : le socle des formulaires
-        ├── lib/api.ts             # point d'entrée unique des appels à l'API
-        ├── lib/apiErrors.ts       # refus de l'API traduits en messages de formulaire
-        ├── lib/validationRules.ts # règles de saisie partagées par plusieurs formulaires
-        └── types/                 # types TypeScript partagés
+        ├── components/ui/              # composants réutilisables, sans logique métier
+        ├── components/common/          # composants liés à un domaine du projet
+        ├── pages/                      # une page par route
+        ├── layouts/                    # gabarits partagés
+        ├── hooks/                      # hooks React, dont useForm : le socle des formulaires
+        ├── hooks/useIsAuthenticated.ts # connecté ou non, d'après le jeton de renouvellement
+        ├── lib/api.ts                  # point d'entrée unique des appels à l'API
+        ├── lib/apiErrors.ts            # refus de l'API traduits en messages de formulaire
+        ├── lib/tokens.ts               # seul à lire, écrire et effacer les jetons JWT
+        ├── lib/validationRules.ts      # règles de saisie partagées par plusieurs formulaires
+        └── types/                      # types TypeScript partagés
 ```
 
 Un utilisateur est identifié par son **email**, pas par un nom d'utilisateur.
