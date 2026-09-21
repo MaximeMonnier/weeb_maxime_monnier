@@ -54,7 +54,7 @@ describe("useIsAuthenticated — premier rendu", () => {
 });
 
 // `act` ne sert qu'à laisser React finir le rendu : les écritures, elles,
-// viennent du module, comme le fera apiFetch, sans aucun setState.
+// viennent du module, comme celles d'un code hors de React, sans aucun setState.
 describe("useIsAuthenticated — écritures du module", () => {
   it("passe à déconnecté quand le module efface les jetons, sans remonter le composant", () => {
     saveTokens(JETONS);
