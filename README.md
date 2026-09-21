@@ -272,8 +272,8 @@ production sur `8081` et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD`
 et `FRONTEND_PORT_PROD` : réutiliser les variables du développement remettrait
 les deux piles sur le même port, et le `up` de la seconde échouerait en
 `port is already allocated`. La même erreur vient d'un autre projet de la machine
-qui tient déjà l'un de ces ports : le déplacer dans le `.env`, et reporter les deux
-lignes que `.env.example` nomme au-dessus de `BACKEND_PORT_DEV`.
+qui tient déjà le port de l'API ou du front : le déplacer dans le `.env`, et reporter
+les deux lignes que `.env.example` nomme au-dessus de `BACKEND_PORT_DEV`.
 
 Les services démarrent en file, chacun attendant que le précédent soit
 `healthy` : base et serveur de mail, puis API, puis front. `up --wait` rend donc
