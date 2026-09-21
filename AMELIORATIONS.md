@@ -137,8 +137,8 @@ Rien de ce qui reste ne bloque le développement.
       l'issue #130, ne tient pour refus qu'un `401` et voit un `5xx` comme une panne passagère
       qui garde les jetons : un compte supprimé pendant une session ouverte garde donc ses
       jetons morts jusqu'à l'échéance du refresh, 24 heures. Pendant ce temps `/blog` reste
-      vide, le formulaire de contact répond « session expirée » et la navigation affiche un
-      utilisateur connecté. Un compte **désactivé**, lui, reçoit bien un `401`. Piste :
+      vide, le formulaire de contact répond « session expirée » et `useIsAuthenticated` le
+      tient pour connecté. Un compte **désactivé**, lui, reçoit bien un `401`. Piste :
       envelopper `TokenRefreshView` dans `accounts/views.py`, comme `LoginView`, pour rendre
       un `401` sur `DoesNotExist`, test à l'appui.
 
