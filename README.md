@@ -1261,15 +1261,17 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
     ├── Dockerfile            # un fichier, deux images : --target dev ou prod
     ├── nginx.conf            # serveur de l'image prod : site React et /static/
     └── src/
-        ├── components/ui/         # composants réutilisables, sans logique métier
-        ├── components/common/     # composants liés à un domaine du projet
-        ├── pages/                 # une page par route
-        ├── layouts/               # gabarits partagés
-        ├── hooks/                 # hooks React, dont useForm : le socle des formulaires
-        ├── lib/api.ts             # point d'entrée unique des appels à l'API
-        ├── lib/apiErrors.ts       # refus de l'API traduits en messages de formulaire
-        ├── lib/validationRules.ts # règles de saisie partagées par plusieurs formulaires
-        └── types/                 # types TypeScript partagés
+        ├── components/ui/              # composants réutilisables, sans logique métier
+        ├── components/common/          # composants liés à un domaine du projet
+        ├── pages/                      # une page par route
+        ├── layouts/                    # gabarits partagés
+        ├── hooks/                      # hooks React, dont useForm : le socle des formulaires
+        ├── hooks/useIsAuthenticated.ts # connecté ou non, d'après le jeton de renouvellement
+        ├── lib/api.ts                  # point d'entrée unique des appels à l'API
+        ├── lib/apiErrors.ts            # refus de l'API traduits en messages de formulaire
+        ├── lib/tokens.ts               # seul à lire, écrire et effacer les jetons JWT
+        ├── lib/validationRules.ts      # règles de saisie partagées par plusieurs formulaires
+        └── types/                      # types TypeScript partagés
 ```
 
 Un utilisateur est identifié par son **email**, pas par un nom d'utilisateur.
