@@ -4,6 +4,7 @@ import MainButton from "../../ui/Button/MainButton";
 import { apiFetch } from "../../../lib/api";
 import { toFormErrors } from "../../../lib/apiErrors";
 import { isValidEmail } from "../../../lib/validationRules";
+import { saveTokens } from "../../../lib/tokens";
 import { useForm } from "../../../hooks/useForm";
 import type { FormErrors } from "../../../hooks/useForm";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
@@ -75,8 +76,7 @@ const FormLogin = () => {
           }),
         },
       );
-      localStorage.setItem("access", data.access); // 🔑 le token que apiFetch réutilisera
-      localStorage.setItem("refresh", data.refresh);
+      saveTokens(data);
       navigate("/");
     } catch (err) {
       // Un mot de passe faux et un compte pas encore validé donnent le même 401, en
