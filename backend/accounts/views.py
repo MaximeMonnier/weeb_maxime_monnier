@@ -4,7 +4,7 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -18,6 +18,7 @@ from .serializers import (
     RegisterSerializer,
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
+    RefreshSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,12 @@ class LoginView(TokenObtainPairView):
     # La seule raison de sous-classer : `throttle_scope` est un attribut de vue, et
     # celle de simplejwt est importée. Le compteur compte les appels, pas les échecs.
     throttle_scope = "login"
+
+
+class LoginRefreshView(TokenRefreshView):
+    """Renouvellement des jetons JWT. Endpoint PUBLIC : le refresh envoyé tient lieu d'identité."""
+    permission_classes = [AllowAny]
+    serializer_class = RefreshSerializer
 
 
 class RegisterView(generics.CreateAPIView):

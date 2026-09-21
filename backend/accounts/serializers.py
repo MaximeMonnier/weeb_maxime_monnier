@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
 from .models import CustomUser
 from .validators import validate_password_strength
@@ -48,3 +50,22 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         validate_password_strength(attrs["new_password"], "new_password")
         return attrs
 
+
+class RefreshSerializer(TokenRefreshSerializer):
+    """Renouvelle les jetons, et refuse en 401 un compte supprimé comme un compte désactivé."""
+
+    # La traduction de simplejwt, marquée fuzzy, n'est pas compilée : le libellé sortait
+    # en anglais. Le compte désactivé et le compte supprimé le partagent.
+    default_error_messages = {
+        "no_active_account": "Aucun compte actif ne correspond à ce jeton.",
+    }
+
+    def validate(self, attrs):
+        # simplejwt relit le titulaire par objects.get() sans intercepter son absence :
+        # le 500 qui en sortait, apiFetch le prend pour une panne et garde les jetons.
+        try:
+            return super().validate(attrs)
+        except CustomUser.DoesNotExist:
+            raise AuthenticationFailed(
+                self.error_messages["no_active_account"], "no_active_account"
+            )
