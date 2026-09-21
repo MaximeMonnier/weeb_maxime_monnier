@@ -1161,8 +1161,15 @@ son effet à `logout/` : la déconnexion est le même geste, sans jeton neuf en 
 Deux conséquences pratiques :
 
 - **un client qui rafraîchit doit stocker le `refresh` reçu en réponse**, sinon il se coupe
-  lui-même au prochain appel. Le front ne le fait pas encore : il ne rafraîchit pas du tout,
-  et la session s'arrête donc au bout de 15 minutes ;
+  lui-même au prochain appel. Côté front, c'est `apiFetch` (`src/lib/api.ts`) : sur un `401`
+  reçu avec un jeton, il appelle `login/refresh/`, range les deux jetons rendus et rejoue la
+  requête une fois. Les `401` reçus en même temps — `StrictMode` lance deux fois les effets en
+  développement — partagent un seul renouvellement, puisqu'un second appel avec le même
+  `refresh` serait refusé. Un renouvellement refusé efface les deux jetons et rejoue la requête
+  **sans** jeton : l'API seule sait si la route est publique, et `/blog` s'affiche au lieu de
+  répondre `401`. Une panne du renouvellement (réseau, `5xx`) garde les jetons et rend le `401`
+  d'origine. Chaque `refresh` neuf repartant pour un jour, la session dure jusqu'à un jour sans
+  renouvellement, et non plus 15 minutes ;
 - **la révocation vit en base**, dans les tables de `rest_framework_simplejwt.token_blacklist`.
   L'app est dans `INSTALLED_APPS` et ses migrations sont livrées avec le paquet : un
   `python manage.py migrate` suffit, `makemigrations` ne doit rien produire. Ces tables
