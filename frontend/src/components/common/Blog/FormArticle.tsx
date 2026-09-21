@@ -73,9 +73,9 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
       setFormData(VALEURS_INITIALES);
       onCreated?.(); // prévient le Blog : ferme la modale + recharge la liste
     } catch (err) {
-      // Le jeton d'accès ne vaut que quinze minutes et rien ne le renouvelle : le 401
-      // frappe surtout un article rédigé lentement. Le formulaire vit dans une modale
-      // de /blog, donc aller se reconnecter emporte le texte saisi.
+      // apiFetch renouvelle le jeton d'accès : le 401 dit une session finie ou un
+      // renouvellement en panne, plus ses quinze minutes. Le formulaire vit dans une
+      // modale de /blog, donc aller se reconnecter emporte le texte saisi.
       const { fieldErrors, formError } = toFormErrors(err, CHAMPS, {
         unauthorized:
           "Vous devez être connecté pour publier, et votre session a peut-être expiré. Copiez votre texte avant de vous reconnecter : il ne sera pas conservé.",
