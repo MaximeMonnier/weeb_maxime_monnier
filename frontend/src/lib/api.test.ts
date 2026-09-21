@@ -100,6 +100,171 @@ describe("apiFetch — jeton d'accès", () => {
   );
 });
 
+describe("apiFetch — jeton d'accès expiré", () => {
+  const RENOUVELLEMENT = `${BASE}/auth/login/refresh/`;
+  const JETONS_NEUFS = { access: "acces-neuf", refresh: "refresh-neuf" };
+
+  function appelsA(url: string) {
+    return appelReseau.mock.calls.filter(([adresse]) => adresse === url);
+  }
+
+  beforeEach(() => {
+    localStorage.setItem("access", "acces-perime");
+    localStorage.setItem("refresh", "refresh-valide");
+  });
+
+  it("rejoue la requête avec le jeton neuf et rend son corps", async () => {
+    appelReseau
+      .mockResolvedValueOnce(reponse(401))
+      .mockResolvedValueOnce(reponse(200, JETONS_NEUFS))
+      .mockResolvedValueOnce(reponse(201, { id: 7 }));
+
+    await expect(
+      apiFetch("/articles/", { method: "POST", body: "{}" }),
+    ).resolves.toEqual({ id: 7 });
+
+    expect(dernierAppel().url).toBe(`${BASE}/articles/`);
+    expect(dernierAppel().entetes.Authorization).toBe("Bearer acces-neuf");
+  });
+
+  // Le refresh neuf compris : login/refresh/ met l'ancien en liste noire, et le
+  // garder couperait la session au renouvellement suivant.
+  it("stocke les deux jetons rendus par login/refresh/", async () => {
+    appelReseau
+      .mockResolvedValueOnce(reponse(401))
+      .mockResolvedValueOnce(reponse(200, JETONS_NEUFS))
+      .mockResolvedValueOnce(reponse(200, []));
+
+    await apiFetch("/articles/");
+
+    const [, options] = appelsA(RENOUVELLEMENT)[0] as [string, RequestInit];
+    expect(options.body).toBe('{"refresh":"refresh-valide"}');
+    expect(localStorage.getItem("access")).toBe("acces-neuf");
+    expect(localStorage.getItem("refresh")).toBe("refresh-neuf");
+  });
+
+  // Le cas que StrictMode rend courant : les effets de /blog partent deux fois.
+  it("ne renouvelle qu'une fois pour deux 401 simultanés", async () => {
+    appelReseau.mockImplementation(async (url: string, options: RequestInit) => {
+      if (url === RENOUVELLEMENT) return reponse(200, JETONS_NEUFS);
+      const entetes = options.headers as Record<string, string>;
+      return entetes.Authorization === "Bearer acces-perime"
+        ? reponse(401)
+        : reponse(200, []);
+    });
+
+    await Promise.all([apiFetch("/articles/"), apiFetch("/articles/")]);
+
+    expect(appelsA(RENOUVELLEMENT)).toHaveLength(1);
+  });
+
+  // Un 401 de login/ dit un mot de passe faux, jamais un jeton expiré.
+  it("ne renouvelle rien sur un 401 de /auth/login/", async () => {
+    appelReseau.mockResolvedValue(reponse(401));
+
+    await expect(
+      apiFetch("/auth/login/", { method: "POST", body: "{}" }),
+    ).rejects.toMatchObject({ status: 401 });
+
+    expect(appelReseau).toHaveBeenCalledTimes(1);
+  });
+
+  it("lève le 401 de la requête rejouée sans renouveler une seconde fois", async () => {
+    appelReseau
+      .mockResolvedValueOnce(reponse(401))
+      .mockResolvedValueOnce(reponse(200, JETONS_NEUFS))
+      .mockResolvedValueOnce(reponse(401));
+
+    await expect(apiFetch("/articles/")).rejects.toMatchObject({ status: 401 });
+
+    expect(appelReseau).toHaveBeenCalledTimes(3);
+    expect(appelsA(RENOUVELLEMENT)).toHaveLength(1);
+  });
+
+  // La requête repart sans jeton : c'est ce qui rouvre /blog, dont la lecture est
+  // publique, à qui garde un jeton mort.
+  it("efface les jetons sur un renouvellement refusé et rejoue sans Authorization", async () => {
+    appelReseau
+      .mockResolvedValueOnce(reponse(401))
+      .mockResolvedValueOnce(reponse(401))
+      .mockResolvedValueOnce(reponse(200, [{ id: 1 }]));
+
+    await expect(apiFetch("/articles/")).resolves.toEqual([{ id: 1 }]);
+
+    expect(dernierAppel().url).toBe(`${BASE}/articles/`);
+    expect(dernierAppel().entetes.Authorization).toBeUndefined();
+    expect(localStorage.getItem("access")).toBeNull();
+    expect(localStorage.getItem("refresh")).toBeNull();
+  });
+
+  it("rejoue sans Authorization quand aucun jeton de rafraîchissement n'est stocké", async () => {
+    localStorage.removeItem("refresh");
+    appelReseau
+      .mockResolvedValueOnce(reponse(401))
+      .mockResolvedValueOnce(reponse(200, []));
+
+    await apiFetch("/articles/");
+
+    expect(appelsA(RENOUVELLEMENT)).toHaveLength(0);
+    expect(dernierAppel().entetes.Authorization).toBeUndefined();
+    expect(localStorage.getItem("access")).toBeNull();
+  });
+
+  // Un serveur qui redémarre ne doit pas déconnecter : seul un 401 de
+  // login/refresh/ dit que le jeton est mort.
+  it.each([
+    ["réseau coupé", () => Promise.reject(new TypeError("Failed to fetch"))],
+    ["502 du proxy", () => Promise.resolve(reponse(502))],
+  ])("garde les jetons et lève le 401 d'origine sur une panne : %s", async (_, panne) => {
+    appelReseau
+      .mockResolvedValueOnce(reponse(401, { detail: "Jeton expiré" }))
+      .mockImplementationOnce(panne);
+
+    await expect(apiFetch("/articles/")).rejects.toEqual({
+      status: 401,
+      data: { detail: "Jeton expiré" },
+    });
+
+    expect(appelReseau).toHaveBeenCalledTimes(2);
+    expect(localStorage.getItem("access")).toBe("acces-perime");
+    expect(localStorage.getItem("refresh")).toBe("refresh-valide");
+  });
+
+  // Le jeton a changé pendant le trajet de la requête : le renouveler encore
+  // ferait tourner pour rien le refresh qu'un autre onglet vient de ranger.
+  it("rejoue avec le jeton qu'un autre onglet a déjà renouvelé, sans renouveler", async () => {
+    appelReseau
+      .mockImplementationOnce(async () => {
+        localStorage.setItem("access", "acces-autre-onglet");
+        return reponse(401);
+      })
+      .mockResolvedValueOnce(reponse(200, []));
+
+    await apiFetch("/articles/");
+
+    expect(appelsA(RENOUVELLEMENT)).toHaveLength(0);
+    expect(dernierAppel().entetes.Authorization).toBe("Bearer acces-autre-onglet");
+  });
+
+  // Deux onglets partagent le localStorage : celui qui perd la course au
+  // renouvellement reçoit un 401, alors que le gagnant a déjà rangé des jetons valides.
+  it("garde les jetons qu'un autre onglet vient de ranger malgré le refus", async () => {
+    appelReseau
+      .mockResolvedValueOnce(reponse(401))
+      .mockImplementationOnce(async () => {
+        localStorage.setItem("access", "acces-autre-onglet");
+        localStorage.setItem("refresh", "refresh-autre-onglet");
+        return reponse(401);
+      })
+      .mockResolvedValueOnce(reponse(200, []));
+
+    await apiFetch("/articles/");
+
+    expect(dernierAppel().entetes.Authorization).toBe("Bearer acces-autre-onglet");
+    expect(localStorage.getItem("refresh")).toBe("refresh-autre-onglet");
+  });
+});
+
 describe("apiFetch — lecture de la réponse", () => {
   it("rend le corps analysé sur un succès", async () => {
     appelReseau.mockResolvedValue(reponse(200, [{ id: 1, title: "Titre" }]));
