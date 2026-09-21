@@ -271,7 +271,9 @@ temps** — le développement sur `5173`, `8000`, `5432`, `1025` et `8025`, la
 production sur `8081` et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD`
 et `FRONTEND_PORT_PROD` : réutiliser les variables du développement remettrait
 les deux piles sur le même port, et le `up` de la seconde échouerait en
-`port is already allocated`.
+`port is already allocated`. La même erreur vient d'un autre projet de la machine
+qui tient déjà l'un de ces ports : le déplacer dans le `.env`, et reporter les deux
+lignes que `.env.example` nomme au-dessus de `BACKEND_PORT_DEV`.
 
 Les services démarrent en file, chacun attendant que le précédent soit
 `healthy` : base et serveur de mail, puis API, puis front. `up --wait` rend donc
@@ -937,16 +939,17 @@ docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
 # email, prénom, nom, puis le mot de passe deux fois
 ```
 
-Les identifiants sont lus dans l'environnement et nulle part ailleurs — aucun `.env` n'est
-chargé par Playwright. Absent l'un des deux, la suite s'arrête en le nommant plutôt que
-d'échouer sur un refus de connexion.
+Les identifiants sont lus dans l'environnement et nulle part ailleurs : du `.env` de la racine,
+Playwright ne tire que `FRONTEND_PORT_DEV`, le port où Compose publie Vite. Absent l'un des
+deux identifiants, la suite s'arrête en le nommant plutôt que d'échouer sur un refus de connexion.
 
 ```bash
 E2E_EMAIL=... E2E_PASSWORD=... npm run test:e2e
 ```
 
-Le parcours ouvre le site sur `127.0.0.1:5173` quand `npm run dev` se visite d'ordinaire sur
-`localhost:5173`. Ce sont deux origines distinctes pour le navigateur, et si l'appel à l'API
+Le parcours ouvre le site sur `127.0.0.1:5173` — ou le port que `FRONTEND_PORT_DEV` y met —
+quand `npm run dev` se visite d'ordinaire sur `localhost:5173`. Ce sont deux origines
+distinctes pour le navigateur, et si l'appel à l'API
 passe, c'est parce que `CORS_ALLOWED_ORIGINS` liste **les deux écritures** — voir `.env`.
 N'en garder qu'une ferait afficher « Le serveur est injoignable » et accuser la pile.
 
