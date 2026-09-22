@@ -157,6 +157,21 @@ cd backend && python manage.py createsuperuser
 docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
 ```
 
+Pour remplir `/blog` au-delà d'une page, publier 30 articles de démonstration :
+
+```bash
+# applications lancées sur la machine
+cd backend && python manage.py peupler_articles
+
+# applications lancées par la pile de développement
+docker compose -f compose.dev.yaml exec backend python manage.py peupler_articles
+```
+
+Relancée, la commande ne crée aucun doublon : elle republie seulement les articles de
+démonstration supprimés depuis. Elle les signe d'un compte `auteur-demo@example.com`, inactif et
+sans mot de passe, et refuse de tourner quand `DEBUG` vaut `False` — la base de production n'est
+jamais peuplée.
+
 ## Commandes utiles
 
 ### Backend (depuis `backend/`, environnement virtuel activé)
@@ -167,6 +182,7 @@ docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
 | `python manage.py migrate` | Applique les migrations à la base |
 | `python manage.py makemigrations` | Crée une migration après un changement de modèle |
 | `python manage.py createsuperuser` | Crée un compte administrateur |
+| `python manage.py peupler_articles` | Publie 30 articles de démonstration, en développement seulement |
 | `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` | Lance les tests |
 | `python manage.py check --deploy` | Vérifie la configuration de sécurité avant mise en ligne |
 | `python manage.py collectstatic --noinput` | Rassemble les fichiers statiques pour la production |
@@ -1283,7 +1299,7 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
 │   │   ├── settings/         # base, development, test, production
 │   │   └── urls.py           # routeur principal
 │   ├── accounts/             # utilisateurs, authentification JWT
-│   ├── articles/             # articles du blog
+│   ├── articles/             # articles du blog, et la commande peupler_articles
 │   ├── contact/              # formulaire de contact
 │   ├── locale/               # libellés de simplejwt que son catalogue laisse en anglais
 │   ├── Dockerfile            # image de production de l'API
