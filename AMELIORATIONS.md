@@ -64,28 +64,20 @@ Rien de ce qui reste ne bloque le développement.
 
 ## Frontend — sécurité
 
-- [ ] **`apiFetch` joint encore le token aux endpoints publics hors `/auth/`.** simplejwt
-      authentifie **avant** d'appliquer les permissions : un `localStorage.access` périmé
-      fait répondre `401` à une vue `AllowAny`, sans que rien ne le dise. `lib/api.ts`
-      n'envoie plus l'en-tête sur `/auth/` — les six routes y sont publiques, et le
-      parcours de réinitialisation en dépendait — mais les publiques d'ailleurs restent
-      exposées : `POST /api/contact/`, et les lectures `GET /api/articles/` et
-      `/api/articles/{id}/`, que `IsAuthenticatedOrReadOnly` autorise sans jamais être
-      atteint. La cause de fond demeure : l'issue #72 a ouvert
-      `POST /api/auth/logout/` côté API, mais aucun écran du front ne l'appelle ni ne vide
-      `localStorage`, donc un token mort y reste indéfiniment. Pistes :
-      lister les chemins publics plutôt que le seul préfixe `/auth/`, ou purger
-      `localStorage.access` à la réception d'un `401`.
-- [ ] **Le front ne rafraîchit pas ses jetons, et la session dure 15 minutes.**
-      `FormLogin.tsx` range `access` et `refresh` dans `localStorage`, mais aucun fichier
-      n'appelle `/api/auth/login/refresh/` : le jeton d'accès expire sans être renouvelé et
-      l'utilisateur se retrouve déconnecté. L'issue #72 a resserré `ACCESS_TOKEN_LIFETIME`
-      de 60 à 15 minutes — le bon arbitrage pour un jeton logé dans `localStorage`, mais il
-      raccourcit d'autant une session que rien ne prolonge. Le lot 5.2 doit poser ce
-      rafraîchissement, et **stocker le `refresh` renvoyé en réponse** : depuis la même
-      issue, `login/refresh/` en rend un neuf et révoque celui qui a servi, donc un client
-      qui garde l'ancien se coupe lui-même au deuxième appel. La déconnexion existe côté
-      API, `POST /api/auth/logout/`, et attend le même geste côté front.
+- [x] **`apiFetch` joint encore le token aux endpoints publics hors `/auth/`** — réglé par
+      l'issue #130, sans liste de chemins publics. simplejwt authentifie **avant**
+      d'appliquer les permissions : un `localStorage.access` périmé faisait répondre `401`
+      à `POST /api/contact/` et aux lectures d'articles, que `IsAuthenticatedOrReadOnly`
+      autorise. `apiFetch` renouvelle désormais le jeton sur ce `401`, et si le
+      renouvellement est refusé, efface les deux jetons puis rejoue la requête sans : un
+      jeton mort disparaît au premier appel, qui aboutit quand même. Le prix est deux
+      allers-retours de plus sur cet appel, le renouvellement puis le rejeu. `/auth/` reste
+      exclu d'office, ses six routes étant publiques.
+- [x] **Le front ne rafraîchit pas ses jetons, et la session dure 15 minutes** — réglé par
+      l'issue #130. `apiFetch` appelle `/api/auth/login/refresh/` sur un `401` et **range le
+      `refresh` rendu**, que la rotation de l'issue #72 rend obligatoire. La session dure
+      désormais jusqu'à un jour sans renouvellement. Reste la déconnexion :
+      `POST /api/auth/logout/` existe côté API, aucun écran ne l'appelle encore — issue #131.
 
 ## Backend — sécurité
 

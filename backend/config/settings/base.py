@@ -120,6 +120,9 @@ INSTALLED_APPS = [
     # elle qui apporte les tables où atterrissent les refresh révoqués, donc la
     # condition de BLACKLIST_AFTER_ROTATION comme de la vue de déconnexion.
     'rest_framework_simplejwt.token_blacklist',
+    # Sans modèle ni route : présente pour que Django charge son catalogue, faute de
+    # quoi tous ses refus sortent en anglais. backend/locale/ bouche ses trous.
+    'rest_framework_simplejwt',
 
     # --- Applications ---
     'accounts',
@@ -219,6 +222,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # de passe compris. Aucun LocaleMiddleware : la langue ne suit pas l'Accept-Language
 # du client, tous les libellés écrits par le projet étant français.
 LANGUAGE_CODE = 'fr-fr'
+
+# Lu avant les catalogues des apps : traduit les libellés que simplejwt laisse en anglais.
+LOCALE_PATHS = [BASE_DIR / 'locale']
 
 TIME_ZONE = 'UTC'
 
