@@ -23,12 +23,30 @@ const Blog = () => {
   const isAuthenticated = useIsAuthenticated();
 
   const [articles, setArticles] = useState<Article[]>([]);
+  // Numéro à demander ensuite, null quand la dernière page est affichée.
+  const [pageSuivante, setPageSuivante] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Fonction réutilisable : chargement initial ET rechargement après création
-  const loadArticles = () => {
-    apiFetch<Page<Article>>("/articles/")
-      .then((page) => setArticles(page.results))
-      .catch(console.error);
+  // La page 1 remplace la liste — chargement initial ET rechargement après
+  // création —, les suivantes s'y ajoutent. `next` est une URL absolue, que
+  // apiFetch préfixerait une seconde fois : seule sa présence sert ici.
+  const loadArticles = (numero = 1) => {
+    apiFetch<Page<Article>>(`/articles/?page=${numero}`)
+      .then((page) => {
+        setArticles((dejaAffiches) => {
+          if (numero === 1) return page.results;
+          // Un article publié entre deux pages décale la liste d'un cran : le
+          // dernier de la page d'avant revient en tête de celle-ci.
+          const ids = new Set(dejaAffiches.map((article) => article.id));
+          return [
+            ...dejaAffiches,
+            ...page.results.filter((article) => !ids.has(article.id)),
+          ];
+        });
+        setPageSuivante(page.next ? numero + 1 : null);
+      })
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
@@ -63,10 +81,28 @@ const Blog = () => {
           </Link>
         )}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 mb-16">
-        {articles.map((article) => (
-          <Card key={article.id} article={article} />
-        ))}
+      <div className="mt-6 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {articles.map((article) => (
+            <Card key={article.id} article={article} />
+          ))}
+        </div>
+        {pageSuivante !== null && (
+          <div className="mt-8 flex justify-center">
+            <Button
+              variant="outline"
+              disabled={isLoading}
+              onClick={() => {
+                // Posé au clic et non dans loadArticles, que l'effet appelle :
+                // un setState synchrone y relancerait un rendu pour rien.
+                setIsLoading(true);
+                loadArticles(pageSuivante);
+              }}
+            >
+              Voir plus d'articles
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* la modal */}
