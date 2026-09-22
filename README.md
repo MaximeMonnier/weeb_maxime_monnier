@@ -1144,6 +1144,18 @@ Le token d'accès est valable 15 minutes, celui de rafraîchissement 1 jour — 
 
 Les messages d'erreur sortent **en français** : `LANGUAGE_CODE` vaut `fr-fr` et aucun
 `LocaleMiddleware` n'est monté, la langue ne suit donc pas l'`Accept-Language` du client.
+Ceux de simplejwt aussi, à deux conditions. L'app `rest_framework_simplejwt` figure dans
+`INSTALLED_APPS`, sans quoi Django ne charge pas son catalogue ; et `backend/locale/` traduit
+les libellés que ce catalogue laisse en anglais, « Token is expired » et « Token is invalid » en
+tête. Le `.mo` y est versionné, l'image n'embarquant pas `gettext`. Après toute modification du
+`.po`, le recompiler — `msgfmt` vient du paquet `gettext` :
+
+```bash
+msgfmt --check -o backend/locale/fr/LC_MESSAGES/django.mo backend/locale/fr/LC_MESSAGES/django.po
+```
+
+Un `.mo` qui disparaît puis revient — un changement de branche, par exemple — échappe au
+rechargeur de `runserver` : le redémarrer.
 
 ### Les jetons
 
@@ -1264,6 +1276,7 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
 │   ├── accounts/             # utilisateurs, authentification JWT
 │   ├── articles/             # articles du blog
 │   ├── contact/              # formulaire de contact
+│   ├── locale/               # libellés de simplejwt que son catalogue laisse en anglais
 │   ├── Dockerfile            # image de production de l'API
 │   ├── .dockerignore         # ce que le build n'envoie pas au démon
 │   ├── docker-entrypoint.sh  # migrations et statiques avant Gunicorn

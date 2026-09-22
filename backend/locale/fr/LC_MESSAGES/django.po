@@ -1,6 +1,6 @@
 # Libellés de simplejwt que son propre catalogue ne traduit pas : entrées marquées
 # fuzzy, que la compilation écarte, ou laissées vides. Ce fichier est lu avant le sien.
-# Après toute modification, recompiler le .mo : voir le README, § « Les jetons ».
+# Après toute modification, recompiler le .mo : voir le README, § « L'API ».
 msgid ""
 msgstr ""
 "MIME-Version: 1.0\n"
