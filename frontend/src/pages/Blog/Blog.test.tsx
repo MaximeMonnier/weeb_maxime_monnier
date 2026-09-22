@@ -42,7 +42,7 @@ const ouvrirFenetre = vi.fn();
 
 // La route de connexion porte un repère : c'est par ce qu'elle affiche que le
 // lien se révèle mener au bon endroit, et non par son seul attribut.
-async function afficherLeBlog() {
+function rendreLeBlog() {
   render(
     <MemoryRouter initialEntries={["/blog"]}>
       <Routes>
@@ -51,13 +51,32 @@ async function afficherLeBlog() {
       </Routes>
     </MemoryRouter>,
   );
+}
+
+async function afficherLeBlog() {
+  rendreLeBlog();
   // La liste chargée, aucun rendu ne tombe plus après le cas.
   expect(await screen.findByText(ARTICLE.title)).toBeInTheDocument();
+}
+
+// Une erreur de l'API telle que `fetch` la livre, corps compris.
+function reponseRefusee(status: number, corps: unknown = {}) {
+  return { ok: false, status, json: async () => corps };
 }
 
 const BOUTON_DE_CREATION = { name: "Créer un article" };
 const LIEN_DE_CONNEXION = { name: "Se connecter pour publier" };
 const BOUTON_PAGE_SUIVANTE = { name: "Voir plus d'articles" };
+
+const LISTE_VIDE = "Aucun article n'a encore été publié.";
+const SERVEUR_INJOIGNABLE =
+  "Le serveur est injoignable. Vérifiez votre connexion, puis réessayez.";
+const SERVICE_INDISPONIBLE =
+  "Le service est momentanément indisponible. Réessayez dans un instant.";
+
+// Rendue vide dès l'affichage : c'est son texte, et non sa présence, qui dit
+// l'échec.
+const alerte = () => screen.getByRole("alert");
 
 beforeEach(() => {
   appelReseau.mockReset();
@@ -152,11 +171,9 @@ describe("Blog — pages suivantes", () => {
   it("retire le bouton quand la page suivante a disparu", async () => {
     appelReseau
       .mockResolvedValueOnce(reponsePage([ARTICLE], PAGE_2))
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 404,
-        json: async () => ({ detail: "Page non valide." }),
-      });
+      .mockResolvedValueOnce(
+        reponseRefusee(404, { detail: "Page non valide." }),
+      );
     await afficherLeBlog();
 
     await userEvent.click(screen.getByRole("button", BOUTON_PAGE_SUIVANTE));
@@ -168,24 +185,60 @@ describe("Blog — pages suivantes", () => {
     );
     expect(screen.getByText(ARTICLE.title)).toBeInTheDocument();
   });
+});
 
-  it("signale un 404 sur la première page, qu'aucune suppression n'explique", async () => {
-    const trace = vi.spyOn(console, "error").mockImplementation(() => {});
+describe("Blog — premier chargement", () => {
+  it("n'annonce la liste vide qu'une fois la première page arrivée", async () => {
+    let livrer: (reponse: unknown) => void = () => {};
+    appelReseau.mockReturnValueOnce(
+      new Promise((resolve) => {
+        livrer = resolve;
+      }),
+    );
+    rendreLeBlog();
+
+    expect(screen.queryByText(LISTE_VIDE)).not.toBeInTheDocument();
+
+    livrer(reponsePage([]));
+
+    expect(await screen.findByText(LISTE_VIDE)).toBeInTheDocument();
+    expect(alerte()).toBeEmptyDOMElement();
+  });
+
+  it("signale un serveur injoignable plutôt qu'un blog vide", async () => {
+    // `fetch` rejette sans réponse quand la requête n'atteint pas le serveur.
+    appelReseau.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    rendreLeBlog();
+
+    await waitFor(() =>
+      expect(alerte()).toHaveTextContent(SERVEUR_INJOIGNABLE),
+    );
+    expect(screen.queryByText(LISTE_VIDE)).not.toBeInTheDocument();
+  });
+
+  it("signale une panne du serveur plutôt qu'un blog vide", async () => {
+    // Le corps d'un 500 est souvent une page HTML, illisible en JSON.
     appelReseau.mockResolvedValueOnce({
       ok: false,
-      status: 404,
-      json: async () => ({ detail: "Introuvable." }),
+      status: 500,
+      json: async () => {
+        throw new SyntaxError("Unexpected token '<'");
+      },
     });
-    try {
-      render(
-        <MemoryRouter>
-          <Blog />
-        </MemoryRouter>,
-      );
+    rendreLeBlog();
 
-      await waitFor(() => expect(trace).toHaveBeenCalledOnce());
-    } finally {
-      trace.mockRestore();
-    }
+    await waitFor(() =>
+      expect(alerte()).toHaveTextContent(SERVICE_INDISPONIBLE),
+    );
+    expect(screen.queryByText(LISTE_VIDE)).not.toBeInTheDocument();
+  });
+
+  it("signale un 404, qu'aucune suppression n'explique sur la première page", async () => {
+    appelReseau.mockResolvedValueOnce(
+      reponseRefusee(404, { detail: "Introuvable." }),
+    );
+    rendreLeBlog();
+
+    await waitFor(() => expect(alerte()).toHaveTextContent("Introuvable."));
   });
 });

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, type ApiError } from "../../lib/api";
+import { toFormErrors } from "../../lib/apiErrors";
 import { useIsAuthenticated } from "../../hooks/useIsAuthenticated";
 import type { Article } from "../../types/article";
+import ErrorAlert from "../../components/ui/Alert/ErrorAlert";
 import Button from "../../components/ui/Button/MainButton";
 import MainTitle from "../../components/ui/Title/MainTitle";
 import Card from "../../components/common/Blog/Card.tsx";
@@ -22,10 +24,13 @@ const Blog = () => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const isAuthenticated = useIsAuthenticated();
 
-  const [articles, setArticles] = useState<Article[]>([]);
+  // null tant que la première page n'est pas arrivée : une liste pas encore
+  // chargée ne dit pas que le blog est vide.
+  const [articles, setArticles] = useState<Article[] | null>(null);
   // Numéro à demander ensuite, null quand la dernière page est affichée.
   const [pageSuivante, setPageSuivante] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
 
   // La page 1 remplace la liste — chargement initial ET rechargement après
   // création —, les suivantes s'y ajoutent. `next` est une URL absolue, que
@@ -34,7 +39,7 @@ const Blog = () => {
     apiFetch<Page<Article>>(`/articles/?page=${numero}`)
       .then((page) => {
         setArticles((dejaAffiches) => {
-          if (numero === 1) return page.results;
+          if (numero === 1 || dejaAffiches === null) return page.results;
           // Un article publié entre deux pages décale la liste d'un cran : le
           // dernier de la page d'avant revient en tête de celle-ci.
           const ids = new Set(dejaAffiches.map((article) => article.id));
@@ -44,6 +49,7 @@ const Blog = () => {
           ];
         });
         setPageSuivante(page.next ? numero + 1 : null);
+        setErreur(null);
       })
       .catch((err: unknown) => {
         // Au-delà de la première, que DRF rend toujours, un 404 dit qu'une
@@ -51,7 +57,8 @@ const Blog = () => {
         if (numero > 1 && (err as Partial<ApiError>).status === 404) {
           setPageSuivante(null);
         } else {
-          console.error(err);
+          // Liste et bouton restent : un nouveau clic retente la même page.
+          setErreur(toFormErrors(err, []).formError);
         }
       })
       .finally(() => setIsLoading(false));
@@ -90,10 +97,18 @@ const Blog = () => {
         )}
       </div>
       <div className="mt-6 mb-16">
+        {articles?.length === 0 && (
+          <p className="text-secondary">Aucun article n'a encore été publié.</p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {articles.map((article) => (
+          {articles?.map((article) => (
             <Card key={article.id} article={article} />
           ))}
+        </div>
+        {/* Sous la liste et non au-dessus : l'échec d'une page suivante se lit
+            près du bouton qui l'a demandée. */}
+        <div className="mt-6">
+          <ErrorAlert message={erreur} />
         </div>
         {pageSuivante !== null && (
           <div className="mt-8 flex justify-center">
