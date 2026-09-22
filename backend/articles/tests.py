@@ -2,13 +2,16 @@
 à qui l'article appartient quoi qu'en dise le corps envoyé, et dans quel ordre la liste
 sort — le tri, l'auteur et les dates ne venant jamais du client. Comment la liste se découpe
 en pages, et ce que coûtent les deux listes, celle de l'API et celle de l'admin, quand le
-nombre d'articles grandit."""
+nombre d'articles grandit. Enfin la commande qui peuple la base de développement, et le
+refus qui la tient à l'écart de celle de production."""
 
 from datetime import timedelta
+from io import StringIO
 
 from django.conf import settings
+from django.core.management import CommandError, call_command
 from django.db import connection
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -16,6 +19,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from accounts.models import CustomUser
 
+from .management.commands.peupler_articles import DEMO_AUTHOR_EMAIL
 from .models import Article
 
 
@@ -323,3 +327,62 @@ class ArticleCoutDesListesTests(TestCase):
 
         with self.assertNumQueries(reference):
             self.assertEqual(self.client.get(url).status_code, 200)
+
+
+@override_settings(DEBUG=True)
+class PeuplerArticlesTests(TestCase):
+    """La commande peuple la base de développement, une seule fois quel que soit le nombre de
+    lancements. DEBUG est forcé ici : test.py le fige à False, et le runner de Django aussi."""
+
+    def peupler(self):
+        call_command("peupler_articles", stdout=StringIO())
+
+    def demonstration(self):
+        return Article.objects.filter(author__email=DEMO_AUTHOR_EMAIL)
+
+    def test_la_commande_publie_30_articles_plus_longs_que_le_resume(self):
+        """Plus de 100 caractères chacun : c'est la coupure d'ArticleCard, que la commande
+        existe pour montrer à l'écran."""
+        self.peupler()
+
+        self.assertEqual(self.demonstration().count(), 30)
+        self.assertEqual(self.demonstration().values("title").distinct().count(), 30)
+        for article in self.demonstration():
+            self.assertGreater(len(article.content), 100)
+
+    def test_un_second_lancement_ne_cree_aucun_doublon(self):
+        self.peupler()
+        self.peupler()
+
+        self.assertEqual(Article.objects.count(), 30)
+        self.assertEqual(CustomUser.objects.filter(email=DEMO_AUTHOR_EMAIL).count(), 1)
+
+    def test_un_article_de_demonstration_supprime_est_republie(self):
+        """Les articles se reconnaissent à leur auteur puis à leur titre : un article d'un
+        autre auteur portant le même titre ne tient pas lieu de celui qui manque."""
+        self.peupler()
+        disparu = self.demonstration().first()
+        disparu.delete()
+        Article.objects.create(
+            title=disparu.title, content="Contenu.", author=membre("membre@example.com"),
+        )
+
+        self.peupler()
+
+        self.assertEqual(self.demonstration().count(), 30)
+        self.assertTrue(self.demonstration().filter(title=disparu.title).exists())
+
+    def test_l_auteur_de_demonstration_ne_peut_pas_se_connecter(self):
+        self.peupler()
+
+        auteur = CustomUser.objects.get(email=DEMO_AUTHOR_EMAIL)
+        self.assertFalse(auteur.is_active)
+        self.assertFalse(auteur.has_usable_password())
+
+    @override_settings(DEBUG=False)
+    def test_la_commande_refuse_quand_debug_vaut_false(self):
+        with self.assertRaises(CommandError):
+            self.peupler()
+
+        self.assertFalse(Article.objects.exists())
+        self.assertFalse(CustomUser.objects.filter(email=DEMO_AUTHOR_EMAIL).exists())
