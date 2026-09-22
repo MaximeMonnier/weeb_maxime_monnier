@@ -54,12 +54,6 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 class RefreshSerializer(TokenRefreshSerializer):
     """Renouvelle les jetons, et refuse en 401 un compte supprimé comme un compte désactivé."""
 
-    # simplejwt n'est pas dans INSTALLED_APPS, donc son catalogue n'est pas chargé ; et
-    # ce libellé-ci, marqué fuzzy, resterait anglais même chargé. Les deux refus le partagent.
-    default_error_messages = {
-        "no_active_account": "Aucun compte actif ne correspond à ce jeton.",
-    }
-
     def validate(self, attrs):
         # simplejwt relit le titulaire par objects.get() sans intercepter son absence :
         # le 500 qui en sortait, apiFetch le prend pour une panne et garde les jetons.

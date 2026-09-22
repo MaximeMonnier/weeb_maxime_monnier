@@ -1,0 +1,25 @@
+# Libellés de simplejwt que son propre catalogue ne traduit pas : entrées marquées
+# fuzzy, que la compilation écarte, ou laissées vides. Ce fichier est lu avant le sien.
+# Après toute modification, recompiler le .mo : voir le README, § « Les jetons ».
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Token is invalid"
+msgstr "Le jeton est invalide"
+
+msgid "Token is expired"
+msgstr "Le jeton a expiré"
+
+msgid "No active account found for the given token."
+msgstr "Aucun compte actif ne correspond à ce jeton."
+
+msgid "Authorization header must contain two space-delimited values"
+msgstr "L'en-tête Authorization doit contenir deux valeurs séparées par un espace"
+
+msgid "Token contained no recognizable user identification"
+msgstr "Le jeton ne contient aucun identifiant d'utilisateur reconnaissable"
