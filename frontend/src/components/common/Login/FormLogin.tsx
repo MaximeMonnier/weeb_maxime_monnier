@@ -79,8 +79,8 @@ const FormLogin = () => {
       saveTokens(data);
       navigate("/");
     } catch (err) {
-      // Un mot de passe faux et un compte pas encore validé donnent le même 401, en
-      // anglais : les distinguer dirait à un inconnu quelles adresses sont inscrites.
+      // Un mot de passe faux et un compte pas encore validé donnent le même 401 : les
+      // distinguer dirait à un inconnu quelles adresses sont inscrites.
       const { fieldErrors, formError } = toFormErrors(err, CHAMPS, {
         unauthorized:
           "Connexion impossible. Vérifiez votre email et votre mot de passe ; un compte tout juste créé doit d'abord être validé par un administrateur.",
