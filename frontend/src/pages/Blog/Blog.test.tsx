@@ -184,6 +184,41 @@ describe("Blog — pages suivantes", () => {
       ).not.toBeInTheDocument(),
     );
     expect(screen.getByText(ARTICLE.title)).toBeInTheDocument();
+    expect(alerte()).toBeEmptyDOMElement();
+  });
+
+  it("garde la liste et le bouton quand une page suivante échoue", async () => {
+    appelReseau
+      .mockResolvedValueOnce(reponsePage([ARTICLE], PAGE_2))
+      .mockResolvedValueOnce(reponseRefusee(500));
+    await afficherLeBlog();
+
+    await userEvent.click(screen.getByRole("button", BOUTON_PAGE_SUIVANTE));
+
+    await waitFor(() =>
+      expect(alerte()).toHaveTextContent(SERVICE_INDISPONIBLE),
+    );
+    expect(screen.getByText(ARTICLE.title)).toBeInTheDocument();
+    expect(screen.getByRole("button", BOUTON_PAGE_SUIVANTE)).toBeEnabled();
+  });
+
+  it("efface le message quand la page suivante finit par arriver", async () => {
+    appelReseau
+      .mockResolvedValueOnce(reponsePage([ARTICLE], PAGE_2))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(reponsePage([ARTICLE_PLUS_ANCIEN]));
+    await afficherLeBlog();
+
+    await userEvent.click(screen.getByRole("button", BOUTON_PAGE_SUIVANTE));
+    await waitFor(() =>
+      expect(alerte()).toHaveTextContent(SERVEUR_INJOIGNABLE),
+    );
+    await userEvent.click(screen.getByRole("button", BOUTON_PAGE_SUIVANTE));
+
+    expect(
+      await screen.findByText(ARTICLE_PLUS_ANCIEN.title),
+    ).toBeInTheDocument();
+    expect(alerte()).toBeEmptyDOMElement();
   });
 });
 
