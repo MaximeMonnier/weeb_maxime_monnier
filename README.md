@@ -1154,8 +1154,17 @@ tête. Le `.mo` y est versionné, l'image n'embarquant pas `gettext`. Après tou
 msgfmt --check -o backend/locale/fr/LC_MESSAGES/django.mo backend/locale/fr/LC_MESSAGES/django.po
 ```
 
-Un `.mo` qui disparaît puis revient — un changement de branche, par exemple — échappe au
-rechargeur de `runserver` : le redémarrer.
+Sans `gettext` sur la machine, un conteneur jetable fait l'affaire :
+
+```bash
+docker run --rm -v "$PWD/backend/locale:/locale" debian:12-slim sh -c \
+  "apt-get update -qq && apt-get install -y -qq gettext && \
+   msgfmt --check -o /locale/fr/LC_MESSAGES/django.mo /locale/fr/LC_MESSAGES/django.po && \
+   chown $(id -u):$(id -g) /locale/fr/LC_MESSAGES/django.mo"
+```
+
+Un `runserver` relit un `.mo` recompilé, mais pas un `.mo` absent à son lancement puis créé
+— sa toute première compilation, par exemple : le redémarrer.
 
 ### Les jetons
 
