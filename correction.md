@@ -944,9 +944,11 @@ seulement celui-ci.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| Tickets créés le 2026-09-21 | #128 | — | Bloc 1 — sécurité |
+| Clos le 2026-09-22 — backend touché, une demande de 5.4 renvoyée au lot 6 | #128 | Lot 5 | Bloc 1 — sécurité |
 
-**Grain de ticket** : epic + 4 sous-issues, une par tâche.
+**Grain de ticket** : epic + 4 sous-issues, une par tâche. **Livré tel quel** : #129, #130,
+#131, #132 — mais l'epic, qui annonçait « aucun fichier de `backend/` », en a touché sept (5.2),
+et l'affichage d'une liste vide ou d'un échec de chargement, demandé en 5.4, est passé au lot 6.
 
 > **Dépendances : lot 4** (le socle des formulaires) **et 1.6** (l'endpoint de déconnexion).
 > Aujourd'hui le front n'a **aucune notion d'utilisateur connecté** : pas d'état partagé, pas de
@@ -954,13 +956,16 @@ seulement celui-ci.
 
 ## 5.1 — Centraliser l'état d'authentification
 
-- [ ] **Fichiers** : `frontend/src/hooks/useAuth.ts` (à créer, nom à valider par l'inventaire),
+- [x] **Fichiers** : `frontend/src/hooks/useAuth.ts` (à créer, nom à valider par l'inventaire),
   `frontend/src/lib/api.ts`, `frontend/src/App.tsx`
 - **Constat** : la seule trace d'authentification est `localStorage.setItem("access", …)` dans
   `FormLogin.tsx:75` et `localStorage.getItem("access")` dans `api.ts:13`. Aucun composant ne sait
   si l'utilisateur est connecté.
 - **Attendu** : un point unique qui répond « connecté ou non », consommable par la navigation et
   les pages.
+- **Livré** : #129, sans `useAuth.ts` : `lib/tokens.ts`, seul module à toucher aux jetons, et
+  `hooks/useIsAuthenticated.ts`, abonné par `useSyncExternalStore` — aucun contexte, `App.tsx`
+  intact. Hors plan, `playwright.config.ts` lit `FRONTEND_PORT_DEV` au lieu d'un port en dur.
 
 ```
 Objectif : donner au front une notion d'utilisateur connecté, qu'il n'a pas du tout aujourd'hui.
@@ -1001,13 +1006,17 @@ protection des routes (5.4). Cette tâche pose seulement le socle.
 
 ## 5.2 — Rafraîchir le jeton expiré dans `apiFetch`
 
-- [ ] **Fichiers** : `frontend/src/lib/api.ts`, `frontend/src/hooks/useAuth.ts`
+- [x] **Fichiers** : `frontend/src/lib/api.ts`, `frontend/src/hooks/useAuth.ts`
 - **Constat** : le refresh token est stocké (`FormLogin.tsx:76`) puis **jamais relu**. L'endpoint
   `/api/auth/login/refresh/` existe pourtant (`accounts/urls.py:13`). Au bout d'une heure
   (`ACCESS_TOKEN_LIFETIME`), chaque appel authentifié part en 401 silencieux, sans message et sans
   redirection.
 - **Attendu** : l'expiration est rattrapée de façon transparente ; un refresh mort déconnecte
   proprement.
+- **Livré** : #130. Hors plan, deux corrections côté API : `login/refresh/` rend `401` et non
+  `500` pour un compte supprimé, et les refus de simplejwt sortent en français
+  (`backend/locale/`, `.mo` versionné). Le constat ci-dessous datait : le jeton d'accès valait
+  déjà 15 minutes, pas 60.
 - **Dépend de** : 5.1, et de la décision prise en 1.6 sur la rotation
 
 ```
@@ -1047,12 +1056,14 @@ Critère d'acceptation : avec un access token expiré et un refresh valide, un a
 
 ## 5.3 — Déconnexion et navigation conditionnelle
 
-- [ ] **Fichiers** : `NavBar.tsx`, `MobileMenu.tsx`, `frontend/src/hooks/useAuth.ts`
+- [x] **Fichiers** : `NavBar.tsx`, `MobileMenu.tsx`, `frontend/src/hooks/useAuth.ts`
 - **Constat** : il n'existe **aucun moyen de se déconnecter**. `NavBar.tsx:81-87` affiche
   « Se connecter » et « Nous rejoindre » en permanence, y compris pour un utilisateur déjà
   connecté. Rien ne vide jamais `localStorage`.
 - **Attendu** : la navigation reflète l'état de connexion, et la déconnexion invalide le jeton
   côté serveur.
+- **Livré** : #131, `logout()` rangé dans `hooks/useIsAuthenticated.ts`. Hors plan, le menu
+  mobile replié sort de la navigation au clavier (`inert`) : ses liens y restaient atteignables.
 - **Dépend de** : 5.1, 1.6
 
 ```
@@ -1093,11 +1104,14 @@ requête authentifiée échoue.
 
 ## 5.4 — Protéger la création d'article
 
-- [ ] **Fichiers** : `frontend/src/pages/Blog/Blog.tsx`, `frontend/src/App.tsx`
+- [x] **Fichiers** : `frontend/src/pages/Blog/Blog.tsx`, `frontend/src/App.tsx`
 - **Constat** : `Blog.tsx:37-43` affiche le bouton « Crée un articles » (faute de français au
   passage) à **tout visiteur**, connecté ou non. Un visiteur anonyme ouvre la modale, remplit le
   formulaire, et l'API répond 401 — que `FormArticle.tsx:74` avale dans un `console.error`.
 - **Attendu** : l'action n'est proposée qu'aux utilisateurs connectés, et le libellé est correct.
+- **Livré** : #132 — le visiteur voit un lien « Se connecter pour publier » à la place du
+  bouton, le libellé est corrigé, et la page a son premier test. **Non livré** : la liste vide
+  et l'échec de chargement (point 3 du prompt), que l'issue a renvoyés au lot 6 — voir 6.1.
 - **Dépend de** : 5.1, 4.2
 
 ```
@@ -1139,9 +1153,11 @@ Ne modifie pas FormArticle.tsx dans cette tâche au-delà de ce que 4.1 et 4.2 o
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — optimisation |
+| 6.1 livrée par l'issue #111 le 2026-09-22 — restent 6.2 et deux points de 6.1 | — | — | Bloc 1 — optimisation |
 
 **Grain de ticket** : ticket unique — 6.1 est atomique par construction, 6.2 en découle.
+**Livré en avance, hors lot** : 6.1, par l'issue #111, ouverte le 2026-09-09 à la suite de #106.
+Le ticket du lot porte donc 6.2, plus les deux points que #111 n'a pas pris — voir 6.1.
 
 > **Dépendances : lots 2, 3 et 5.**
 > ⚠️ Cette tâche **change le contrat de l'API** : la réponse de `/api/articles/` passe d'un
@@ -1150,13 +1166,18 @@ Ne modifie pas FormArticle.tsx dans cette tâche au-delà de ce que 4.1 et 4.2 o
 
 ## 6.1 — Paginer `/api/articles/` et adapter le front
 
-- [ ] **Fichiers** : `backend/config/settings/base.py`, `backend/articles/views.py`,
+- [x] **Fichiers** : `backend/config/settings/base.py`, `backend/articles/views.py`,
   `frontend/src/pages/Blog/Blog.tsx`, `frontend/src/lib/api.ts`, `frontend/src/types/article.ts`
 - **Constat** : `/api/articles/` renvoie **toute la table** à chaque appel. `Card.tsx:25`
   télécharge le contenu entier de chaque article pour n'en afficher que 100 caractères.
   Côté front, `Blog.tsx:18` type la réponse `apiFetch<Article[]>` : l'activation de la pagination
   casse cette ligne.
 - **Attendu** : liste paginée, front adapté, aucun écran vide.
+- **Livré** : #111 — `PageNumberPagination` réglée dans `REST_FRAMEWORK`, pages de 12,
+  `Meta.ordering` départagé par `-id` (migration `0002`), bouton « Voir plus d'articles » sur
+  `/blog`. `Page<T>` reste local à `Blog.tsx`, son seul lecteur. **Non livré** : l'affichage
+  d'une liste vide et d'un échec de chargement, hérité de 5.4 — `Blog.tsx` n'a toujours qu'un
+  `console.error` ; et le serializer allégé pour la liste, point bonus jamais chiffré.
 
 ```
 Objectif : paginer la liste des articles, côté API ET côté front, dans la même branche.
@@ -1203,6 +1224,10 @@ Critère d'acceptation : la page /blog affiche toujours des articles après le c
   le nombre d'articles.
 - **Attendu** : la sonde continue de lire la base, à coût constant.
 - **Dépend de** : 6.1
+- **État au 2026-09-22** : la liste étant paginée, la sonde lit un `COUNT` et 12 articles, et
+  non plus toute la table — mais le `COUNT(*)` de PostgreSQL parcourt encore toutes les lignes.
+  `?page_size=1` n'est **pas** accepté : #111 n'a pas posé de `page_size_query_param`, et en
+  poser un laisserait tout client choisir sa taille de page, à borner alors par `max_page_size`.
 
 ```
 Objectif : réduire le coût de la sonde de santé du conteneur backend.
