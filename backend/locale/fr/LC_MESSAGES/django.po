@@ -1,5 +1,5 @@
 # Libellés de simplejwt que son propre catalogue ne traduit pas : entrées marquées
-# fuzzy, que la compilation écarte, ou laissées vides. Ce fichier est lu avant le sien.
+# fuzzy, que la compilation écarte. Ce fichier est lu avant le sien.
 # Après toute modification, recompiler le .mo : voir le README, § « L'API ».
 msgid ""
 msgstr ""
@@ -17,9 +17,3 @@ msgstr "Le jeton a expiré"
 
 msgid "No active account found for the given token."
 msgstr "Aucun compte actif ne correspond à ce jeton."
-
-msgid "Authorization header must contain two space-delimited values"
-msgstr "L'en-tête Authorization doit contenir deux valeurs séparées par un espace"
-
-msgid "Token contained no recognizable user identification"
-msgstr "Le jeton ne contient aucun identifiant d'utilisateur reconnaissable"
