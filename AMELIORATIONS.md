@@ -20,6 +20,12 @@ et pour les prochaines itérations).
       Piste : l'origine passée dans le `state` du `Link`, que `FormLogin` relit — et non un
       paramètre `?next=` dans l'adresse, qui, recopié tel quel, ouvrirait une redirection
       vers un site tiers.
+- [ ] **« Voir plus d'articles » peut en sauter un.** Depuis l'issue #111, l'API découpe la
+      liste par position (`?page=N`) : un article supprimé entre deux chargements remonte
+      la suite d'un cran, et le premier de la page suivante n'est jamais affiché. Le
+      décalage inverse, une publication, est déjà absorbé — `Blog.tsx` écarte le doublon
+      qu'elle produit. Piste : la `CursorPagination` de DRF, qui reprend après le dernier
+      article vu, mais ne donne pas le `count` que l'issue exigeait.
 
 ## Docker — mise en ligne
 
