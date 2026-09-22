@@ -1144,6 +1144,27 @@ Le token d'accès est valable 15 minutes, celui de rafraîchissement 1 jour — 
 
 Les messages d'erreur sortent **en français** : `LANGUAGE_CODE` vaut `fr-fr` et aucun
 `LocaleMiddleware` n'est monté, la langue ne suit donc pas l'`Accept-Language` du client.
+Ceux de simplejwt aussi, à deux conditions. L'app `rest_framework_simplejwt` figure dans
+`INSTALLED_APPS`, sans quoi Django ne charge pas son catalogue ; et `backend/locale/` traduit
+les libellés que ce catalogue laisse en anglais, « Token is expired » et « Token is invalid » en
+tête. Le `.mo` y est versionné, l'image n'embarquant pas `gettext`. Après toute modification du
+`.po`, le recompiler — `msgfmt` vient du paquet `gettext` :
+
+```bash
+msgfmt --check -o backend/locale/fr/LC_MESSAGES/django.mo backend/locale/fr/LC_MESSAGES/django.po
+```
+
+Sans `gettext` sur la machine, un conteneur jetable fait l'affaire :
+
+```bash
+docker run --rm -v "$PWD/backend/locale:/locale" debian:12-slim sh -c \
+  "apt-get update -qq && apt-get install -y -qq gettext && \
+   msgfmt --check -o /locale/fr/LC_MESSAGES/django.mo /locale/fr/LC_MESSAGES/django.po && \
+   chown $(id -u):$(id -g) /locale/fr/LC_MESSAGES/django.mo"
+```
+
+Un `runserver` relit un `.mo` recompilé, mais pas un `.mo` absent à son lancement puis créé
+— sa toute première compilation, par exemple : le redémarrer.
 
 ### Les jetons
 
@@ -1161,8 +1182,17 @@ son effet à `logout/` : la déconnexion est le même geste, sans jeton neuf en 
 Deux conséquences pratiques :
 
 - **un client qui rafraîchit doit stocker le `refresh` reçu en réponse**, sinon il se coupe
-  lui-même au prochain appel. Le front ne le fait pas encore : il ne rafraîchit pas du tout,
-  et la session s'arrête donc au bout de 15 minutes ;
+  lui-même au prochain appel. Côté front, c'est `apiFetch` (`src/lib/api.ts`) : sur un `401`
+  reçu avec un jeton, il appelle `login/refresh/`, range les deux jetons rendus et rejoue la
+  requête une fois. Les `401` reçus en même temps — `StrictMode` lance deux fois les effets en
+  développement — partagent un seul renouvellement, puisqu'un second appel avec le même
+  `refresh` serait refusé. Un renouvellement refusé efface les deux jetons et rejoue la requête
+  **sans** jeton : l'API seule sait si la route est publique, et `/blog` s'affiche au lieu de
+  répondre `401`. Une panne du renouvellement (réseau, `5xx`) garde les jetons et rend le `401`
+  d'origine. C'est pourquoi `login/refresh/` répond `401`, et non `500`, pour un compte supprimé
+  depuis la connexion : simplejwt laissait l'erreur sortir, d'où `LoginRefreshView`. Chaque
+  `refresh` neuf repartant pour un jour, la session dure jusqu'à un jour sans renouvellement,
+  et non plus 15 minutes ;
 - **la révocation vit en base**, dans les tables de `rest_framework_simplejwt.token_blacklist`.
   L'app est dans `INSTALLED_APPS` et ses migrations sont livrées avec le paquet : un
   `python manage.py migrate` suffit, `makemigrations` ne doit rien produire. Ces tables
@@ -1255,6 +1285,7 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
 │   ├── accounts/             # utilisateurs, authentification JWT
 │   ├── articles/             # articles du blog
 │   ├── contact/              # formulaire de contact
+│   ├── locale/               # libellés de simplejwt que son catalogue laisse en anglais
 │   ├── Dockerfile            # image de production de l'API
 │   ├── .dockerignore         # ce que le build n'envoie pas au démon
 │   ├── docker-entrypoint.sh  # migrations et statiques avant Gunicorn

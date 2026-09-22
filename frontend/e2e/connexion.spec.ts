@@ -47,7 +47,7 @@ test.describe("Connexion", () => {
     // et l'API ne serait jamais appelée.
     await seConnecter(page, "mot-de-passe-faux-42");
 
-    // Ce libellé est celui que le front substitue au 401 anglais de simplejwt.
+    // Ce libellé est celui que le front substitue au 401 de simplejwt.
     // Une pile arrêtée donnerait « Le serveur est injoignable » : ce cas tombe
     // donc si l'API n'est pas là, au lieu de passer sur un refus de façade.
     await expect(page.getByRole("alert")).toContainText("Connexion impossible.");

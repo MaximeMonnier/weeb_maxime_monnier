@@ -1,0 +1,19 @@
+# Libellés de simplejwt que son propre catalogue ne traduit pas : entrées marquées
+# fuzzy, que la compilation écarte. Ce fichier est lu avant le sien.
+# Après toute modification, recompiler le .mo : voir le README, § « L'API ».
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Token is invalid"
+msgstr "Le jeton est invalide"
+
+msgid "Token is expired"
+msgstr "Le jeton a expiré"
+
+msgid "No active account found for the given token."
+msgstr "Aucun compte actif ne correspond à ce jeton."
