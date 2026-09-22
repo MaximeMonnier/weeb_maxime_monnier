@@ -153,6 +153,8 @@ Rien de ce qui reste ne bloque le développement.
       à deux endroits, elles dériveront séparément le jour où `lib/api.ts` changera. Un
       troisième formulaire testé impose l'extraction. Piste : un module de test partagé,
       importé explicitement par chaque fichier — surtout pas un `setupFiles`, `globals`
-      restant à `false`. Repéré à l'issue #119.
+      restant à `false`. Repéré à l'issue #119. Depuis, `useIsAuthenticated.test.ts` et
+      `Blog.test.tsx` (#132) substituent `fetch` à leur tour, sans formulaire : cinq fichiers
+      au total, `api.test.ts` compris.
 
 ## (à compléter au fil de l'eau)
