@@ -46,10 +46,13 @@ const Blog = () => {
         setPageSuivante(page.next ? numero + 1 : null);
       })
       .catch((err: unknown) => {
-        // Une suppression a raccourci la liste : la page promise n'existe plus,
-        // et le bouton ne rendrait que ce même refus à chaque clic.
-        if ((err as Partial<ApiError>).status === 404) setPageSuivante(null);
-        else console.error(err);
+        // Au-delà de la première, que DRF rend toujours, un 404 dit qu'une
+        // suppression a raccourci la liste : le bouton n'aurait plus rien à charger.
+        if (numero > 1 && (err as Partial<ApiError>).status === 404) {
+          setPageSuivante(null);
+        } else {
+          console.error(err);
+        }
       })
       .finally(() => setIsLoading(false));
   };
