@@ -49,7 +49,12 @@ beforeEach(() => {
   appelReseau.mockResolvedValue({
     ok: true,
     status: 200,
-    json: async () => [ARTICLE],
+    json: async () => ({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [ARTICLE],
+    }),
   });
   globalThis.fetch = appelReseau as unknown as typeof fetch;
   ouvrirFenetre.mockReset();
