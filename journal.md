@@ -339,3 +339,76 @@ aucune ligne, `grep -rnF 's@' frontend/src` la seule ligne de `lib/validationRul
 six formulaires importent le hook. Le parcours Playwright a été rejoué à la livraison de #117
 et de #118, pile `compose.dev.yaml` levée ; il ne couvre pas l'inscription, et n'a donc pas été
 relancé après #119.
+
+---
+
+## Lot 5 — Authentification côté front
+
+Clos le 2026-09-22 · Epic #128 · Alimente : Bloc 1 — sécurité
+
+**Constat mesuré** — le front ne savait pas qui était connecté. Les jetons tenaient en trois
+lignes : `FormLogin.tsx:78-79` écrivait `access` et `refresh` dans `localStorage`, `api.ts:13`
+relisait `access`. Le jeton de rafraîchissement n'était relu **nulle part** hors d'un test,
+`git grep -i logout -- frontend/src` ne rendait **rien**, et `/blog` proposait « Crée un
+articles » à tout visiteur. Le jeton d'accès valant 15 minutes, la session mourait au quart
+d'heure sans un mot. Et un jeton mort resté dans `localStorage` faisait répondre `401` aux
+lectures publiques, `/blog` en tête : DRF authentifie avant d'appliquer les permissions.
+
+**Décision et justification** — quatre arbitrages.
+
+**Un module et un hook, pas de contexte React.** `lib/tokens.ts` est seul à toucher aux jetons,
+et `useIsAuthenticated` s'y abonne par `useSyncExternalStore`. L'état est lu dès le premier
+rendu, sans effet, et une écriture faite hors de React — par `apiFetch`, quand un
+renouvellement échoue — prévient les composants sans qu'aucun ne soit remonté. `App.tsx` n'a
+pas été touché. Le témoin est le jeton de **rafraîchissement**, celui d'accès expirant toutes
+les 15 minutes. Les clés `access` et `refresh` sont restées telles quelles : les renommer
+aurait déconnecté toutes les sessions ouvertes au déploiement, et quatre fichiers de test les
+gardent en dur pour que ce renommage fasse tomber la suite.
+
+**Seul un `401` dit qu'un jeton est mort.** `apiFetch` renouvelle sur un `401` reçu avec un
+jeton, puis rejoue la requête une fois. Un renouvellement refusé efface les deux jetons et
+rejoue sans jeton — c'est ce qui rend `/blog` au visiteur porteur d'un jeton périmé. Une panne,
+réseau ou `5xx`, garde les jetons : les effacer déconnecterait à chaque coupure. Les `401`
+simultanés partagent un seul renouvellement, la rotation de l'issue #72 refusant un second
+appel fait avec le même jeton. Les routes `/auth/` n'y entrent jamais, ce qui ferme la boucle.
+
+**La déconnexion ne lève jamais.** `logout()` envoie le jeton à `logout/`, puis efface les deux
+dans un `finally`, que l'API réponde ou non : une erreur remontée laisserait l'interface
+connectée, sans autre moyen d'en sortir.
+
+**Au visiteur, un lien à la place du bouton.** Sur `/blog`, « Se connecter pour publier »
+remplace le bouton de création au lieu de le faire disparaître. Il a ouvert une entrée dans
+`AMELIORATIONS.md` : une fois connecté, `FormLogin` ramène à `/`, et non à `/blog`.
+
+**Ce qui a surpris** — quatre fois.
+
+**Le lot devait laisser `backend/` intact, il a touché sept fichiers.** L'epic l'annonçait
+noir sur blanc. Mais `login/refresh/` répondait `500` pour un compte supprimé : simplejwt
+laissait passer l'erreur, et le front, qui tient une panne pour passagère, aurait gardé des
+jetons morts jusqu'à l'échéance du refresh. `LoginRefreshView` la ramène à `401`. Les refus de
+simplejwt sortaient aussi en anglais : l'app manquait à `INSTALLED_APPS`, son catalogue n'était
+donc pas chargé, et les libellés qu'il marque fuzzy n'y sont pas compilés. D'où
+`backend/locale/` et un `.mo` versionné, l'image n'ayant pas `gettext`.
+
+**Le plan était en retard sur le code.** Il donnait au jeton d'accès 60 minutes, que le lot 1
+avait déjà ramenées à 15, et prévoyait un `hooks/useAuth.ts` devenu un module et un hook.
+
+**Un défaut d'accessibilité attendait sous le menu mobile.** Replié, il n'était caché que par
+sa hauteur et son opacité : ses liens restaient atteignables au clavier, et « Se déconnecter »
+l'aurait été aussi, activable sans être vu. `inert` le retire de la navigation au clavier tant
+qu'il est fermé. Le parcours Playwright, lui, avait `127.0.0.1:5173` en dur, alors que ce port
+était pris sur la machine par un autre projet : il lit désormais `FRONTEND_PORT_DEV`.
+
+**Une demande est restée en route.** Le prompt de 5.4 voulait aussi qu'une liste vide et un
+échec de chargement s'affichent sur `/blog`. L'issue #132 l'a renvoyé au lot 6, qui réécrivait
+ce chargement pour la pagination — et #111, qui a livré cette pagination le même jour, ne l'a
+pas repris. Le lot 6 en hérite.
+
+**Preuve de la correction** — rejouée à l'état du merge de #136 (`38a0bad`), dernier du lot,
+dans un worktree jetable. Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend
+`Test Files  7 passed (7)` et `Tests  67 passed (67)` — 45 avant le lot. Depuis `backend/` :
+`Ran 64 tests`, `OK` — 59 avant. `grep -rn 'localStorage\.' frontend/src --exclude='*.test.*'`
+ne sort que `lib/tokens.ts` et `hooks/useTheme.ts`, premier critère de l'epic #128. Le parcours
+Playwright — connexion, mot de passe faux, déconnexion puis refus de l'ancien refresh en `401` —
+a tourné à la livraison de #133, #134 et #135 ; il n'a pas été rejoué à la clôture, faute
+d'identifiants de test sur la machine.

@@ -148,13 +148,12 @@ Rien de ce qui reste ne bloque le développement.
 
 ## Intégration continue
 
-- [ ] **Aucun job de test dans la CI.** `.github/workflows/docker-images.yml` construit les
-      deux images et rien d'autre ; depuis l'issue #68 le dépôt a une suite de tests, qui ne
-      tourne donc que sur la machine de qui pense à la lancer. Un job avec un service `postgres`
-      et les `POSTGRES_*` en variables suffit — `config/settings/test.py` appelle
-      `postgres_database()` et `env_required`, il lui faut une vraie base. À ne pas confondre
-      avec l'entrée « Exécution des tests en conteneur isolé » ci-dessus, qui vise l'image
-      de production et reste un chantier distinct.
+- [x] **Aucun job de test dans la CI** — réglé par l'issue #91, au lot 2.
+      `.github/workflows/tests.yml` lance les deux suites à chaque push sur `preprod` ou
+      `main` et sur chaque pull request qui vise l'une des deux, le back contre un service
+      `postgres`. Le parcours Playwright n'y tourne pas, faute de pile Compose et de
+      navigateur. L'entrée « Exécution des tests en conteneur isolé » ci-dessus reste un
+      chantier distinct : elle vise l'image de production.
 
 ## Tests
 
