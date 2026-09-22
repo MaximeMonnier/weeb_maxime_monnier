@@ -76,8 +76,9 @@ Rien de ce qui reste ne bloque le développement.
 - [x] **Le front ne rafraîchit pas ses jetons, et la session dure 15 minutes** — réglé par
       l'issue #130. `apiFetch` appelle `/api/auth/login/refresh/` sur un `401` et **range le
       `refresh` rendu**, que la rotation de l'issue #72 rend obligatoire. La session dure
-      désormais jusqu'à un jour sans renouvellement. Reste la déconnexion :
-      `POST /api/auth/logout/` existe côté API, aucun écran ne l'appelle encore — issue #131.
+      désormais jusqu'à un jour sans renouvellement. La déconnexion a suivi avec l'issue
+      #131 : le menu appelle `POST /api/auth/logout/`, et efface les deux jetons même si
+      l'appel échoue.
 
 ## Backend — sécurité
 

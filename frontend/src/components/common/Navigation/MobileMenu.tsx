@@ -1,21 +1,29 @@
 import { Link, NavLink as RRNavLink } from "react-router-dom";
+import Button from "../../ui/Button/MainButton";
 import type { NavItem } from "../../../types/navigation";
 
 type MobileMenuProps = {
   isOpen: boolean;
+  isAuthenticated: boolean;
   navItems: NavItem[];
   onClose: () => void;
   onHashClick: (e: React.MouseEvent<HTMLAnchorElement>, hash: string) => void;
+  onLogout: () => void;
 };
 
 export default function MobileMenu({
   isOpen,
+  isAuthenticated,
   navItems,
   onClose,
   onHashClick,
+  onLogout,
 }: MobileMenuProps) {
   return (
+    // Replié, le menu n'est caché que par sa hauteur et son opacité : sans
+    // `inert`, ses liens resteraient atteignables au clavier sans être vus.
     <div
+      inert={!isOpen}
       className={[
         "px-6 md:hidden overflow-hidden transition-all duration-300 ease-in-out",
         isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0",
@@ -54,21 +62,35 @@ export default function MobileMenu({
               );
             })}
 
-            <RRNavLink
-              to="/login"
-              onClick={onClose}
-              className="nav-link block py-3 px-4 rounded-lg hover:bg-tertiary"
-            >
-              Se connecter
-            </RRNavLink>
+            {isAuthenticated ? (
+              <Button
+                type="button"
+                variant="outline"
+                fullWidth
+                className="mt-4"
+                onClick={onLogout}
+              >
+                Se déconnecter
+              </Button>
+            ) : (
+              <>
+                <RRNavLink
+                  to="/login"
+                  onClick={onClose}
+                  className="nav-link block py-3 px-4 rounded-lg hover:bg-tertiary"
+                >
+                  Se connecter
+                </RRNavLink>
 
-            <Link
-              to="/contact"
-              onClick={onClose}
-              className="btn-primary w-full mt-4"
-            >
-              Nous rejoindre
-            </Link>
+                <Link
+                  to="/contact"
+                  onClick={onClose}
+                  className="btn-primary w-full mt-4"
+                >
+                  Nous rejoindre
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
