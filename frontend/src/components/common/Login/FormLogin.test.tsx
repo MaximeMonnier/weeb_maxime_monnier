@@ -106,10 +106,10 @@ describe("FormLogin — refus avant tout appel", () => {
 });
 
 describe("FormLogin — réponse de l'API", () => {
-  it("substitue son libellé au 401 anglais de simplejwt", async () => {
+  it("substitue son libellé au 401 de simplejwt", async () => {
     appelReseau.mockResolvedValue(
       reponse(401, {
-        detail: "No active account found with the given credentials",
+        detail: "Aucun compte actif n'a été trouvé avec les identifiants fournis",
       }),
     );
     afficherFormulaire();
