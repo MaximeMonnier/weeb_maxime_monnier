@@ -14,6 +14,12 @@ et pour les prochaines itérations).
       inchangée : librairie type
       `react-hot-toast` ou `sonner`, ou un composant Toast maison — c'est le point où ce
       message survivrait à la navigation.
+- [ ] **La connexion ne ramène pas là d'où l'on vient.** `FormLogin.tsx` mène toujours à
+      `/` après succès. Depuis l'issue #132, le blog envoie le visiteur vers `/login` par un
+      lien « Se connecter pour publier » : une fois connecté, il doit retrouver `/blog` seul.
+      Piste : l'origine passée dans le `state` du `Link`, que `FormLogin` relit — et non un
+      paramètre `?next=` dans l'adresse, qui, recopié tel quel, ouvrirait une redirection
+      vers un site tiers.
 
 ## Docker — mise en ligne
 
