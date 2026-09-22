@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { apiFetch } from "../../lib/api";
+import { apiFetch, type ApiError } from "../../lib/api";
 import { useIsAuthenticated } from "../../hooks/useIsAuthenticated";
 import type { Article } from "../../types/article";
 import Button from "../../components/ui/Button/MainButton";
@@ -45,7 +45,12 @@ const Blog = () => {
         });
         setPageSuivante(page.next ? numero + 1 : null);
       })
-      .catch(console.error)
+      .catch((err: unknown) => {
+        // Une suppression a raccourci la liste : la page promise n'existe plus,
+        // et le bouton ne rendrait que ce même refus à chaque clic.
+        if ((err as Partial<ApiError>).status === 404) setPageSuivante(null);
+        else console.error(err);
+      })
       .finally(() => setIsLoading(false));
   };
 

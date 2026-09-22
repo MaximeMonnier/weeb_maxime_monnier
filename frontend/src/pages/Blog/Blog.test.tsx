@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import "@testing-library/jest-dom/vitest";
@@ -146,5 +146,25 @@ describe("Blog — pages suivantes", () => {
       await screen.findByText(ARTICLE_PLUS_ANCIEN.title),
     ).toBeInTheDocument();
     expect(screen.getAllByText(ARTICLE.title)).toHaveLength(1);
+  });
+
+  it("retire le bouton quand la page suivante a disparu", async () => {
+    appelReseau
+      .mockResolvedValueOnce(reponsePage([ARTICLE], PAGE_2))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ detail: "Page non valide." }),
+      });
+    await afficherLeBlog();
+
+    await userEvent.click(screen.getByRole("button", BOUTON_PAGE_SUIVANTE));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", BOUTON_PAGE_SUIVANTE),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText(ARTICLE.title)).toBeInTheDocument();
   });
 });
