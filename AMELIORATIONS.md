@@ -14,6 +14,12 @@ et pour les prochaines itérations).
       inchangée : librairie type
       `react-hot-toast` ou `sonner`, ou un composant Toast maison — c'est le point où ce
       message survivrait à la navigation.
+- [ ] **La connexion ne ramène pas là d'où l'on vient.** `FormLogin.tsx` mène toujours à
+      `/` après succès. Depuis l'issue #132, le blog envoie le visiteur vers `/login` par un
+      lien « Se connecter pour publier » : une fois connecté, il doit retrouver `/blog` seul.
+      Piste : l'origine passée dans le `state` du `Link`, que `FormLogin` relit — et non un
+      paramètre `?next=` dans l'adresse, qui, recopié tel quel, ouvrirait une redirection
+      vers un site tiers.
 
 ## Docker — mise en ligne
 
@@ -153,6 +159,8 @@ Rien de ce qui reste ne bloque le développement.
       à deux endroits, elles dériveront séparément le jour où `lib/api.ts` changera. Un
       troisième formulaire testé impose l'extraction. Piste : un module de test partagé,
       importé explicitement par chaque fichier — surtout pas un `setupFiles`, `globals`
-      restant à `false`. Repéré à l'issue #119.
+      restant à `false`. Repéré à l'issue #119. Depuis, `useIsAuthenticated.test.ts` et
+      `Blog.test.tsx` (#132) substituent `fetch` à leur tour, sans formulaire : cinq fichiers
+      au total, `api.test.ts` compris.
 
 ## (à compléter au fil de l'eau)
