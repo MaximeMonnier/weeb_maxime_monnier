@@ -133,19 +133,6 @@ Rien de ce qui reste ne bloque le développement.
       d'un projet pédagogique ; à reprendre le jour où une file de tâches entrera, la même
       qui manque à l'envoi des emails ci-dessus.
 
-## Backend — messages d'erreur
-
-- [ ] **Les libellés de simplejwt sortent en anglais.** Le README annonce des messages
-      d'erreur en français, mais `rest_framework_simplejwt` n'est pas dans `INSTALLED_APPS` :
-      seule son app `token_blacklist`, sans catalogue, y figure, et Django ne charge donc pas
-      ses traductions. Le `401` de `login/`, « Token is blacklisted » et « Token is expired »
-      sur `login/refresh/` et `logout/`, et le refus de `JWTAuthentication` sur les routes
-      protégées sortent en anglais. Seul le compte désactivé ou supprimé y échappe sur
-      `login/refresh/`, `RefreshSerializer` portant son propre libellé depuis l'issue #130.
-      Le front n'en montre rien, `lib/apiErrors.ts` substituant ses libellés au `401`. Piste :
-      ajouter `rest_framework_simplejwt` à `INSTALLED_APPS`, en reprenant ensemble
-      `FormLogin.test.tsx`, qui simule ce `401` en anglais, et CLAUDE.md, qui le décrit ainsi.
-
 ## Intégration continue
 
 - [ ] **Aucun job de test dans la CI.** `.github/workflows/docker-images.yml` construit les
