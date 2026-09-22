@@ -122,8 +122,9 @@ describe("Blog — pages suivantes", () => {
     expect(
       await screen.findByText(ARTICLE_PLUS_ANCIEN.title),
     ).toBeInTheDocument();
+    // L'adresse entière : suivre `next`, absolue, doublerait le préfixe de l'API.
     expect(appelReseau).toHaveBeenLastCalledWith(
-      expect.stringMatching(/\/articles\/\?page=2$/),
+      `${import.meta.env.VITE_API_URL}/articles/?page=2`,
       expect.anything(),
     );
     expect(
