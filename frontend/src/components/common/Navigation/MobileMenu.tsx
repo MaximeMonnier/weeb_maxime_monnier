@@ -20,7 +20,10 @@ export default function MobileMenu({
   onLogout,
 }: MobileMenuProps) {
   return (
+    // Replié, le menu n'est caché que par sa hauteur et son opacité : sans
+    // `inert`, ses liens resteraient atteignables au clavier sans être vus.
     <div
+      inert={!isOpen}
       className={[
         "px-6 md:hidden overflow-hidden transition-all duration-300 ease-in-out",
         isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0",
