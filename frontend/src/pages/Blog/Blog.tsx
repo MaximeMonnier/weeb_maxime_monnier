@@ -56,8 +56,10 @@ const Blog = () => {
         // suppression a raccourci la liste : le bouton n'aurait plus rien à charger.
         if (numero > 1 && (err as Partial<ApiError>).status === 404) {
           setPageSuivante(null);
+          // Un échec précédent inviterait à réessayer un bouton disparu.
+          setErreur(null);
         } else {
-          // Liste et bouton restent : un nouveau clic retente la même page.
+          // Liste et bouton restent : une page suivante se retente d'un clic.
           setErreur(toFormErrors(err, []).formError);
         }
       })
