@@ -168,4 +168,24 @@ describe("Blog — pages suivantes", () => {
     );
     expect(screen.getByText(ARTICLE.title)).toBeInTheDocument();
   });
+
+  it("signale un 404 sur la première page, qu'aucune suppression n'explique", async () => {
+    const trace = vi.spyOn(console, "error").mockImplementation(() => {});
+    appelReseau.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: async () => ({ detail: "Introuvable." }),
+    });
+    try {
+      render(
+        <MemoryRouter>
+          <Blog />
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => expect(trace).toHaveBeenCalledOnce());
+    } finally {
+      trace.mockRestore();
+    }
+  });
 });
