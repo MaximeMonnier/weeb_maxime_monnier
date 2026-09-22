@@ -257,6 +257,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    # Toute liste sort par pages, sous la forme {count, next, previous, results}.
+    # 12 remplit sans trou la grille du blog, qu'elle ait deux ou trois colonnes.
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 12,
     # Quotas d'appels, comptés par IP. ScopedRateThrottle ne compte QUE les vues
     # qui déclarent un `throttle_scope` : les autres, articles compris, ne sont
     # pas limitées. Un scope absent des taux ci-dessous fait échouer sa vue.

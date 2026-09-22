@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { apiFetch } from "../../lib/api";
+import { apiFetch, type ApiError } from "../../lib/api";
 import { useIsAuthenticated } from "../../hooks/useIsAuthenticated";
 import type { Article } from "../../types/article";
 import Button from "../../components/ui/Button/MainButton";
@@ -10,15 +10,51 @@ import Card from "../../components/common/Blog/Card.tsx";
 import { useRef } from "react";
 import FormArticle from "../../components/common/Blog/FormArticle.tsx";
 
+// La forme que DRF donne à toute liste de l'API, découpée en pages.
+type Page<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
+
 const Blog = () => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const isAuthenticated = useIsAuthenticated();
 
   const [articles, setArticles] = useState<Article[]>([]);
+  // Numéro à demander ensuite, null quand la dernière page est affichée.
+  const [pageSuivante, setPageSuivante] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Fonction réutilisable : chargement initial ET rechargement après création
-  const loadArticles = () => {
-    apiFetch<Article[]>("/articles/").then(setArticles).catch(console.error);
+  // La page 1 remplace la liste — chargement initial ET rechargement après
+  // création —, les suivantes s'y ajoutent. `next` est une URL absolue, que
+  // apiFetch préfixerait une seconde fois : seule sa présence sert ici.
+  const loadArticles = (numero = 1) => {
+    apiFetch<Page<Article>>(`/articles/?page=${numero}`)
+      .then((page) => {
+        setArticles((dejaAffiches) => {
+          if (numero === 1) return page.results;
+          // Un article publié entre deux pages décale la liste d'un cran : le
+          // dernier de la page d'avant revient en tête de celle-ci.
+          const ids = new Set(dejaAffiches.map((article) => article.id));
+          return [
+            ...dejaAffiches,
+            ...page.results.filter((article) => !ids.has(article.id)),
+          ];
+        });
+        setPageSuivante(page.next ? numero + 1 : null);
+      })
+      .catch((err: unknown) => {
+        // Au-delà de la première, que DRF rend toujours, un 404 dit qu'une
+        // suppression a raccourci la liste : le bouton n'aurait plus rien à charger.
+        if (numero > 1 && (err as Partial<ApiError>).status === 404) {
+          setPageSuivante(null);
+        } else {
+          console.error(err);
+        }
+      })
+      .finally(() => setIsLoading(false));
   };
 
   useEffect(() => {
@@ -53,10 +89,28 @@ const Blog = () => {
           </Link>
         )}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 mb-16">
-        {articles.map((article) => (
-          <Card key={article.id} article={article} />
-        ))}
+      <div className="mt-6 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {articles.map((article) => (
+            <Card key={article.id} article={article} />
+          ))}
+        </div>
+        {pageSuivante !== null && (
+          <div className="mt-8 flex justify-center">
+            <Button
+              variant="outline"
+              disabled={isLoading}
+              onClick={() => {
+                // Posé au clic et non dans loadArticles, que l'effet appelle :
+                // un setState synchrone y relancerait un rendu pour rien.
+                setIsLoading(true);
+                loadArticles(pageSuivante);
+              }}
+            >
+              Voir plus d'articles
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* la modal */}

@@ -1,10 +1,12 @@
 """Tests des articles : ce que le visiteur lit sans compte, ce que l'API refuse d'écrire,
 à qui l'article appartient quoi qu'en dise le corps envoyé, et dans quel ordre la liste
-sort — le tri, l'auteur et les dates ne venant jamais du client. Et ce que coûtent les
-deux listes, celle de l'API et celle de l'admin, quand le nombre d'articles grandit."""
+sort — le tri, l'auteur et les dates ne venant jamais du client. Comment la liste se découpe
+en pages, et ce que coûtent les deux listes, celle de l'API et celle de l'admin, quand le
+nombre d'articles grandit."""
 
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
@@ -42,7 +44,7 @@ class ArticleLecturePubliqueTests(TestCase):
         response = self.client.get(reverse("article-list"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(len(response.json()["results"]), 1)
 
     def test_le_detail_est_ouvert_au_visiteur(self):
         response = self.client.get(reverse("article-detail", args=[self.article.pk]))
@@ -160,9 +162,47 @@ class ArticleOrdreTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            [article["title"] for article in response.json()],
+            [article["title"] for article in response.json()["results"]],
             ["Récent", "Intermédiaire", "Ancien"],
         )
+
+
+class ArticlePaginationTests(TestCase):
+    """La liste sort par pages de PAGE_SIZE, que ni la vue ni le serializer ne déclarent :
+    seuls les réglages de DRF en décident, comme Meta.ordering de l'ordre qui les traverse."""
+
+    def test_la_page_suivante_reprend_ou_la_premiere_s_arrete(self):
+        auteur = membre("auteur@example.com")
+        taille = settings.REST_FRAMEWORK["PAGE_SIZE"]
+        total = taille + 3
+        # Deux par deux à la même date, une paire à cheval sur la coupure quand la
+        # taille est paire : l'id seul les départage, et sans lui l'un des deux peut
+        # sortir sur les deux pages. L'UPDATE, parce qu'auto_now_add écrase la date.
+        maintenant = timezone.now()
+        for rang in range(total):
+            article = Article.objects.create(
+                title=f"Article {rang}", content="Contenu.", author=auteur,
+            )
+            Article.objects.filter(pk=article.pk).update(
+                created_at=maintenant - timedelta(hours=(rang + 1) // 2),
+            )
+        attendu = [
+            article.pk for article in sorted(
+                Article.objects.all(), key=lambda a: (a.created_at, a.pk), reverse=True,
+            )
+        ]
+
+        premiere = self.client.get(reverse("article-list")).json()
+
+        self.assertEqual(premiere["count"], total)
+        self.assertIsNone(premiere["previous"])
+        self.assertEqual([a["id"] for a in premiere["results"]], attendu[:taille])
+
+        # Le lien tel que l'API le donne, et non une page recalculée par le test.
+        seconde = self.client.get(premiere["next"]).json()
+
+        self.assertIsNone(seconde["next"])
+        self.assertEqual([a["id"] for a in seconde["results"]], attendu[taille:])
 
 
 class ArticleDatesImposeesTests(TestCase):
@@ -256,16 +296,20 @@ class ArticleCoutDesListesTests(TestCase):
         self.assertEqual(reponse.status_code, 200)
         return len(requetes)
 
-    def test_la_liste_de_l_api_coute_autant_a_30_articles_qu_a_3(self):
+    def test_chaque_page_de_l_api_coute_autant_a_30_articles_qu_a_3(self):
+        """Les pages pleines comme la dernière, entamée. La référence tient en une page moins
+        remplie que les autres, sans quoi une requête par ligne coûterait autant des deux
+        côtés et passerait inaperçue."""
         url = reverse("article-list")
         self.publier(3)
         reference = self.compter(url)
 
         self.publier(27)
 
-        with self.assertNumQueries(reference):
-            reponse = self.client.get(url)
-        self.assertEqual(len(reponse.json()), 30)
+        suivante = url
+        while suivante:
+            with self.assertNumQueries(reference):
+                suivante = self.client.get(suivante).json()["next"]
 
     def test_la_liste_de_l_admin_coute_autant_a_30_articles_qu_a_3(self):
         # force_login et non un jeton porteur : l'API ne monte que JWTAuthentication,
