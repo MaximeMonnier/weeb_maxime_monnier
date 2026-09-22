@@ -58,3 +58,33 @@ test.describe("Connexion", () => {
     expect(await jeton(page, "refresh")).toBeNull();
   });
 });
+
+test.describe("Déconnexion", () => {
+  test("révoque la session et rend le menu d'un visiteur", async ({ page }) => {
+    await seConnecter(page, MOT_DE_PASSE);
+    await expect(page).toHaveURL("/");
+    // Loin de l'accueil : sinon le retour vers « / » serait acquis d'avance.
+    await page.goto("/blog");
+    const refresh = await jeton(page, "refresh");
+
+    const reponseLogout = page.waitForResponse(
+      (r) => r.url().endsWith("/auth/logout/") && r.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "Se déconnecter" }).click();
+    const logout = await reponseLogout;
+
+    expect(logout.status()).toBe(200);
+    await expect(page).toHaveURL("/");
+    await expect(page.getByRole("link", { name: "Se connecter" })).toBeVisible();
+    expect(await jeton(page, "access")).toBeNull();
+    expect(await jeton(page, "refresh")).toBeNull();
+
+    // Effacer le jeton ne suffit pas : l'API doit aussi le refuser. Son adresse
+    // est prise sur l'appel du front, seul à connaître VITE_API_URL.
+    const renouvellement = await page.request.post(
+      logout.url().replace(/logout\/$/, "login/refresh/"),
+      { data: { refresh } },
+    );
+    expect(renouvellement.status()).toBe(401);
+  });
+});

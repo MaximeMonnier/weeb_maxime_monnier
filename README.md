@@ -956,15 +956,15 @@ N'en garder qu'une ferait afficher « Le serveur est injoignable » et accuser l
 Quatre points ne se lisent dans aucun de ces fichiers pris seul :
 
 - **l'API n'accepte que cinq connexions par minute** — le scope `login`, § « Le débit ». La
-  suite en consomme deux : relancée trois fois d'affilée, elle reçoit un 429 et échoue sur un
-  message de quota, pas de connexion. Attendre une minute ;
+  suite en consomme trois, une par cas : relancée dans la minute, elle reçoit un 429 et échoue
+  sur un message de quota, pas de connexion. Attendre une minute ;
 - **aucune reprise n'est configurée**, pour cette raison même : rejouer un cas raté ferait
   répondre 429 à la reprise, et le journal montrerait un quota là où il y avait un vrai défaut ;
 - **Playwright ne démarre pas la pile.** Un bloc `webServer` relancerait Vite sans la base ni
   l'API derrière, et le parcours cesserait de prouver ce pour quoi il existe. C'est aussi ce qui
-  rend son échec informatif : `docker compose -f compose.dev.yaml stop backend`, et les deux cas
-  tombent — le premier faute de redirection, le second parce que le message affiché devient
-  « Le serveur est injoignable » au lieu du refus attendu ;
+  rend son échec informatif : `docker compose -f compose.dev.yaml stop backend`, et les trois cas
+  tombent — le premier et le troisième faute de redirection, le second parce que le message
+  affiché devient « Le serveur est injoignable » au lieu du refus attendu ;
 - **les champs se cherchent par une part de leur libellé, pas par son texte exact** : la règle
   `.form-label-required::after` ajoute « * » aux libellés obligatoires, et un vrai navigateur
   verse ce contenu généré dans le nom accessible. jsdom n'applique aucune feuille de style et
