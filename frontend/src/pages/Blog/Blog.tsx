@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
+import { useIsAuthenticated } from "../../hooks/useIsAuthenticated";
 import type { Article } from "../../types/article";
 import Button from "../../components/ui/Button/MainButton";
 import MainTitle from "../../components/ui/Title/MainTitle";
@@ -10,6 +12,7 @@ import FormArticle from "../../components/common/Blog/FormArticle.tsx";
 
 const Blog = () => {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const isAuthenticated = useIsAuthenticated();
 
   const [articles, setArticles] = useState<Article[]>([]);
 
@@ -34,13 +37,21 @@ const Blog = () => {
           Des articles récents pour vous{" "}
           <span className="text-accent font-bold">inspirer !</span>
         </p>
-        <Button
-          variant="primary"
-          className="ml-4"
-          onClick={() => dialogRef.current?.showModal()}
-        >
-          Crée un articles
-        </Button>
+        {/* L'API refuse l'écriture au visiteur : le formulaire ne lui vaudrait
+            qu'un refus, une fois l'article rédigé. */}
+        {isAuthenticated ? (
+          <Button
+            variant="primary"
+            className="ml-4"
+            onClick={() => dialogRef.current?.showModal()}
+          >
+            Créer un article
+          </Button>
+        ) : (
+          <Link to="/login" className="btn-primary focus-ring-primary ml-4">
+            Se connecter pour publier
+          </Link>
+        )}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6 mb-16">
         {articles.map((article) => (
