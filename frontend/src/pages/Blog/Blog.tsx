@@ -10,6 +10,14 @@ import Card from "../../components/common/Blog/Card.tsx";
 import { useRef } from "react";
 import FormArticle from "../../components/common/Blog/FormArticle.tsx";
 
+// La forme que DRF donne à toute liste de l'API, découpée en pages.
+type Page<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
+
 const Blog = () => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const isAuthenticated = useIsAuthenticated();
@@ -18,7 +26,9 @@ const Blog = () => {
 
   // Fonction réutilisable : chargement initial ET rechargement après création
   const loadArticles = () => {
-    apiFetch<Article[]>("/articles/").then(setArticles).catch(console.error);
+    apiFetch<Page<Article>>("/articles/")
+      .then((page) => setArticles(page.results))
+      .catch(console.error);
   };
 
   useEffect(() => {
