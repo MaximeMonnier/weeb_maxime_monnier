@@ -4,6 +4,7 @@ jusqu'à quand un refresh reste bon, et à qui la connexion en délivre — l'in
 créant qu'un compte en attente."""
 
 import re
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.conf import settings
@@ -16,6 +17,7 @@ from django.urls import resolve, reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import CustomUser
 from .validators import PasswordComplexityValidator
@@ -417,6 +419,60 @@ class JWTRotationTests(TestCase):
         self.deconnecter(self.refresh)
 
         self.assertEqual(self.deconnecter(self.refresh).status_code, 401)
+
+
+class JWTMessagesTests(TestCase):
+    """Les refus de simplejwt sortent en français : son catalogue n'est lu que parce que l'app
+    est dans INSTALLED_APPS, et backend/locale/ traduit ce qu'il laisse en anglais."""
+
+    def setUp(self):
+        self.user = CustomUser.objects.create_user(
+            email="membre@example.com", first_name="M", last_name="Embre",
+            password="MotDePasseValide123",
+        )
+
+    def rafraichir(self, refresh):
+        return self.client.post(
+            reverse("login-refresh"), {"refresh": str(refresh)}, content_type="application/json"
+        )
+
+    def test_la_connexion_refusee(self):
+        """Traduit par le catalogue de simplejwt : tombe si l'app sort d'INSTALLED_APPS."""
+        response = self.client.post(
+            reverse("login"),
+            {"email": "membre@example.com", "password": "MauvaisMotDePasse123"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(
+            response.json()["detail"],
+            "Aucun compte actif n'a été trouvé avec les identifiants fournis",
+        )
+
+    def test_le_refresh_expire(self):
+        """Entrée fuzzy chez simplejwt : seul backend/locale/ la traduit."""
+        refresh = RefreshToken.for_user(self.user)
+        refresh.set_exp(lifetime=-timedelta(seconds=1))
+
+        self.assertEqual(self.rafraichir(refresh).json()["detail"], "Le jeton a expiré")
+
+    def test_le_compte_supprime(self):
+        refresh = RefreshToken.for_user(self.user)
+        self.user.delete()
+
+        self.assertEqual(
+            self.rafraichir(refresh).json()["detail"],
+            "Aucun compte actif ne correspond à ce jeton.",
+        )
+
+    def test_un_jeton_illisible_sur_une_route_protegee(self):
+        """Le refus mêle les deux catalogues : le motif de simplejwt, le détail du nôtre."""
+        response = self.client.post(
+            reverse("article-list"), {}, HTTP_AUTHORIZATION="Bearer illisible"
+        )
+
+        self.assertEqual(response.json()["detail"], "Le type de jeton fourni n'est pas valide")
+        self.assertEqual(response.json()["messages"][0]["message"], "Le jeton est invalide")
 
 
 class RegisterTests(TestCase):
