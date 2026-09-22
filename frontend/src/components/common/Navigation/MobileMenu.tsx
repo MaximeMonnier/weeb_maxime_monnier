@@ -1,18 +1,23 @@
 import { Link, NavLink as RRNavLink } from "react-router-dom";
+import Button from "../../ui/Button/MainButton";
 import type { NavItem } from "../../../types/navigation";
 
 type MobileMenuProps = {
   isOpen: boolean;
+  isAuthenticated: boolean;
   navItems: NavItem[];
   onClose: () => void;
   onHashClick: (e: React.MouseEvent<HTMLAnchorElement>, hash: string) => void;
+  onLogout: () => void;
 };
 
 export default function MobileMenu({
   isOpen,
+  isAuthenticated,
   navItems,
   onClose,
   onHashClick,
+  onLogout,
 }: MobileMenuProps) {
   return (
     <div
@@ -54,21 +59,35 @@ export default function MobileMenu({
               );
             })}
 
-            <RRNavLink
-              to="/login"
-              onClick={onClose}
-              className="nav-link block py-3 px-4 rounded-lg hover:bg-tertiary"
-            >
-              Se connecter
-            </RRNavLink>
+            {isAuthenticated ? (
+              <Button
+                type="button"
+                variant="outline"
+                fullWidth
+                className="mt-4"
+                onClick={onLogout}
+              >
+                Se déconnecter
+              </Button>
+            ) : (
+              <>
+                <RRNavLink
+                  to="/login"
+                  onClick={onClose}
+                  className="nav-link block py-3 px-4 rounded-lg hover:bg-tertiary"
+                >
+                  Se connecter
+                </RRNavLink>
 
-            <Link
-              to="/contact"
-              onClick={onClose}
-              className="btn-primary w-full mt-4"
-            >
-              Nous rejoindre
-            </Link>
+                <Link
+                  to="/contact"
+                  onClick={onClose}
+                  className="btn-primary w-full mt-4"
+                >
+                  Nous rejoindre
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>

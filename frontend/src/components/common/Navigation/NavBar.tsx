@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
+import Button from "../../ui/Button/MainButton";
 import Logo from "../../ui/Logo/Logo";
 import ThemeToggle from "../ThemeToggle";
 import DesktopNav from "./DesktopNav";
 import MobileMenu from "./MobileMenu";
 import { useTheme } from "../../../hooks/useTheme";
+import {
+  logout,
+  useIsAuthenticated,
+} from "../../../hooks/useIsAuthenticated";
 import type { NavItem } from "../../../types/navigation";
 
 function NavBar() {
   const { isDark, toggleTheme } = useTheme();
+  const isAuthenticated = useIsAuthenticated();
+  const navigate = useNavigate();
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -24,6 +31,12 @@ function NavBar() {
 
   const toggleMobileMenu = () => setIsMobileMenuOpen((v) => !v);
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
+  const handleLogout = async () => {
+    await logout();
+    closeMobileMenu();
+    navigate("/");
+  };
 
   // Helpers
   const scrollToHash = (hash: string) => {
@@ -78,13 +91,27 @@ function NavBar() {
             <div className="hidden md:flex items-center">
               <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
 
-              <Link className="nav-link" to="/login">
-                Se connecter
-              </Link>
+              {isAuthenticated ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="ml-2"
+                  onClick={handleLogout}
+                >
+                  Se déconnecter
+                </Button>
+              ) : (
+                <>
+                  <Link className="nav-link" to="/login">
+                    Se connecter
+                  </Link>
 
-              <Link to="/subscribe" className="btn-primary">
-                Nous rejoindre
-              </Link>
+                  <Link to="/subscribe" className="btn-primary">
+                    Nous rejoindre
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Mobile Buttons */}
@@ -115,9 +142,11 @@ function NavBar() {
 
         <MobileMenu
           isOpen={isMobileMenuOpen}
+          isAuthenticated={isAuthenticated}
           navItems={navItems}
           onClose={closeMobileMenu}
           onHashClick={handleHashClick}
+          onLogout={handleLogout}
         />
       </nav>
 
