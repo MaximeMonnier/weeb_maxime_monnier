@@ -187,6 +187,29 @@ describe("Blog — pages suivantes", () => {
     expect(alerte()).toBeEmptyDOMElement();
   });
 
+  it("retire le message d'un échec avec le bouton quand la page a disparu", async () => {
+    appelReseau
+      .mockResolvedValueOnce(reponsePage([ARTICLE], PAGE_2))
+      .mockResolvedValueOnce(reponseRefusee(500))
+      .mockResolvedValueOnce(
+        reponseRefusee(404, { detail: "Page non valide." }),
+      );
+    await afficherLeBlog();
+
+    await userEvent.click(screen.getByRole("button", BOUTON_PAGE_SUIVANTE));
+    await waitFor(() =>
+      expect(alerte()).toHaveTextContent(SERVICE_INDISPONIBLE),
+    );
+    await userEvent.click(screen.getByRole("button", BOUTON_PAGE_SUIVANTE));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", BOUTON_PAGE_SUIVANTE),
+      ).not.toBeInTheDocument(),
+    );
+    expect(alerte()).toBeEmptyDOMElement();
+  });
+
   it("garde la liste et le bouton quand une page suivante échoue", async () => {
     appelReseau
       .mockResolvedValueOnce(reponsePage([ARTICLE], PAGE_2))
