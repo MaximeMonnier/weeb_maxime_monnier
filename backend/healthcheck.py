@@ -14,7 +14,11 @@ import urllib.request
 # 127.0.0.1 et non le nom du conteneur : la sonde s'exécute à l'intérieur de
 # celui-ci. Cet hôte doit figurer dans DJANGO_ALLOWED_HOSTS, sans quoi Django
 # répond 400 et le conteneur est déclaré malade à tort.
-URL = 'http://127.0.0.1:8000/api/articles/'
+#
+# Une route dédiée plutôt qu'un endpoint de l'API : son SELECT 1 coûte le même prix
+# quel que soit le nombre d'articles, et la santé du conteneur cesse de dépendre de
+# la lecture publique du blog.
+URL = 'http://127.0.0.1:8000/health/'
 TIMEOUT_SECONDS = 5
 
 # La sonde s'adresse à Gunicorn EN DIRECT, sans traverser le nginx du serveur qui
