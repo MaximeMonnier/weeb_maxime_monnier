@@ -1,9 +1,10 @@
 """Tests des articles : ce que le visiteur lit sans compte, ce que l'API refuse d'écrire,
 à qui l'article appartient quoi qu'en dise le corps envoyé, et dans quel ordre la liste
-sort — le tri, l'auteur et les dates ne venant jamais du client. Comment la liste se découpe
-en pages, et ce que coûtent les deux listes, celle de l'API et celle de l'admin, quand le
-nombre d'articles grandit. Enfin la commande qui peuple la base de développement, et le
-refus qui la tient à l'écart de celle de production."""
+sort — le tri, l'auteur et les dates ne venant jamais du client. Ce que la liste rend de
+moins que le détail, comment elle se découpe en pages, et ce que coûtent les deux listes,
+celle de l'API et celle de l'admin, quand le nombre d'articles grandit. Enfin la commande
+qui peuple la base de développement, et le refus qui la tient à l'écart de celle de
+production."""
 
 from datetime import timedelta
 from io import StringIO
@@ -21,6 +22,7 @@ from accounts.models import CustomUser
 
 from .management.commands.peupler_articles import DEMO_AUTHOR_EMAIL
 from .models import Article
+from .views import LONGUEUR_EXTRAIT
 
 
 def membre(email):
@@ -169,6 +171,41 @@ class ArticleOrdreTests(TestCase):
             [article["title"] for article in response.json()["results"]],
             ["Récent", "Intermédiaire", "Ancien"],
         )
+
+
+class ArticleExtraitDeListeTests(TestCase):
+    """La liste et le détail ne rendent pas les mêmes champs, et rien dans le modèle ne le
+    dit : deux serializers que seule l'action de la vue départage. `excerpt` n'existe nulle
+    part comme champ — il vient de l'annotation du queryset, et repartirait avec elle."""
+
+    def setUp(self):
+        # Plus long que l'extrait : à contenu plus court, la liste rendrait le texte
+        # entier et une coupure disparue passerait inaperçue.
+        self.contenu = "Phrase de démonstration. " * 20
+        self.article = Article.objects.create(
+            title="Article long", content=self.contenu, author=membre("auteur@example.com"),
+        )
+
+    def test_la_liste_rend_l_extrait_et_jamais_le_contenu(self):
+        response = self.client.get(reverse("article-list"))
+
+        self.assertEqual(response.status_code, 200)
+        article = response.json()["results"][0]
+        # Le jeu entier, et pas seulement l'absence de content : ArticleCard lit aussi
+        # id, author et created_at, qu'un fields raccourci ferait disparaître sans que
+        # rien ne tombe ici — la carte afficherait « Par undefined le Invalid Date ».
+        self.assertEqual(
+            sorted(article), ["author", "created_at", "excerpt", "id", "title"],
+        )
+        self.assertEqual(article["excerpt"], self.contenu[:LONGUEUR_EXTRAIT])
+        self.assertEqual(len(article["excerpt"]), LONGUEUR_EXTRAIT)
+
+    def test_le_detail_rend_le_contenu_entier_et_pas_d_extrait(self):
+        response = self.client.get(reverse("article-detail", args=[self.article.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["content"], self.contenu)
+        self.assertNotIn("excerpt", response.json())
 
 
 class ArticlePaginationTests(TestCase):
@@ -341,14 +378,14 @@ class PeuplerArticlesTests(TestCase):
         return Article.objects.filter(author__email=DEMO_AUTHOR_EMAIL)
 
     def test_la_commande_publie_30_articles_plus_longs_que_le_resume(self):
-        """Plus de 100 caractères chacun : c'est la coupure d'ArticleCard, que la commande
-        existe pour montrer à l'écran."""
+        """Plus longs que l'extrait de la liste : c'est cette coupure que la commande existe
+        pour montrer à l'écran, et des articles plus courts ne la feraient pas voir."""
         self.peupler()
 
         self.assertEqual(self.demonstration().count(), 30)
         self.assertEqual(self.demonstration().values("title").distinct().count(), 30)
         for article in self.demonstration():
-            self.assertGreater(len(article.content), 100)
+            self.assertGreater(len(article.content), LONGUEUR_EXTRAIT)
 
     def test_un_second_lancement_ne_cree_aucun_doublon(self):
         self.peupler()

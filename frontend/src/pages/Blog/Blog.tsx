@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { apiFetch, type ApiError } from "../../lib/api";
 import { toFormErrors } from "../../lib/apiErrors";
 import { useIsAuthenticated } from "../../hooks/useIsAuthenticated";
-import type { Article } from "../../types/article";
+import type { ArticleListItem } from "../../types/article";
 import ErrorAlert from "../../components/ui/Alert/ErrorAlert";
 import Button from "../../components/ui/Button/MainButton";
 import MainTitle from "../../components/ui/Title/MainTitle";
@@ -26,7 +26,7 @@ const Blog = () => {
 
   // null tant que la première page n'est pas arrivée : une liste pas encore
   // chargée ne dit pas que le blog est vide.
-  const [articles, setArticles] = useState<Article[] | null>(null);
+  const [articles, setArticles] = useState<ArticleListItem[] | null>(null);
   // Numéro à demander ensuite, null quand la dernière page est affichée.
   const [pageSuivante, setPageSuivante] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,7 +36,7 @@ const Blog = () => {
   // création —, les suivantes s'y ajoutent. `next` est une URL absolue, que
   // apiFetch préfixerait une seconde fois : seule sa présence sert ici.
   const loadArticles = (numero = 1) => {
-    apiFetch<Page<Article>>(`/articles/?page=${numero}`)
+    apiFetch<Page<ArticleListItem>>(`/articles/?page=${numero}`)
       .then((page) => {
         setArticles((dejaAffiches) => {
           if (numero === 1 || dejaAffiches === null) return page.results;
