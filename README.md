@@ -1144,7 +1144,7 @@ et le site sur la même origine.
 | `POST` | `/api/auth/logout/` | public | Déconnexion : révoque le token de rafraîchissement envoyé dans le corps |
 | `POST` | `/api/auth/password-reset/` | public | Demande de réinitialisation. Envoie le lien **par email** et répond toujours `200` avec le même corps, que le compte existe ou non — un 404 dirait qui est inscrit |
 | `POST` | `/api/auth/password-reset/confirm/` | public | Confirmation : `uid` et `token` du lien reçu, plus le nouveau mot de passe |
-| `GET` | `/api/articles/` | public | Liste des articles, du plus récent au plus ancien, par pages de 12 : `{count, next, previous, results}`, la suivante sous `?page=2`. Chaque article y porte un `excerpt` de 100 caractères **à la place** de `content`, taillé par la base |
+| `GET` | `/api/articles/` | public | Liste des articles, du plus récent au plus ancien, par pages de 12 : `{count, next, previous, results}`, la suivante sous `?page=2`. Chaque article y porte `id`, `title`, `excerpt` (100 caractères taillés par la base), `author` et `created_at` — ni `content` ni `updated_at`, que seul le détail rend |
 | `GET` | `/api/articles/{id}/` | public | Détail d'un article, `content` entier compris |
 | `POST` | `/api/articles/` | connecté | Crée un article, rattaché à son auteur |
 | `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression réservées à l'auteur |
