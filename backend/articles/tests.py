@@ -2,8 +2,9 @@
 à qui l'article appartient quoi qu'en dise le corps envoyé, et dans quel ordre la liste
 sort — le tri, l'auteur et les dates ne venant jamais du client. Ce que la liste rend de
 moins que le détail, comment elle se découpe en pages, et ce que coûtent les deux listes,
-celle de l'API et celle de l'admin, quand le nombre d'articles grandit. Enfin la commande qui peuple la base de développement, et le
-refus qui la tient à l'écart de celle de production."""
+celle de l'API et celle de l'admin, quand le nombre d'articles grandit. Enfin la commande
+qui peuple la base de développement, et le refus qui la tient à l'écart de celle de
+production."""
 
 from datetime import timedelta
 from io import StringIO
