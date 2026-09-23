@@ -1,8 +1,8 @@
 """Tests des articles : ce que le visiteur lit sans compte, ce que l'API refuse d'écrire,
 à qui l'article appartient quoi qu'en dise le corps envoyé, et dans quel ordre la liste
-sort — le tri, l'auteur et les dates ne venant jamais du client. Ce que la liste rend de moins
-que le détail, comment elle se découpe en pages, et ce que coûtent les deux listes, celle de
-l'API et celle de l'admin, quand le nombre d'articles grandit. Enfin la commande qui peuple la base de développement, et le
+sort — le tri, l'auteur et les dates ne venant jamais du client. Ce que la liste rend de
+moins que le détail, comment elle se découpe en pages, et ce que coûtent les deux listes,
+celle de l'API et celle de l'admin, quand le nombre d'articles grandit. Enfin la commande qui peuple la base de développement, et le
 refus qui la tient à l'écart de celle de production."""
 
 from datetime import timedelta
@@ -190,9 +190,14 @@ class ArticleExtraitDeListeTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         article = response.json()["results"][0]
+        # Le jeu entier, et pas seulement l'absence de content : ArticleCard lit aussi
+        # id, author et created_at, qu'un fields raccourci ferait disparaître sans que
+        # rien ne tombe ici — la carte afficherait « Par undefined le Invalid Date ».
+        self.assertEqual(
+            sorted(article), ["author", "created_at", "excerpt", "id", "title"],
+        )
         self.assertEqual(article["excerpt"], self.contenu[:LONGUEUR_EXTRAIT])
         self.assertEqual(len(article["excerpt"]), LONGUEUR_EXTRAIT)
-        self.assertNotIn("content", article)
 
     def test_le_detail_rend_le_contenu_entier_et_pas_d_extrait(self):
         response = self.client.get(reverse("article-detail", args=[self.article.pk]))
