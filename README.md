@@ -775,7 +775,13 @@ Pour la faire tourner contre la base, ne pas la lancer à la main :
 pour un conteneur — voir « La stack complète avec Compose ». Le tableau ci-dessus
 sert à inspecter l'image, pas à la mettre en service.
 
-Le conteneur passe `healthy` quand `GET /api/articles/` renvoie 200.
+Le conteneur passe `healthy` quand `GET /health/` renvoie 200. Cette route ne fait
+qu'un `SELECT 1` : son coût ne bouge pas quand la table des articles grandit, là où
+la sonde interrogeait auparavant `/api/articles/`, dont la pagination compte toute
+la table à chaque passage. Elle vit hors du préfixe `/api/` — le nginx du serveur ne
+relaie que `/api/` et `/admin/`, elle reste donc joignable du seul conteneur — et
+elle répond `503` quand la base est injoignable, un Gunicorn debout devant une base
+morte ne valant pas une API en état de servir.
 
 ### Image Docker du frontend (depuis la racine)
 
@@ -1297,7 +1303,8 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
 ├── backend/
 │   ├── config/               # configuration du projet Django
 │   │   ├── settings/         # base, development, test, production
-│   │   └── urls.py           # routeur principal
+│   │   ├── urls.py           # routeur principal
+│   │   └── views.py          # route de santé, seule vue hors d'une app métier
 │   ├── accounts/             # utilisateurs, authentification JWT
 │   ├── articles/             # articles du blog, et la commande peupler_articles
 │   ├── contact/              # formulaire de contact
@@ -1397,7 +1404,10 @@ continue d'écouter 1025 et 8025 dans son réseau.
 **Le conteneur du backend reste `unhealthy`**
 Regarder d'abord `docker logs <conteneur>` : une erreur de connexion à la base
 y apparaît en clair. Si les journaux montrent un démarrage normal de Gunicorn,
-la sonde reçoit autre chose qu'un 200. Les deux causes habituelles : `127.0.0.1`
+la sonde reçoit autre chose qu'un 200. Interroger la route à la main dit lequel :
+`curl -s -o /dev/null -w '%{http_code}\n' -H 'X-Forwarded-Proto: https'
+http://127.0.0.1:8001/health/`. Les trois causes habituelles : la base
+injoignable, seul cas où la route répond `503` ; `127.0.0.1`
 absent de `DJANGO_ALLOWED_HOSTS`, qui vaut un 400 ; ou `DJANGO_BEHIND_PROXY`
 laissé à 0, auquel cas la redirection HTTPS des réglages de production répond
 301 à la sonde — en production, cette variable-là se règle dans `.env.prod`, où
