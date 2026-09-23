@@ -13,13 +13,14 @@ const FETCH_ORIGINAL = globalThis.fetch;
 // ou sans jeton selon l'état de la session.
 const appelReseau = vi.fn();
 
+// Ce que la liste rend, et rien de plus : l'API y coupe le texte en `excerpt`
+// et garde `content` pour le détail.
 const ARTICLE = {
   id: 1,
   title: "Premier article",
-  content: "Un contenu de test.",
+  excerpt: "Un extrait de test.",
   author: "Jean Dupont",
   created_at: "2026-09-01T10:00:00Z",
-  updated_at: "2026-09-01T10:00:00Z",
 };
 
 const ARTICLE_PLUS_ANCIEN = { ...ARTICLE, id: 2, title: "Article plus ancien" };
@@ -246,6 +247,16 @@ describe("Blog — pages suivantes", () => {
 });
 
 describe("Blog — premier chargement", () => {
+  it("affiche sous le titre l'extrait que l'API a taillé", async () => {
+    await afficherLeBlog();
+
+    // Le texte entier n'arrive plus jusqu'ici : la carte ne coupe plus rien
+    // elle-même, elle rend ce que la liste lui donne.
+    expect(
+      screen.getByText(ARTICLE.excerpt, { exact: false }),
+    ).toBeInTheDocument();
+  });
+
   it("n'annonce la liste vide qu'une fois la première page arrivée", async () => {
     let livrer: (reponse: unknown) => void = () => {};
     appelReseau.mockReturnValueOnce(
