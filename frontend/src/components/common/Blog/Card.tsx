@@ -1,8 +1,8 @@
-import type { Article } from "../../../types/article";
+import type { ArticleListItem } from "../../../types/article";
 import { Link } from "react-router-dom";
 
 type ArticleCardProps = {
-  article: Article;
+  article: ArticleListItem;
 };
 
 export default function ArticleCard({ article }: ArticleCardProps) {
@@ -22,7 +22,8 @@ export default function ArticleCard({ article }: ArticleCardProps) {
             Par {article.author} le{" "}
             {new Date(article.created_at).toLocaleDateString()}
           </p>
-          <p className="text-secondary">{article.content.slice(0, 100)}...</p>
+          {/* Déjà coupé par l'API : le texte entier ne descend plus jusqu'ici. */}
+          <p className="text-secondary">{article.excerpt}...</p>
         </div>
       </div>
     </Link>
