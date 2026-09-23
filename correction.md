@@ -79,7 +79,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 | 3 | Qualité et performance de l'API | 4 | Corrections backend isolées, sans impact sur le contrat d'API |
 | 4 | Socle des formulaires front | 4 (+2) | Une seule extraction règle quatre copier-coller à la fois |
 | 5 | Authentification côté front | 4 | S'appuie sur le socle du lot 4 |
-| 6 | Pagination bout en bout | 2 | Change le contrat d'API : après la stabilisation du front |
+| 6 | Pagination bout en bout | 2 (+2) | Change le contrat d'API : après la stabilisation du front |
 | 7 | Navigation, liens et pages manquantes | 4 | Corrections de surface, sans dépendance |
 | 8 | Dédoublonnage de la couche UI | 3 | Refactoring pur, protégé par le lot 2 |
 | 9 | Code mort et conventions | 4 | Nettoyage final, une fois que plus rien n'y touche |
@@ -1153,11 +1153,14 @@ Ne modifie pas FormArticle.tsx dans cette tâche au-delà de ce que 4.1 et 4.2 o
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| 6.1 livrée par l'issue #111 le 2026-09-22 — restent 6.2 et deux points de 6.1 | — | — | Bloc 1 — optimisation |
+| Clos le 2026-09-23 — 6.2 a quitté l'API au lieu de l'interroger, et a créé deux fichiers là où le plan n'en annonçait qu'un | #138 | Lot 6 | Bloc 1 — optimisation |
 
-**Grain de ticket** : ticket unique — 6.1 est atomique par construction, 6.2 en découle.
+**Grain de ticket** : prévu en ticket unique, livré en **epic + 4 sous-issues**.
 **Livré en avance, hors lot** : 6.1, par l'issue #111, ouverte le 2026-09-09 à la suite de #106.
-Le ticket du lot porte donc 6.2, plus les deux points que #111 n'a pas pris — voir 6.1.
+L'epic #138 a donc porté 6.2 et les deux points que #111 n'avait pas pris, plus un cinquième
+besoin qu'aucune des deux tâches ne prévoyait : de quoi peupler la base de développement, sans
+quoi rien de tout cela ne se voyait à l'écran. **Livré tel quel** : #139 (commande de
+peuplement), #140 (liste vide et échec de chargement), #141 (extrait), #142 (route de santé).
 
 > **Dépendances : lots 2, 3 et 5.**
 > ⚠️ Cette tâche **change le contrat de l'API** : la réponse de `/api/articles/` passe d'un
@@ -1175,9 +1178,12 @@ Le ticket du lot porte donc 6.2, plus les deux points que #111 n'a pas pris — 
 - **Attendu** : liste paginée, front adapté, aucun écran vide.
 - **Livré** : #111 — `PageNumberPagination` réglée dans `REST_FRAMEWORK`, pages de 12,
   `Meta.ordering` départagé par `-id` (migration `0002`), bouton « Voir plus d'articles » sur
-  `/blog`. `Page<T>` reste local à `Blog.tsx`, son seul lecteur. **Non livré** : l'affichage
-  d'une liste vide et d'un échec de chargement, hérité de 5.4 — `Blog.tsx` n'a toujours qu'un
-  `console.error` ; et le serializer allégé pour la liste, point bonus jamais chiffré.
+  `/blog`. `Page<T>` reste local à `Blog.tsx`, son seul lecteur. **Non livré par #111**,
+  repris dans le lot : l'affichage d'une liste vide et d'un échec de chargement, hérité de 5.4
+  — #111 avait même posé un `console.error` de plus, retiré depuis, et c'est #140 qui l'a
+  livré ; et le serializer allégé pour la liste, point bonus jamais chiffré — #141 l'a chiffré
+  (une page de 12 passe de ~10 100 à 3 206 octets) et livré, extrait taillé en base par
+  `Left("content", 100)`.
 
 ```
 Objectif : paginer la liste des articles, côté API ET côté front, dans la même branche.
@@ -1217,7 +1223,8 @@ Critère d'acceptation : la page /blog affiche toujours des articles après le c
 
 ## 6.2 — Alléger la sonde de santé du conteneur
 
-- [ ] **Fichiers** : `backend/healthcheck.py`
+- [x] **Fichiers** : `backend/healthcheck.py` — **en réalité cinq**, dont deux créés :
+  `backend/config/views.py`, `backend/config/tests.py`, `backend/config/urls.py` et le `README.md`
 - **Constat** : `healthcheck.py:17` interroge `/api/articles/` **toutes les 30 secondes**, sur un
   endpoint non paginé qui lit toute la table. Le principe est bon — une sonde doit toucher la base,
   un Gunicorn debout devant une base morte répondrait quand même au TCP — mais le coût croît avec
@@ -1228,6 +1235,14 @@ Critère d'acceptation : la page /blog affiche toujours des articles après le c
   non plus toute la table — mais le `COUNT(*)` de PostgreSQL parcourt encore toutes les lignes.
   `?page_size=1` n'est **pas** accepté : #111 n'a pas posé de `page_size_query_param`, et en
   poser un laisserait tout client choisir sa taille de page, à borner alors par `max_page_size`.
+- **Livré** : #142 — la sonde a **quitté l'API** au lieu d'y prendre un paramètre. Route `health/`
+  servie par `config/views.py`, hors du préfixe `api/` que seul le nginx du serveur relaie, vue
+  Django nue et non DRF — c'est ce qui la laisse hors du défaut `IsAuthenticated`, du jeton et
+  des quotas. Un `SELECT 1`, `200` ou `503` sur `DatabaseError`. Trois cas dans `config/tests.py`,
+  quatrième fichier de tests du backend. Deux corrections de fond au passage : la sonde passait
+  **toutes les 5 secondes** et non 30, les deux fichiers Compose surchargeant l'`interval` du
+  Dockerfile ; et la santé du conteneur ne dépend plus de la lecture publique du blog, qu'on
+  pouvait fermer et rendre ainsi tous les conteneurs malades.
 
 ```
 Objectif : réduire le coût de la sonde de santé du conteneur backend.
@@ -1257,6 +1272,24 @@ Vérifie ensuite que le conteneur passe bien `healthy` :
 `docker compose -f compose.dev.yaml up -d --wait` puis
 `docker compose -f compose.dev.yaml ps`. Donne-moi la sortie.
 ```
+
+## 6.3 et 6.4 — Peupler la base et dire l'état de la liste (hors plan initial)
+
+- [x] **Fichiers** : `backend/articles/management/commands/peupler_articles.py`,
+  `backend/articles/tests.py`, `frontend/src/pages/Blog/Blog.tsx`,
+  `frontend/src/pages/Blog/Blog.test.tsx`
+- **Constat** : deux trous que le plan ne voyait pas. Rien ne permettait de **voir** la
+  pagination : la base de développement contenait deux articles, et le dépôt n'avait aucun
+  moyen de la peupler — avec des pages de 12, « Voir plus d'articles » ne s'affichait jamais.
+  Et `Blog.tsx` n'affichait **rien** ni sur une liste vide ni sur un chargement refusé : le
+  `catch` ne faisait qu'un `console.error`, posé par #111 lui-même. Cette seconde demande
+  venait de 5.4, renvoyée au lot 6 par #132 et non reprise par #111.
+- **Livré** : #139 une commande `peupler_articles` — 30 articles, auteur de démonstration
+  inactif, `CommandError` avant toute écriture dès que `DEBUG` est faux · #140 une liste
+  `null` tant que la première page n'est pas arrivée, donc distincte d'un blog vide, et un
+  message d'échec rendu par `toFormErrors` et `ErrorAlert`, posé près du bouton qui l'a
+  demandé.
+- **Attendu** : atteint. Le backend passe de 65 à 70 cas, le front de 72 à 78.
 
 ---
 
@@ -1876,6 +1909,8 @@ Cette skill ne pousse jamais rien : elle lit et elle rapporte. Le push reste ma 
 | 5.4 | Création d'article offerte aux anonymes | Moyen | 5.1, 4.2 | Bloc 1 — sécurité |
 | 6.1 | Pagination bout en bout | Performance | 2, 3, 5 | Bloc 1 — optimisation |
 | 6.2 | Sonde de santé non paginée | Faible | 6.1 | Bloc 1 — optimisation |
+| 6.3 | Base de développement impossible à peupler | Structurant | 6.1 | Bloc 1 — qualité |
+| 6.4 | Liste vide et échec de chargement muets | Moyen (UX) | 6.1, 4.2 | Bloc 1 — qualité |
 | 7.1 | « Nous rejoindre » mobile → `/contact` | Moyen | 5.3 | Bloc 1 — qualité |
 | 7.2 | Footer hors routeur, 14 liens morts | Moyen | — | Bloc 1 — qualité |
 | 7.3 | `/terms` et `/privacy` inexistantes | Faible | — | Bloc 1 — qualité |
@@ -1891,9 +1926,10 @@ Cette skill ne pousse jamais rien : elle lit et elle rapporte. Le push reste ma 
 | 10.2 | `AMELIORATIONS.md` et README | Documentation | 0-9 | Bloc 1 + 2 — documentation |
 | 10.3 | Revue finale et fermeture des issues | Clôture | tout | Bloc 1 + 2 — documentation |
 
-Trois tâches ne portent pas le bloc de leur lot : **0.2** est une remédiation de vulnérabilités
+Cinq tâches ne portent pas le bloc de leur lot : **0.2** est une remédiation de vulnérabilités
 avec preuve avant/après ; **3.3** et **3.4** relèvent de la qualité dans un lot classé
-optimisation.
+optimisation, comme **6.3** et **6.4**, qui n'y sont entrées que pour rendre la pagination
+visible et lisible.
 
 ---
 
