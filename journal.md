@@ -412,3 +412,110 @@ ne sort que `lib/tokens.ts` et `hooks/useTheme.ts`, premier critère de l'epic #
 Playwright — connexion, mot de passe faux, déconnexion puis refus de l'ancien refresh en `401` —
 a tourné à la livraison de #133, #134 et #135 ; il n'a pas été rejoué à la clôture, faute
 d'identifiants de test sur la machine.
+
+---
+
+## Lot 6 — Pagination bout en bout
+
+Clos le 2026-09-23 · Epic #138 · Alimente : Bloc 1 — optimisation
+
+**Constat mesuré** — `GET /api/articles/` rendait **toute la table** : ni
+`DEFAULT_PAGINATION_CLASS` ni `PAGE_SIZE` dans `REST_FRAMEWORK`, et aucune vue n'en posait.
+L'issue #106 avait borné le **nombre de requêtes** de cette liste à une seule, jamais son
+volume. Côté front, `Card.tsx:25` téléchargeait le texte entier de chaque article pour en
+afficher cent caractères — `{article.content.slice(0, 100)}...` — et `Blog.tsx:18` typait la
+réponse `apiFetch<Article[]>`, ligne que la pagination casserait. `healthcheck.py:17`
+interrogeait `/api/articles/`. Rien ne permettait de voir tout cela à l'écran : la base de
+développement contenait **deux** articles sur la machine où le lot a été préparé, et le dépôt
+n'avait aucun moyen de la peupler — ni fixture, ni commande, ni migration de données.
+
+Le seul poids réellement mesuré l'a été **après** la pagination, à la livraison de l'extrait :
+une page de 12 articles de démonstration passe de **~10 100 à 3 206 octets**, et de 7 702 à
+1 200 caractères de texte transporté. Le volume d'avant le lot n'a jamais été chiffré.
+
+**Décision et justification** — sept arbitrages.
+
+**Pages de 12, et `PageNumberPagination`.** Douze remplit sans trou la grille du blog, qu'elle
+ait deux ou trois colonnes. La `CursorPagination` a été écartée : elle reprend après le dernier
+article vu, mais ne donne pas le `count` que l'issue exigeait. Son défaut est assumé et
+consigné dans `AMELIORATIONS.md` — un article supprimé entre deux chargements est sauté par
+« Voir plus ». Le décalage inverse, une publication, est absorbé par un `Set` d'ids.
+
+**L'ordre a dû être départagé.** `Meta.ordering` passe de `["-created_at"]` à
+`["-created_at", "-id"]`, migration `0002` sans table touchée : deux articles publiés dans la
+même seconde laissaient la base les ordonner à son gré, et une liste paginée peut alors montrer
+l'un sur deux pages et l'autre jamais.
+
+**`Page<T>` reste local à `Blog.tsx`.** Le prompt de 6.1 le conditionnait à un second lecteur ;
+un seul endpoint est paginé. Le type générique attendra le deuxième.
+
+**L'extrait est taillé par la base**, `Left("content", 100)` posé par `annotate()`, avec le
+`defer("content")` qui va avec : le texte entier ne quitte plus PostgreSQL. Le tronquer en
+Python l'aurait fait voyager pour le jeter. Les trois pièces — annotation, `defer`, champ
+déclaré à la main dans le serializer — n'ont de sens qu'ensemble. La longueur de 100 est reprise
+telle quelle du `slice(0, 100)` qu'affichait déjà la carte : **aucune autre valeur n'a été
+discutée**, ni dans l'issue ni dans la PR.
+
+**Deux types côté front, et non un type affaibli.** `ArticleListItem` à côté d'`Article`,
+plutôt qu'un `Omit<Article, "content">` ou des champs rendus optionnels : la liste et le détail
+ne rendent pas le même objet, et un `Article` complet promettrait un `content` absent.
+
+**La sonde a quitté l'API.** Une route dédiée `health/`, vue Django nue et non DRF — le défaut
+`IsAuthenticated` la fermerait, et ni le jeton ni les quotas n'ont de sens pour une sonde qui
+s'appelle elle-même —, hors du préfixe `api/` que seul le nginx du serveur relaie. Son
+`SELECT 1` coûte le même prix quel que soit le nombre d'articles. Effet de bord recherché : la
+santé du conteneur ne dépend plus de la lecture publique du blog, qu'on pouvait fermer et
+rendre ainsi tous les conteneurs malades.
+
+**Le peuplement refuse de tourner en production.** 30 articles engendrés par 10 sujets × 3
+angles, `bulk_create` dans une transaction, auteur de démonstration inactif et sans mot de
+passe utilisable, et un `CommandError` avant toute écriture dès que `DEBUG` est faux — c'est
+`production.py`, qui fige `DEBUG=False`, qui ferme la commande à la base de production.
+
+**Ce qui a surpris** — six fois.
+
+**La fréquence de la sonde était fausse d'un facteur six.** Le plan et le prompt de 6.2
+disaient « toutes les 30 secondes (HEALTHCHECK du Dockerfile) ». C'est vrai de
+`backend/Dockerfile:88`, mais les **deux** fichiers Compose surchargent l'`interval` à 5 s. Les
+piles réelles payaient donc le `COUNT(*)` six fois plus souvent que le plan ne le croyait.
+
+**6.2 devait ne toucher qu'un fichier, elle en a créé deux.** Le plan annonçait
+« **Fichiers** : `backend/healthcheck.py` ». La livraison a créé `config/views.py` et
+`config/tests.py` : `backend/` passe de trois à quatre fichiers de tests, et
+`manage.py test config` devient une cible qui n'existait pas. La piste que le plan avait
+préparée — un `?page_size=1` sur l'API — a été abandonnée avant même l'écriture du ticket : la
+poser aurait exigé un `page_size_query_param`, qui laisse tout client choisir sa taille de page
+et se borne alors par `max_page_size`.
+
+**Une demande de 5.4 a fait deux sauts, et le lot 6 l'a d'abord aggravée.** L'affichage d'une
+liste vide et d'un échec de chargement, renvoyé du lot 5 au lot 6 par #132, n'a pas été repris
+par #111 — qui a en plus posé le `console.error` du 404 de première page que #140 a dû retirer
+le lendemain.
+
+**Deux défauts ne sont apparus qu'une fois le test écrit.** #140 a découvert après coup qu'un
+message d'échec survivait à la disparition du bouton qui l'avait provoqué — « un échec
+précédent inviterait à réessayer un bouton disparu » — et que le passage de la liste à `null`
+cassait le cas d'une page suivante sur liste non chargée. #141, de son côté, a resserré son
+propre test : vérifier l'`excerpt` et l'absence de `content` ne suffisait pas, un `fields`
+raccourci aurait fait afficher « Par undefined le Invalid Date » sans qu'aucun test ne tombe.
+D'où l'assertion sur le **jeu de champs complet**.
+
+**Un champ a disparu que personne n'avait listé.** `updated_at` ne sort plus de la liste. Ni
+l'issue ni le plan ne le mentionnaient : seul `content` était visé. Il a fallu un commit dédié
+pour le dire au README.
+
+**Le lot n'a rien ajouté à `AMELIORATIONS.md`** — le premier dans ce cas. La seule entrée de sa
+matière avait été posée par #111, hors lot. Et l'epic #138 est restée **ouverte** alors que ses
+quatre sous-issues étaient closes une à une : le piège du `Closes #N` qui ne ferme pas au merge
+dans `preprod`, cette fois au niveau de l'epic.
+
+**Preuve de la correction** — rejouée sur `preprod` au merge de #146 (`2f11c57`), dernier du
+lot. Depuis `backend/` : `Ran 75 tests`, `OK` — 64 avant le lot —, et `manage.py test config`
+est une cible neuve, 3 cas. Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend
+`Test Files  7 passed (7)` et `Tests  79 passed (79)` — 67 avant le lot, **aucun fichier de
+test créé**, tout est passé par `Blog.test.tsx`, de 7 à 14 cas —, et `npm run build`
+`✓ built in 2.57s`. À la livraison de #142, les deux piles montées avec `--build` : `backend`
+`healthy` en développement comme en production, `/health/` à `200` (et `301` sans
+`X-Forwarded-Proto`, comportement attendu), sonde exécutée dans les deux conteneurs en code 0.
+`grep -n "api/articles" backend/healthcheck.py` ne rend aucune ligne. Le parcours Playwright
+n'a pas été rejoué : il ne couvre pas le blog.
