@@ -28,7 +28,7 @@ const Terms = () => {
           <p className="text-secondary mt-4">
             Weeb est un blog consacré au développement web. Il permet de lire
             des articles, d'écrire à l'équipe et, pour les personnes inscrites,
-            de publier et de modifier leurs propres articles. L'accès est
+            de publier les leurs. L'accès est
             gratuit et le restera : aucune fonctionnalité n'est réservée à un
             abonnement.
           </p>
@@ -37,8 +37,10 @@ const Terms = () => {
         <section className="py-8">
           <SectionTitle align="left" line1={<>2. Compte et accès</>} />
           <p className="text-secondary mt-4">
-            La création d'un compte demande une adresse électronique et un mot
-            de passe. Vous êtes responsable de la confidentialité de ce mot de
+            La création d'un compte demande vos prénom, nom et adresse
+            électronique, ainsi qu'un mot de passe. Le compte naît inactif :
+            un administrateur doit l'ouvrir avant votre première connexion.
+            Vous êtes ensuite responsable de la confidentialité de ce mot de
             passe et des publications faites depuis votre compte. Le site étant
             une démonstration, n'y déposez aucune information sensible et
             choisissez un mot de passe que vous n'utilisez nulle part ailleurs.
@@ -48,11 +50,14 @@ const Terms = () => {
         <section className="py-8">
           <SectionTitle align="left" line1={<>3. Contenus publiés</>} />
           <p className="text-secondary mt-4">
-            Vous restez propriétaire des textes que vous publiez, et vous seul
-            pouvez les modifier ou les supprimer. En les publiant, vous
-            garantissez qu'ils sont les vôtres et qu'ils ne portent atteinte à
-            personne. Tout contenu illicite, injurieux ou contraire au droit
-            d'auteur peut être retiré sans préavis.
+            Vous restez propriétaire des textes que vous publiez : depuis le
+            site, vous êtes seul à pouvoir les modifier ou les supprimer,
+            l'équipe du projet pouvant les retirer depuis son interface
+            d'administration. Un article publié porte l'adresse électronique de
+            son auteur, à la vue de tous. En publiant, vous garantissez que vos
+            textes sont les vôtres et qu'ils ne portent atteinte à personne.
+            Tout contenu illicite, injurieux ou contraire au droit d'auteur peut
+            être retiré sans préavis.
           </p>
         </section>
 
