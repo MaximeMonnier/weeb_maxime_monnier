@@ -10,6 +10,8 @@ import Blog from "./pages/Blog/Blog";
 import ArticleDetails from "./pages/Blog/ArticleDetails";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import "./index.css";
 
 function App() {
@@ -26,6 +28,8 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/articles/:id" element={<ArticleDetails />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
