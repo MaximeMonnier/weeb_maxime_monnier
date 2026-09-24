@@ -49,16 +49,15 @@ const Terms = () => {
         <section className="py-8">
           <SectionTitle align="left" line1={<>3. Contenus publiés</>} />
           <p className="text-secondary mt-4">
-            Vous restez propriétaire des textes que vous publiez : personne
-            d'autre que vous ne peut les modifier, et l'équipe du projet peut
-            les retirer depuis son interface d'administration. Le site n'offre
-            pas encore d'écran de modification ni de suppression : demandez-les
-            par le formulaire de contact. Un article publié porte l'adresse
-            électronique de son auteur, à la vue de tous. En publiant, vous
-            garantissez que vos textes sont les vôtres et qu'ils ne portent
-            atteinte à personne.
-            Tout contenu illicite, injurieux ou contraire au droit d'auteur peut
-            être retiré sans préavis.
+            Vous restez propriétaire des textes que vous publiez : aucun autre
+            membre ne peut les modifier, et l'équipe du projet peut les retirer
+            ou les corriger depuis son interface d'administration. Le site
+            n'offre pas encore d'écran de modification ni de suppression :
+            demandez-les par le formulaire de contact. Un article publié porte
+            l'adresse électronique de son auteur, à la vue de tous. En publiant,
+            vous garantissez que vos textes sont les vôtres et qu'ils ne portent
+            atteinte à personne. Tout contenu illicite, injurieux ou contraire
+            au droit d'auteur peut être retiré sans préavis.
           </p>
         </section>
 
