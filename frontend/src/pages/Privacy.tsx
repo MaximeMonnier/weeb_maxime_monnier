@@ -40,11 +40,13 @@ const Privacy = () => {
           <p className="text-secondary mt-4">
             L'adresse électronique identifie votre compte à la connexion et
             reçoit, si vous le demandez, le lien de réinitialisation de votre
-            mot de passe. Vos prénom et nom nous servent à vous nommer. Les
-            messages de contact servent à vous répondre. Les articles sont
-            publiés sur le blog, signés par leur auteur : cette signature est
-            aujourd'hui l'adresse électronique du compte, et tout visiteur la
-            voit. Ne publiez pas si vous ne souhaitez pas la rendre publique.
+            mot de passe. Les prénom et nom du compte ne sont affichés nulle
+            part sur le site : seule l'équipe les voit, depuis l'interface
+            d'administration. Ceux du formulaire de contact nous servent à vous
+            répondre, avec votre message. Les articles sont publiés sur le blog,
+            signés par leur auteur : cette signature est aujourd'hui l'adresse
+            électronique du compte, et tout visiteur la voit. Ne publiez pas si
+            vous ne souhaitez pas la rendre publique.
           </p>
         </section>
 
