@@ -25,12 +25,13 @@ const Privacy = () => {
         <section className="py-8">
           <SectionTitle align="left" line1={<>1. Ce que nous collectons</>} />
           <p className="text-secondary mt-4">
-            À la création d'un compte : votre adresse électronique et votre mot
-            de passe, ce dernier n'étant jamais enregistré en clair. À l'envoi
-            du formulaire de contact : le nom, l'adresse électronique et le
-            message que vous y saisissez. À la publication d'un article : son
-            texte et le compte qui en est l'auteur. Rien d'autre ne nous est
-            demandé.
+            À la création d'un compte : vos prénom, nom et adresse électronique,
+            ainsi qu'un mot de passe, ce dernier n'étant jamais enregistré en
+            clair. À l'envoi du formulaire de contact : vos prénom, nom et
+            adresse électronique, le sujet et le message. À la publication d'un
+            article : son titre, son texte et le compte qui en est l'auteur.
+            Nous ne demandons rien d'autre : ni date de naissance, ni téléphone,
+            ni adresse postale.
           </p>
         </section>
 
@@ -39,9 +40,11 @@ const Privacy = () => {
           <p className="text-secondary mt-4">
             L'adresse électronique identifie votre compte à la connexion et
             reçoit, si vous le demandez, le lien de réinitialisation de votre
-            mot de passe. Les messages de contact servent à vous répondre. Les
-            articles sont publiés sur le blog, avec leur auteur. Aucun de ces
-            usages ne sort du site.
+            mot de passe. Vos prénom et nom nous servent à vous nommer. Les
+            messages de contact servent à vous répondre. Les articles sont
+            publiés sur le blog, signés par leur auteur : cette signature est
+            aujourd'hui l'adresse électronique du compte, et tout visiteur la
+            voit. Ne publiez pas si vous ne souhaitez pas la rendre publique.
           </p>
         </section>
 
@@ -60,10 +63,13 @@ const Privacy = () => {
           <SectionTitle align="left" line1={<>4. Qui y a accès</>} />
           <p className="text-secondary mt-4">
             Les données restent sur le serveur qui héberge le site et ne sont
-            transmises à personne d'autre. Seule l'équipe du projet y accède,
-            pour le faire fonctionner. Le courrier électronique de
-            réinitialisation transite par un serveur d'envoi, qui ne reçoit que
-            votre adresse et le message lui-même.
+            cédées à aucun tiers. L'équipe du projet y accède par l'interface
+            d'administration, comptes et articles compris, pour le faire
+            fonctionner. Une seule information est publique : l'adresse
+            électronique qui signe un article, lisible par tout visiteur du
+            blog. Le courrier électronique de réinitialisation transite par un
+            serveur d'envoi, qui ne reçoit que votre adresse et le message
+            lui-même.
           </p>
         </section>
 
