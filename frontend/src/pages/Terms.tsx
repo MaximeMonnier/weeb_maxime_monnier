@@ -28,9 +28,8 @@ const Terms = () => {
           <p className="text-secondary mt-4">
             Weeb est un blog consacré au développement web. Il permet de lire
             des articles, d'écrire à l'équipe et, pour les personnes inscrites,
-            de publier les leurs. L'accès est
-            gratuit et le restera : aucune fonctionnalité n'est réservée à un
-            abonnement.
+            de publier les leurs. L'accès est gratuit et le restera : aucune
+            fonctionnalité n'est réservée à un abonnement.
           </p>
         </section>
 
@@ -50,12 +49,14 @@ const Terms = () => {
         <section className="py-8">
           <SectionTitle align="left" line1={<>3. Contenus publiés</>} />
           <p className="text-secondary mt-4">
-            Vous restez propriétaire des textes que vous publiez : depuis le
-            site, vous êtes seul à pouvoir les modifier ou les supprimer,
-            l'équipe du projet pouvant les retirer depuis son interface
-            d'administration. Un article publié porte l'adresse électronique de
-            son auteur, à la vue de tous. En publiant, vous garantissez que vos
-            textes sont les vôtres et qu'ils ne portent atteinte à personne.
+            Vous restez propriétaire des textes que vous publiez : personne
+            d'autre que vous ne peut les modifier, et l'équipe du projet peut
+            les retirer depuis son interface d'administration. Le site n'offre
+            pas encore d'écran de modification ni de suppression : demandez-les
+            par le formulaire de contact. Un article publié porte l'adresse
+            électronique de son auteur, à la vue de tous. En publiant, vous
+            garantissez que vos textes sont les vôtres et qu'ils ne portent
+            atteinte à personne.
             Tout contenu illicite, injurieux ou contraire au droit d'auteur peut
             être retiré sans préavis.
           </p>
