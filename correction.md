@@ -1505,7 +1505,9 @@ passer, donne-moi leur sortie.
 
 ## 8.2 — Fusionner `Input` et `Textarea`
 
-- [ ] **Fichiers** : `frontend/src/components/ui/Input/Input.tsx`, `Textarea.tsx`, `index.ts`
+- [x] **Fichiers** : `frontend/src/components/ui/Input/FormField.tsx` (créé), `Input.tsx`,
+  `Textarea.tsx` — livré par l'issue #163 ; `index.ts` est resté inchangé, l'habillage étant
+  interne au dossier
 - **Constat** : les deux composants sont **identiques à environ 90 %** : mêmes props (`label`,
   `error`, `helperText`, `required`, `variant`, `fullWidth`), même génération d'`id` par `useId`,
   même logique `aria-invalid` / `aria-describedby`, même rendu du message d'erreur et du texte
@@ -1553,7 +1555,7 @@ Refactoring PUR : aucun changement visible. Vérifie que les cinq consommateurs 
 ## 8.3 — Retirer `forwardRef` (React 19)
 
 - [ ] **Fichiers** : `Input.tsx`, `Textarea.tsx`
-- **Constat** : les deux composants utilisent `forwardRef` (`Input.tsx:37`, `Textarea.tsx:40`),
+- **Constat** : les deux composants utilisent `forwardRef` (`Input.tsx:8`, `Textarea.tsx:13`),
   avec le `displayName` que ce pattern impose. Depuis React 19, `ref` est une prop comme une
   autre : le wrapper est du code hérité de React 18.
 - **Attendu** : composants en fonctions simples, `ref` reçue en prop.
@@ -1563,8 +1565,8 @@ Refactoring PUR : aucun changement visible. Vérifie que les cinq consommateurs 
 Objectif : moderniser Input et Textarea pour React 19.
 
 Constat :
-- frontend/src/components/ui/Input/Input.tsx:37 et :106 — forwardRef + displayName ;
-- frontend/src/components/ui/Input/Textarea.tsx:40 et :111 — idem.
+- frontend/src/components/ui/Input/Input.tsx:8 et :41 — forwardRef + displayName ;
+- frontend/src/components/ui/Input/Textarea.tsx:13 et :47 — idem.
 Le projet est en React 19 (frontend/package.json : "react": "^19.2.0"), où ref est une prop
 normale. Le wrapper forwardRef et le displayName qu'il impose sont du code hérité de React 18.
 
