@@ -14,6 +14,9 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import "./index.css";
 
+// `Footer.test.tsx` lit ce fichier comme du texte pour en extraire les routes :
+// des `path` autres que littéraux videraient sa liste, et les liens du pied de
+// page ne seraient plus contrôlés par personne.
 function App() {
   return (
     <BrowserRouter>
