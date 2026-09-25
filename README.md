@@ -931,6 +931,11 @@ et le `cleanup` entre les cas est **explicite**, Testing Library ne s'inscrivant
 s'il trouve un `afterEach` global. Sans lui, le formulaire du cas précédent reste dans le DOM
 et toute recherche par libellé y devient ambiguë.
 
+Un composant qui appelle `useTheme` demande une pièce de plus : jsdom n'implémente pas
+`window.matchMedia`, que le hook interroge dès le premier rendu, et le test échoue avant sa
+première assertion. `NavBar.test.tsx` en pose le doublon lui-même, toujours faute d'un
+`setupFiles` où le poser une fois.
+
 #### Le parcours en navigateur
 
 `npm test` ne dit rien de la conversation entre le front et l'API : il remplace `fetch` par un
