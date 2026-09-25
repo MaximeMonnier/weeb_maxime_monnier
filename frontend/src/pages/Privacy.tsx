@@ -42,7 +42,8 @@ const Privacy = () => {
             reçoit, si vous le demandez, le lien de réinitialisation de votre
             mot de passe ; elle n'est affichée nulle part sur le site. Les
             prénom et nom du compte signent les articles que vous publiez, et
-            tout visiteur les voit : c'est le seul endroit où ils paraissent.
+            tout visiteur les voit : c'est le seul endroit du site où ils
+            paraissent en dehors de l'interface d'administration.
             Ceux du formulaire de contact nous servent à vous répondre, avec
             votre message. Ne publiez pas d'article si vous ne souhaitez pas
             rendre votre prénom et votre nom publics.
