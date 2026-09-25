@@ -931,6 +931,11 @@ et le `cleanup` entre les cas est **explicite**, Testing Library ne s'inscrivant
 s'il trouve un `afterEach` global. Sans lui, le formulaire du cas précédent reste dans le DOM
 et toute recherche par libellé y devient ambiguë.
 
+Un composant qui appelle `useTheme` demande une pièce de plus : jsdom n'implémente pas
+`window.matchMedia`, que le hook interroge dès le premier rendu, et le test échoue avant sa
+première assertion. `NavBar.test.tsx` en pose le doublon lui-même, toujours faute d'un
+`setupFiles` où le poser une fois.
+
 #### Le parcours en navigateur
 
 `npm test` ne dit rien de la conversation entre le front et l'API : il remplace `fetch` par un
@@ -1043,10 +1048,11 @@ Trois choses ne se lisent pas dans le seul `tests.yml` :
   le workflow inexécutable sur un fork. Ils sont écrits **deux fois**, dans le bloc `services`
   et dans l'`env` du job, parce que le contexte `env` n'est pas lisible depuis `services` ;
 - **`VITE_API_URL` est posée dans le job front, et elle y sert deux fois** : `lib/api.ts` lève
-  à l'import quand elle manque — deux fichiers de test l'importent —, et `vite.config.ts`
-  interrompt le build de production sans elle. `frontend/.env` n'étant pas versionné, la
-  machine d'intégration n'en a aucune : sans cette ligne, deux suites sur trois et le build
-  échouent sur l'erreur de configuration, et non sur un défaut ;
+  à l'import quand elle manque — la plupart des fichiers de test l'atteignent, directement ou
+  par un composant —, et `vite.config.ts` interrompt le build de production sans elle.
+  `frontend/.env` n'étant pas versionné, la machine d'intégration n'en a aucune : sans cette
+  ligne, deux suites sur trois et le build échouent sur l'erreur de configuration, et non sur
+  un défaut ;
 - **Playwright n'y tourne pas** : il exige la pile Compose debout, un compte actif en base et
   660 Mo de navigateur. C'est aussi pourquoi `playwright.config.ts` pose
   `forbidOnly: !!process.env.CI` : un `test.only` oublié réduirait la suite en silence. La
