@@ -1459,8 +1459,8 @@ les deux dossiers.
 
 ## 8.1 — Extraire `cx()`
 
-- [ ] **Fichiers** : `frontend/src/lib/cx.ts` (à créer, nom à valider par l'inventaire),
-  `MainButton.tsx`, `Input.tsx`, `Textarea.tsx`, `LinkTitle.tsx`
+- [x] **Fichiers** : `frontend/src/lib/cx.ts` (créé), `MainButton.tsx`, `Input.tsx`,
+  `Textarea.tsx`, `LinkTitle.tsx` — livré par l'issue #162
 - **Constat** : la fonction `cx()` est redéfinie **à l'identique quatre fois** —
   `MainButton.tsx:40`, `Input.tsx:29`, `Textarea.tsx:32`, `LinkTitle.tsx:24`. `CLAUDE.md` en
   annonce trois : il y en a quatre, et la skill `revue-avant-push` interdit explicitement une
@@ -1876,8 +1876,9 @@ Objectif : remettre CLAUDE.md et le README en accord avec le dépôt.
    poste : le volume anonyme /app/node_modules de compose.dev.yaml fait créer par Docker, du
    côté HÔTE, un frontend/node_modules vide appartenant à root. Toute commande npm lancée ensuite
    depuis la machine échoue en EACCES. C'est un septième piège, au même titre que les six autres.
-2. CLAUDE.md indique « cx(), redéfini dans trois composants ui/ » — il l'est dans quatre
-   (MainButton, Input, Textarea, LinkTitle). Après la tâche 8.1, il ne l'est plus du tout.
+2. DÉJÀ FAIT par l'issue #162 : le § « Duplication connue » annonçait « cx(), redéfini dans trois
+   composants ui/ » là où il l'était dans quatre ; la tâche 8.1 l'ayant extrait dans lib/cx.ts, le
+   § entier a été supprimé. Rien à reprendre ici, sauf si le texte est revenu.
 3. CLAUDE.md documente src/data/articles.json et types/Article.coverImg comme des pièges. Après la
    tâche 9.1, ils n'existent plus.
 4. CLAUDE.md indique « Les trois tests.py sont encore des stubs vides ». Après le lot 2, c'est faux.

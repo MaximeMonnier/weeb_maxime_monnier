@@ -1,4 +1,5 @@
 import { forwardRef, useId } from "react";
+import { cx } from "../../../lib/cx";
 
 type InputVariant = "default" | "error" | "success";
 
@@ -25,10 +26,6 @@ type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   /** If true, input takes full width of container */
   fullWidth?: boolean;
 };
-
-function cx(...classes: Array<string | false | undefined | null>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 /**
  * Input component for text, email, and password fields
