@@ -25,15 +25,18 @@ const SITE_COLUMN: FooterColumn = {
   ],
 };
 
-// Colonne du seul visiteur, récupération de mot de passe comprise : elle ne
-// sert qu'à qui ne parvient pas à se connecter.
-const ACCOUNT_COLUMN: FooterColumn = {
-  title: "COMPTE",
-  links: [
-    { label: "Se connecter", to: "/login" },
-    { label: "Nous rejoindre", to: "/subscribe" },
-    { label: "Mot de passe oublié", to: "/forgot-password" },
-  ],
+// Entrées du seul visiteur : connecté, l'en-tête propose la déconnexion.
+const VISITOR_LINKS: FooterLink[] = [
+  { label: "Se connecter", to: "/login" },
+  { label: "Nous rejoindre", to: "/subscribe" },
+];
+
+// Servie dans les deux états : c'est le seul chemin de changement de mot de
+// passe du site, `App.tsx` n'ayant pas de page de profil et `accounts/urls.py`
+// pas de route de changement. La retirer au membre l'obligerait à se déconnecter.
+const RESET_LINK: FooterLink = {
+  label: "Mot de passe oublié",
+  to: "/forgot-password",
 };
 
 const LEGAL_COLUMN: FooterColumn = {
@@ -51,9 +54,12 @@ const Footer = () => {
   // déconnexion pendant que le pied de page propose encore l'inscription.
   const isAuthenticated = useIsAuthenticated();
 
-  const columns = isAuthenticated
-    ? [SITE_COLUMN, LEGAL_COLUMN]
-    : [SITE_COLUMN, ACCOUNT_COLUMN, LEGAL_COLUMN];
+  const accountColumn: FooterColumn = {
+    title: "COMPTE",
+    links: isAuthenticated ? [RESET_LINK] : [...VISITOR_LINKS, RESET_LINK],
+  };
+
+  const columns = [SITE_COLUMN, accountColumn, LEGAL_COLUMN];
 
   return (
     <footer className="footer">
@@ -68,13 +74,7 @@ const Footer = () => {
           {/* Columns */}
           <nav
             aria-label="Navigation du pied de page"
-            className={[
-              "grid w-full grid-cols-2 gap-10 md:w-auto",
-              // Les deux valeurs en toutes lettres : Tailwind lit la source et
-              // ne produit rien pour une classe assemblée à l'exécution. Une
-              // colonne de moins sur trois pistes laisserait un vide à droite.
-              isAuthenticated ? "sm:grid-cols-2" : "sm:grid-cols-3",
-            ].join(" ")}
+            className="grid w-full grid-cols-2 gap-10 sm:grid-cols-3 md:w-auto"
           >
             {columns.map((col) => (
               <div key={col.title} className="min-w-[140px]">
