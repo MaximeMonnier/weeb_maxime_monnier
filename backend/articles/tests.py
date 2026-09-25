@@ -1,6 +1,7 @@
 """Tests des articles : ce que le visiteur lit sans compte, ce que l'API refuse d'écrire,
 à qui l'article appartient quoi qu'en dise le corps envoyé, et dans quel ordre la liste
-sort — le tri, l'auteur et les dates ne venant jamais du client. Ce que la liste rend de
+sort — le tri, l'auteur et les dates ne venant jamais du client. Sous quel nom l'article
+est signé, et quelle adresse n'en sort jamais. Ce que la liste rend de
 moins que le détail, comment elle se découpe en pages, et ce que coûtent les deux listes,
 celle de l'API et celle de l'admin, quand le nombre d'articles grandit. Enfin la commande
 qui peuple la base de développement, et le refus qui la tient à l'écart de celle de
@@ -85,7 +86,7 @@ class ArticleProprieteTests(TestCase):
     def test_l_auteur_envoye_par_le_client_est_ignore(self):
         """À la création, c'est perform_create qui impose l'auteur : il écrase ce que le
         corps propose, et l'article partirait sans auteur si la ligne s'en allait. Le champ
-        déclaré en lecture seule, lui, ne tient ici que la forme rendue, l'email et non l'id."""
+        déclaré en lecture seule, lui, ne tient ici que la forme rendue, le nom et non l'id."""
         response = self.client.post(
             reverse("article-list"),
             {"title": "Article signé d'un autre", "content": "Contenu.",
@@ -95,7 +96,7 @@ class ArticleProprieteTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()["author"], self.auteur.email)
+        self.assertEqual(response.json()["author"], self.auteur.public_name)
         self.assertEqual(Article.objects.get(pk=response.json()["id"]).author, self.auteur)
 
     def test_l_auteur_ne_cede_pas_son_article_par_une_modification(self):
@@ -147,6 +148,64 @@ class ArticleProprieteTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertTrue(Article.objects.filter(pk=self.article.pk).exists())
+
+
+class ArticleSignatureTests(TestCase):
+    """L'article est signé du prénom et du nom, et l'adresse du compte ne paraît nulle part
+    dans la réponse. Rien dans `articles` ne le garantit seul : le nom vient de la propriété
+    `public_name` d'`accounts`, que les DEUX serializers doivent viser, quand le `__str__` du
+    même compte rend l'email et continue de le rendre pour l'admin. La lecture étant ouverte
+    au visiteur, un `StringRelatedField` reposé publierait l'adresse de chaque auteur sans
+    qu'aucun refus ne le signale — et les pages `/terms` et `/privacy` promettent l'inverse."""
+
+    def setUp(self):
+        self.auteur = CustomUser.objects.create_user(
+            email="jean@example.com", first_name="Jean", last_name="Dupont",
+            password="MotDePasseValide123",
+        )
+        self.article = Article.objects.create(
+            title="Article signé", content="Contenu.", author=self.auteur,
+        )
+
+    def urls(self):
+        """Les deux lectures publiques, qui ne passent pas par le même serializer."""
+        return {
+            "liste": reverse("article-list"),
+            "détail": reverse("article-detail", args=[self.article.pk]),
+        }
+
+    def signature(self, url):
+        """L'auteur tel que la réponse le rend, la liste fût-elle paginée."""
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        corps = response.json()
+        return corps["results"][0]["author"] if "results" in corps else corps["author"]
+
+    def test_la_liste_et_le_detail_signent_du_prenom_et_du_nom(self):
+        for nom, url in self.urls().items():
+            with self.subTest(vue=nom):
+                self.assertEqual(self.signature(url), "Jean Dupont")
+
+    def test_aucune_adresse_electronique_ne_sort_de_la_lecture_publique(self):
+        """Sur la réponse brute et non sur le seul champ `author` : un email réexposé sous
+        une autre clé compte autant, et `fields` s'allonge d'un champ sans rien casser."""
+        for nom, url in self.urls().items():
+            with self.subTest(vue=nom):
+                self.assertNotIn(self.auteur.email, self.client.get(url).content.decode())
+
+    def test_un_compte_sans_prenom_ni_nom_est_signe_d_un_repli(self):
+        """Le cas que l'inscription ne produit pas : les deux champs y sont obligatoires,
+        la base ne les exige pas, et un compte créé au shell signerait d'une chaîne vide."""
+        sans_nom = CustomUser.objects.create_user(
+            email="sans-nom@example.com", password="MotDePasseValide123",
+        )
+        self.article.author = sans_nom
+        self.article.save()
+
+        for nom, url in self.urls().items():
+            with self.subTest(vue=nom):
+                self.assertEqual(self.signature(url), "Auteur anonyme")
 
 
 class ArticleOrdreTests(TestCase):
@@ -301,7 +360,8 @@ class ArticleDatesImposeesTests(TestCase):
 
 class ArticleCoutDesListesTests(TestCase):
     """Les deux listes tiennent en un nombre de requêtes que le nombre d'articles ne change
-    pas : l'auteur, rendu par son __str__ des deux côtés, coûterait sinon une requête par
+    pas : l'auteur, lu sur sa ligne des deux côtés — par public_name côté API, par __str__
+    côté admin —, coûterait sinon une requête par
     ligne. Aucun des deux comptes n'est écrit ici — c'est leur égalité qui prouve la
     jointure, un nombre en dur ne prouvant que lui-même et cédant à la première requête
     ajoutée ailleurs, session ou filtre de l'admin.

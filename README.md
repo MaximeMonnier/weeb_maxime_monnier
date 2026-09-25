@@ -1164,6 +1164,11 @@ et le site sur la même origine.
 | `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression réservées à l'auteur |
 | `POST` | `/api/contact/` | public | Envoi du formulaire de contact |
 
+Dans la liste comme dans le détail, `author` est le **prénom suivi du nom**, jamais l'adresse
+électronique du compte : ces deux lectures sont ouvertes au visiteur, et le `__str__` de
+`CustomUser`, qui rend l'email, ne doit pas les traverser. Un compte dont le prénom et le nom
+sont vides signe « Auteur anonyme ».
+
 Les routes protégées attendent le token dans l'en-tête :
 
 ```

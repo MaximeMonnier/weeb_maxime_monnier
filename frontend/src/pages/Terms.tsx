@@ -19,7 +19,7 @@ const Terms = () => {
             de vous.
           </p>
           <p className="text-muted text-sm mt-4">
-            Dernière mise à jour : 24 septembre 2026.
+            Dernière mise à jour : 25 septembre 2026.
           </p>
         </div>
 
@@ -54,7 +54,8 @@ const Terms = () => {
             ou les corriger depuis son interface d'administration. Le site
             n'offre pas encore d'écran de modification ni de suppression :
             demandez-les par le formulaire de contact. Un article publié porte
-            l'adresse électronique de son auteur, à la vue de tous. En publiant,
+            le prénom et le nom de son auteur, à la vue de tous ; votre adresse
+            électronique, elle, ne paraît nulle part sur le site. En publiant,
             vous garantissez que vos textes sont les vôtres et qu'ils ne portent
             atteinte à personne. Tout contenu illicite, injurieux ou contraire
             au droit d'auteur peut être retiré sans préavis.
