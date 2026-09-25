@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import { cx } from "../../../lib/cx";
 
 /**
  * Props for the LinkTitle (Text CTA Link) component
@@ -20,10 +21,6 @@ type TextCtaLinkProps = {
   /** Additional CSS classes */
   className?: string;
 };
-
-function cx(...classes: Array<string | false | undefined | null>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function TextCtaLink({
   href,
