@@ -62,22 +62,28 @@ function rendreLEnTeteEtLePiedDePage() {
 }
 
 // Les liens porteurs d'un `aria-label` sont écartés : le logo et les icônes
-// sociales nomment leur destination autrement qu'un libellé de menu.
-function libellesParDestination(): Map<string, Set<string>> {
-  const parDestination = new Map<string, Set<string>>();
+// sociales nomment leur destination autrement qu'un libellé de menu. Les
+// doublons sont gardés — c'est leur nombre qui dit qu'aucun lien n'a quitté le
+// relevé, un `aria-label` posé sur l'un d'eux l'en sortant en silence.
+function libellesParDestination(): Map<string, string[]> {
+  const parDestination = new Map<string, string[]>();
 
   for (const lien of document.querySelectorAll("a")) {
     if (lien.hasAttribute("aria-label")) continue;
 
     const destination = lien.getAttribute("href") ?? "";
-    const libelles = parDestination.get(destination) ?? new Set<string>();
-    parDestination.set(
-      destination,
-      libelles.add((lien.textContent ?? "").trim()),
-    );
+    const libelle = (lien.textContent ?? "").trim();
+    parDestination.set(destination, [
+      ...(parDestination.get(destination) ?? []),
+      libelle,
+    ]);
   }
 
   return parDestination;
+}
+
+function navigationDuPiedDePage() {
+  return screen.getByRole("navigation", { name: "Navigation du pied de page" });
 }
 
 // Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
@@ -143,6 +149,9 @@ describe("Footer — visiteur", () => {
     expect(
       screen.getByRole("link", { name: "Mot de passe oublié" }),
     ).toHaveAttribute("href", "/forgot-password");
+    // La grille suit le nombre de colonnes rendues : rien d'autre ne le garde,
+    // et une colonne en moins sur trois pistes laisse un vide à droite.
+    expect(navigationDuPiedDePage()).toHaveClass("sm:grid-cols-3");
   });
 });
 
@@ -164,6 +173,7 @@ describe("Footer — membre connecté", () => {
 
     expect(screen.getByRole("link", { name: "Blog" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Contact" })).toBeInTheDocument();
+    expect(navigationDuPiedDePage()).toHaveClass("sm:grid-cols-2");
   });
 });
 
@@ -171,21 +181,28 @@ describe("Footer — accord avec l'en-tête", () => {
   it("annonce sa navigation en français", () => {
     rendreLePiedDePage();
 
-    expect(
-      screen.getByRole("navigation", { name: "Navigation du pied de page" }),
-    ).toBeInTheDocument();
+    expect(navigationDuPiedDePage()).toBeInTheDocument();
   });
 
   it("nomme comme le menu une destination servie des deux côtés", () => {
     rendreLEnTeteEtLePiedDePage();
     const parDestination = libellesParDestination();
 
-    // Trois exemplaires du blog : le menu desktop, le menu mobile et le pied de
-    // page. Sans ce repère, un pied de page sans lien passerait la boucle à vide.
-    expect(document.querySelectorAll('a[href="/blog"]')).toHaveLength(3);
+    // Trois exemplaires de chaque destination servie des deux côtés : le menu
+    // desktop, le menu mobile et le pied de page. Sans ce repère, un lien
+    // disparu ou sorti du relevé laisserait la boucle passer à vide.
+    for (const destination of [
+      "/blog",
+      "/about",
+      "/contact",
+      "/login",
+      "/subscribe",
+    ]) {
+      expect(parDestination.get(destination), destination).toHaveLength(3);
+    }
 
     for (const [destination, libelles] of parDestination) {
-      expect([...libelles], `« ${destination} »`).toHaveLength(1);
+      expect([...new Set(libelles)], `« ${destination} »`).toHaveLength(1);
     }
   });
 });

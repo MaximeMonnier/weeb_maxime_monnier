@@ -71,8 +71,9 @@ const Footer = () => {
             className={[
               "grid w-full grid-cols-2 gap-10 md:w-auto",
               // Les deux valeurs en toutes lettres : Tailwind lit la source et
-              // ne produit rien pour une classe assemblée à l'exécution.
-              columns.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2",
+              // ne produit rien pour une classe assemblée à l'exécution. Une
+              // colonne de moins sur trois pistes laisserait un vide à droite.
+              isAuthenticated ? "sm:grid-cols-2" : "sm:grid-cols-3",
             ].join(" ")}
           >
             {columns.map((col) => (
