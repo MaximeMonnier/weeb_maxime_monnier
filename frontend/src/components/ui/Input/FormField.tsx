@@ -6,7 +6,8 @@ export type FieldVariant = "default" | "error" | "success";
 
 /**
  * Props que l'habillage prend en charge, communes à Input et à Textarea.
- * Toute prop ajoutée ici apparaît du même coup sur les deux.
+ * Toute prop ajoutée ici apparaît du même coup sur les deux, et leurs valeurs par
+ * défaut sont posées ici seulement : les deux composants transmettent ce qu'ils reçoivent.
  */
 export type FieldProps = {
   /** Étiquette affichée au-dessus du champ */
