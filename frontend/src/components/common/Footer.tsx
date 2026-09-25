@@ -1,56 +1,48 @@
+import { Link } from "react-router-dom";
+
 import Logo from "../ui/Logo/Logo";
 
-/** Represents a single link in the footer */
+/** Un lien du pied de page, vers une route déclarée dans `App.tsx`. */
 type FooterLink = {
-  /** Display text for the link */
+  /** Texte affiché */
   label: string;
-  /** URL for the link */
-  href: string;
+  /** Route visée */
+  to: string;
 };
 
-/** Represents a column of links in the footer */
+/** Une colonne de liens du pied de page. */
 type FooterColumn = {
-  /** Column heading */
+  /** Titre de la colonne */
   title: string;
-  /** Array of links in this column */
+  /** Liens de la colonne */
   links: FooterLink[];
 };
 
+// Chaque `to` doit exister dans `App.tsx` : une route absente tombe sur
+// `NotFound`, et `Footer.test.tsx` est ce qui l'interdit.
 const columns: FooterColumn[] = [
   {
-    title: "PRODUIT",
+    title: "SITE",
     links: [
-      { label: "Tarifs", href: "/pricing" },
-      { label: "Aperçu", href: "/overview" },
-      { label: "Explorer", href: "/browse" },
-      { label: "Accessibilité", href: "/accessibility" },
-      { label: "Five", href: "/five" },
+      { label: "Accueil", to: "/" },
+      { label: "Blog", to: "/blog" },
+      { label: "À propos", to: "/about" },
     ],
   },
   {
-    title: "SOLUTIONS",
+    title: "COMPTE",
     links: [
-      { label: "Brainstorming", href: "/solutions/brainstorming" },
-      { label: "Idéation", href: "/solutions/ideation" },
-      { label: "Wireframing", href: "/solutions/wireframing" },
-      { label: "Recherche", href: "/solutions/research" },
+      { label: "Connexion", to: "/login" },
+      { label: "Inscription", to: "/subscribe" },
+      { label: "Mot de passe oublié", to: "/forgot-password" },
     ],
   },
   {
-    title: "RESSOURCES",
+    title: "LÉGAL",
     links: [
-      { label: "Centre d’aide", href: "/help" },
-      { label: "Blog", href: "/blog" },
-      { label: "Tutoriels", href: "/tutorials" },
-    ],
-  },
-  {
-    title: "ENTREPRISE",
-    links: [
-      { label: "À propos", href: "/about" },
-      { label: "Presse", href: "/press" },
-      { label: "Événements", href: "/events" },
-      { label: "Carrières", href: "/careers" },
+      { label: "Conditions d'utilisation", to: "/terms" },
+      { label: "Politique de confidentialité", to: "/privacy" },
+      { label: "Contact", to: "/contact" },
     ],
   },
 ];
@@ -71,7 +63,7 @@ const Footer = () => {
           {/* Columns */}
           <nav
             aria-label="Footer navigation"
-            className="grid w-full grid-cols-2 gap-10 sm:grid-cols-4 md:w-auto"
+            className="grid w-full grid-cols-2 gap-10 sm:grid-cols-3 md:w-auto"
           >
             {columns.map((col) => (
               <div key={col.title} className="min-w-[140px]">
@@ -82,9 +74,9 @@ const Footer = () => {
                 <ul className="mt-4 space-y-2">
                   {col.links.map((l) => (
                     <li key={l.label}>
-                      <a href={l.href} className="footer-link text-sm">
+                      <Link to={l.to} className="footer-link text-sm">
                         {l.label}
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>
