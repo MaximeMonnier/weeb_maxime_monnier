@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -8,6 +8,8 @@ import "@testing-library/jest-dom/vitest";
 // laisserait le test vert le jour où l'une d'elles est renommée ou retirée.
 import sourceDeLApp from "../../App.tsx?raw";
 
+import { saveTokens } from "../../lib/tokens";
+import NavBar from "./Navigation/NavBar";
 import Footer from "./Footer";
 
 // Les seules destinations fixes : le `*` est le fourre-tout de `NotFound`, et
@@ -15,6 +17,11 @@ import Footer from "./Footer";
 const ROUTES_DE_L_APP = [...sourceDeLApp.matchAll(/path="([^"]+)"/g)]
   .map(([, chemin]) => chemin)
   .filter((chemin) => chemin !== "*" && !chemin.includes(":"));
+
+// jsdom n'implémente pas `matchMedia`, que `useTheme` interroge dès le premier
+// rendu de la barre de navigation. Le doublon se pose ici faute d'un
+// `setupFiles` où le poser une fois, et se limite au `matches` que le hook lit.
+vi.stubGlobal("matchMedia", () => ({ matches: false }));
 
 // Le pied de page est rendu à côté des `Routes`, comme `MainLayout` le rend hors
 // de son `Outlet` : il reste affiché après un clic, et la zone de routes montre
@@ -43,9 +50,43 @@ function liensDuPiedDePage() {
   };
 }
 
+// L'en-tête et le pied de page d'une même page, comme `MainLayout` les rend :
+// c'est le seul rendu où leurs libellés se confrontent.
+function rendreLEnTeteEtLePiedDePage() {
+  render(
+    <MemoryRouter initialEntries={["/"]}>
+      <NavBar />
+      <Footer />
+    </MemoryRouter>,
+  );
+}
+
+// Les liens porteurs d'un `aria-label` sont écartés : le logo et les icônes
+// sociales nomment leur destination autrement qu'un libellé de menu.
+function libellesParDestination(): Map<string, Set<string>> {
+  const parDestination = new Map<string, Set<string>>();
+
+  for (const lien of document.querySelectorAll("a")) {
+    if (lien.hasAttribute("aria-label")) continue;
+
+    const destination = lien.getAttribute("href") ?? "";
+    const libelles = parDestination.get(destination) ?? new Set<string>();
+    parDestination.set(
+      destination,
+      libelles.add((lien.textContent ?? "").trim()),
+    );
+  }
+
+  return parDestination;
+}
+
 // Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
-// trouve un afterEach global, et `globals: false` n'en pose aucun.
-afterEach(cleanup);
+// trouve un afterEach global, et `globals: false` n'en pose aucun. Les jetons
+// partent avec : ils décident de ce que le pied de page affiche.
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 describe("Footer — liens internes", () => {
   it("ne mène qu'à des routes déclarées par l'application", () => {
@@ -84,6 +125,67 @@ describe("Footer — liens externes", () => {
       expect(lien).toHaveAttribute("target", "_blank");
       // Les jetons un à un : `rel="noopener noreferrer"` reste recevable.
       expect(lien.rel.split(/\s+/)).toContain("noreferrer");
+    }
+  });
+});
+
+describe("Footer — visiteur", () => {
+  it("propose les trois entrées de compte", () => {
+    rendreLePiedDePage();
+
+    expect(screen.getByRole("link", { name: "Se connecter" })).toHaveAttribute(
+      "href",
+      "/login",
+    );
+    expect(
+      screen.getByRole("link", { name: "Nous rejoindre" }),
+    ).toHaveAttribute("href", "/subscribe");
+    expect(
+      screen.getByRole("link", { name: "Mot de passe oublié" }),
+    ).toHaveAttribute("href", "/forgot-password");
+  });
+});
+
+describe("Footer — membre connecté", () => {
+  it("retire la colonne du compte sans toucher aux autres", () => {
+    // Lu dès le premier rendu par `useIsAuthenticated` : la session se pose
+    // avant, sans quoi le pied de page s'afficherait en visiteur.
+    saveTokens({ access: "jeton-acces", refresh: "jeton-renouvellement" });
+    rendreLePiedDePage();
+
+    expect(screen.queryByText("COMPTE")).not.toBeInTheDocument();
+    for (const libelle of [
+      "Se connecter",
+      "Nous rejoindre",
+      "Mot de passe oublié",
+    ]) {
+      expect(screen.queryByRole("link", { name: libelle })).toBeNull();
+    }
+
+    expect(screen.getByRole("link", { name: "Blog" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Contact" })).toBeInTheDocument();
+  });
+});
+
+describe("Footer — accord avec l'en-tête", () => {
+  it("annonce sa navigation en français", () => {
+    rendreLePiedDePage();
+
+    expect(
+      screen.getByRole("navigation", { name: "Navigation du pied de page" }),
+    ).toBeInTheDocument();
+  });
+
+  it("nomme comme le menu une destination servie des deux côtés", () => {
+    rendreLEnTeteEtLePiedDePage();
+    const parDestination = libellesParDestination();
+
+    // Trois exemplaires du blog : le menu desktop, le menu mobile et le pied de
+    // page. Sans ce repère, un pied de page sans lien passerait la boucle à vide.
+    expect(document.querySelectorAll('a[href="/blog"]')).toHaveLength(3);
+
+    for (const [destination, libelles] of parDestination) {
+      expect([...libelles], `« ${destination} »`).toHaveLength(1);
     }
   });
 });
