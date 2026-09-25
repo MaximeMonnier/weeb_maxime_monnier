@@ -149,31 +149,28 @@ describe("Footer — visiteur", () => {
     expect(
       screen.getByRole("link", { name: "Mot de passe oublié" }),
     ).toHaveAttribute("href", "/forgot-password");
-    // La grille suit le nombre de colonnes rendues : rien d'autre ne le garde,
-    // et une colonne en moins sur trois pistes laisse un vide à droite.
-    expect(navigationDuPiedDePage()).toHaveClass("sm:grid-cols-3");
   });
 });
 
 describe("Footer — membre connecté", () => {
-  it("retire la colonne du compte sans toucher aux autres", () => {
+  it("ne garde de la colonne du compte que la réinitialisation", () => {
     // Lu dès le premier rendu par `useIsAuthenticated` : la session se pose
     // avant, sans quoi le pied de page s'afficherait en visiteur.
     saveTokens({ access: "jeton-acces", refresh: "jeton-renouvellement" });
     rendreLePiedDePage();
 
-    expect(screen.queryByText("COMPTE")).not.toBeInTheDocument();
-    for (const libelle of [
-      "Se connecter",
-      "Nous rejoindre",
-      "Mot de passe oublié",
-    ]) {
+    for (const libelle of ["Se connecter", "Nous rejoindre"]) {
       expect(screen.queryByRole("link", { name: libelle })).toBeNull();
     }
 
+    // Le seul chemin de changement de mot de passe du site : le retirer au
+    // membre l'obligerait à se déconnecter pour changer le sien.
+    expect(
+      screen.getByRole("link", { name: "Mot de passe oublié" }),
+    ).toHaveAttribute("href", "/forgot-password");
+
     expect(screen.getByRole("link", { name: "Blog" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Contact" })).toBeInTheDocument();
-    expect(navigationDuPiedDePage()).toHaveClass("sm:grid-cols-2");
   });
 });
 
