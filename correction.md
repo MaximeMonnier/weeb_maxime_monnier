@@ -81,7 +81,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 | 5 | Authentification côté front | 4 | S'appuie sur le socle du lot 4 |
 | 6 | Pagination bout en bout | 2 (+2) | Change le contrat d'API : après la stabilisation du front |
 | 7 | Navigation, liens et pages manquantes | 4 | Corrections de surface, sans dépendance |
-| 8 | Dédoublonnage de la couche UI | 3 | Refactoring pur, protégé par le lot 2 |
+| 8 | Dédoublonnage de la couche UI | 5 | Refactoring pur, protégé par le lot 2 |
 | 9 | Code mort et conventions | 4 | Nettoyage final, une fois que plus rien n'y touche |
 | 10 | Documentation et clôture | 3 | Consigne ce qui a été appris |
 
@@ -1449,8 +1449,9 @@ si la tâche 5.4 ne l'a pas déjà traité, signale-le.
 |---|---|---|---|
 | À faire | — | — | Bloc 1 — qualité |
 
-**Grain de ticket** : ticket unique — trois refactorings de `ui/`, dont 8.3 qui découle de 8.2,
-plus 8.4 qui déborde sur `common/` et ne dépend d'aucun des trois.
+**Grain de ticket** : ticket unique — trois refactorings de `ui/`, dont 8.3 qui découle de 8.2 ;
+8.4, qui déborde sur `common/` et ne dépend d'aucun des trois ; et 8.5, qui suit 8.1 et touche
+les deux dossiers.
 
 > **Dépendances : lot 2** (les tests backend ne couvrent pas le front, mais le lot 4 a déjà
 > stabilisé les formulaires qui consomment ces composants).
@@ -1622,6 +1623,52 @@ Travail demandé :
 
 Consulte `frontend-react-ts`. Vérifie par npm run lint, npm test et npm run build, et donne-moi
 la sortie des trois.
+```
+
+## 8.5 — Aligner les derniers assemblages de classes sur `cx()`
+
+- [ ] **Fichiers** : `MainTitle.tsx`, `SecondTitle.tsx`, `Logo.tsx`, `NavBar.tsx`,
+  `MobileMenu.tsx`, `FeatureBlock.tsx`
+- **Constat** : sept endroits, dans six fichiers, construisent leur `className` par un
+  `[...].join(" ")` écrit sur place — `MainTitle.tsx:33`, `SecondTitle.tsx:49`, `Logo.tsx:25`,
+  `NavBar.tsx:76`, `MobileMenu.tsx:30`, `FeatureBlock.tsx:57` et `:96`. La tâche 8.1 les signale
+  mais laisse la décision ouverte, et aucun autre lot ne les reprend : sans cette tâche, le lot
+  supprime quatre copies de `cx()` pour en laisser sept contournements. Trois d'entre eux
+  poussent `className ?? ""` dans le tableau, où le `join` laisse une espace en trop que `cx()`
+  filtre.
+- **Attendu** : un seul assembleur de classes dans tout le front.
+- **À traiter après** : 8.1 — `cx()` doit exister avant d'avoir des appelants.
+
+```
+Objectif : faire passer par cx() les derniers assemblages de classes écrits à la main.
+
+Constat, une fois la tâche 8.1 faite :
+- frontend/src/components/ui/Title/MainTitle.tsx:33
+- frontend/src/components/ui/Title/SecondTitle.tsx:49
+- frontend/src/components/ui/Logo/Logo.tsx:25
+- frontend/src/components/common/Navigation/NavBar.tsx:76
+- frontend/src/components/common/Navigation/MobileMenu.tsx:30
+- frontend/src/components/common/Home/FeatureBlock.tsx:57 et :96
+Ces numéros de ligne datent du 2026-09-25 : revérifie-les par grep avant d'agir.
+
+Travail demandé :
+
+1. Aucun inventaire à dérouler : rien n'est créé ici, cx() existe déjà. S'il n'existe pas, c'est
+   que 8.1 n'est pas faite — arrête-toi et dis-le-moi.
+
+2. Remplace chaque tableau suivi de join par un appel à cx(). Deux cas à ne pas confondre :
+   - ceux qui poussent `className ?? ""` dans le tableau (MainTitle, SecondTitle, Logo,
+     FeatureBlock:57) : le join y laisse une espace en trop dans l'attribut rendu, cx() la
+     filtre. L'attribut change donc, sans rien changer à l'écran — préviens-moi si un test
+     compare un className entier ;
+   - ceux dont toutes les entrées sont non vides (NavBar, MobileMenu, FeatureBlock:96) : la
+     chaîne produite est identique au caractère près.
+
+3. Ne touche pas aux deux join(" ") de lib/apiErrors.ts : ils assemblent des phrases, pas des
+   classes.
+
+Consulte `frontend-react-ts`. Refactoring PUR : vérifie par npm run lint, npm test et
+npm run build, et donne-moi la sortie des trois.
 ```
 
 ---
