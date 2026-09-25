@@ -933,8 +933,10 @@ et toute recherche par libellé y devient ambiguë.
 
 Un composant qui appelle `useTheme` demande une pièce de plus : jsdom n'implémente pas
 `window.matchMedia`, que le hook interroge dès le premier rendu, et le test échoue avant sa
-première assertion. `NavBar.test.tsx` en pose le doublon lui-même, toujours faute d'un
-`setupFiles` où le poser une fois.
+première assertion. `NavBar.test.tsx` et `Footer.test.tsx` en posent chacun le doublon,
+toujours faute d'un `setupFiles` où le poser une fois — le second rend la barre de navigation
+à côté du pied de page pour confronter leurs libellés, « Se connecter » et « Nous rejoindre »
+étant écrits dans les deux menus **et** dans le pied de page.
 
 #### Le parcours en navigateur
 
