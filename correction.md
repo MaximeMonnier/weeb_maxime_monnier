@@ -1505,7 +1505,9 @@ passer, donne-moi leur sortie.
 
 ## 8.2 — Fusionner `Input` et `Textarea`
 
-- [ ] **Fichiers** : `frontend/src/components/ui/Input/Input.tsx`, `Textarea.tsx`, `index.ts`
+- [x] **Fichiers** : `frontend/src/components/ui/Input/FormField.tsx` (créé), `Input.tsx`,
+  `Textarea.tsx` — livré par l'issue #163 ; `index.ts` est resté inchangé, l'habillage étant
+  interne au dossier
 - **Constat** : les deux composants sont **identiques à environ 90 %** : mêmes props (`label`,
   `error`, `helperText`, `required`, `variant`, `fullWidth`), même génération d'`id` par `useId`,
   même logique `aria-invalid` / `aria-describedby`, même rendu du message d'erreur et du texte
