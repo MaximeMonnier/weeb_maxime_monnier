@@ -43,3 +43,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+    @property
+    def public_name(self):
+        """Le nom sous lequel un compte paraît côté visiteur, jamais son email."""
+        # Le repli n'est pas décoratif : les deux champs sont exigés à l'inscription
+        # mais pas en base, et un compte créé au shell signerait d'une chaîne vide.
+        return f"{self.first_name} {self.last_name}".strip() or "Auteur anonyme"
