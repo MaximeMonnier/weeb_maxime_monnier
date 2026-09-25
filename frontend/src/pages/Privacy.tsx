@@ -18,7 +18,7 @@ const Privacy = () => {
             faire fonctionner le site.
           </p>
           <p className="text-muted text-sm mt-4">
-            Dernière mise à jour : 24 septembre 2026.
+            Dernière mise à jour : 25 septembre 2026.
           </p>
         </div>
 
@@ -40,13 +40,12 @@ const Privacy = () => {
           <p className="text-secondary mt-4">
             L'adresse électronique identifie votre compte à la connexion et
             reçoit, si vous le demandez, le lien de réinitialisation de votre
-            mot de passe. Les prénom et nom du compte ne sont affichés nulle
-            part sur le site : seule l'équipe les voit, depuis l'interface
-            d'administration. Ceux du formulaire de contact nous servent à vous
-            répondre, avec votre message. Les articles sont publiés sur le blog,
-            signés par leur auteur : cette signature est aujourd'hui l'adresse
-            électronique du compte, et tout visiteur la voit. Ne publiez pas si
-            vous ne souhaitez pas la rendre publique.
+            mot de passe ; elle n'est affichée nulle part sur le site. Les
+            prénom et nom du compte signent les articles que vous publiez, et
+            tout visiteur les voit : c'est le seul endroit où ils paraissent.
+            Ceux du formulaire de contact nous servent à vous répondre, avec
+            votre message. Ne publiez pas d'article si vous ne souhaitez pas
+            rendre votre prénom et votre nom publics.
           </p>
         </section>
 
@@ -67,8 +66,8 @@ const Privacy = () => {
             Les données restent sur le serveur qui héberge le site et ne sont
             cédées à aucun tiers. L'équipe du projet y accède par l'interface
             d'administration, comptes et articles compris, pour le faire
-            fonctionner. Une seule information est publique : l'adresse
-            électronique qui signe un article, lisible par tout visiteur du
+            fonctionner. Une seule information est publique : le prénom et le
+            nom qui signent un article, lisibles par tout visiteur du
             blog. Le courrier électronique de réinitialisation transite par un
             serveur d'envoi, qui ne reçoit que votre adresse et le message
             lui-même.
