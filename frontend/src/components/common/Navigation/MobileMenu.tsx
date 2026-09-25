@@ -83,7 +83,7 @@ export default function MobileMenu({
                 </RRNavLink>
 
                 <Link
-                  to="/contact"
+                  to="/subscribe"
                   onClick={onClose}
                   className="btn-primary w-full mt-4"
                 >
