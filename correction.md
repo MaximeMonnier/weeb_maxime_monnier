@@ -1445,7 +1445,8 @@ si la tâche 5.4 ne l'a pas déjà traité, signale-le.
 |---|---|---|---|
 | À faire | — | — | Bloc 1 — qualité |
 
-**Grain de ticket** : ticket unique — trois refactorings de la même couche, 8.3 découle de 8.2.
+**Grain de ticket** : ticket unique — trois refactorings de `ui/`, dont 8.3 qui découle de 8.2,
+plus 8.4 qui déborde sur `common/` et ne dépend d'aucun des trois.
 
 > **Dépendances : lot 2** (les tests backend ne couvrent pas le front, mais le lot 4 a déjà
 > stabilisé les formulaires qui consomment ces composants).
@@ -1574,6 +1575,49 @@ Contrainte : cette tâche touche les mêmes fichiers que 8.2. Fais-la APRÈS, da
 
 Vérifie ensuite que `npm run build` (qui lance `tsc -b`) passe : c'est le typage qui prouve ici
 que rien n'est cassé. Donne-moi la sortie.
+```
+
+
+## 8.4 — Factoriser les libellés de navigation
+
+- [ ] **Fichiers** : `NavBar.tsx`, `MobileMenu.tsx`, `Footer.tsx`, `types/navigation.ts`
+- **Constat** : deux couples libellé/destination sont écrits dans **trois** fichiers —
+  « Se connecter » → `/login` et « Nous rejoindre » → `/subscribe`, que `NavBar.tsx`,
+  `MobileMenu.tsx` et `Footer.tsx` recopient chacun. Trois autres le sont dans **deux** :
+  « Blog » → `/blog`, « À propos de nous » → `/about` et « Contact » → `/contact`, que
+  `navItems` porte déjà pour les deux menus mais que le pied de page réécrit. Cette redite a
+  déjà coûté deux défauts : « Nous rejoindre » menait à `/contact` en mobile et à `/subscribe` en desktop
+  (issue #148), et le pied de page disait « Connexion » quand le menu disait « Se connecter »
+  (issue #155). Les deux tests posés depuis la gardent, mais ne la suppriment pas.
+- **Attendu** : une source unique des liens partagés, les trois composants la lisant.
+
+```
+Objectif : supprimer la recopie des liens de navigation entre l'en-tête et le pied de page.
+
+Constat :
+- frontend/src/components/common/Navigation/NavBar.tsx — navItems, puis les deux blocs
+  d'actions qui écrivent chacun « Se connecter » et « Nous rejoindre » ;
+- frontend/src/components/common/Navigation/MobileMenu.tsx — le second de ces blocs ;
+- frontend/src/components/common/Footer.tsx — SITE_COLUMN, ACCOUNT_COLUMN, LEGAL_COLUMN.
+
+Deux tests gardent aujourd'hui l'accord, et ils ne visent pas la même chose :
+- NavBar.test.tsx : un libellé servi des deux côtés mène au même endroit (le défaut #148) ;
+- Footer.test.tsx : une destination servie par l'en-tête et le pied de page y porte le même
+  libellé (le défaut #155), en les rendant ensemble.
+
+Travail demandé :
+
+1. Déroule `inventaire-avant-dev` : où poser une liste de liens lue par trois composants de
+   common/ ? types/navigation.ts porte déjà NavItem. Produis le verdict avant d'écrire.
+2. Attention : les trois jeux ne se recouvrent pas. Le pied de page a des entrées que le menu
+   n'a pas (mentions légales, mot de passe oublié) et le menu a des ancres de défilement. La
+   source unique doit porter le libellé et la destination, pas la mise en page.
+3. Les deux tests doivent rester verts SANS être réécrits : s'ils demandent une adaptation,
+   dis-le-moi avant, c'est le signe que la factorisation change un comportement.
+4. Refactoring pur : aucun libellé, aucune destination, aucun ordre d'affichage ne change.
+
+Consulte `frontend-react-ts`. Vérifie par npm run lint, npm test et npm run build, et donne-moi
+la sortie des trois.
 ```
 
 ---

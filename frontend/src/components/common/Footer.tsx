@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 import Logo from "../ui/Logo/Logo";
+import { useIsAuthenticated } from "../../hooks/useIsAuthenticated";
 
 type FooterLink = {
   label: string;
@@ -12,37 +13,53 @@ type FooterColumn = {
   links: FooterLink[];
 };
 
-// Chaque `to` doit exister dans `App.tsx` : une route absente tombe sur
-// `NotFound`, et `Footer.test.tsx` est ce qui l'interdit.
-const columns: FooterColumn[] = [
-  {
-    title: "SITE",
-    links: [
-      { label: "Accueil", to: "/" },
-      { label: "Blog", to: "/blog" },
-      { label: "À propos", to: "/about" },
-    ],
-  },
-  {
-    title: "COMPTE",
-    links: [
-      { label: "Connexion", to: "/login" },
-      { label: "Inscription", to: "/subscribe" },
-      { label: "Mot de passe oublié", to: "/forgot-password" },
-    ],
-  },
-  {
-    title: "LÉGAL",
-    links: [
-      { label: "Conditions d'utilisation", to: "/terms" },
-      { label: "Politique de confidentialité", to: "/privacy" },
-      { label: "Contact", to: "/contact" },
-    ],
-  },
+// Chaque `to` doit exister dans `App.tsx`, et un libellé servi aussi par
+// `NavBar.tsx` doit y être écrit à l'identique : `Footer.test.tsx` tient les
+// deux, faute d'une source commune aux deux fichiers.
+const SITE_COLUMN: FooterColumn = {
+  title: "SITE",
+  links: [
+    { label: "Accueil", to: "/" },
+    { label: "Blog", to: "/blog" },
+    { label: "À propos de nous", to: "/about" },
+  ],
+};
+
+// Entrées du seul visiteur : connecté, l'en-tête propose la déconnexion.
+const VISITOR_LINKS: FooterLink[] = [
+  { label: "Se connecter", to: "/login" },
+  { label: "Nous rejoindre", to: "/subscribe" },
 ];
+
+// Servie dans les deux états : c'est le seul chemin de changement de mot de
+// passe du site, `App.tsx` n'ayant pas de page de profil et `accounts/urls.py`
+// pas de route de changement. La retirer au membre l'obligerait à se déconnecter.
+const RESET_LINK: FooterLink = {
+  label: "Mot de passe oublié",
+  to: "/forgot-password",
+};
+
+const LEGAL_COLUMN: FooterColumn = {
+  title: "LÉGAL",
+  links: [
+    { label: "Conditions d'utilisation", to: "/terms" },
+    { label: "Politique de confidentialité", to: "/privacy" },
+    { label: "Contact", to: "/contact" },
+  ],
+};
 
 const Footer = () => {
   const year = new Date().getFullYear();
+  // La même source que `NavBar.tsx` : sans elle, l'en-tête proposerait la
+  // déconnexion pendant que le pied de page propose encore l'inscription.
+  const isAuthenticated = useIsAuthenticated();
+
+  const accountColumn: FooterColumn = {
+    title: "COMPTE",
+    links: isAuthenticated ? [RESET_LINK] : [...VISITOR_LINKS, RESET_LINK],
+  };
+
+  const columns = [SITE_COLUMN, accountColumn, LEGAL_COLUMN];
 
   return (
     <footer className="footer">
@@ -56,7 +73,7 @@ const Footer = () => {
 
           {/* Columns */}
           <nav
-            aria-label="Footer navigation"
+            aria-label="Navigation du pied de page"
             className="grid w-full grid-cols-2 gap-10 sm:grid-cols-3 md:w-auto"
           >
             {columns.map((col) => (

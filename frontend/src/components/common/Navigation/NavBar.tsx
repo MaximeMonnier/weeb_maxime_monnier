@@ -65,6 +65,9 @@ function NavBar() {
   return (
     <>
       <nav
+        // Deux navigations sur la page depuis que le pied de page porte la
+        // sienne : sans nom, ni un lecteur d'écran ni `e2e/` ne les départagent.
+        aria-label="Navigation principale"
         className={[
           "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
           isScrolled

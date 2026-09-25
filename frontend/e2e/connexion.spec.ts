@@ -75,7 +75,14 @@ test.describe("Déconnexion", () => {
 
     expect(logout.status()).toBe(200);
     await expect(page).toHaveURL("/");
-    await expect(page.getByRole("link", { name: "Se connecter" })).toBeVisible();
+    // Dans l'en-tête, et non sur toute la page : le pied de page sert le même
+    // libellé, et deux correspondances arrêtent Playwright au lieu de choisir.
+    // Le menu mobile n'en ajoute pas tant que le projet est Desktop Chrome.
+    await expect(
+      page
+        .getByRole("navigation", { name: "Navigation principale" })
+        .getByRole("link", { name: "Se connecter" }),
+    ).toBeVisible();
     expect(await jeton(page, "access")).toBeNull();
     expect(await jeton(page, "refresh")).toBeNull();
 
