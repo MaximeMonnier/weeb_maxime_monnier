@@ -519,3 +519,83 @@ test créé**, tout est passé par `Blog.test.tsx`, de 7 à 14 cas —, et `npm 
 `X-Forwarded-Proto`, comportement attendu), sonde exécutée dans les deux conteneurs en code 0.
 `grep -n "api/articles" backend/healthcheck.py` ne rend aucune ligne. Le parcours Playwright
 n'a pas été rejoué : il ne couvre pas le blog.
+
+---
+
+## Lot 7 — Navigation, liens et pages manquantes
+
+Clos le 2026-09-25 · Epic #147 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — quatre défauts visibles à l'écran, aucun couvert par un test. Le pied de
+page portait **16 liens en `<a href>`, dont 14 vers des routes qu'`App.tsx` ne déclarait pas** :
+le seul endroit du dépôt où un lien interne rechargeait encore la page entière, pour arriver sur
+`NotFound`. « Nous rejoindre » menait à `/contact` en mobile et à `/subscribe` en desktop,
+l'inscription étant donc inatteignable depuis un téléphone. `/terms` et `/privacy`, cités par le
+formulaire d'inscription, n'existaient pas. Et `ArticleDetails.tsx` restait figé sur
+« Chargement… » à la moindre erreur, son `.catch(console.error)` laissant l'état à `null`. Filet
+de départ : `npm test` rendait **7 fichiers, 79 cas**, aucun sur la navigation.
+
+**Décision et justification** — quatre alternatives étaient ouvertes, toutes tranchées vers le
+moins de code :
+
+- les 14 destinations mortes du pied de page ont été **retirées**, non comblées par des pages
+  « bientôt disponible » : une page vide est un lien mort qui a l'air vivant ;
+- `/terms` et `/privacy` ont au contraire été **créées** plutôt que retirées du formulaire — un
+  site qui collecte des données ne peut pas ne pas les annoncer ;
+- la factorisation des liens d'action, cause de fond de la divergence mobile/desktop, a été
+  **écartée vers le lot 8** : la traiter au passage aurait mêlé un refactoring à quatre
+  corrections. Elle y est désormais inscrite, en 8.4 ;
+- `AbortController` a été **écarté** pour la condition de course du détail d'article : il lève
+  une `DOMException` qu'`isApiError` ne reconnaît pas, et `toFormErrors` l'aurait traduite par un
+  message hors-ligne. Un drapeau dans le `cleanup` fait le même travail sans mentir sur la cause.
+
+**Ce qui a surpris** — six fois, et jamais là où le plan regardait.
+
+**Deux pages statiques ont fait sortir une faille de sécurité.** #149 ne demandait que d'écrire
+des conditions d'utilisation et une politique de confidentialité sur le gabarit d'`About.tsx`.
+Confrontées au code, **neuf affirmations écrites de bonne foi** se sont révélées fausses : le
+site collecte aussi le prénom, le nom, le sujet du message et le titre de l'article ; le compte
+naît inactif et un administrateur l'ouvre ; et surtout **l'adresse électronique de l'auteur est
+publiée sous chaque article**, `CustomUser.__str__` rendant l'email que `StringRelatedField` sert
+à tout visiteur. Les textes le disent désormais plutôt que de promettre une confidentialité que
+le code ne tient pas. L'issue **#153** est née 28 secondes après la clôture de #149 — hors de ce
+lot, dans l'epic sécurité, et **toujours ouverte** : les deux pages livrées portent aujourd'hui
+l'aveu écrit d'un défaut non corrigé.
+
+**Le lot a fabriqué le défaut qu'il a ensuite corrigé.** Tant que le pied de page pointait vers
+14 routes mortes, il ne pouvait pas contredire l'en-tête. Remis sur les vraies routes par #150,
+il proposait « Connexion » et « Inscription » à un membre connecté à qui l'en-tête offrait
+« Se déconnecter ». #155 a été ouverte **une minute après le merge de #154**.
+
+**Et le correctif de #155 a cassé le parcours Playwright.** Aligner le libellé du pied de page
+sur celui du menu a donné **deux** correspondances à « Se connecter », et Playwright s'arrête sur
+une résolution ambiguë au lieu d'en choisir une — mesuré au navigateur, deux avant, une après. Il
+a fallu nommer les **deux** `nav` de la page là où l'issue n'en demandait qu'une. Parti corriger
+la navigation, le lot a fini par la nommer.
+
+**Masquer une entrée de menu a failli fermer le seul chemin de changement de mot de passe.**
+Retirer toute la colonne COMPTE au membre connecté paraissait cohérent — jusqu'à ce que la revue
+de la PR #158 rappelle qu'`App.tsx` n'a pas de page de profil et `accounts/urls.py` pas de route
+de changement : `/forgot-password` est le seul recours, et le masquer obligeait à se déconnecter
+pour changer son mot de passe. La colonne est restée, réduite à cette entrée. L'issue #159 ouvre
+le vrai sujet.
+
+**Un test a fait reparaître le défaut qu'il venait de couvrir.** #151 corrigeait la page figée sur
+« Chargement… » ; le test écrit ensuite a montré qu'un refus arrivé après avoir quitté l'article
+la figeait de nouveau, par un autre chemin. Dans le même lot, la revue de #150 a relevé qu'un
+**garde-fou de test ne pouvait pas échouer** — et celle de #158, qu'un second ancrait sa garde
+sur `/blog`, la seule destination qui n'avait jamais divergé.
+
+**Le plan pointait des lignes qui n'existaient plus.** 7.1 citait `MobileMenu.tsx:66` et
+`NavBar.tsx:85`, le code en était à `:86` et `:110` ; 7.3 citait `FormSubscribe.tsx:182` et
+`:189`, le code en était à `:213` et `:220`. Les lots 4 et 5 avaient déplacé ces lignes entre la
+rédaction du plan et sa mise en œuvre : le constat restait juste, l'adresse non.
+
+**Preuve de la correction** — rejouée sur `preprod` au merge de #158 (`335d17e`), dernier du lot.
+Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend `Test Files  10 passed (10)` et
+`Tests  99 passed (99)` — **7 fichiers et 79 cas avant le lot**, soit +3 fichiers et +20 cas, tous
+dans des fichiers neufs —, et `npm run build` `✓ built in 2.84s`. Le diff du lot pèse
+`1020 insertions(+), 67 deletions(-)` pour **5 fichiers créés sous `frontend/src/` : 2 pages et
+3 tests**, soit 566 lignes de test pour 226 lignes de page. Le backend n'a pas été touché. Le
+parcours Playwright n'a pas été rejoué faute de pile montée : la seule ligne que le lot y change,
+la résolution du lien de connexion, a été mesurée dans un Chromium réel.

@@ -1297,16 +1297,20 @@ Vérifie ensuite que le conteneur passe bien `healthy` :
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — qualité |
+| Clos le 2026-09-25 — quatre tâches prévues, cinq issues livrées : le pied de page remis sur les vraies routes s'est mis à contredire l'en-tête | #147 | Lot 7 | Bloc 1 — qualité |
 
-**Grain de ticket** : epic + 4 sous-issues, une par tâche.
+**Grain de ticket** : prévu en epic + 4 sous-issues, une par tâche ; **livré en 5**.
+**Livré tel quel** : #149 (pages légales), #150 (pied de page dans le routeur), #148 (menu
+mobile), #151 (états de la page de détail). **#155 s'est ajoutée en cours de lot**, une
+minute après le merge de #150 : le pied de page ne pouvait contredire l'en-tête qu'une fois
+remis sur les vraies routes.
 
 > **Dépendances : lot 5** pour 7.1 (la navigation est retouchée en 5.3).
 > Les autres tâches sont indépendantes et peuvent être prises à tout moment.
 
 ## 7.1 — « Nous rejoindre » du menu mobile mène au mauvais endroit
 
-- [ ] **Fichiers** : `frontend/src/components/common/Navigation/MobileMenu.tsx`
+- [x] **Fichiers** : `frontend/src/components/common/Navigation/MobileMenu.tsx`
 - **Constat** : `MobileMenu.tsx:66` — le bouton « Nous rejoindre » pointe vers `/contact`, alors
   que la version desktop (`NavBar.tsx:85`) pointe vers `/subscribe`. Sur mobile, l'inscription est
   donc inatteignable depuis la navigation.
@@ -1339,7 +1343,7 @@ Consulte `frontend-react-ts`, puis :
 
 ## 7.2 — Remettre le footer dans le routeur
 
-- [ ] **Fichiers** : `frontend/src/components/common/Footer.tsx`, `frontend/src/App.tsx`
+- [x] **Fichiers** : `frontend/src/components/common/Footer.tsx`, `frontend/src/App.tsx`
 - **Constat** : `Footer.tsx:85` utilise `<a href>` pour ses 16 liens. Résultat : même `/blog` et
   `/about`, qui existent, **rechargent toute l'application** au lieu de naviguer côté client. Pire,
   14 des 16 destinations (`/pricing`, `/overview`, `/help`, `/careers`…) **n'existent pas** et
@@ -1376,7 +1380,7 @@ frontend/src.
 
 ## 7.3 — Les liens « conditions d'utilisation » et « confidentialité »
 
-- [ ] **Fichiers** : `frontend/src/components/common/Subscribe/FormSubscribe.tsx`,
+- [x] **Fichiers** : `frontend/src/components/common/Subscribe/FormSubscribe.tsx`,
   `frontend/src/App.tsx`
 - **Constat** : `FormSubscribe.tsx:182` et `:189` renvoient vers `/terms` et `/privacy`, qui
   n'existent pas. Un utilisateur qui veut lire ce qu'il accepte tombe sur une 404.
@@ -1406,7 +1410,7 @@ footer (traité en 7.2).
 
 ## 7.4 — `ArticleDetails` reste bloqué sur « Chargement… »
 
-- [ ] **Fichiers** : `frontend/src/pages/Blog/ArticleDetails.tsx`
+- [x] **Fichiers** : `frontend/src/pages/Blog/ArticleDetails.tsx`
 - **Constat** : `ArticleDetails.tsx:11-15` — le `.catch(console.error)` laisse `article` à `null`,
   donc un identifiant inexistant affiche **« Chargement… » indéfiniment**. Aucune protection non
   plus contre la condition de course si l'`id` change pendant une requête en vol.
