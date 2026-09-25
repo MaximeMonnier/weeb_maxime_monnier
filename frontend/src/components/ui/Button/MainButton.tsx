@@ -1,4 +1,5 @@
 import React from "react";
+import { cx } from "../../../lib/cx";
 
 type ButtonVariant = "primary" | "outline";
 type ButtonSize = "sm" | "md" | "lg";
@@ -36,10 +37,6 @@ const variants: Record<ButtonVariant, string> = {
     "dark:hover:bg-[var(--color-dark-bg-tertiary)] " +
     "focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]",
 };
-
-function cx(...classes: Array<string | false | undefined | null>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function Button({
   variant = "primary",

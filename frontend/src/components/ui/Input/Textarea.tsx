@@ -1,4 +1,5 @@
 import { forwardRef, useId } from "react";
+import { cx } from "../../../lib/cx";
 
 type TextareaVariant = "default" | "error" | "success";
 
@@ -28,10 +29,6 @@ type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
   /** Minimum number of rows (default: 3) */
   minRows?: number;
 };
-
-function cx(...classes: Array<string | false | undefined | null>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 /**
  * Textarea component for multi-line text input
