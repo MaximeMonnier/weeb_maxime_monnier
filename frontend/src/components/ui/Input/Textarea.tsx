@@ -1,39 +1,15 @@
-import { forwardRef, useId } from "react";
+import { forwardRef } from "react";
 import { cx } from "../../../lib/cx";
+import FormField, { type FieldProps } from "./FormField";
 
-type TextareaVariant = "default" | "error" | "success";
+/** Props de Textarea : les attributs d'un textarea HTML, plus l'habillage commun. */
+type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> &
+  FieldProps & {
+    /** Nombre minimum de lignes (défaut : 3) */
+    minRows?: number;
+  };
 
-/**
- * Props for the Textarea component
- * Multi-line text input with auto-resizing capabilities
- */
-type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
-  /** Label text displayed above the textarea */
-  label?: string;
-
-  /** Error message displayed below the textarea */
-  error?: string;
-
-  /** Helper text displayed below the textarea */
-  helperText?: string;
-
-  /** If true, shows an asterisk (*) next to the label */
-  required?: boolean;
-
-  /** Visual variant of the textarea */
-  variant?: TextareaVariant;
-
-  /** If true, textarea takes full width of container */
-  fullWidth?: boolean;
-
-  /** Minimum number of rows (default: 3) */
-  minRows?: number;
-};
-
-/**
- * Textarea component for multi-line text input
- * Uses form-input and form-textarea classes from global CSS
- */
+/** Champ de saisie multiligne. */
 const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   (
     {
@@ -50,59 +26,22 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       ...props
     },
     ref
-  ) => {
-    const generatedId = useId(); // id stable généré par React (remplace Math.random)
-    const textareaId = id || generatedId;
-    const hasError = !!error || variant === "error";
-    const hasSuccess = variant === "success";
-
-    return (
-      <div className={cx(fullWidth && "w-full")}>
-        {label && (
-          <label
-            htmlFor={textareaId}
-            className={cx("form-label", required && "form-label-required")}
-          >
-            {label}
-          </label>
-        )}
-
-        <textarea
-          ref={ref}
-          id={textareaId}
-          rows={rows || minRows}
-          className={cx(
-            "form-input",
-            "form-textarea",
-            hasError && "error",
-            hasSuccess && "success",
-            className
-          )}
-          aria-invalid={hasError}
-          aria-describedby={
-            error
-              ? `${textareaId}-error`
-              : helperText
-                ? `${textareaId}-helper`
-                : undefined
-          }
-          {...props}
-        />
-
-        {error && (
-          <p id={`${textareaId}-error`} className="form-error-message">
-            {error}
-          </p>
-        )}
-
-        {helperText && !error && (
-          <p id={`${textareaId}-helper`} className="form-helper-text">
-            {helperText}
-          </p>
-        )}
-      </div>
-    );
-  }
+  ) => (
+    <FormField
+      label={label}
+      error={error}
+      helperText={helperText}
+      required={required}
+      variant={variant}
+      fullWidth={fullWidth}
+      id={id}
+      className={cx("form-textarea", className)}
+    >
+      {(attributes) => (
+        <textarea ref={ref} rows={rows || minRows} {...attributes} {...props} />
+      )}
+    </FormField>
+  )
 );
 
 Textarea.displayName = "Textarea";
