@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import "@testing-library/jest-dom/vitest";
@@ -16,14 +16,6 @@ const ROUTES_DE_L_APP = [...sourceDeLApp.matchAll(/path="([^"]+)"/g)]
   .map(([, chemin]) => chemin)
   .filter((chemin) => chemin !== "*" && !chemin.includes(":"));
 
-const RESEAUX_SOCIAUX = [
-  "YouTube",
-  "Facebook",
-  "Twitter / X",
-  "Instagram",
-  "LinkedIn",
-];
-
 // Le pied de page est rendu à côté des `Routes`, comme `MainLayout` le rend hors
 // de son `Outlet` : il reste affiché après un clic, et la zone de routes montre
 // la page visée.
@@ -33,29 +25,38 @@ function rendreLePiedDePage() {
       <Footer />
       <Routes>
         <Route path="/blog" element={<p>Page du blog</p>} />
+        {/* Sans cette route, React Router avertit à chaque cas que `/` ne
+            correspond à rien, et ce bruit finirait par en couvrir un vrai. */}
+        <Route path="*" element={null} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
-const liensDeNavigation = () =>
-  within(
-    screen.getByRole("navigation", { name: "Footer navigation" }),
-  ).getAllByRole("link");
+// Tout le pied de page, et non la seule `nav` : un lien mort ajouté près du
+// copyright échapperait sinon au contrôle des destinations.
+function liensDuPiedDePage() {
+  const liens = [...screen.getByRole("contentinfo").querySelectorAll("a")];
+  return {
+    internes: liens.filter((a) => a.getAttribute("href")?.startsWith("/")),
+    externes: liens.filter((a) => !a.getAttribute("href")?.startsWith("/")),
+  };
+}
 
 // Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
 // trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(cleanup);
 
-describe("Footer — liens de navigation", () => {
+describe("Footer — liens internes", () => {
   it("ne mène qu'à des routes déclarées par l'application", () => {
     rendreLePiedDePage();
 
-    const liens = liensDeNavigation();
-    // Sans ce garde-fou, une colonne vidée rendrait la boucle suivante muette.
-    expect(liens.length).toBeGreaterThan(0);
+    const { internes } = liensDuPiedDePage();
+    // `querySelectorAll` ne lève pas sur zéro résultat : sans ce garde-fou, un
+    // pied de page vidé de ses liens passerait par une boucle muette.
+    expect(internes.length).toBeGreaterThan(0);
 
-    for (const lien of liens) {
+    for (const lien of internes) {
       expect(ROUTES_DE_L_APP).toContain(lien.getAttribute("href"));
     }
   });
@@ -71,15 +72,18 @@ describe("Footer — liens de navigation", () => {
   });
 });
 
-describe("Footer — réseaux sociaux", () => {
-  it("ouvre chaque réseau dans un nouvel onglet", () => {
+describe("Footer — liens externes", () => {
+  it("ouvre chaque destination extérieure dans un nouvel onglet", () => {
     rendreLePiedDePage();
 
-    for (const nom of RESEAUX_SOCIAUX) {
-      const lien = screen.getByRole("link", { name: nom });
-      expect(lien).toHaveAttribute("target", "_blank");
-      expect(lien).toHaveAttribute("rel", "noreferrer");
+    const { externes } = liensDuPiedDePage();
+    expect(externes.length).toBeGreaterThan(0);
+
+    for (const lien of externes) {
       expect(lien.getAttribute("href")).toMatch(/^https:\/\//);
+      expect(lien).toHaveAttribute("target", "_blank");
+      // Les jetons un à un : `rel="noopener noreferrer"` reste recevable.
+      expect(lien.rel.split(/\s+/)).toContain("noreferrer");
     }
   });
 });

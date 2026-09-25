@@ -2,19 +2,13 @@ import { Link } from "react-router-dom";
 
 import Logo from "../ui/Logo/Logo";
 
-/** Un lien du pied de page, vers une route déclarée dans `App.tsx`. */
 type FooterLink = {
-  /** Texte affiché */
   label: string;
-  /** Route visée */
   to: string;
 };
 
-/** Une colonne de liens du pied de page. */
 type FooterColumn = {
-  /** Titre de la colonne */
   title: string;
-  /** Liens de la colonne */
   links: FooterLink[];
 };
 
