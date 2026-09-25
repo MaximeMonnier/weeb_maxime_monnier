@@ -1445,8 +1445,8 @@ si la tâche 5.4 ne l'a pas déjà traité, signale-le.
 |---|---|---|---|
 | À faire | — | — | Bloc 1 — qualité |
 
-**Grain de ticket** : ticket unique — quatre refactorings de la même couche, 8.3 découle de 8.2.
-8.4 est indépendante des trois autres : elle touche `common/`, pas `ui/`.
+**Grain de ticket** : ticket unique — trois refactorings de `ui/`, dont 8.3 qui découle de 8.2,
+plus 8.4 qui déborde sur `common/` et ne dépend d'aucun des trois.
 
 > **Dépendances : lot 2** (les tests backend ne couvrent pas le front, mais le lot 4 a déjà
 > stabilisé les formulaires qui consomment ces composants).
@@ -1581,10 +1581,12 @@ que rien n'est cassé. Donne-moi la sortie.
 ## 8.4 — Factoriser les libellés de navigation
 
 - [ ] **Fichiers** : `NavBar.tsx`, `MobileMenu.tsx`, `Footer.tsx`, `types/navigation.ts`
-- **Constat** : les mêmes couples libellé/destination sont recopiés dans **trois** fichiers —
-  « Blog » → `/blog`, « À propos de nous » → `/about`, « Contact » → `/contact`,
-  « Se connecter » → `/login`, « Nous rejoindre » → `/subscribe`. Cette redite a déjà coûté
-  deux défauts : « Nous rejoindre » menait à `/contact` en mobile et à `/subscribe` en desktop
+- **Constat** : deux couples libellé/destination sont écrits dans **trois** fichiers —
+  « Se connecter » → `/login` et « Nous rejoindre » → `/subscribe`, que `NavBar.tsx`,
+  `MobileMenu.tsx` et `Footer.tsx` recopient chacun. Trois autres le sont dans **deux** :
+  « Blog » → `/blog`, « À propos de nous » → `/about` et « Contact » → `/contact`, que
+  `navItems` porte déjà pour les deux menus mais que le pied de page réécrit. Cette redite a
+  déjà coûté deux défauts : « Nous rejoindre » menait à `/contact` en mobile et à `/subscribe` en desktop
   (issue #148), et le pied de page disait « Connexion » quand le menu disait « Se connecter »
   (issue #155). Les deux tests posés depuis la gardent, mais ne la suppriment pas.
 - **Attendu** : une source unique des liens partagés, les trois composants la lisant.

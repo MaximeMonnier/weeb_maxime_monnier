@@ -77,8 +77,7 @@ test.describe("Déconnexion", () => {
     await expect(page).toHaveURL("/");
     // Dans l'en-tête, et non sur toute la page : le pied de page sert le même
     // libellé, et deux correspondances arrêtent Playwright au lieu de choisir.
-    // Le menu mobile n'en ajoute pas un troisième tant que le seul projet est
-    // Desktop Chrome, où `md:hidden` le pose en `display: none`.
+    // Le menu mobile n'en ajoute pas tant que le projet est Desktop Chrome.
     await expect(
       page
         .getByRole("navigation", { name: "Navigation principale" })

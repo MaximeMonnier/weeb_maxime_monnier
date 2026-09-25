@@ -935,8 +935,8 @@ Un composant qui appelle `useTheme` demande une pièce de plus : jsdom n'implém
 `window.matchMedia`, que le hook interroge dès le premier rendu, et le test échoue avant sa
 première assertion. `NavBar.test.tsx` et `Footer.test.tsx` en posent chacun le doublon,
 toujours faute d'un `setupFiles` où le poser une fois — le second rend la barre de navigation
-à côté du pied de page pour confronter leurs libellés, les liens de l'interface étant recopiés
-dans trois fichiers.
+à côté du pied de page pour confronter leurs libellés, « Se connecter » et « Nous rejoindre »
+étant écrits dans les deux menus **et** dans le pied de page.
 
 #### Le parcours en navigateur
 
