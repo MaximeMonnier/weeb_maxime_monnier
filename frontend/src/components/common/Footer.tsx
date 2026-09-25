@@ -13,10 +13,9 @@ type FooterColumn = {
   links: FooterLink[];
 };
 
-// Chaque `to` doit exister dans `App.tsx` : une route absente tombe sur
-// `NotFound`, et `Footer.test.tsx` est ce qui l'interdit. Un libellé servi
-// aussi par `NavBar.tsx` doit y être écrit à l'identique, faute d'une source
-// commune aux deux — le même test les confronte.
+// Chaque `to` doit exister dans `App.tsx`, et un libellé servi aussi par
+// `NavBar.tsx` doit y être écrit à l'identique : `Footer.test.tsx` tient les
+// deux, faute d'une source commune aux deux fichiers.
 const SITE_COLUMN: FooterColumn = {
   title: "SITE",
   links: [
