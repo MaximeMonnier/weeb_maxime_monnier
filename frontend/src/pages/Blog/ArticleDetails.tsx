@@ -58,7 +58,14 @@ const ArticleDetails = () => {
           setResultat({
             id,
             statut: "erreur",
-            message: toFormErrors(err, []).formError,
+            // Un article se lit sans compte : le « reconnectez-vous » que
+            // `toFormErrors` donne par défaut au 401 enverrait le lecteur là où
+            // il n'a rien à faire. Le 401 vient ici d'un jeton mort que le
+            // renouvellement n'a pas pu remplacer.
+            message: toFormErrors(err, [], {
+              unauthorized:
+                "L'article n'a pas pu être chargé. Rechargez la page, puis réessayez.",
+            }).formError,
           });
         }
       });
@@ -77,8 +84,14 @@ const ArticleDetails = () => {
     if (!id) return <ArticleIntrouvable />;
     if (recu === null) return <p>Chargement…</p>;
     if (recu.statut === "introuvable") return <ArticleIntrouvable />;
-    // Le refus est déjà porté par l'alerte : l'écrire ici le dirait deux fois.
-    if (recu.statut === "erreur") return null;
+    // Le refus est déjà porté par l'alerte ; reste à ne pas laisser la page sans
+    // issue, l'effet ne repartant pas tant que l'identifiant ne change pas.
+    if (recu.statut === "erreur")
+      return (
+        <Link to="/blog" className="btn-primary focus-ring-primary">
+          Retour aux articles
+        </Link>
+      );
 
     return (
       <>

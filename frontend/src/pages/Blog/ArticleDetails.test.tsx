@@ -97,6 +97,12 @@ describe("ArticleDetails — article reçu", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(CHARGEMENT)).not.toBeInTheDocument();
     expect(alerte()).toBeEmptyDOMElement();
+    // L'adresse entière : une barre oblique finale perdue vaut une redirection
+    // 301 en production, et un identifiant en dur passerait tous les autres cas.
+    expect(appelReseau).toHaveBeenCalledWith(
+      `${import.meta.env.VITE_API_URL}/articles/1/`,
+      expect.anything(),
+    );
   });
 
   it("annonce le chargement tant que la réponse n'est pas arrivée", async () => {
@@ -160,13 +166,37 @@ describe("ArticleDetails — refus de l'API", () => {
     await waitFor(() =>
       expect(alerte()).toHaveTextContent(SERVICE_INDISPONIBLE),
     );
-    expect(
-      screen.queryByRole("link", RETOUR_AUX_ARTICLES),
-    ).not.toBeInTheDocument();
+    // La page garde une issue, sans pour autant annoncer une suppression que
+    // rien ne prouve.
+    expect(screen.getByRole("link", RETOUR_AUX_ARTICLES)).toBeInTheDocument();
+    expect(screen.queryByText(INTROUVABLE)).not.toBeInTheDocument();
   });
 });
 
 describe("ArticleDetails — changement d'article en cours de route", () => {
+  it("retire l'article affiché le temps de charger le suivant", async () => {
+    let livrerLeSecond: (reponse: unknown) => void = () => {};
+    appelReseau
+      .mockResolvedValueOnce(reponseArticle(ARTICLE))
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          livrerLeSecond = resolve;
+        }),
+      );
+    rendreLeDetail();
+    expect(await screen.findByText(ARTICLE.title)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("link", { name: "Article suivant" }));
+
+    // Laisser le précédent à l'écran ferait lire un article pour un autre.
+    expect(screen.getByText(CHARGEMENT)).toBeInTheDocument();
+    expect(screen.queryByText(ARTICLE.title)).not.toBeInTheDocument();
+
+    livrerLeSecond(reponseArticle(ARTICLE_SUIVANT));
+
+    expect(await screen.findByText(ARTICLE_SUIVANT.title)).toBeInTheDocument();
+  });
+
   it("garde le dernier article demandé quand la réponse d'avant arrive après", async () => {
     let livrerLePremier: (reponse: unknown) => void = () => {};
     appelReseau
