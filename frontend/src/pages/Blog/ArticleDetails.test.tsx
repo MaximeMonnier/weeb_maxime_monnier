@@ -46,6 +46,8 @@ const SERVICE_INDISPONIBLE =
 
 const RETOUR_AUX_ARTICLES = { name: "Retour aux articles" };
 
+// Rendue à tous les écrans, vide ou non : c'est son texte, et non sa présence,
+// qui dit l'échec.
 const alerte = () => screen.getByRole("alert");
 
 // La route du blog porte un repère : c'est ce qu'elle affiche qui prouve que le
@@ -94,6 +96,7 @@ describe("ArticleDetails — article reçu", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.queryByText(CHARGEMENT)).not.toBeInTheDocument();
+    expect(alerte()).toBeEmptyDOMElement();
   });
 
   it("annonce le chargement tant que la réponse n'est pas arrivée", async () => {
@@ -122,6 +125,7 @@ describe("ArticleDetails — article absent", () => {
 
     expect(await screen.findByText(INTROUVABLE)).toBeInTheDocument();
     expect(screen.queryByText(CHARGEMENT)).not.toBeInTheDocument();
+    expect(alerte()).toBeEmptyDOMElement();
 
     await userEvent.click(screen.getByRole("link", RETOUR_AUX_ARTICLES));
 
@@ -185,5 +189,30 @@ describe("ArticleDetails — changement d'article en cours de route", () => {
 
     expect(screen.getByText(ARTICLE_SUIVANT.content)).toBeInTheDocument();
     expect(screen.queryByText(ARTICLE.title)).not.toBeInTheDocument();
+  });
+
+  it("garde le dernier article demandé quand c'est un refus qui arrive après", async () => {
+    let livrerLePremier: (reponse: unknown) => void = () => {};
+    appelReseau
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          livrerLePremier = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(reponseArticle(ARTICLE_SUIVANT));
+    rendreLeDetail();
+
+    await userEvent.click(screen.getByRole("link", { name: "Article suivant" }));
+    expect(await screen.findByText(ARTICLE_SUIVANT.title)).toBeInTheDocument();
+
+    // L'article quitté a pu disparaître entre-temps : son 404 ne concerne plus
+    // la page affichée, et l'annoncer effacerait un article bien présent.
+    await act(async () => {
+      livrerLePremier(reponseRefusee(404, { detail: "Pas trouvé." }));
+    });
+
+    expect(screen.getByText(ARTICLE_SUIVANT.content)).toBeInTheDocument();
+    expect(screen.queryByText(INTROUVABLE)).not.toBeInTheDocument();
+    expect(alerte()).toBeEmptyDOMElement();
   });
 });

@@ -18,7 +18,7 @@ type Resultat = { id: string } & (
 // les deux cas l'article n'existe pas, et il ne reste que le retour à la liste.
 function ArticleIntrouvable() {
   return (
-    <div className="container-custom mt-32">
+    <>
       <h1 className="text-2xl font-bold mb-4">Article introuvable</h1>
       <p className="text-secondary mb-6">
         Cet article n'existe pas ou a été supprimé.
@@ -26,7 +26,7 @@ function ArticleIntrouvable() {
       <Link to="/blog" className="btn-primary focus-ring-primary">
         Retour aux articles
       </Link>
-    </div>
+    </>
   );
 }
 
@@ -68,32 +68,36 @@ const ArticleDetails = () => {
     };
   }, [id]);
 
-  if (!id) return <ArticleIntrouvable />;
-
   // Le résultat d'un autre identifiant ne vaut plus rien : le temps que la nouvelle
   // réponse arrive, l'écran repasse au chargement.
   const recu = resultat?.id === id ? resultat : null;
 
-  if (recu === null)
-    return <div className="container-custom mt-32">Chargement…</div>;
+  // Une seule branche occupe la page, sous l'alerte qui, elle, ne bouge pas.
+  function contenu() {
+    if (!id) return <ArticleIntrouvable />;
+    if (recu === null) return <p>Chargement…</p>;
+    if (recu.statut === "introuvable") return <ArticleIntrouvable />;
+    // Le refus est déjà porté par l'alerte : l'écrire ici le dirait deux fois.
+    if (recu.statut === "erreur") return null;
 
-  if (recu.statut === "introuvable") return <ArticleIntrouvable />;
-
-  if (recu.statut === "erreur")
     return (
-      <div className="container-custom mt-32">
-        <ErrorAlert message={recu.message} />
-      </div>
+      <>
+        <h1 className="text-2xl font-bold mb-4">{recu.article.title}</h1>
+        <p className="text-tertiary text-sm mb-4">
+          Par {recu.article.author} le{" "}
+          {new Date(recu.article.created_at).toLocaleDateString()}
+        </p>
+        <p className="text-secondary">{recu.article.content}</p>
+      </>
     );
+  }
 
   return (
     <div className="container-custom mt-32">
-      <h1 className="text-2xl font-bold mb-4">{recu.article.title}</h1>
-      <p className="text-tertiary text-sm mb-4">
-        Par {recu.article.author} le{" "}
-        {new Date(recu.article.created_at).toLocaleDateString()}
-      </p>
-      <p className="text-secondary">{recu.article.content}</p>
+      {/* Rendue à tous les écrans et vide la plupart du temps : une région live
+          apparue avec son texte n'est pas annoncée de façon fiable. */}
+      <ErrorAlert message={recu?.statut === "erreur" ? recu.message : null} />
+      {contenu()}
     </div>
   );
 };
