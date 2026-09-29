@@ -42,9 +42,10 @@ export default function MobileMenu({
                     to={item.to}
                     onClick={onClose}
                     className={({ isActive }) =>
-                      `nav-link block py-3 px-4 rounded-lg hover:bg-tertiary ${
-                        isActive ? "active" : ""
-                      }`
+                      cx(
+                        "nav-link block py-3 px-4 rounded-lg hover:bg-tertiary",
+                        isActive && "active",
+                      )
                     }
                   >
                     {item.label}
