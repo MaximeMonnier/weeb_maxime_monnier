@@ -1,4 +1,5 @@
 import { NavLink as RRNavLink } from "react-router-dom";
+import { cx } from "../../../lib/cx";
 import type { NavItem } from "../../../types/navigation";
 
 type DesktopNavProps = {
@@ -15,9 +16,7 @@ export default function DesktopNav({ navItems, onHashClick }: DesktopNavProps) {
             <RRNavLink
               key={item.to}
               to={item.to}
-              className={({ isActive }) =>
-                `nav-link ${isActive ? "active" : ""}`
-              }
+              className={({ isActive }) => cx("nav-link", isActive && "active")}
             >
               {item.label}
             </RRNavLink>
