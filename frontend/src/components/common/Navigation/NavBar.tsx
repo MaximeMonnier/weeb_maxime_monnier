@@ -11,6 +11,13 @@ import {
   logout,
   useIsAuthenticated,
 } from "../../../hooks/useIsAuthenticated";
+import {
+  LIEN_A_PROPOS,
+  LIEN_BLOG,
+  LIEN_CONNEXION,
+  LIEN_CONTACT,
+  LIEN_INSCRIPTION,
+} from "../../../lib/navigation";
 import type { NavItem } from "../../../types/navigation";
 
 function NavBar() {
@@ -56,11 +63,7 @@ function NavBar() {
   };
 
   // Navigation
-  const navItems: NavItem[] = [
-    { type: "route", to: "/blog", label: "Blog" },
-    { type: "route", to: "/about", label: "À propos de nous" },
-    { type: "route", to: "/contact", label: "Contact" },
-  ];
+  const navItems: NavItem[] = [LIEN_BLOG, LIEN_A_PROPOS, LIEN_CONTACT];
 
   return (
     <>
@@ -106,12 +109,12 @@ function NavBar() {
                 </Button>
               ) : (
                 <>
-                  <Link className="nav-link" to="/login">
-                    Se connecter
+                  <Link className="nav-link" to={LIEN_CONNEXION.to}>
+                    {LIEN_CONNEXION.label}
                   </Link>
 
-                  <Link to="/subscribe" className="btn-primary">
-                    Nous rejoindre
+                  <Link to={LIEN_INSCRIPTION.to} className="btn-primary">
+                    {LIEN_INSCRIPTION.label}
                   </Link>
                 </>
               )}
