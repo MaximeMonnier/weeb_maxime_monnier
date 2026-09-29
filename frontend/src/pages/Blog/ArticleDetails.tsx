@@ -4,6 +4,7 @@ import { apiFetch, type ApiError } from "../../lib/api";
 import { toFormErrors } from "../../lib/apiErrors";
 import type { Article } from "../../types/article";
 import ErrorAlert from "../../components/ui/Alert/ErrorAlert";
+import { buttonClasses } from "../../components/ui/Button/buttonClasses";
 
 // L'identifiant voyage avec ce que l'API a répondu : comparé à celui de l'URL, il
 // dit si l'écran répond encore à l'article demandé, sans qu'aucun effet ait à
@@ -23,7 +24,13 @@ function ArticleIntrouvable() {
       <p className="text-secondary mb-6">
         Cet article n'existe pas ou a été supprimé.
       </p>
-      <Link to="/blog" className="btn-primary focus-ring-primary">
+      <Link
+        to="/blog"
+        className={buttonClasses({
+          size: "cta",
+          className: "focus-ring-primary",
+        })}
+      >
         Retour aux articles
       </Link>
     </>
@@ -88,7 +95,13 @@ const ArticleDetails = () => {
     // issue, l'effet ne repartant pas tant que l'identifiant ne change pas.
     if (recu.statut === "erreur")
       return (
-        <Link to="/blog" className="btn-primary focus-ring-primary">
+        <Link
+        to="/blog"
+        className={buttonClasses({
+          size: "cta",
+          className: "focus-ring-primary",
+        })}
+      >
           Retour aux articles
         </Link>
       );

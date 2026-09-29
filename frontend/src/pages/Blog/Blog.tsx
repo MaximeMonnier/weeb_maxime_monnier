@@ -6,6 +6,7 @@ import { useIsAuthenticated } from "../../hooks/useIsAuthenticated";
 import type { ArticleListItem } from "../../types/article";
 import ErrorAlert from "../../components/ui/Alert/ErrorAlert";
 import Button from "../../components/ui/Button/MainButton";
+import { buttonClasses } from "../../components/ui/Button/buttonClasses";
 import MainTitle from "../../components/ui/Title/MainTitle";
 import Card from "../../components/common/Blog/Card.tsx";
 
@@ -93,7 +94,13 @@ const Blog = () => {
             Créer un article
           </Button>
         ) : (
-          <Link to="/login" className="btn-primary focus-ring-primary ml-4">
+          <Link
+            to="/login"
+            className={buttonClasses({
+              size: "cta",
+              className: "focus-ring-primary ml-4",
+            })}
+          >
             Se connecter pour publier
           </Link>
         )}
