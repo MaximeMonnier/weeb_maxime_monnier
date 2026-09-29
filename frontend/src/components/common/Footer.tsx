@@ -1,6 +1,13 @@
 import { Link } from "react-router-dom";
 
 import Logo from "../ui/Logo/Logo";
+import {
+  LIEN_A_PROPOS,
+  LIEN_BLOG,
+  LIEN_CONNEXION,
+  LIEN_CONTACT,
+  LIEN_INSCRIPTION,
+} from "../../lib/navigation";
 import { useIsAuthenticated } from "../../hooks/useIsAuthenticated";
 
 type FooterLink = {
@@ -13,23 +20,16 @@ type FooterColumn = {
   links: FooterLink[];
 };
 
-// Chaque `to` doit exister dans `App.tsx`, et un libellé servi aussi par
-// `NavBar.tsx` doit y être écrit à l'identique : `Footer.test.tsx` tient les
-// deux, faute d'une source commune aux deux fichiers.
+// Chaque `to` doit exister dans `App.tsx` : `Footer.test.tsx` le tient. Les
+// entrées servies aussi par l'en-tête viennent de `lib/navigation.ts`, seul
+// endroit où s'écrivent leur libellé et leur destination.
 const SITE_COLUMN: FooterColumn = {
   title: "SITE",
-  links: [
-    { label: "Accueil", to: "/" },
-    { label: "Blog", to: "/blog" },
-    { label: "À propos de nous", to: "/about" },
-  ],
+  links: [{ label: "Accueil", to: "/" }, LIEN_BLOG, LIEN_A_PROPOS],
 };
 
 // Entrées du seul visiteur : connecté, l'en-tête propose la déconnexion.
-const VISITOR_LINKS: FooterLink[] = [
-  { label: "Se connecter", to: "/login" },
-  { label: "Nous rejoindre", to: "/subscribe" },
-];
+const VISITOR_LINKS: FooterLink[] = [LIEN_CONNEXION, LIEN_INSCRIPTION];
 
 // Servie dans les deux états : c'est le seul chemin de changement de mot de
 // passe du site, `App.tsx` n'ayant pas de page de profil et `accounts/urls.py`
@@ -44,7 +44,7 @@ const LEGAL_COLUMN: FooterColumn = {
   links: [
     { label: "Conditions d'utilisation", to: "/terms" },
     { label: "Politique de confidentialité", to: "/privacy" },
-    { label: "Contact", to: "/contact" },
+    LIEN_CONTACT,
   ],
 };
 
