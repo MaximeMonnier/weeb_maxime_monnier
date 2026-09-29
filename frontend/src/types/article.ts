@@ -5,7 +5,6 @@ export type Article = {
   author: string;
   created_at: string;
   updated_at: string;
-  coverImg?: string;
 };
 
 // Ce que rend la liste `/articles/`, et rien de plus : l'API y coupe le texte en
@@ -16,5 +15,4 @@ export type ArticleListItem = {
   excerpt: string;
   author: string;
   created_at: string;
-  coverImg?: string;
 };
