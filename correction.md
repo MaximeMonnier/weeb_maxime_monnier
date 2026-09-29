@@ -1686,17 +1686,24 @@ npm run build, et donne-moi la sortie des trois.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — qualité |
+| En cours depuis le 2026-09-29 — quatre tâches prévues, six sous-issues ouvertes | #174 | — | Bloc 1 — qualité |
 
-**Grain de ticket** : epic + 4 sous-issues, une par tâche.
+**Grain de ticket** : prévu en epic + 4 sous-issues, une par tâche — 9.1 → #175, 9.2 → #176,
+9.3 → #179, 9.4 → #178. **Ouvert en epic + 6** : #177, source unique du style des boutons et des
+liens-boutons, et #180, destination des appels à l'action de la page d'accueil, se sont ajoutées
+au cadrage.
 
 > **Dépendances : lots 4 à 8.** À faire en dernier, quand plus aucune tâche ne touche à ces
 > fichiers — sinon on supprime ce qu'une autre branche est en train d'utiliser.
 
 ## 9.1 — Supprimer `articles.json` et le champ fantôme `coverImg`
 
-- [ ] **Fichiers** : `frontend/src/data/articles.json`, `frontend/src/types/article.ts`,
-  `frontend/src/components/common/Blog/Card.tsx`, `CLAUDE.md`
+- [x] **Fichiers** : `frontend/src/data/articles.json`, `frontend/src/types/article.ts`,
+  `frontend/src/components/common/Blog/Card.tsx`, `CLAUDE.md` — livrés par l'issue #175, plus
+  `frontend/index.html`, quatrième référence morte trouvée à l'inventaire : un `<link>` vers
+  `/src/style.css`, fichier absent du dépôt. `coverImg` a été **retiré** et non implémenté, au
+  motif du point 2 ci-dessous. Le point 4 a été déroulé : aucun autre orphelin dans
+  `frontend/src/`.
 - **Constat** :
   - `src/data/articles.json` n'est plus importé nulle part (`CLAUDE.md` le documente comme mort) ;
   - `types/article.ts:8` déclare `coverImg?: string`, **qui n'existe pas** dans `ArticleSerializer`
@@ -1888,8 +1895,9 @@ Objectif : remettre CLAUDE.md et le README en accord avec le dépôt.
 2. DÉJÀ FAIT par l'issue #162 : le § « Duplication connue » annonçait « cx(), redéfini dans trois
    composants ui/ » là où il l'était dans quatre ; la tâche 8.1 l'ayant extrait dans lib/cx.ts, le
    § entier a été supprimé. Rien à reprendre ici, sauf si le texte est revenu.
-3. CLAUDE.md documente src/data/articles.json et types/Article.coverImg comme des pièges. Après la
-   tâche 9.1, ils n'existent plus.
+3. DÉJÀ FAIT par l'issue #175 : le § « Pièges » documentait src/data/articles.json et
+   types/Article.coverImg comme vivants ; la tâche 9.1 les ayant supprimés, le § entier a été
+   retiré. Rien à reprendre ici, sauf si le texte est revenu.
 4. CLAUDE.md indique « Les trois tests.py sont encore des stubs vides ». Après le lot 2, c'est faux.
 
 Consulte la skill `style-documentation` avant d'écrire.
