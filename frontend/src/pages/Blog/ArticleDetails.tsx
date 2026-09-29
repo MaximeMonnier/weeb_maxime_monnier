@@ -96,12 +96,12 @@ const ArticleDetails = () => {
     if (recu.statut === "erreur")
       return (
         <Link
-        to="/blog"
-        className={buttonClasses({
-          size: "cta",
-          className: "focus-ring-primary",
-        })}
-      >
+          to="/blog"
+          className={buttonClasses({
+            size: "cta",
+            className: "focus-ring-primary",
+          })}
+        >
           Retour aux articles
         </Link>
       );
