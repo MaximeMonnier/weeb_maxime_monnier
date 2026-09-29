@@ -1447,11 +1447,11 @@ si la tâche 5.4 ne l'a pas déjà traité, signale-le.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — qualité |
+| Clos le 2026-09-29 — cinq tâches prévues, six issues livrées : le grep de 8.5 ne voyait pas les assemblages écrits en gabarit de chaîne | #161 | Lot 8 | Bloc 1 — qualité |
 
-**Grain de ticket** : ticket unique — trois refactorings de `ui/`, dont 8.3 qui découle de 8.2 ;
-8.4, qui déborde sur `common/` et ne dépend d'aucun des trois ; et 8.5, qui suit 8.1 et touche
-les deux dossiers.
+**Grain de ticket** : prévu en ticket unique — trois refactorings de `ui/`, dont 8.3 qui découle
+de 8.2 ; 8.4, qui déborde sur `common/` et ne dépend d'aucun des trois ; et 8.5, qui suit 8.1 et
+touche les deux dossiers. **Livré en epic + 6 sous-issues** : la seule 8.5 en a demandé deux.
 
 > **Dépendances : lot 2** (les tests backend ne couvrent pas le front, mais le lot 4 a déjà
 > stabilisé les formulaires qui consomment ces composants).
@@ -1632,8 +1632,11 @@ la sortie des trois.
 
 ## 8.5 — Aligner les derniers assemblages de classes sur `cx()`
 
-- [ ] **Fichiers** : `MainTitle.tsx`, `SecondTitle.tsx`, `Logo.tsx`, `NavBar.tsx`,
-  `MobileMenu.tsx`, `FeatureBlock.tsx`
+- [x] **Fichiers** : `MainTitle.tsx`, `SecondTitle.tsx`, `Logo.tsx`, `NavBar.tsx`,
+  `MobileMenu.tsx`, `FeatureBlock.tsx` — livrés par l'issue #166 ; un second site de
+  `MobileMenu.tsx`, plus `ThemeToggle.tsx` et
+  `DesktopNav.tsx` par l'issue #172, née du constat ci-dessous : il visait les `join(" ")` et
+  ne voyait pas les trois assemblages écrits en gabarit de chaîne.
 - **Constat** : sept endroits, dans six fichiers, construisent leur `className` par un
   `[...].join(" ")` écrit sur place — `MainTitle.tsx:33`, `SecondTitle.tsx:49`, `Logo.tsx:25`,
   `NavBar.tsx:79`, `MobileMenu.tsx:31`, `FeatureBlock.tsx:57` et `:96`. La tâche 8.1 les signale

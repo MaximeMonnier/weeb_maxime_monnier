@@ -599,3 +599,89 @@ dans des fichiers neufs —, et `npm run build` `✓ built in 2.84s`. Le diff du
 3 tests**, soit 566 lignes de test pour 226 lignes de page. Le backend n'a pas été touché. Le
 parcours Playwright n'a pas été rejoué faute de pile montée : la seule ligne que le lot y change,
 la résolution du lien de connexion, a été mesurée dans un Chromium réel.
+
+---
+
+## Lot 8 — Dédoublonnage de la couche UI
+
+Clos le 2026-09-29 · Epic #161 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — quatre redites, aucune visible à l'écran, aucune couverte par un test qui
+en supprime la cause. `cx()` — `classes.filter(Boolean).join(" ")` — était écrite **à l'identique
+quatre fois**, dans
+`MainButton.tsx`, `Input.tsx`, `Textarea.tsx` et `LinkTitle.tsx` ; `CLAUDE.md` n'en annonçait que
+trois. **Sept autres sites, dans six fichiers**, l'évitaient par un `[...].join(" ")` posé sur
+place. `Input.tsx` (**108 lignes**) et `Textarea.tsx` (**113**) étaient identiques à environ 90 % —
+mêmes props, même `useId`, même calcul de `hasError`, même logique `aria-invalid` /
+`aria-describedby`, même rendu des messages ; seuls le tag, la classe `form-textarea` et `minRows`
+différaient — et portaient encore le `forwardRef` de React 18, inutile en React 19. Enfin **cinq
+couples libellé/destination** étaient recopiés entre `NavBar.tsx`, `MobileMenu.tsx` et
+`Footer.tsx`, redite qui avait déjà coûté deux défauts livrés, #148 et #155, gardés depuis par
+deux tests qui n'en supprimaient pas la cause. Filet de départ : `npm test` rendait **10 fichiers,
+99 cas** — les mêmes à la fin du lot, refactoring pur oblige.
+
+**Décision et justification** — quatre arbitrages, tous tranchés vers le moins de code à tenir :
+
+- `cx()` va dans `lib/` et non dans `ui/` : elle ne dépend ni de React, ni du routeur, ni d'un
+  type métier. Sa docstring la réservait d'abord aux composants de `ui/`, ses quatre seuls
+  appelants ; #166 l'a **élargie**, la laisser aurait invité le prochain composant de `common/`
+  à réécrire le `join(" ")` que le lot venait de retirer ;
+- la fusion d'`Input` et de `Textarea` passe par un habillage `FormField` qui **ne rend pas le
+  champ** : il le confie à une fonction `children` à qui il passe `id`, `className`,
+  `aria-invalid` et `aria-describedby`. Écartés sur le critère de lisibilité : le **composant
+  polymorphe à prop `as`**, qui déplace la difficulté dans les types sans rien simplifier à la
+  lecture, et le **champ englobant**, qui obligeait à relayer toutes les props natives des deux
+  tags ;
+- `forwardRef` est retiré, mais **le support de `ref` est conservé**, en prop ordinaire. Aucun
+  consommateur n'en passe — les seuls `ref=` du projet sont ceux du slider et du `dialog` du
+  blog —, mais fermer le focus programmatique sur un champ de formulaire coûte plus cher que la
+  ligne de type qui le garde ouvert ;
+- seuls les **cinq** couples servis des deux côtés sont partagés. « Accueil », « Mot de passe
+  oublié » et les deux pages légales restent écrits dans le pied de page, leur unique servant ;
+  les deux liens croisés des formulaires n'entrent pas dans le compte, ce sont des appels à
+  l'action et non de la navigation.
+
+**Ce qui a surpris** — cinq fois, et la première met en cause la façon même d'écrire un critère.
+
+**Un critère d'acceptation formulé comme un `grep` ne garantit que ce que le `grep` voit.**
+L'epic exigeait que `grep -rn '\.join(" ")' frontend/src/` ne rende plus que `lib/cx.ts` et les
+deux assemblages de phrases d'`apiErrors.ts`. Le critère est passé au vert à la clôture de #166 —
+et **trois sites assemblaient toujours leurs classes à la main**, par gabarit de chaîne, hors
+d'atteinte de ce motif. #172 a été ouverte et close le même jour, **seize minutes l'une après
+l'autre**. Le lot prévu en cinq tâches a été livré en six issues.
+
+**Le dédoublonnage a corrigé un défaut de rendu que personne ne cherchait.** Cinq sites
+poussaient une chaîne vide dans leur assemblage — `className ?? ""` pour trois d'entre eux
+(#166), une branche de ternaire vide dans un gabarit pour les deux autres (#172) : l'assemblage
+y laissait **un espace surnuméraire dans l'attribut `class`**, quand aucune classe n'était
+passée pour les premiers, quand le lien de navigation n'était pas actif pour les seconds. `cx()`
+le filtre. Invisible à l'écran, jamais signalé, retiré au passage.
+
+**Le front a grossi.** `frontend/src` pesait **6 731 lignes** avant le lot, **6 765** après, pour
+trois fichiers de plus. Fusionner deux composants « identiques à 90 % » n'a rendu que **24
+lignes** : 108 + 113 avant, 40 + 45 + 112 après. Ce lot n'a pas raccourci le code ; il a réduit
+le nombre d'endroits où corriger la même chose — de quatre à un pour `cx()`, de deux à un pour
+l'habillage des champs, de trois à un pour les cinq couples de navigation. C'est le seul gain, et
+il ne se lit dans aucun compteur de lignes.
+
+**Deux preuves ont été faites, puis effacées.** Le critère interdisait tout diff sur les tests. La
+transmission de la `ref` et l'égalité des classes rendues sur les sept sites ont donc été prouvées
+par des **tests jetables** — celui de la `ref` validé par mutation, `ref={ref}` retiré du JSX le
+fait tomber — puis supprimés. Rien dans le dépôt ne garde ces deux mesures : cette entrée les
+remplace.
+
+**Le plan a périmé pendant sa propre exécution.** La tâche 8.2 citait les lignes de `forwardRef`
+que sa fusion a fait disparaître : 8.3 a dû être réalignée avant d'être traitée. #166 annonçait
+quatre sites poussant `className ?? ""`, il n'y en avait que trois — `MainTitle` n'a pas de prop
+`className`. Et le README, remis à jour par #170, manquait `cx.ts` depuis #162 : trois issues ont
+passé devant une arborescence incomplète sans la voir.
+
+**Preuve de la correction** — rejouée sur `preprod` au merge de #173 (`66b8e2d`), dernier du lot.
+Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend `Test Files  10 passed (10)` et
+`Tests  99 passed (99)` — **les mêmes qu'à la clôture du lot 7**, aucun test ajouté ni modifié —,
+et `npm run build` `✓ built in 2.67s`. Le diff du lot pèse `309 insertions(+), 275 deletions(-)`
+sur **16 fichiers de `frontend/src`, dont 3 créés** : `lib/cx.ts`, `lib/navigation.ts` et
+`ui/Input/FormField.tsx`. Le backend n'a pas été touché, et `git diff --stat 7136968..HEAD --
+'*.test.*'` est vide. Les quatre `grep` de l'epic, enfin : une seule définition de `cx`, plus
+aucun `forwardRef`, `.join(" ")` réduit à trois lignes, et aucune des cinq destinations écrite en
+dur dans les trois fichiers de navigation.
