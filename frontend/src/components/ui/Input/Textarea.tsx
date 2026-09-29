@@ -1,4 +1,3 @@
-import { forwardRef } from "react";
 import { cx } from "../../../lib/cx";
 import FormField, { type FieldProps } from "./FormField";
 
@@ -7,26 +6,27 @@ type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> &
   FieldProps & {
     /** Nombre minimum de lignes (défaut : 3) */
     minRows?: number;
+
+    /** Référence vers l'élément `textarea` ; prop ordinaire depuis React 19 */
+    ref?: React.Ref<HTMLTextAreaElement>;
   };
 
 /** Champ de saisie multiligne. */
-const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  (
-    {
-      label,
-      error,
-      helperText,
-      required,
-      variant,
-      fullWidth,
-      minRows = 3,
-      className,
-      id,
-      rows,
-      ...props
-    },
-    ref
-  ) => (
+export default function Textarea({
+  label,
+  error,
+  helperText,
+  required,
+  variant,
+  fullWidth,
+  minRows = 3,
+  className,
+  id,
+  rows,
+  ref,
+  ...props
+}: TextareaProps) {
+  return (
     <FormField
       label={label}
       error={error}
@@ -41,9 +41,5 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea ref={ref} rows={rows || minRows} {...attributes} {...props} />
       )}
     </FormField>
-  )
-);
-
-Textarea.displayName = "Textarea";
-
-export default Textarea;
+  );
+}

@@ -1554,7 +1554,8 @@ Refactoring PUR : aucun changement visible. Vérifie que les cinq consommateurs 
 
 ## 8.3 — Retirer `forwardRef` (React 19)
 
-- [ ] **Fichiers** : `Input.tsx`, `Textarea.tsx`
+- [x] **Fichiers** : `Input.tsx`, `Textarea.tsx` — livré par l'issue #164 ; le support de `ref`
+  est conservé en prop ordinaire, aucun consommateur n'en passant à ce jour
 - **Constat** : les deux composants utilisent `forwardRef` (`Input.tsx:8`, `Textarea.tsx:13`),
   avec le `displayName` que ce pattern impose. Depuis React 19, `ref` est une prop comme une
   autre : le wrapper est du code hérité de React 18.
