@@ -71,7 +71,7 @@ le routeur client, celui-là même qui a été mis à jour.
 
 ## Lot 1 — Sécurité de l'API
 
-Clos le 2026-09-07 · Epic #65, **laissée ouverte** · Alimente : Bloc 1 — sécurité
+Clos le 2026-09-07 · Epic #65, **laissée ouverte jusqu'au 2026-09-25** · Alimente : Bloc 1 — sécurité
 
 **Constat mesuré** — `PasswordResetRequestView` rendait `{"uid": …, "token": …}` dans le corps
 d'une réponse `200`, sur un endpoint `AllowAny`. Connaître une adresse email suffisait donc à

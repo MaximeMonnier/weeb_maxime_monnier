@@ -159,7 +159,7 @@ Commit `chore:` séparé, avec le package-lock.json.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| Clos le 2026-09-07 — 1.2 pour moitié, le reste renvoyé | #65, **laissée ouverte** | Lot 1 | Bloc 1 — sécurité |
+| Clos le 2026-09-07 — 1.2 pour moitié, le reste renvoyé | #65 | Lot 1 | Bloc 1 — sécurité |
 
 **Grain de ticket** : epic + 6 sous-issues, une par tâche.
 
@@ -235,8 +235,9 @@ Critères d'acceptation :
 - [ ] **Moitié inscription non livrée** : l'`UniqueValidator` du champ `email` de
   `RegisterSerializer` nomme toujours l'adresse déjà prise. L'issue #79 pose un cache côté
   front — `FormSubscribe` ne relaie pas ce message — mais la réponse HTTP n'a pas bougé, et
-  c'est elle qu'un script lit. **Reste à traiter dans l'epic #65**, qui n'est donc pas fermée
-  avec le lot ; l'entrée est à `AMELIORATIONS.md`, § « Backend — sécurité ».
+  c'est elle qu'un script lit. L'epic #65 a été fermée le 2026-09-25 sans ce point, ses sept
+  sous-issues étant livrées : **il ne vit plus qu'à `AMELIORATIONS.md`**, § « Backend —
+  sécurité ».
 - **Fichiers** : `backend/accounts/views.py`, `backend/accounts/serializers.py`
 - **Constat** : `accounts/views.py:35-36` répond `404 "Aucun compte associé à cet email."` — on
   apprend qui est inscrit. Même fuite à l'inscription : l'unicité de l'email produit un 400
