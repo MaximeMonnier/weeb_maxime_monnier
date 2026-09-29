@@ -1,5 +1,6 @@
 import SecondTitle from "../../ui/Title/SecondTitle";
 import LinkTitle from "../../ui/Title/LinkTitle";
+import { cx } from "../../../lib/cx";
 
 /**
  * Props for the FeatureBlock component
@@ -54,7 +55,7 @@ export default function FeatureBlock({
   className,
 }: FeatureBlockProps) {
   return (
-    <section className={["py-12 md:py-16", className ?? ""].join(" ")}>
+    <section className={cx("py-12 md:py-16", className)}>
       <div className="container-custom">
         <div className="grid items-center gap-10 md:grid-cols-2">
           {/* Texte */}
@@ -90,10 +91,10 @@ export default function FeatureBlock({
           {/* Image */}
           <div className={reverse ? "md:order-1" : "md:order-2"}>
             <div
-              className={[
+              className={cx(
                 "flex justify-center",
                 reverse ? "md:justify-start" : "md:justify-end",
-              ].join(" ")}
+              )}
             >
               <img
                 src={imageSrc}

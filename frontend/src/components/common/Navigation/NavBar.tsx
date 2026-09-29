@@ -11,6 +11,7 @@ import {
   logout,
   useIsAuthenticated,
 } from "../../../hooks/useIsAuthenticated";
+import { cx } from "../../../lib/cx";
 import {
   LIEN_A_PROPOS,
   LIEN_BLOG,
@@ -71,12 +72,12 @@ function NavBar() {
         // Deux navigations sur la page depuis que le pied de page porte la
         // sienne : sans nom, ni un lecteur d'écran ni `e2e/` ne les départagent.
         aria-label="Navigation principale"
-        className={[
+        className={cx(
           "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
           isScrolled
             ? "bg-primary shadow-md dark:shadow-dark-md"
             : "bg-transparent",
-        ].join(" ")}
+        )}
       >
         <div className="container-custom py-6">
           <div className="flex items-center justify-between rounded-2xl bg-secondary p-4">
