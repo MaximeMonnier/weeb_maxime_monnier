@@ -1,3 +1,5 @@
+import { cx } from "../../../lib/cx";
+
 type LogoProps = {
   size?: "sm" | "md" | "lg";
   className?: string;
@@ -17,12 +19,12 @@ const sizes: Record<NonNullable<LogoProps["size"]>, string> = {
 export default function Logo({ size = "md", className }: LogoProps) {
   return (
     <span
-      className={[
+      className={cx(
         "font-bold tracking-tight leading-none",
         "text-primary",
         sizes[size],
-        className ?? "",
-      ].join(" ")}
+        className,
+      )}
     >
       weeb
     </span>

@@ -1,5 +1,6 @@
 import { Link, NavLink as RRNavLink } from "react-router-dom";
 import Button from "../../ui/Button/MainButton";
+import { cx } from "../../../lib/cx";
 import { LIEN_CONNEXION, LIEN_INSCRIPTION } from "../../../lib/navigation";
 import type { NavItem } from "../../../types/navigation";
 
@@ -25,10 +26,10 @@ export default function MobileMenu({
     // `inert`, ses liens resteraient atteignables au clavier sans être vus.
     <div
       inert={!isOpen}
-      className={[
+      className={cx(
         "px-6 md:hidden overflow-hidden transition-all duration-300 ease-in-out",
         isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0",
-      ].join(" ")}
+      )}
     >
       <div className="bg-secondary border-t border-primary">
         <div className="container-custom py-4">

@@ -1,3 +1,5 @@
+import { cx } from "../../../lib/cx";
+
 type SectionTitleSize = "md" | "lg";
 
 /**
@@ -41,12 +43,12 @@ export default function SectionTitle({
 
   return (
     <Comp
-      className={[
+      className={cx(
         "text-primary font-bold tracking-tight leading-[1.1]",
         sizeClasses[size],
         align === "center" ? "text-center" : "text-left",
-        className ?? "",
-      ].join(" ")}
+        className,
+      )}
     >
       <span className="block">{line1}</span>
       {line2 ? <span className="mt-2 block">{line2}</span> : null}
