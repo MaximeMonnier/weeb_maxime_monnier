@@ -1,4 +1,5 @@
 import { Sun, Moon } from "lucide-react";
+import { cx } from "../../lib/cx";
 
 type ThemeToggleProps = {
   isDark: boolean;
@@ -14,7 +15,10 @@ export default function ThemeToggle({
   return (
     <button
       onClick={onToggle}
-      className={`btn-ghost touch-target ${isMobile ? "rounded-full p-2" : "rounded-full"}`}
+      className={cx(
+        "btn-ghost touch-target",
+        isMobile ? "rounded-full p-2" : "rounded-full",
+      )}
       aria-label={isDark ? "Activer le mode clair" : "Activer le mode sombre"}
       title={isDark ? "Mode clair" : "Mode sombre"}
     >
