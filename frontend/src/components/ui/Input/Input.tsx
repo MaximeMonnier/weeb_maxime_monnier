@@ -1,26 +1,27 @@
-import { forwardRef } from "react";
 import FormField, { type FieldProps } from "./FormField";
 
 /** Props d'Input : les attributs d'un input HTML, plus l'habillage commun. */
-type InputProps = React.InputHTMLAttributes<HTMLInputElement> & FieldProps;
+type InputProps = React.InputHTMLAttributes<HTMLInputElement> &
+  FieldProps & {
+    /** Référence vers l'élément `input` ; prop ordinaire depuis React 19 */
+    ref?: React.Ref<HTMLInputElement>;
+  };
 
 /** Champ de saisie sur une ligne : texte, email, mot de passe. */
-const Input = forwardRef<HTMLInputElement, InputProps>(
-  (
-    {
-      label,
-      error,
-      helperText,
-      required,
-      variant,
-      fullWidth,
-      className,
-      id,
-      type = "text",
-      ...props
-    },
-    ref
-  ) => (
+export default function Input({
+  label,
+  error,
+  helperText,
+  required,
+  variant,
+  fullWidth,
+  className,
+  id,
+  type = "text",
+  ref,
+  ...props
+}: InputProps) {
+  return (
     <FormField
       label={label}
       error={error}
@@ -35,9 +36,5 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         <input ref={ref} type={type} {...attributes} {...props} />
       )}
     </FormField>
-  )
-);
-
-Input.displayName = "Input";
-
-export default Input;
+  );
+}
