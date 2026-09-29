@@ -15,9 +15,9 @@ const base =
   "rounded-[var(--radius-button)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
   "disabled:opacity-50 disabled:cursor-not-allowed";
 
-// `none` laisse l'appelant poser son propre espacement : un bouton d'icône
-// écrase le padding par un `p-2`, et deux utilitaires de padding concurrents
-// se départagent par l'ordre de la feuille, pas par celui de la chaîne.
+// Deux registres : `sm`/`md`/`lg` fixent une hauteur, `cta` et `compact` un
+// padding, celle d'un lien-bouton suivant son texte. `none` n'en pose aucun,
+// deux paddings utilitaires se départageant par l'ordre de la feuille.
 const sizes: Record<ButtonSize, string> = {
   none: "",
   sm: "h-9 px-4 text-sm",
