@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import Button from "../../ui/Button/MainButton";
+import { buttonClasses } from "../../ui/Button/buttonClasses";
 import Logo from "../../ui/Logo/Logo";
 import ThemeToggle from "../ThemeToggle";
 import DesktopNav from "./DesktopNav";
@@ -114,7 +115,10 @@ function NavBar() {
                     {LIEN_CONNEXION.label}
                   </Link>
 
-                  <Link to={LIEN_INSCRIPTION.to} className="btn-primary">
+                  <Link
+                    to={LIEN_INSCRIPTION.to}
+                    className={buttonClasses({ size: "cta" })}
+                  >
                     {LIEN_INSCRIPTION.label}
                   </Link>
                 </>
@@ -131,7 +135,11 @@ function NavBar() {
 
               <button
                 onClick={toggleMobileMenu}
-                className="btn-ghost touch-target p-2"
+                className={buttonClasses({
+                  variant: "ghost",
+                  size: "none",
+                  className: "touch-target p-2",
+                })}
                 aria-label={
                   isMobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"
                 }
