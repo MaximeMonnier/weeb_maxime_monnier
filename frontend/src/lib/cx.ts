@@ -1,5 +1,5 @@
 /**
- * Assemblage des listes de classes CSS des composants de `ui/`, où une variante non
+ * Assemblage des listes de classes CSS des composants, où une variante non
  * retenue rend `false` ou `undefined` : les joindre telles quelles sèmerait des espaces
  * dans l'attribut `class`.
  */
