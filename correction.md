@@ -1686,12 +1686,14 @@ npm run build, et donne-moi la sortie des trois.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| En cours depuis le 2026-09-29 — quatre tâches prévues, six sous-issues ouvertes | #174 | — | Bloc 1 — qualité |
+| En cours depuis le 2026-09-29 — quatre tâches prévues, huit sous-issues ouvertes | #174 | — | Bloc 1 — qualité |
 
 **Grain de ticket** : prévu en epic + 4 sous-issues, une par tâche — 9.1 → #175, 9.2 → #176,
 9.3 → #179, 9.4 → #178. **Ouvert en epic + 6** : #177, source unique du style des boutons et des
 liens-boutons, et #180, destination des appels à l'action de la page d'accueil, se sont ajoutées
-au cadrage.
+au cadrage. **Puis en epic + 8** : la livraison de 9.2 a montré que son inventaire de classes
+mortes était incomplet et a ouvert #183, deux classes sans lecteur qu'il n'avait pas vues, et
+#184, six survols que Tailwind ne génère pas.
 
 > **Dépendances : lots 4 à 8.** À faire en dernier, quand plus aucune tâche ne touche à ces
 > fichiers — sinon on supprime ce qu'une autre branche est en train d'utiliser.
@@ -1742,7 +1744,17 @@ Travail demandé :
 
 ## 9.2 — Purger les classes CSS jamais utilisées
 
-- [ ] **Fichiers** : `frontend/src/index.css`
+- [x] **Fichiers** : `frontend/src/index.css` — livrés par l'issue #176, qui a retiré les neuf
+  classes, leurs variantes `.dark`, les bandeaux de section devenus vides et le `@media print`
+  qui n'avait plus de règle : 81 lignes, sans toucher au bloc `@theme`. Le point 2 ci-dessous a
+  été tranché dans le sens du retrait — `.btn-sm` et `.btn-lg` n'accompagnaient plus rien, le
+  composant `Button` portant ses tailles en Tailwind ; la question du double emploi entre le
+  système CSS des boutons et ce composant reste entière et appartient à #177. L'inventaire du
+  ticket s'est révélé **incomplet** : `.section` et `.border-secondary` n'ont pas de lecteur non
+  plus (#183), et six survols écrits dans le front ne produisent rien, Tailwind v4 ne déclinant
+  aucune variante sur une classe écrite à la main dans `@layer utilities` (#184). La leçon vaut
+  pour 9.3 et 9.4 : un inventaire fourni par le ticket se rejoue en entier, il n'est pas une
+  liste à cocher.
 - **Constat** : neuf classes définies dans `index.css` (793 lignes) et employées **nulle part**
   dans `src/` : `.btn-sm`, `.btn-lg`, `.card`, `.card-hover`, `.section-secondary`,
   `.smooth-scroll`, `.scrollbar-hide`, `.no-print`, `.text-accent-secondary`.
