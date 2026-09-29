@@ -1588,7 +1588,9 @@ que rien n'est cassé. Donne-moi la sortie.
 
 ## 8.4 — Factoriser les libellés de navigation
 
-- [ ] **Fichiers** : `NavBar.tsx`, `MobileMenu.tsx`, `Footer.tsx`, `types/navigation.ts`
+- [x] **Fichiers** : `NavBar.tsx`, `MobileMenu.tsx`, `Footer.tsx` — livré par l'issue #165. La
+  source unique est `frontend/src/lib/navigation.ts` ; `types/navigation.ts` n'a pas bougé, son
+  `NavItem` typant les cinq couples depuis sa variante `route`
 - **Constat** : deux couples libellé/destination sont écrits dans **trois** fichiers —
   « Se connecter » → `/login` et « Nous rejoindre » → `/subscribe`, que `NavBar.tsx`,
   `MobileMenu.tsx` et `Footer.tsx` recopient chacun. Trois autres le sont dans **deux** :
@@ -1634,7 +1636,7 @@ la sortie des trois.
   `MobileMenu.tsx`, `FeatureBlock.tsx`
 - **Constat** : sept endroits, dans six fichiers, construisent leur `className` par un
   `[...].join(" ")` écrit sur place — `MainTitle.tsx:33`, `SecondTitle.tsx:49`, `Logo.tsx:25`,
-  `NavBar.tsx:76`, `MobileMenu.tsx:30`, `FeatureBlock.tsx:57` et `:96`. La tâche 8.1 les signale
+  `NavBar.tsx:79`, `MobileMenu.tsx:31`, `FeatureBlock.tsx:57` et `:96`. La tâche 8.1 les signale
   mais laisse la décision ouverte, et aucun autre lot ne les reprend : sans cette tâche, le lot
   supprime quatre copies de `cx()` pour en laisser sept contournements. Trois d'entre eux
   poussent `className ?? ""` dans le tableau, où le `join` laisse une espace en trop que `cx()`
@@ -1649,8 +1651,8 @@ Constat, une fois la tâche 8.1 faite :
 - frontend/src/components/ui/Title/MainTitle.tsx:33
 - frontend/src/components/ui/Title/SecondTitle.tsx:49
 - frontend/src/components/ui/Logo/Logo.tsx:25
-- frontend/src/components/common/Navigation/NavBar.tsx:76
-- frontend/src/components/common/Navigation/MobileMenu.tsx:30
+- frontend/src/components/common/Navigation/NavBar.tsx:79
+- frontend/src/components/common/Navigation/MobileMenu.tsx:31
 - frontend/src/components/common/Home/FeatureBlock.tsx:57 et :96
 Ces numéros de ligne datent du 2026-09-25 : revérifie-les par grep avant d'agir.
 
