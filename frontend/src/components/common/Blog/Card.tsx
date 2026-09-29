@@ -9,13 +9,6 @@ export default function ArticleCard({ article }: ArticleCardProps) {
   return (
     <Link to={`/articles/${article.id}`}>
       <div className="bg-secondary rounded-lg shadow-xl overflow-hidden border border-primary">
-        {article.coverImg && (
-          <img
-            src={article.coverImg}
-            alt={article.title}
-            className="w-full h-48 object-cover"
-          />
-        )}
         <div className="p-4">
           <h3 className="text-lg font-semibold mb-2">{article.title}</h3>
           <p className="text-tertiary text-sm mb-4">
