@@ -935,8 +935,8 @@ Un composant qui appelle `useTheme` demande une pièce de plus : jsdom n'implém
 `window.matchMedia`, que le hook interroge dès le premier rendu, et le test échoue avant sa
 première assertion. `NavBar.test.tsx` et `Footer.test.tsx` en posent chacun le doublon,
 toujours faute d'un `setupFiles` où le poser une fois — le second rend la barre de navigation
-à côté du pied de page pour confronter leurs libellés, « Se connecter » et « Nous rejoindre »
-étant écrits dans les deux menus **et** dans le pied de page.
+à côté du pied de page pour confronter leurs libellés, cinq destinations étant servies de part
+et d'autre.
 
 #### Le parcours en navigateur
 
@@ -1339,6 +1339,8 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
         ├── hooks/useIsAuthenticated.ts # connecté ou non, d'après le jeton de renouvellement
         ├── lib/api.ts                  # point d'entrée unique des appels à l'API
         ├── lib/apiErrors.ts            # refus de l'API traduits en messages de formulaire
+        ├── lib/cx.ts                   # seul assembleur des classes CSS conditionnelles
+        ├── lib/navigation.ts           # liens servis par l'en-tête et le pied de page
         ├── lib/tokens.ts               # seul à lire, écrire et effacer les jetons JWT
         ├── lib/validationRules.ts      # règles de saisie partagées par plusieurs formulaires
         └── types/                      # types TypeScript partagés
