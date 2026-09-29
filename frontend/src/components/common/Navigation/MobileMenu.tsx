@@ -1,5 +1,6 @@
 import { Link, NavLink as RRNavLink } from "react-router-dom";
 import Button from "../../ui/Button/MainButton";
+import { LIEN_CONNEXION, LIEN_INSCRIPTION } from "../../../lib/navigation";
 import type { NavItem } from "../../../types/navigation";
 
 type MobileMenuProps = {
@@ -75,19 +76,19 @@ export default function MobileMenu({
             ) : (
               <>
                 <RRNavLink
-                  to="/login"
+                  to={LIEN_CONNEXION.to}
                   onClick={onClose}
                   className="nav-link block py-3 px-4 rounded-lg hover:bg-tertiary"
                 >
-                  Se connecter
+                  {LIEN_CONNEXION.label}
                 </RRNavLink>
 
                 <Link
-                  to="/subscribe"
+                  to={LIEN_INSCRIPTION.to}
                   onClick={onClose}
                   className="btn-primary w-full mt-4"
                 >
-                  Nous rejoindre
+                  {LIEN_INSCRIPTION.label}
                 </Link>
               </>
             )}
