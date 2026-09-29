@@ -1,3 +1,5 @@
+import { cx } from "../../../lib/cx";
+
 /**
  * Props for the MainTitle (Hero Title) component
  * Used for large, prominent headings typically at the top of pages
@@ -26,11 +28,11 @@ export default function HeroTitle({
 
   return (
     <Comp
-      className={[
+      className={cx(
         "text-primary font-bold tracking-tight leading-[1.05]",
         "text-4xl sm:text-5xl md:text-6xl",
         center ? "text-center" : "text-left",
-      ].join(" ")}
+      )}
     >
       <span className="block">{line1}</span>
       {line2 ? <span className="block mt-2">{line2}</span> : null}
