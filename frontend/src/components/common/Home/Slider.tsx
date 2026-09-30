@@ -64,7 +64,7 @@ const Slider = () => {
           onClick={goToPrev}
           disabled={!canPrev}
           aria-label="Slide précédente"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary bg-secondary text-primary transition-all duration-200 hover:bg-tertiary disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary bg-secondary text-primary transition-all duration-200 hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]"
         >
           <ChevronLeft size={20} strokeWidth={2.2} />
         </button>
@@ -74,7 +74,7 @@ const Slider = () => {
           onClick={goToNext}
           disabled={!canNext}
           aria-label="Slide suivante"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary bg-secondary text-primary transition-all duration-200 hover:bg-tertiary disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary bg-secondary text-primary transition-all duration-200 hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]"
         >
           <ChevronRight size={20} strokeWidth={2.2} />
         </button>
