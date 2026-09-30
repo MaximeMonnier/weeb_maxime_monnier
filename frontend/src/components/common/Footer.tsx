@@ -64,14 +64,11 @@ const Footer = () => {
   return (
     <footer className="footer">
       <div className="container-custom">
-        {/* Top */}
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
-          {/* Brand */}
           <div className="flex items-start">
             <Logo size="lg" />
           </div>
 
-          {/* Columns */}
           <nav
             aria-label="Navigation du pied de page"
             className="grid w-full grid-cols-2 gap-10 sm:grid-cols-3 md:w-auto"
@@ -96,7 +93,6 @@ const Footer = () => {
           </nav>
         </div>
 
-        {/* Bottom */}
         <div className="mt-10 flex flex-col gap-4 border-t border-[var(--color-light-border-primary)] pt-6 dark:border-[var(--color-dark-border-primary)] sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-[var(--color-light-text-tertiary)] dark:text-[var(--color-dark-text-tertiary)]">
             © {year} Weeb, Inc. All rights reserved.
@@ -137,10 +133,6 @@ const Footer = () => {
 
 export default Footer;
 
-/* -----------------------------
-   Small components
------------------------------- */
-
 function SocialIcon({
   href,
   label,
@@ -163,10 +155,6 @@ function SocialIcon({
     </a>
   );
 }
-
-/* -----------------------------
-   Inline SVG Icons (no deps)
------------------------------- */
 
 function YoutubeIcon() {
   return (

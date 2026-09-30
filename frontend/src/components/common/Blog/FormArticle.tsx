@@ -108,7 +108,6 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
         />
         {/* Pas de champ "Auteur" : l'auteur = l'utilisateur connecté (défini côté serveur) */}
 
-        {/* Message */}
         <Textarea
           label="Description de votre article"
           name="content"
@@ -121,7 +120,6 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
           fullWidth
         />
 
-        {/* Submit Button */}
         <div className="flex justify-center">
           <MainButton
             type="submit"
