@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import ImageBanner from "../../../assets/img/img1.png";
+import Image1 from "../../../assets/img/img1.png";
+import Image2 from "../../../assets/img/img2.png";
 
 const Slider = () => {
   const autoplay = useRef(Autoplay({ delay: 3500, stopOnInteraction: false }));
@@ -42,22 +43,15 @@ const Slider = () => {
         <div className="embla__container">
           <div className="embla__slide">
             <img
-              src={ImageBanner}
-              alt="Image de présentation"
+              src={Image1}
+              alt="Maquette d'une interface de blog : menu latéral, blocs de texte et cartes illustrées"
               className="rounded-lg"
             />
           </div>
           <div className="embla__slide">
             <img
-              src={ImageBanner}
-              alt="Image de présentation"
-              className="rounded-lg"
-            />
-          </div>
-          <div className="embla__slide">
-            <img
-              src={ImageBanner}
-              alt="Image de présentation"
+              src={Image2}
+              alt="Composition graphique de carrés violets superposés autour d'un carré rose"
               className="rounded-lg"
             />
           </div>
