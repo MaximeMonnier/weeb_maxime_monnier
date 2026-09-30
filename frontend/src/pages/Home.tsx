@@ -41,7 +41,7 @@ const Home = () => {
                 dernières <span className="text-accent">tendances</span>
               </>
             }
-            description="Chaque semaine, nous analysons les nouveautés du web..."
+            description="Chaque semaine, nous analysons les nouveautés du web — frameworks, outils et standards — pour vous dire ce qui mérite votre attention et ce qui peut attendre."
             ctaLabel="Lire les articles récents"
             ctaHref="#articles"
             imageSrc={Image2}
