@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Home, Search } from "lucide-react";
+import { buttonClasses } from "../components/ui/Button/buttonClasses";
 
 const NotFound = () => {
   return (
@@ -16,13 +17,13 @@ const NotFound = () => {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to="/" className="btn-primary inline-flex items-center gap-2">
+          <Link to="/" className={buttonClasses({ size: "cta" })}>
             <Home className="h-5 w-5" />
             Retour à l'accueil
           </Link>
           <Link
             to="/contact"
-            className="btn-secondary inline-flex items-center gap-2"
+            className={buttonClasses({ variant: "secondary", size: "cta" })}
           >
             <Search className="h-5 w-5" />
             Nous contacter
