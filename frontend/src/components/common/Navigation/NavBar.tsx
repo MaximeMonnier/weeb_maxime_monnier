@@ -47,7 +47,6 @@ function NavBar() {
     navigate("/");
   };
 
-  // Helpers
   const scrollToHash = (hash: string) => {
     const id = hash.replace("#", "");
     const el = document.getElementById(id);
@@ -64,7 +63,6 @@ function NavBar() {
     closeMobileMenu();
   };
 
-  // Navigation
   const navItems: NavItem[] = [LIEN_BLOG, LIEN_A_PROPOS, LIEN_CONTACT];
 
   return (
@@ -95,7 +93,6 @@ function NavBar() {
               <DesktopNav navItems={navItems} onHashClick={handleHashClick} />
             </div>
 
-            {/* Actions Desktop */}
             <div className="hidden md:flex items-center">
               <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
 
@@ -125,7 +122,6 @@ function NavBar() {
               )}
             </div>
 
-            {/* Mobile Buttons */}
             <div className="flex md:hidden items-center gap-2">
               <ThemeToggle
                 isDark={isDark}
@@ -165,7 +161,6 @@ function NavBar() {
         />
       </nav>
 
-      {/* Spacer */}
       <div className="h-16 md:h-20" />
     </>
   );

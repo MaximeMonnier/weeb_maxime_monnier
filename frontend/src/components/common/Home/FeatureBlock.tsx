@@ -33,7 +33,6 @@ export default function FeatureBlock({
     <section className={cx("py-12 md:py-16", className)}>
       <div className="container-custom">
         <div className="grid items-center gap-10 md:grid-cols-2">
-          {/* Texte */}
           <div className={reverse ? "md:order-2" : "md:order-1"}>
             {eyebrow ? (
               <p className=" text-[12px] font-semibold tracking-[0.14em] uppercase">
@@ -63,7 +62,6 @@ export default function FeatureBlock({
             </div>
           </div>
 
-          {/* Image */}
           <div className={reverse ? "md:order-1" : "md:order-2"}>
             <div
               className={cx(

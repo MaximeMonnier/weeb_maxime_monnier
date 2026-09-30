@@ -100,7 +100,6 @@ const FormLogin = () => {
       <ErrorAlert message={formError} />
 
       <div className="space-y-6">
-        {/* Email */}
         <Input
           label="Adresse email"
           name="email"
@@ -113,7 +112,6 @@ const FormLogin = () => {
           fullWidth
         />
 
-        {/* Password */}
         <Input
           label="Mot de passe"
           name="password"
@@ -127,7 +125,6 @@ const FormLogin = () => {
           fullWidth
         />
 
-        {/* Forgot Password Link */}
         <div className="flex justify-end">
           <Link
             to="/forgot-password"
@@ -137,7 +134,6 @@ const FormLogin = () => {
           </Link>
         </div>
 
-        {/* Submit Button */}
         <div className="flex justify-center">
           <MainButton
             type="submit"
@@ -150,7 +146,6 @@ const FormLogin = () => {
           </MainButton>
         </div>
 
-        {/* Sign up link */}
         <div className="text-center text-sm text-secondary">
           Pas encore de compte ?{" "}
           <Link
