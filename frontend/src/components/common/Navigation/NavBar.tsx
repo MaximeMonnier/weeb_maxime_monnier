@@ -161,6 +161,7 @@ function NavBar() {
         />
       </nav>
 
+      {/* Compense la hauteur du `nav` fixé : sinon la page démarre sous la barre. */}
       <div className="h-16 md:h-20" />
     </>
   );
