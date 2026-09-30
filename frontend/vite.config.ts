@@ -35,6 +35,10 @@ export default defineConfig(({ mode }) => {
       // localStorage et le DOM n'existent pas sous Node : la suite de lib/api.ts
       // lit le jeton dans le premier, les formulaires rendus attendront le second.
       environment: "jsdom",
+      // Vitest remplace par du vide tout ce qu'il reconnaît comme du CSS, le
+      // `?raw` compris : `index.css.test.ts` lirait une chaîne vide et passerait
+      // sans avoir rien contrôlé. Aucun autre test n'importe de feuille.
+      css: true,
       // Pas de globales : chaque fichier importe describe, it et expect de
       // "vitest", ce qui évite d'apprendre ces noms à TypeScript et à ESLint.
       globals: false,
