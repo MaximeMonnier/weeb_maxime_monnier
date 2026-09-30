@@ -2,42 +2,17 @@ import SecondTitle from "../../ui/Title/SecondTitle";
 import LinkTitle from "../../ui/Title/LinkTitle";
 import { cx } from "../../../lib/cx";
 
-/**
- * Props for the FeatureBlock component
- * Used to display a section with an image and text content
- */
 type FeatureBlockProps = {
-  /** Optional eyebrow text displayed above the title */
   eyebrow?: string;
-
-  /** Main title line (can include JSX for styling like <span className="text-accent">) */
   titleLine1: React.ReactNode;
-
-  /** Optional second line of the title */
   titleLine2?: React.ReactNode;
-
-  /** Description text displayed below the title */
   description?: string;
-
-  /** Label for the call-to-action link */
   ctaLabel: string;
-
-  /** URL for the call-to-action link */
   ctaHref: string;
-
-  /** Whether the CTA link should open in a new tab */
   ctaExternal?: boolean;
-
-  /** Source URL for the feature image */
   imageSrc: string;
-
-  /** Alt text for the feature image */
   imageAlt: string;
-
-  /** If true, displays image on the left and text on the right */
   reverse?: boolean;
-
-  /** Additional CSS classes */
   className?: string;
 };
 
