@@ -11,7 +11,8 @@ const sizes: Record<NonNullable<LogoProps["size"]>, string> = {
   lg: "text-3xl",
 };
 
-// Rend le seul texte : la navigation est à l'appelant, qui l'enveloppe dans un `Link`.
+// Rend le seul texte : à l'appelant de l'envelopper dans un `Link` s'il doit mener
+// quelque part — le pied de page, lui, le rend nu.
 export default function Logo({ size = "md", className }: LogoProps) {
   return (
     <span

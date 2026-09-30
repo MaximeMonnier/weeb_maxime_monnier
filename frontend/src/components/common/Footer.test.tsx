@@ -62,8 +62,8 @@ function rendreLEnTeteEtLePiedDePage() {
 }
 
 // Les liens à `aria-label` sont écartés : le logo et les icônes sociales nomment
-// leur destination autrement qu'un libellé de menu. Les doublons restent : leur
-// nombre dit qu'aucun lien n'a quitté le relevé, un `aria-label` l'en sort en silence.
+// leur destination autrement qu'un libellé de menu. Les doublons restent : leur nombre
+// dit qu'aucun lien n'a quitté le relevé, qu'un `aria-label` en sortirait en silence.
 function libellesParDestination(): Map<string, string[]> {
   const parDestination = new Map<string, string[]>();
 
