@@ -28,10 +28,9 @@ function rendreLaBarre() {
   );
 }
 
-// Tailwind ne masque rien sous jsdom : le bloc desktop et le menu mobile
-// cohabitent dans le même `nav`, et c'est ce qui rend leur comparaison possible.
-// Les destinations sont gardées avec leurs doublons — c'est leur nombre qui dit
-// qu'un libellé est bien servi par les deux blocs.
+// Tailwind ne masque rien sous jsdom : le bloc desktop et le menu mobile cohabitent
+// dans le même `nav`, ce qui rend leur comparaison possible. Les doublons restent :
+// leur nombre dit qu'un libellé est bien servi par les deux blocs.
 function destinationsParLibelle(): Map<string, string[]> {
   const parLibelle = new Map<string, string[]>();
 

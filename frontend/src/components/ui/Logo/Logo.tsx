@@ -11,11 +11,8 @@ const sizes: Record<NonNullable<LogoProps["size"]>, string> = {
   lg: "text-3xl",
 };
 
-/**
- * Logo component - displays the brand name "weeb"
- * This component only renders the logo text. Wrap it in a Link or anchor tag
- * for navigation functionality.
- */
+// Rend le seul texte : à l'appelant de l'envelopper dans un `Link` s'il doit mener
+// quelque part — le pied de page, lui, le rend nu.
 export default function Logo({ size = "md", className }: LogoProps) {
   return (
     <span
