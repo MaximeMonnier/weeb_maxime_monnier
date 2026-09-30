@@ -34,7 +34,6 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
   return newErrors;
 };
 
-// Le parent (Blog) passe une fonction appelée après une création réussie
 type FormArticleProps = { onCreated?: () => void };
 
 const FormArticle = ({ onCreated }: FormArticleProps) => {
@@ -71,7 +70,7 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
         }),
       });
       setFormData(VALEURS_INITIALES);
-      onCreated?.(); // prévient le Blog : ferme la modale + recharge la liste
+      onCreated?.();
     } catch (err) {
       // apiFetch renouvelle le jeton d'accès : ce 401 ne vient plus de ses quinze
       // minutes, mais d'une session finie ou d'un renouvellement en panne. Le formulaire
