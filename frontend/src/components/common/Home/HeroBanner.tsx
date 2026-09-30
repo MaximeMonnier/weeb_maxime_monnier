@@ -1,5 +1,8 @@
-import MainButton from "../../ui/Button/MainButton";
+import { Link } from "react-router-dom";
+
 import MainTitle from "../../ui/Title/MainTitle";
+import { buttonClasses } from "../../ui/Button/buttonClasses";
+import { LIEN_BLOG } from "../../../lib/navigation";
 
 const HeroBanner = () => {
   return (
@@ -25,13 +28,16 @@ const HeroBanner = () => {
           vous soyez développeur, designer ou passionné du digital, notre blog
           vous offre du contenu de qualité pour rester à la pointe.
         </div>
-        <div className="flex items-center justify-center py-6 gap-4">
-          <MainButton variant="primary" size="lg" className="cursor-pointer">
+        <div className="flex items-center justify-center py-6">
+          {/* Un `<Link>` habillé, et non le composant `Button` qui rend un
+              `<button>` : un `useNavigate` casserait le clic milieu. Seule la
+              destination vient de `lib/navigation.ts`, pas le libellé. */}
+          <Link
+            to={LIEN_BLOG.to}
+            className={buttonClasses({ variant: "primary", size: "lg" })}
+          >
             Découvrir les articles
-          </MainButton>
-          <MainButton variant="outline" size="lg" className="cursor-pointer">
-            S'abonner à la newsletter
-          </MainButton>
+          </Link>
         </div>
       </div>
     </div>
