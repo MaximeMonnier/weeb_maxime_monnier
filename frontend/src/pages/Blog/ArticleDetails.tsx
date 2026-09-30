@@ -66,9 +66,8 @@ const ArticleDetails = () => {
             id,
             statut: "erreur",
             // Un article se lit sans compte : le « reconnectez-vous » que
-            // `toFormErrors` donne par défaut au 401 enverrait le lecteur là où
-            // il n'a rien à faire. Le 401 vient ici d'un jeton mort que le
-            // renouvellement n'a pas pu remplacer.
+            // `toFormErrors` donne au 401 enverrait le lecteur là où il n'a rien
+            // à faire. Ce 401 dit un jeton mort que le renouvellement n'a pu remplacer.
             message: toFormErrors(err, [], {
               unauthorized:
                 "L'article n'a pas pu être chargé. Rechargez la page, puis réessayez.",

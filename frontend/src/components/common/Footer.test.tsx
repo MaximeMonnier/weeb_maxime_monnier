@@ -61,10 +61,9 @@ function rendreLEnTeteEtLePiedDePage() {
   );
 }
 
-// Les liens porteurs d'un `aria-label` sont écartés : le logo et les icônes
-// sociales nomment leur destination autrement qu'un libellé de menu. Les
-// doublons sont gardés — c'est leur nombre qui dit qu'aucun lien n'a quitté le
-// relevé, un `aria-label` posé sur l'un d'eux l'en sortant en silence.
+// Les liens à `aria-label` sont écartés : le logo et les icônes sociales nomment
+// leur destination autrement qu'un libellé de menu. Les doublons restent : leur
+// nombre dit qu'aucun lien n'a quitté le relevé, un `aria-label` l'en sort en silence.
 function libellesParDestination(): Map<string, string[]> {
   const parDestination = new Map<string, string[]>();
 
