@@ -137,14 +137,12 @@ const Blog = () => {
         )}
       </div>
 
-      {/* la modal */}
       <dialog
         ref={dialogRef}
         className="m-auto w-full max-w-2xl rounded-lg bg-secondary p-6 text-primary backdrop:bg-black/50"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold">Nouvel article</h3>
-          {/* 4️⃣ Le bouton fermer */}
           <button
             className="text-primary cursor-pointer text-2xl font-bold hover:text-red-800 transition-colors"
             onClick={() => dialogRef.current?.close()}
@@ -154,12 +152,11 @@ const Blog = () => {
           </button>
         </div>
 
-        {/* Placeholder — le vrai formulaire viendra ici */}
         <div className="flex flex-col items-center justify-center">
           <FormArticle
             onCreated={() => {
-              dialogRef.current?.close(); // ferme la modale
-              loadArticles(); // recharge la liste → le nouvel article apparaît
+              dialogRef.current?.close();
+              loadArticles();
             }}
           />
         </div>
