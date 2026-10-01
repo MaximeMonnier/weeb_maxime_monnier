@@ -19,8 +19,8 @@ export default function TextCtaLink({
 }: TextCtaLinkProps) {
   const classes = cx(
     "group inline-flex items-center gap-2 text-lg font-medium focus-ring-primary",
-    "link-soft",
-    hoverAccent && "hover:text-accent",
+    hoverAccent &&
+      "hover:text-[var(--color-light-accent-primary)] dark:hover:text-[var(--color-dark-accent-primary)]",
     className,
   );
 

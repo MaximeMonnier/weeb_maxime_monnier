@@ -44,7 +44,7 @@ export default function MobileMenu({
                     onClick={onClose}
                     className={({ isActive }) =>
                       cx(
-                        "nav-link block py-3 px-4 rounded-lg hover:bg-tertiary",
+                        "nav-link block py-3 px-4 rounded-lg hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)]",
                         isActive && "active",
                       )
                     }
@@ -59,7 +59,7 @@ export default function MobileMenu({
                   key={item.href}
                   href={item.href}
                   onClick={(e) => onHashClick(e, item.href)}
-                  className="nav-link block py-3 px-4 rounded-lg hover:bg-tertiary"
+                  className="nav-link block py-3 px-4 rounded-lg hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)]"
                 >
                   {item.label}
                 </a>
@@ -81,7 +81,7 @@ export default function MobileMenu({
                 <RRNavLink
                   to={LIEN_CONNEXION.to}
                   onClick={onClose}
-                  className="nav-link block py-3 px-4 rounded-lg hover:bg-tertiary"
+                  className="nav-link block py-3 px-4 rounded-lg hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)]"
                 >
                   {LIEN_CONNEXION.label}
                 </RRNavLink>
