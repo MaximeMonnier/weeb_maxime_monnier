@@ -212,7 +212,6 @@ import { Textarea } from "./components/ui/Input";
 
 /* Radius */
 --radius-button              /* 0.5rem */
---radius-card                /* 0.75rem */
 --radius-input               /* 0.5rem */
 
 /* Shadows */
