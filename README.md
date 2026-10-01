@@ -938,6 +938,22 @@ toujours faute d'un `setupFiles` où le poser une fois — le second rend la bar
 à côté du pied de page pour confronter leurs libellés, cinq destinations étant servies de part
 et d'autre.
 
+Un test ne couvre pas de TypeScript du tout : `index.css.test.ts` lit la feuille de style et
+refuse qu'une variante Tailwind — `hover:`, `dark:`, `focus-visible:` — soit posée sur une
+classe écrite à la main dans `index.css`. Tailwind v4 n'en décline que sur les utilitaires
+qu'il connaît : la classe écrite reste alors inerte, sans que le build, le lint ni le typage
+ne le disent. Sa lecture tient au `css: true` de `vite.config.ts`, Vitest remplaçant par du
+vide tout ce qu'il reconnaît comme du CSS, l'import `?raw` compris — d'où le second cas du
+fichier, qui vérifie que la lecture a bien eu lieu avant de conclure que tout va bien.
+
+Il lit les chaînes littérales par un parcours caractère par caractère et non par une expression
+régulière, l'apostrophe droite du français — `alt="Vue d'une interface"` — faisant perdre à
+celle-ci toutes les classes de la ligne. Trois formes lui échappent encore, faute d'analyser le
+TypeScript, et aucune n'existe dans le dépôt à ce jour : un jeton coupé par une concaténation
+(`"hover:" + "bg-tertiary"`), et un `//` ou un `/*` rencontré hors d'une chaîne — une adresse
+nue au fil du texte JSX, par exemple — qui lui fait sauter la fin de la ligne ou le passage
+jusqu'au `*/`. Une classe écrite après eux sur la même ligne ne serait pas vue.
+
 #### Le parcours en navigateur
 
 `npm test` ne dit rien de la conversation entre le front et l'API : il remplace `fetch` par un
