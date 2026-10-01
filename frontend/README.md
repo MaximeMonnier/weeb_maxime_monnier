@@ -177,25 +177,48 @@ import { Textarea } from "./components/ui/Input";
 
 ### Classes CSS custom
 
-**Boutons :**
-- `.btn-primary` - Bouton violet principal avec effet hover
-- `.btn-secondary` - Bouton outline
-- `.btn-ghost` - Bouton transparent
+**Boutons :** aucune classe CSS. Le style vient de `buttonClasses()`
+(`src/components/ui/Button/buttonClasses.ts`), qu'appellent le composant `Button` et les
+liens-boutons écrits à la main.
 
 **Formulaires :**
 - `.form-label` - Label de formulaire
-- `.form-input` - Input/Textarea de formulaire
+- `.form-label-required` - Ajoute l'astérisque rouge d'un champ obligatoire
+- `.form-input` - Input/Textarea de formulaire, avec les états `.form-input.error` et `.form-input.success`
+- `.form-textarea` - Hauteur minimale et redimensionnement vertical d'un textarea
 - `.form-error-message` - Message d'erreur (rouge)
 - `.form-helper-text` - Texte d'aide (gris)
+
+**Alertes de formulaire :**
+- `.form-alert-error` - Message d'ensemble d'un refus, encadré dès qu'il a du texte
+- `.form-alert-success` - Message de succès, même comportement
 
 **Navigation :**
 - `.nav-link` - Lien de navigation
 - `.nav-link.active` - Lien actif (violet)
 
+**Pied de page :**
+- `.footer` - Fond et bordure haute du pied de page
+- `.footer-link` - Lien du pied de page, violet au survol
+
+**Accessibilité :**
+- `.touch-target` - Cible tactile d'au moins 44 × 44 px
+- `.focus-ring-primary` - Anneau de focus violet
+
 **Utilitaires :**
 - `.container-custom` - Container responsive (max-width: 80rem)
-- `.text-primary`, `.text-secondary`, `.text-accent`
-- `.bg-primary`, `.bg-secondary`, `.bg-tertiary`
+- `.text-primary`, `.text-secondary`, `.text-tertiary`, `.text-muted`, `.text-accent`
+- `.bg-primary`, `.bg-secondary`
+- `.border-primary`
+
+Ces couleurs sont écrites à la main dans `index.css` : aucune variante ne s'y pose, et un
+`hover:bg-secondary` ne produit aucune règle.
+
+**Carrousel :** `.embla__viewport`, `.embla__container`, `.embla__slide` - noms repris de la
+documentation d'Embla.
+
+**Bandeau défilant :** `.marquee-mask`, `.marquee-track` - défilement des logos de l'accueil,
+arrêté quand le système demande moins d'animations.
 
 ### Variables CSS
 
@@ -210,6 +233,10 @@ import { Textarea } from "./components/ui/Input";
 --color-dark-text-primary    /* #FFFFFF */
 --color-dark-accent-primary  /* #A855F7 */
 
+/* Texte */
+--text-body                  /* 1rem */
+--text-body-sm               /* 0.875rem */
+
 /* Radius */
 --radius-button              /* 0.5rem */
 --radius-input               /* 0.5rem */
@@ -217,7 +244,14 @@ import { Textarea } from "./components/ui/Input";
 /* Shadows */
 --shadow-glow-primary
 --shadow-focus-primary
+--shadow-focus-error
+--shadow-focus-success
 ```
+
+L'ombre sombre de la barre de navigation, `shadow-dark-md`, est aussi déclarée dans `@theme`.
+Elle n'est lue que par la classe `dark:shadow-dark-md`, et son nom s'écrit ici sans les deux
+tirets : Tailwind balaie aussi ce README, et y citer la variable lui ferait émettre une
+déclaration que rien ne lit.
 
 ## ✅ Bonnes pratiques implémentées
 
