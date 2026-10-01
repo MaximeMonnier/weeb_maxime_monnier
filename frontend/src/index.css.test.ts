@@ -5,8 +5,9 @@ import { describe, expect, it } from "vitest";
 // le dernier cas, qui refuse de conclure sans avoir lu.
 import sourceDuCss from "./index.css?raw";
 
-// Le `class="dark"` de la page pose le thème avant que React ne monte, et la glob
-// ci-dessous ne sort pas de `src/` : sans cette lecture, `.dark` paraîtrait orpheline.
+// `.dark` est la seule classe que ne pose aucun `className` : `useTheme.ts` en écrit
+// le nom en toutes lettres, et le `class` de la page le porte aussi — hors de la glob
+// ci-dessous, qui ne quitte pas `src/`.
 import sourceDuHtml from "../index.html?raw";
 
 // Tout le front, faute d'un endroit où les listes de classes seraient réunies.
@@ -178,8 +179,8 @@ describe("index.css", () => {
     expect(CLASSES_MAISON).toContain("nav-link");
     expect(FICHIERS.length).toBeGreaterThan(40);
     expect(VARIANTES.map(({ jeton }) => jeton)).toContain("hover:underline");
-    // `.dark` n'a pas d'autre lecteur que `useTheme.ts` : la page lue, le jour où
-    // le hook nommerait sa classe autrement, reste seule à la poser.
+    // La page est l'autre source de `.dark`, et la seule qui restera le jour où le
+    // hook cessera d'écrire le nom de sa classe en toutes lettres.
     expect(classesDuHtml(sourceDuHtml)).toContain("dark");
   });
 });
