@@ -47,18 +47,32 @@ function chainesDe(source: string): string[] {
       continue;
     }
 
-    i += 1;
+    const debut = i + 1;
+    let j = debut;
     let contenu = "";
-    while (i < source.length && source[i] !== guillemet) {
-      // Seul le gabarit passe la ligne ; ailleurs un saut signale une chaîne non
-      // terminée, donc une source qui ne compile pas.
-      if (source[i] === "\n" && guillemet !== "`") break;
-      if (source[i] === "\\") i += 1;
-      contenu += source[i];
-      i += 1;
+    let fermee = false;
+    while (j < source.length) {
+      if (source[j] === guillemet) {
+        fermee = true;
+        break;
+      }
+      // Seul le gabarit passe la ligne.
+      if (source[j] === "\n" && guillemet !== "`") break;
+      if (source[j] === "\\") j += 1;
+      contenu += source[j];
+      j += 1;
     }
-    i += 1;
+
+    // L'apostrophe de la prose JSX — « L'équipe » — n'ouvre aucune chaîne : sans
+    // fermeture avant le saut de ligne, on repart du caractère suivant au lieu
+    // d'avaler le `className` qui vient après sur la même ligne.
+    if (!fermee) {
+      i = debut;
+      continue;
+    }
+
     chaines.push(contenu);
+    i = j + 1;
   }
 
   return chaines;
@@ -90,10 +104,12 @@ function utilitaireDe(jeton: string): string | null {
 
 /** Rend les couples jeton/utilitaire porteurs d'une variante, dans un fichier. */
 function variantesDe(source: string) {
-  // Reste hors de portée, faute d'évaluer les expressions : un jeton coupé en deux
-  // par une concaténation, `"hover:" + "bg-tertiary"`.
+  // Le découpage prend aussi les guillemets, et pas seulement les espaces : une
+  // classe posée dans un `${}` de gabarit garderait les siens et échapperait au
+  // test d'identifiant. Reste hors de portée, faute d'analyser le TypeScript : un
+  // jeton coupé en deux par une concaténation, `"hover:" + "bg-tertiary"`.
   return chainesDe(source)
-    .flatMap((chaine) => chaine.split(/\s+/))
+    .flatMap((chaine) => chaine.split(/[\s"'`]+/))
     .map((jeton) => ({ jeton, utilitaire: utilitaireDe(jeton) }))
     .filter((v): v is { jeton: string; utilitaire: string } =>
       Boolean(v.utilitaire),
