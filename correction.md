@@ -1883,7 +1883,7 @@ site. Ne la bâcle pas.
 |---|---|---|---|
 | À faire | — | — | Bloc 1 — sécurité et qualité |
 
-**Origine** : revue complète de `preprod` au merge de #195 (`83163ad`), lots 0 à 9 livrés.
+**Origine** : revue complète de `preprod` au merge de #195 (`755a5c6`), lots 0 à 9 livrés.
 Lint, 105 tests front, 78 tests back, build et `npm audit` au vert, **aucun défaut bloquant**.
 Les six tâches ci-dessous sont les défauts réels relevés et revérifiés dans le code ; chacun a
 aussi son entrée dans `AMELIORATIONS.md`, à cocher à la livraison. Écartés comme trop mineurs :

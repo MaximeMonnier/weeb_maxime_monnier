@@ -404,7 +404,7 @@ qu'il est fermé. Le parcours Playwright, lui, avait `127.0.0.1:5173` en dur, al
 ce chargement pour la pagination — et #111, qui a livré cette pagination le même jour, ne l'a
 pas repris. Le lot 6 en hérite.
 
-**Preuve de la correction** — rejouée à l'état du merge de #136 (`38a0bad`), dernier du lot,
+**Preuve de la correction** — rejouée à l'état du merge de #136 (`5911157`), dernier du lot,
 dans un worktree jetable. Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend
 `Test Files  7 passed (7)` et `Tests  67 passed (67)` — 45 avant le lot. Depuis `backend/` :
 `Ran 64 tests`, `OK` — 59 avant. `grep -rn 'localStorage\.' frontend/src --exclude='*.test.*'`
@@ -509,7 +509,7 @@ matière avait été posée par #111, hors lot. Et l'epic #138 est restée **ouv
 quatre sous-issues étaient closes une à une : le piège du `Closes #N` qui ne ferme pas au merge
 dans `preprod`, cette fois au niveau de l'epic.
 
-**Preuve de la correction** — rejouée sur `preprod` au merge de #146 (`2f11c57`), dernier du
+**Preuve de la correction** — rejouée sur `preprod` au merge de #146 (`5df53ff`), dernier du
 lot. Depuis `backend/` : `Ran 75 tests`, `OK` — 64 avant le lot —, et `manage.py test config`
 est une cible neuve, 3 cas. Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend
 `Test Files  7 passed (7)` et `Tests  79 passed (79)` — 67 avant le lot, **aucun fichier de
@@ -591,7 +591,7 @@ sur `/blog`, la seule destination qui n'avait jamais divergé.
 `:189`, le code en était à `:213` et `:220`. Les lots 4 et 5 avaient déplacé ces lignes entre la
 rédaction du plan et sa mise en œuvre : le constat restait juste, l'adresse non.
 
-**Preuve de la correction** — rejouée sur `preprod` au merge de #158 (`335d17e`), dernier du lot.
+**Preuve de la correction** — rejouée sur `preprod` au merge de #158 (`d06efe6`), dernier du lot.
 Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend `Test Files  10 passed (10)` et
 `Tests  99 passed (99)` — **7 fichiers et 79 cas avant le lot**, soit +3 fichiers et +20 cas, tous
 dans des fichiers neufs —, et `npm run build` `✓ built in 2.84s`. Le diff du lot pèse
@@ -676,12 +676,12 @@ quatre sites poussant `className ?? ""`, il n'y en avait que trois — `MainTitl
 `className`. Et le README, remis à jour par #170, manquait `cx.ts` depuis #162 : trois issues ont
 passé devant une arborescence incomplète sans la voir.
 
-**Preuve de la correction** — rejouée sur `preprod` au merge de #173 (`66b8e2d`), dernier du lot.
+**Preuve de la correction** — rejouée sur `preprod` au merge de #173 (`4a15e19`), dernier du lot.
 Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend `Test Files  10 passed (10)` et
 `Tests  99 passed (99)` — **les mêmes qu'à la clôture du lot 7**, aucun test ajouté ni modifié —,
 et `npm run build` `✓ built in 2.67s`. Le diff du lot pèse `309 insertions(+), 275 deletions(-)`
 sur **16 fichiers de `frontend/src`, dont 3 créés** : `lib/cx.ts`, `lib/navigation.ts` et
-`ui/Input/FormField.tsx`. Le backend n'a pas été touché, et `git diff --stat 7136968..HEAD --
+`ui/Input/FormField.tsx`. Le backend n'a pas été touché, et `git diff --stat 0b48ef7..HEAD --
 '*.test.*'` est vide. Les quatre `grep` de l'epic, enfin : une seule définition de `cx`, plus
 aucun `forwardRef`, `.join(" ")` réduit à trois lignes, et aucune des cinq destinations écrite en
 dur dans les trois fichiers de navigation.
