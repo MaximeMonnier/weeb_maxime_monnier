@@ -943,8 +943,17 @@ refuse qu'une variante Tailwind — `hover:`, `dark:`, `focus-visible:` — soit
 classe écrite à la main dans `index.css`. Tailwind v4 n'en décline que sur les utilitaires
 qu'il connaît : la classe écrite reste alors inerte, sans que le build, le lint ni le typage
 ne le disent. Sa lecture tient au `css: true` de `vite.config.ts`, Vitest remplaçant par du
-vide tout ce qu'il reconnaît comme du CSS, l'import `?raw` compris — d'où le second cas du
+vide tout ce qu'il reconnaît comme du CSS, l'import `?raw` compris — d'où le dernier cas du
 fichier, qui vérifie que la lecture a bien eu lieu avant de conclure que tout va bien.
+
+Le même fichier refuse l'inverse : une classe de la feuille que plus aucune source ne pose.
+Elle ne fait tomber ni le lint, ni le typage, ni le build, et trois ont vécu ainsi jusqu'à ce
+qu'un inventaire à la main les trouve. Le cas croise les sélecteurs de classe de la feuille
+avec les jetons lus dans `src/`, et nomme celle qui n'a plus personne. Deux précautions le
+rendent juste : les fichiers de test sont écartés des lecteurs, l'un d'eux pouvant citer une
+classe pour vérifier qu'elle est refusée ; et `frontend/index.html` est lu en plus des
+sources, `.dark` n'étant posée par aucun `className` mais par `hooks/useTheme.ts` et par le
+`class` de la page, hors de la glob.
 
 Il lit les chaînes littérales par un parcours caractère par caractère et non par une expression
 régulière, l'apostrophe droite du français — `alt="Vue d'une interface"` — faisant perdre à
