@@ -248,10 +248,10 @@ arrêté quand le système demande moins d'animations.
 --shadow-focus-success
 ```
 
-L'ombre sombre de la barre de navigation, `shadow-dark-md`, est aussi déclarée dans `@theme`.
-Elle n'est lue que par la classe `dark:shadow-dark-md`, et son nom s'écrit ici sans les deux
-tirets : Tailwind balaie aussi ce README, et y citer la variable lui ferait émettre une
-déclaration que rien ne lit.
+L'ombre `dark-md` de la barre de navigation est aussi déclarée dans `@theme`. Elle n'est lue
+que par la classe `dark:shadow-dark-md`, seule forme sous laquelle son nom s'écrit ici :
+Tailwind balaie aussi ce README, et la variable ou l'utilitaire nus lui feraient émettre une
+règle que rien ne lit.
 
 ## ✅ Bonnes pratiques implémentées
 
