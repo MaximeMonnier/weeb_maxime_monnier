@@ -26,6 +26,16 @@ et pour les prochaines itérations).
       décalage inverse, une publication, est déjà absorbé — `Blog.tsx` écarte le doublon
       qu'elle produit. Piste : la `CursorPagination` de DRF, qui reprend après le dernier
       article vu, mais ne donne pas le `count` que l'issue exigeait.
+- [ ] **Les paragraphes d'un article disparaissent à la lecture.** `ArticleDetails.tsx`
+      rend `content` dans un `<p>` nu : les retours à la ligne saisis dans le `Textarea` de
+      `FormArticle` sont écrasés par le HTML, et un article de plusieurs paragraphes
+      s'affiche d'un seul bloc. Piste : `whitespace-pre-line` sur ce `<p>` — pas de
+      `dangerouslySetInnerHTML`, React continue d'échapper le texte.
+- [ ] **L'extrait finit toujours par « ... ».** `Card.tsx` ajoute les points de suspension
+      sans condition, alors que `Left("content", LONGUEUR_EXTRAIT)` ne coupe qu'au-delà de
+      100 caractères : un article court s'affiche tronqué alors qu'il est entier. Piste :
+      ne les poser que si l'extrait atteint la longueur de coupe, ou exposer côté API un
+      booléen calculé dans le même `annotate`.
 
 ## Docker — mise en ligne
 
@@ -74,6 +84,15 @@ Rien de ce qui reste ne bloque le développement.
       service `db` éphémère, jamais sur l'image de développement. À reprendre avec le
       chantier des tests, qui dépasse Docker.
 
+## Frontend — code mort
+
+- [ ] **La variante `hash` de `NavItem` n'a plus aucun lien.** `types/navigation.ts` la
+      déclare et trois composants la servent — `scrollToHash` et `handleHashClick` dans
+      `NavBar.tsx`, la prop `onHashClick` de `DesktopNav.tsx` et de `MobileMenu.tsx` —, mais
+      `lib/navigation.ts` ne produit que des routes : la branche ne s'exécute jamais. Piste :
+      la retirer, type compris, sauf si une ancre de défilement est prévue sur l'accueil —
+      auquel cas le dire là où elle est déclarée.
+
 ## Frontend — sécurité
 
 - [x] **`apiFetch` joint encore le token aux endpoints publics hors `/auth/`** — réglé par
@@ -94,6 +113,28 @@ Rien de ce qui reste ne bloque le développement.
 
 ## Backend — sécurité
 
+- [ ] **Réinitialiser son mot de passe ne coupe pas les sessions ouvertes.**
+      `PasswordResetConfirmView` appelle `set_password` puis s'arrête : les refresh déjà
+      émis restent valables jusqu'à un jour, et la rotation les prolonge. Or c'est
+      précisément le geste de qui croit sa session volée — l'attaquant qui détient un
+      refresh la garde. Piste : après `set_password`, mettre en liste noire chaque
+      `OutstandingToken` du compte (`BlacklistedToken.objects.get_or_create`), les tables
+      existant déjà depuis l'issue #72, et un test qui refuse le refresh d'avant. Le jeton
+      d'accès, lui, vit ses 15 minutes : rien ne le révoque, voir `base.py`.
+- [ ] **La confirmation de réinitialisation n'a pas de quota.** `PasswordResetConfirmView`
+      est la seule vue publique d'écriture sans `throttle_scope` : quatre en portent un, pas
+      elle. Le token HMAC ne se devine pas, l'enjeu n'est donc pas le forçage mais le coût —
+      chaque appel valide un mot de passe et le hache. Piste : un scope dédié, réglable par
+      variable comme les quatre autres, et sa ligne dans le test qui lie chaque route à son
+      scope.
+- [ ] **Aucune borne de longueur sur les mots de passe ni sur les textes longs.** `password`
+      et `new_password` sont des `CharField` sans `max_length`, `Article.content` et
+      `Contact.message` des `TextField`. Seule la limite de corps de Django (2,5 Mo) arrête
+      un envoi : un mot de passe de cette taille passe entier par les validateurs puis par
+      PBKDF2, et le formulaire de contact, public, peut écrire 2,5 Mo par message dans la
+      limite de son quota. Piste : `max_length=128` sur les deux mots de passe, et un
+      plafond dans les serializers d'article et de contact — non dans les modèles, pour ne
+      pas imposer de migration.
 - [ ] **Envoyer les emails hors du cycle de la requête.** `PasswordResetRequestView` rend
       désormais la même réponse que le compte existe ou non, mais elle n'envoie l'email que
       dans le premier cas, et l'envoi est synchrone : mesuré sur Mailpit en local, 40 ms

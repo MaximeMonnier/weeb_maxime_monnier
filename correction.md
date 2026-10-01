@@ -83,7 +83,8 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 | 7 | Navigation, liens et pages manquantes | 4 | Corrections de surface, sans dépendance |
 | 8 | Dédoublonnage de la couche UI | 5 | Refactoring pur, protégé par le lot 2 |
 | 9 | Code mort et conventions | 4 | Nettoyage final, une fois que plus rien n'y touche |
-| 10 | Documentation et clôture | 3 | Consigne ce qui a été appris |
+| 10 | Finitions issues de la revue du 2026-10-01 | 6 | Ce que la revue de fin des lots 0 à 9 a encore trouvé |
+| 11 | Documentation et clôture | 3 | Consigne ce qui a été appris |
 
 ---
 
@@ -106,7 +107,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
   par Docker comme point de montage du volume anonyme `/app/node_modules` déclaré dans
   `compose.dev.yaml`. Toute commande npm lancée depuis la machine échoue en `EACCES`.
 - **Attendu** : le dossier est rendu à l'utilisateur, `npm ci` passe, `npm run lint` et
-  `npm run build` s'exécutent. Le piège est documenté (voir 10.1).
+  `npm run build` s'exécutent. Le piège est documenté (voir 11.1).
 
 ```
 Contexte : `frontend/node_modules` est un dossier vide appartenant à root, créé par le volume
@@ -1876,7 +1877,278 @@ site. Ne la bâcle pas.
 
 ---
 
-# Lot 10 — Documentation et clôture
+# Lot 10 — Finitions issues de la revue du 2026-10-01
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| À faire | — | — | Bloc 1 — sécurité et qualité |
+
+**Origine** : revue complète de `preprod` au merge de #195 (`83163ad`), lots 0 à 9 livrés.
+Lint, 105 tests front, 78 tests back, build et `npm audit` au vert, **aucun défaut bloquant**.
+Les six tâches ci-dessous sont les défauts réels relevés et revérifiés dans le code ; chacun a
+aussi son entrée dans `AMELIORATIONS.md`, à cocher à la livraison. Écartés comme trop mineurs :
+la course rare entre « Voir plus » et une publication dans `Blog.tsx`, l'alerte d'erreur que la
+modale de création garde à sa réouverture, et l'instance d'`Autoplay` recréée à chaque rendu
+de `Slider.tsx`.
+
+**Grain de ticket** : epic + 6 sous-issues, une par tâche — chacune a un livrable propre et se
+vérifie seule. Ordre conseillé : 10.1 d'abord (le seul défaut de sécurité moyen), puis 10.2 et
+10.3, qui touchent les mêmes fichiers d'`accounts` et se feront donc **l'une après l'autre** ;
+10.4 à 10.6 sont indépendantes du back et entre elles.
+
+> **Dépendances : lot 9 clos** (epic #174 fermée, entrée au journal). Vérifier avant 10.6 que
+> les issues ouvertes #189 et #192 ne touchent pas `components/common/Navigation/`.
+
+## 10.1 — Révoquer les sessions ouvertes à la réinitialisation du mot de passe
+
+- [ ] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/tests.py`
+- **Constat** : `PasswordResetConfirmView` (`accounts/views.py:111`) appelle `set_password`
+  puis `save` (l. 133-134) et s'arrête. Les refresh déjà émis restent valables jusqu'à
+  `REFRESH_TOKEN_LIFETIME` (1 jour, `base.py:293`), et `ROTATE_REFRESH_TOKENS` les prolonge à
+  chaque renouvellement. Or réinitialiser est le geste de qui croit sa session volée : un
+  attaquant qui détient un refresh — `localStorage` lu par un script, poste partagé — garde la
+  session après le changement de mot de passe.
+- **Attendu** : après une réinitialisation réussie, tout refresh émis avant est refusé en `401`
+  au renouvellement. Le jeton d'accès, lui, vit ses 15 minutes : rien ne le révoque, c'est le
+  compromis déjà assumé dans `base.py:290`.
+
+```
+Objectif : couper toutes les sessions ouvertes d'un compte quand son mot de passe est réinitialisé.
+
+Constat :
+- backend/accounts/views.py:111 — PasswordResetConfirmView vérifie le lien, puis l. 133-134
+  appelle user.set_password() et user.save(), et rend 200. Aucun jeton n'est touché.
+- backend/config/settings/base.py:288-297 — REFRESH_TOKEN_LIFETIME = 1 jour,
+  ROTATE_REFRESH_TOKENS et BLACKLIST_AFTER_ROTATION à True. L'app
+  rest_framework_simplejwt.token_blacklist est installée (base.py:120) : les tables
+  OutstandingToken et BlacklistedToken existent et se remplissent à chaque connexion.
+- Conséquence : un refresh volé reste utilisable, et se renouvelle, après que la victime a
+  réinitialisé son mot de passe pour reprendre la main.
+
+Consulte `backend-django-drf`, puis `inventaire-avant-dev` : aucun fichier ne devrait être créé,
+dis-le dans le tableau de verdict.
+
+Travail demandé :
+1. Après set_password/save, mets en liste noire chaque OutstandingToken du compte
+   (BlacklistedToken.objects.get_or_create(token=...)). Dis-moi si tu le poses dans la vue ou
+   dans une fonction d'accounts réutilisable par le futur changement de mot de passe connecté
+   (issue #159), et recommande — pas une question ouverte.
+2. Les deux opérations (mot de passe et liste noire) doivent-elles être dans la même
+   transaction ? Tranche, en une ligne de justification.
+3. Tests dans accounts/tests.py, classe PasswordResetConfirmTests ou JWTRotationTests selon ce
+   qui se lit le mieux : un refresh obtenu AVANT la réinitialisation est refusé en 401 sur
+   login/refresh/ APRÈS ; un refresh obtenu APRÈS fonctionne. Valide le premier par mutation :
+   retire la mise en liste noire, le test doit tomber (restaure par l'édition inverse, pas par
+   git checkout).
+4. Ne touche pas au message ni au statut des réponses : la réinitialisation ne doit rien dire de
+   plus qu'aujourd'hui.
+
+Coche ensuite l'entrée correspondante de AMELIORATIONS.md (§ « Backend — sécurité ») et mets à
+jour le § « Jetons JWT » de CLAUDE.md : la révocation n'y tient plus seulement à la déconnexion.
+
+Lance la suite complète : DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test
+```
+
+## 10.2 — Poser un quota sur la confirmation de réinitialisation
+
+- [ ] **Fichiers** : `backend/accounts/views.py`, `backend/config/settings/base.py`,
+  `.env.example`, `backend/accounts/tests.py`
+- **Constat** : `PasswordResetConfirmView` est la **seule vue publique d'écriture** sans
+  `throttle_scope`. Les quatre autres en portent un (`login`, `register`, `password_reset`,
+  `contact`, réglables par `THROTTLE_*`, `base.py:277-282`). Le token HMAC ne se devine pas :
+  l'enjeu n'est pas le forçage mais le coût, chaque appel validant un mot de passe contre cinq
+  validateurs puis le hachant en PBKDF2.
+- **Attendu** : un cinquième scope, réglable par variable comme les autres, et lié à sa route
+  par le test qui existe déjà pour les quatre premiers.
+
+```
+Objectif : limiter le débit de POST /api/auth/password-reset/confirm/.
+
+Constat :
+- backend/accounts/views.py:111 — PasswordResetConfirmView déclare AllowAny mais aucun
+  throttle_scope. DEFAULT_THROTTLE_CLASSES vaut ScopedRateThrottle : sans scope, la vue n'est
+  pas limitée du tout.
+- backend/config/settings/base.py:277-282 — quatre taux, chacun lu par env_str('THROTTLE_*').
+- .env.example:87-94 — les quatre variables, commentées avec leur défaut.
+- backend/accounts/tests.py:300 — ThrottleScopeTests.test_chaque_endpoint_public_porte_son_scope
+  lie chaque route à son scope. La confirmation n'y figure pas.
+- backend/config/settings/test.py:43 — éteint les TAUX de tous les scopes déclarés, jamais la
+  classe : un nouveau scope y est éteint automatiquement.
+
+Consulte `backend-django-drf`.
+
+Travail demandé :
+1. Choisis entre un scope dédié et la réutilisation de « password_reset ». Recommande : partager
+   le scope ferait qu'une confirmation consomme le quota de la demande, et inversement.
+2. Propose un taux par défaut et justifie-le par l'usage réel : un titulaire qui se trompe deux
+   fois sur la complexité de son mot de passe ne doit pas être bloqué.
+3. Ajoute la variable THROTTLE_* à base.py et à .env.example, commentée comme ses voisines.
+4. Ajoute la route à ThrottleScopeTests, et un test de quota réarmé scope par scope sur le modèle
+   de LoginThrottleTests (accounts/tests.py:319). Mutation : retire le throttle_scope de la vue,
+   les deux doivent tomber.
+5. Mets à jour CLAUDE.md, § « Quotas de débit », qui annonce « les quatre qui en portent un ».
+
+Ne touche pas au corps des réponses de la vue.
+```
+
+## 10.3 — Borner la longueur des mots de passe et des textes longs
+
+- [ ] **Fichiers** : `backend/accounts/serializers.py`, `backend/articles/serializers.py`,
+  `backend/contact/serializers.py`, les trois `tests.py`
+- **Constat** : `password` (`accounts/serializers.py:13`) et `new_password` (l. 44) sont des
+  `CharField` sans `max_length` ; `Article.content` (`articles/models.py:9`) et
+  `Contact.message` (`contact/models.py:11`) des `TextField`, que le `ModelSerializer` laisse
+  sans plafond. Seule la limite de corps de Django (`DATA_UPLOAD_MAX_MEMORY_SIZE`, 2,5 Mo)
+  arrête un envoi : un mot de passe de cette taille traverse les cinq validateurs puis PBKDF2,
+  et le formulaire de contact, public, écrit 2,5 Mo par message dans la limite de son quota.
+- **Attendu** : chaque champ libre a un plafond applicatif qui rend un `400` lisible, sans
+  migration.
+
+```
+Objectif : donner une longueur maximale aux mots de passe et aux deux champs de texte long.
+
+Constat :
+- backend/accounts/serializers.py:13 — RegisterSerializer.password = CharField(write_only=True)
+- backend/accounts/serializers.py:44 — PasswordResetConfirmSerializer.new_password, idem
+- backend/articles/models.py:9 — content = TextField() ; ArticleSerializer ne le borne pas
+- backend/contact/models.py:11 — message = TextField() ; ContactSerializer ne le borne pas
+- Seul DATA_UPLOAD_MAX_MEMORY_SIZE (2,5 Mo par défaut) arrête aujourd'hui un corps démesuré.
+
+Consulte `backend-django-drf`.
+
+Travail demandé :
+1. Pose le plafond dans les SERIALIZERS, pas dans les modèles : un TextField n'a pas de
+   max_length en base, et en changer le type imposerait une migration pour rien. Confirme ou
+   contredis ce choix.
+2. Propose une valeur pour chacun et justifie-la : 128 est l'usage pour un mot de passe ; pour
+   content et message, pars de ce que le front laisse saisir et de ce qu'un article de blog
+   mesure réellement.
+3. Côté front, les formulaires concernés (FormSubscribe, ResetPassword, FormArticle,
+   FormContact) doivent-ils poser un maxLength sur leur champ ? Le refus de l'API arrive déjà
+   par toFormErrors : recommande, sans dupliquer une règle sur deux fichiers si ce n'est pas
+   nécessaire — et si tu la dupliques, dis où elle vit des deux côtés.
+4. Un test par champ : la longueur limite passe, limite + 1 rend 400 avec l'erreur sous la clé
+   du champ. Pour new_password, vérifie que l'erreur ne remonte pas imbriquée deux fois (voir
+   CLAUDE.md, § « Robustesse du mot de passe »).
+
+Lance la suite complète du backend et npm test si le front est touché.
+```
+
+## 10.4 — Préserver les paragraphes d'un article à l'affichage
+
+- [ ] **Fichiers** : `frontend/src/pages/Blog/ArticleDetails.tsx`, son test s'il existe
+- **Constat** : `ArticleDetails.tsx:115` rend `{recu.article.content}` dans un `<p>` nu. Le
+  `Textarea` de `FormArticle` accepte les retours à la ligne et l'API les conserve, mais le HTML
+  les écrase : un article de plusieurs paragraphes s'affiche d'un seul bloc.
+- **Attendu** : les sauts de ligne saisis se retrouvent à la lecture, sans HTML interprété.
+
+```
+Objectif : afficher un article avec les paragraphes que son auteur a saisis.
+
+Constat :
+- frontend/src/pages/Blog/ArticleDetails.tsx:115 — <p className="text-secondary">
+  {recu.article.content}</p>. Les \n du texte sont rendus comme des espaces.
+- Le contenu est saisi dans le Textarea de FormArticle et stocké tel quel par l'API.
+
+Consulte `frontend-react-ts`.
+
+Travail demandé :
+1. Recommande entre la classe Tailwind whitespace-pre-line sur le <p> existant et un découpage
+   du texte en plusieurs <p> sur les lignes vides. Critères : sémantique pour un lecteur
+   d'écran, et aucun dangerouslySetInnerHTML — React doit continuer d'échapper le texte.
+2. Si tu poses une classe, vérifie qu'index.css.test.ts reste vert : c'est un utilitaire
+   Tailwind, pas une classe écrite à la main, mais le test croise les deux.
+3. Un test rendu qui prouve que deux paragraphes saisis restent distincts. Mutation : retire la
+   correction, le test doit tomber.
+4. Regarde le résultat dans le navigateur sur un article à plusieurs paragraphes, en thème clair
+   et sombre.
+
+Coche l'entrée correspondante de AMELIORATIONS.md (§ « Frontend — UX »).
+```
+
+## 10.5 — N'afficher « ... » que sous un extrait réellement coupé
+
+- [ ] **Fichiers** : `frontend/src/components/common/Blog/Card.tsx`, et selon l'option
+  retenue `backend/articles/views.py`, `backend/articles/serializers.py`,
+  `frontend/src/types/article.ts`
+- **Constat** : `Card.tsx:19` (export `ArticleCard`) écrit `{article.excerpt}...` sans
+  condition, alors que l'API ne coupe qu'au-delà de `LONGUEUR_EXTRAIT` = 100 caractères
+  (`articles/views.py:10`, annotation `Left` l. 34). Un article court s'affiche avec des points
+  de suspension alors qu'il est entier.
+- **Attendu** : les points de suspension disent vrai.
+
+```
+Objectif : ne poser les points de suspension de la carte d'article que si l'extrait a été coupé.
+
+Constat :
+- frontend/src/components/common/Blog/Card.tsx:19 — <p>{article.excerpt}...</p>, toujours.
+- backend/articles/views.py:10 — LONGUEUR_EXTRAIT = 100 ; l. 34 — excerpt=Left("content",
+  LONGUEUR_EXTRAIT) dans get_queryset, avec un defer("content") qui garde le texte en base.
+- Voir CLAUDE.md, § « La liste et le détail des articles ne rendent pas les mêmes champs » :
+  annotate, defer et serializer n'ont de sens qu'ensemble.
+
+Consulte `inventaire-avant-dev`, `backend-django-drf` et `frontend-react-ts`.
+
+Deux options, recommande-en une :
+A. Côté front seul : comparer excerpt.length à 100. Simple, mais recopie une constante du back
+   dans le front — deux fichiers pour une règle, ce que le projet évite.
+B. Côté API : un booléen annoté dans le même get_queryset (Length("content") >
+   LONGUEUR_EXTRAIT), déclaré dans ArticleListSerializer et dans ArticleListItem. Le contrat
+   d'API change : dis ce que ça coûte.
+
+Travail demandé :
+1. Tranche, puis applique. Le defer("content") doit rester efficace : vérifie que la requête de
+   la liste ne charge toujours pas le texte entier.
+2. Tests : côté back si l'API change (un article court, un article long) ; côté front, la carte
+   avec et sans points de suspension.
+3. Si l'option B est retenue, mets à jour le § de CLAUDE.md cité plus haut.
+```
+
+## 10.6 — Retirer la variante `hash` de la navigation, que plus aucun lien n'emprunte
+
+- [ ] **Fichiers** : `frontend/src/types/navigation.ts`, `frontend/src/lib/navigation.ts`,
+  `NavBar.tsx`, `DesktopNav.tsx`, `MobileMenu.tsx`
+- **Constat** : `types/navigation.ts:2` déclare une variante `{ type: "hash" }` de `NavItem`, et
+  trois composants la servent — `scrollToHash` et `handleHashClick` (`NavBar.tsx:50-64`), la
+  prop `onHashClick` passée l. 93 et 159, la branche `<a>` de `DesktopNav.tsx:26-34` et de
+  `MobileMenu.tsx:56-65`. Mais `lib/navigation.ts` ne produit que des routes, et `navItems`
+  (`NavBar.tsx:66`) vaut `[LIEN_BLOG, LIEN_A_PROPOS, LIEN_CONTACT]` : la branche ne s'exécute
+  jamais.
+- **Attendu** : `NavItem` décrit ce que la navigation sert vraiment, et plus aucune prop ne
+  traverse trois composants pour rien.
+
+```
+Objectif : supprimer la branche de navigation par ancre, que plus aucun lien n'emprunte.
+
+Constat :
+- frontend/src/types/navigation.ts:2 — | { type: "hash"; href: string; label: string }
+- frontend/src/components/common/Navigation/NavBar.tsx:50-64 — scrollToHash et handleHashClick ;
+  l. 93 et 159 — onHashClick passé à DesktopNav et MobileMenu.
+- DesktopNav.tsx:7, 10, 26-34 et MobileMenu.tsx:13, 22, 56-65 — la prop et la branche <a>.
+- frontend/src/lib/navigation.ts:3-6 — LienPartage = Extract<NavItem, { type: "route" }>,
+  commenté par l'existence de la variante hash. Sans elle, le Extract n'a plus d'objet.
+- Aucune entrée de lib/navigation.ts ni de navItems ne porte type: "hash".
+
+Consulte `frontend-react-ts` et `commentaires-code`.
+
+Travail demandé :
+1. Vérifie par grep sur tout frontend/src (et e2e/) qu'aucun lien hash n'est construit
+   ailleurs, ni qu'une ancre de défilement soit prévue sur l'accueil (issues ouvertes
+   comprises). Si oui, arrête-toi et dis-le.
+2. Retire la variante, les deux fonctions, la prop et les deux branches. Décide si NavItem garde
+   son champ discriminant `type` une fois réduit à une variante, et si LienPartage et son
+   commentaire disparaissent au profit de NavItem — recommande.
+3. Refactoring PUR : rien ne change à l'écran. NavBar.test.tsx et Footer.test.tsx doivent
+   rester verts sans modification ; index.css.test.ts aussi (la classe nav-link garde ses
+   lecteurs dans la branche route).
+4. npm run lint, npm test et npm run build : montre la sortie.
+
+Coche l'entrée correspondante de AMELIORATIONS.md (§ « Frontend — code mort »).
+```
+
+---
+
+# Lot 11 — Documentation et clôture
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
@@ -1886,7 +2158,7 @@ site. Ne la bâcle pas.
 
 > **Dépendances : tous les lots précédents.**
 
-## 10.1 — Consigner le piège `node_modules` et les écarts de `CLAUDE.md`
+## 11.1 — Consigner le piège `node_modules` et les écarts de `CLAUDE.md`
 
 - [ ] **Fichiers** : `CLAUDE.md`, `README.md`
 - **Constat** : `CLAUDE.md` recense « six pièges de la pile » Docker, mais pas celui qui bloque
@@ -1894,7 +2166,7 @@ site. Ne la bâcle pas.
   `compose.dev.yaml` crée côté hôte un dossier vide appartenant à `root`, ce qui fait
   échouer toute commande npm ultérieure. Le fichier annonce par ailleurs `cx()` « redéfini dans
   trois composants `ui/` » alors qu'il l'est dans quatre.
-- **Attendu** : la documentation décrit le dépôt tel qu'il est après les lots 0 à 9.
+- **Attendu** : la documentation décrit le dépôt tel qu'il est après les lots 0 à 10.
 
 ```
 Objectif : remettre CLAUDE.md et le README en accord avec le dépôt.
@@ -1915,7 +2187,7 @@ Objectif : remettre CLAUDE.md et le README en accord avec le dépôt.
 Consulte la skill `style-documentation` avant d'écrire.
 
 Travail demandé :
-1. Relis CLAUDE.md ligne à ligne contre l'état réel du dépôt après les lots 0 à 9, et liste-moi
+1. Relis CLAUDE.md ligne à ligne contre l'état réel du dépôt après les lots 0 à 10, et liste-moi
    TOUS les écarts avant de corriger — pas seulement les quatre ci-dessus.
 2. Décide, pour chaque piège Docker, s'il relève de CLAUDE.md, du README, ou des deux : le README
    s'adresse à un humain qui installe le projet, CLAUDE.md à un agent qui code dedans.
@@ -1926,7 +2198,7 @@ Ne réécris pas ce qui est juste : ces deux fichiers sont d'excellente qualité
 mise à jour ciblée, pas une refonte.
 ```
 
-## 10.2 — Mettre à jour `AMELIORATIONS.md` et le `README`
+## 11.2 — Mettre à jour `AMELIORATIONS.md` et le `README`
 
 - [ ] **Fichiers** : `AMELIORATIONS.md`, `README.md`
 - **Constat** : `AMELIORATIONS.md` ne contient qu'une seule entrée — les toasts — traitée par la
@@ -1962,7 +2234,7 @@ Travail demandé :
    par le code après les corrections. C'est une règle explicite du projet.
 ```
 
-## 10.3 — Revue finale et clôture
+## 11.3 — Revue finale et clôture
 
 - [ ] **Fichiers** : l'ensemble du diff
 - **Attendu** : un verdict `OK` sur les six axes, puis les issues fermées à la main.
@@ -2047,9 +2319,15 @@ Cette skill ne pousse jamais rien : elle lit et elle rapporte. Le push reste ma 
 | 9.2 | Neuf classes CSS mortes | Code mort | 4-8 | Bloc 1 — qualité |
 | 9.3 | Commentaires de tutoriel et JSDoc anglais | Conventions | 4-8 | Bloc 1 — qualité |
 | 9.4 | Contenu de remplissage visible | Moyen (vitrine) | — | Bloc 1 — qualité |
-| 10.1 | `CLAUDE.md` et README en retard sur le code | Documentation | 0-9 | Bloc 1 + 2 — documentation |
-| 10.2 | `AMELIORATIONS.md` et README | Documentation | 0-9 | Bloc 1 + 2 — documentation |
-| 10.3 | Revue finale et fermeture des issues | Clôture | tout | Bloc 1 + 2 — documentation |
+| 10.1 | Réinitialisation sans révocation des sessions | Moyen (sécurité) | 9 | Bloc 1 — sécurité |
+| 10.2 | Confirmation de réinitialisation sans quota | Faible | 10.1 | Bloc 1 — sécurité |
+| 10.3 | Mots de passe et textes longs sans plafond | Faible | 10.2 | Bloc 1 — sécurité |
+| 10.4 | Paragraphes d'un article perdus à l'affichage | Moyen (UX) | 9 | Bloc 1 — qualité |
+| 10.5 | « ... » sous un extrait non coupé | Faible (UX) | 9 | Bloc 1 — qualité |
+| 10.6 | Variante `hash` de la navigation sans lien | Code mort | 9 | Bloc 1 — qualité |
+| 11.1 | `CLAUDE.md` et README en retard sur le code | Documentation | 0-10 | Bloc 1 + 2 — documentation |
+| 11.2 | `AMELIORATIONS.md` et README | Documentation | 0-10 | Bloc 1 + 2 — documentation |
+| 11.3 | Revue finale et fermeture des issues | Clôture | tout | Bloc 1 + 2 — documentation |
 
 Cinq tâches ne portent pas le bloc de leur lot : **0.2** est une remédiation de vulnérabilités
 avec preuve avant/après ; **3.3** et **3.4** relèvent de la qualité dans un lot classé
