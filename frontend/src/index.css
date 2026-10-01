@@ -9,19 +9,19 @@
     0.18 0.07 250
   ); /* #0F172A - Fond principal très sombre */
   --color-dark-bg-secondary: oklch(0.25 0.033 264);
-  /* #1E293B - Sections/cards */
+  /* #1E293B - Sections et cartes */
   --color-dark-bg-tertiary: oklch(
     0.3 0.02 250
-  ); /* #334155 - Hover/interactif */
-  --color-dark-bg-input: oklch(0.22 0.02 250); /* #1E293B - Inputs formulaire */
+  ); /* #334155 - Survol et interactif */
+  --color-dark-bg-input: oklch(0.22 0.02 250); /* #1E293B - Champs de saisie */
 
-  --color-dark-text-primary: oklch(1 0 0); /* #FFFFFF - Titres, labels */
+  --color-dark-text-primary: oklch(1 0 0); /* #FFFFFF - Titres, étiquettes */
   --color-dark-text-secondary: oklch(
     0.91 0.01 250
   ); /* #E2E8F0 - Descriptions */
   --color-dark-text-tertiary: oklch(
     0.68 0.02 250
-  ); /* #94A3B8 - Hints, placeholders */
+  ); /* #94A3B8 - Indications et textes d'invite */
   --color-dark-text-muted: oklch(0.52 0.03 250); /* #64748B - Désactivé */
 
   --color-dark-border-primary: oklch(0.3 0.02 250); /* #334155 */
@@ -31,7 +31,7 @@
   --color-dark-accent-primary: oklch(
     0.7 0.27 305
   ); /* #A855F7 - Violet principal */
-  --color-dark-accent-hover: oklch(0.64 0.29 305); /* #9333EA - Hover */
+  --color-dark-accent-hover: oklch(0.64 0.29 305); /* #9333EA - Survol */
 
   --color-dark-success: oklch(0.68 0.18 155); /* #10B981 */
   --color-dark-error: oklch(0.63 0.24 25); /* #EF4444 */
@@ -61,7 +61,7 @@
   --text-body: 1rem;
   --text-body-sm: 0.875rem;
 
-  --radius-input: 0.5rem; /* 8px pour inputs */
+  --radius-input: 0.5rem; /* 8px pour les champs */
   --radius-button: 0.5rem; /* 8px pour boutons */
 
   --shadow-dark-md: 0 4px 6px -1px rgb(0 0 0 / 0.5);
