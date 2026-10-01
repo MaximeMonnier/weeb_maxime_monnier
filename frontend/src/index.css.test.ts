@@ -106,8 +106,7 @@ function utilitaireDe(jeton: string): string | null {
 function variantesDe(source: string) {
   // Le découpage prend aussi les guillemets, et pas seulement les espaces : une
   // classe posée dans un `${}` de gabarit garderait les siens et échapperait au
-  // test d'identifiant. Reste hors de portée, faute d'analyser le TypeScript : un
-  // jeton coupé en deux par une concaténation, `"hover:" + "bg-tertiary"`.
+  // test d'identifiant. Ce qui échappe encore est listé au README.
   return chainesDe(source)
     .flatMap((chaine) => chaine.split(/[\s"'`]+/))
     .map((jeton) => ({ jeton, utilitaire: utilitaireDe(jeton) }))
