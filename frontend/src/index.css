@@ -420,27 +420,8 @@
   }
 
   /* ==========================================
-     COMPONENTS - Sections
+     COMPONENTS - Conteneur
      ========================================== */
-
-  .section {
-    padding-top: 4rem;
-    padding-bottom: 4rem;
-  }
-
-  @media (min-width: 768px) {
-    .section {
-      padding-top: 5rem;
-      padding-bottom: 5rem;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .section {
-      padding-top: 6rem;
-      padding-bottom: 6rem;
-    }
-  }
 
   .container-custom {
     max-width: 80rem;
@@ -539,13 +520,6 @@
     background-color: var(--color-dark-bg-secondary);
   }
 
-  .bg-tertiary {
-    background-color: var(--color-light-bg-tertiary);
-  }
-  .dark .bg-tertiary {
-    background-color: var(--color-dark-bg-tertiary);
-  }
-
   /* Text colors */
   .text-primary {
     color: var(--color-light-text-primary);
@@ -581,13 +555,6 @@
   }
   .dark .border-primary {
     border-color: var(--color-dark-border-primary);
-  }
-
-  .border-secondary {
-    border-color: var(--color-light-border-secondary);
-  }
-  .dark .border-secondary {
-    border-color: var(--color-dark-border-secondary);
   }
 
   /* Accent helpers (optionnel mais pratique) */
