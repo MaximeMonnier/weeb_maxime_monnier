@@ -949,11 +949,12 @@ fichier, qui vérifie que la lecture a bien eu lieu avant de conclure que tout v
 Le même fichier refuse l'inverse : une classe de la feuille que plus aucune source ne pose.
 Elle ne fait tomber ni le lint, ni le typage, ni le build, et trois ont vécu ainsi jusqu'à ce
 qu'un inventaire à la main les trouve. Le cas croise les sélecteurs de classe de la feuille
-avec les jetons lus dans `src/`, et nomme celle qui n'a plus personne. Deux précautions le
-rendent juste : les fichiers de test sont écartés des lecteurs, l'un d'eux pouvant citer une
+avec les jetons lus dans `src/`, et nomme celle qui n'a plus personne. Deux choix de lecture
+le délimitent : les fichiers de test sont écartés des lecteurs, l'un d'eux pouvant citer une
 classe pour vérifier qu'elle est refusée ; et `frontend/index.html` est lu en plus des
-sources, `.dark` n'étant posée par aucun `className` mais par `hooks/useTheme.ts` et par le
-`class` de la page, hors de la glob.
+sources, `.dark` n'étant posée par aucun `className` — `hooks/useTheme.ts` en écrit
+aujourd'hui le nom en toutes lettres, le `class` de la page le portera encore le jour où le
+hook cessera.
 
 Il lit les chaînes littérales par un parcours caractère par caractère et non par une expression
 régulière, l'apostrophe droite du français — `alt="Vue d'une interface"` — faisant perdre à
