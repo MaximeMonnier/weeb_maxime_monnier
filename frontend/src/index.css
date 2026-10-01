@@ -520,13 +520,6 @@
     background-color: var(--color-dark-bg-secondary);
   }
 
-  .bg-tertiary {
-    background-color: var(--color-light-bg-tertiary);
-  }
-  .dark .bg-tertiary {
-    background-color: var(--color-dark-bg-tertiary);
-  }
-
   /* Text colors */
   .text-primary {
     color: var(--color-light-text-primary);
@@ -562,13 +555,6 @@
   }
   .dark .border-primary {
     border-color: var(--color-dark-border-primary);
-  }
-
-  .border-secondary {
-    border-color: var(--color-light-border-secondary);
-  }
-  .dark .border-secondary {
-    border-color: var(--color-dark-border-secondary);
   }
 
   /* Accent helpers (optionnel mais pratique) */
