@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 
 // La source d'`index.css`, et non une liste recopiée. L'import n'est lu que grâce
 // au `css: true` de `vite.config.ts` : sans lui Vitest rend une chaîne vide, d'où
-// le second cas, qui refuse de conclure sans avoir lu.
+// le dernier cas, qui refuse de conclure sans avoir lu.
 import sourceDuCss from "./index.css?raw";
+
+// Le `class="dark"` de la page pose le thème avant que React ne monte, et la glob
+// ci-dessous ne sort pas de `src/` : sans cette lecture, `.dark` paraîtrait orpheline.
+import sourceDuHtml from "../index.html?raw";
 
 // Tout le front, faute d'un endroit où les listes de classes seraient réunies.
 const SOURCES = import.meta.glob<string>("./**/*.{ts,tsx}", {
@@ -78,6 +82,14 @@ function chainesDe(source: string): string[] {
   return chaines;
 }
 
+/** Rend les jetons d'une source TypeScript, variantes et faux positifs compris. */
+function jetonsDe(source: string): string[] {
+  // Le découpage prend aussi les guillemets, et pas seulement les espaces : une
+  // classe posée dans un `${}` de gabarit garderait les siens et échapperait au
+  // test d'identifiant. Ce qui échappe encore est listé au README.
+  return chainesDe(source).flatMap((chaine) => chaine.split(/[\s"'`]+/));
+}
+
 /** Rend l'utilitaire visé par un jeton de classe, ou null s'il n'en porte pas. */
 function utilitaireDe(jeton: string): string | null {
   // Le découpage se fait au dernier deux-points HORS crochets : Tailwind en met
@@ -104,15 +116,20 @@ function utilitaireDe(jeton: string): string | null {
 
 /** Rend les couples jeton/utilitaire porteurs d'une variante, dans un fichier. */
 function variantesDe(source: string) {
-  // Le découpage prend aussi les guillemets, et pas seulement les espaces : une
-  // classe posée dans un `${}` de gabarit garderait les siens et échapperait au
-  // test d'identifiant. Ce qui échappe encore est listé au README.
-  return chainesDe(source)
-    .flatMap((chaine) => chaine.split(/[\s"'`]+/))
+  return jetonsDe(source)
     .map((jeton) => ({ jeton, utilitaire: utilitaireDe(jeton) }))
     .filter((v): v is { jeton: string; utilitaire: string } =>
       Boolean(v.utilitaire),
     );
+}
+
+/** Rend les classes posées par les attributs `class` d'une source HTML. */
+function classesDuHtml(source: string): string[] {
+  // Une expression régulière suffit ici, et `chainesDe` ne conviendrait pas : il
+  // saute tout ce qui suit `//`, qui en HTML ouvre une URL et non un commentaire.
+  return [...source.matchAll(/\sclass\s*=\s*["']([^"']*)["']/g)]
+    .flatMap(([, valeur]) => valeur.split(/\s+/))
+    .filter(Boolean);
 }
 
 // Les fichiers de test s'écartent : l'un d'eux peut citer une classe fautive
@@ -124,6 +141,14 @@ const FICHIERS = Object.entries(SOURCES).filter(
 const VARIANTES = FICHIERS.flatMap(([chemin, source]) =>
   variantesDe(source).map((v) => ({ chemin, ...v })),
 );
+
+// Un jeton nu suffit : aucune classe maison ne porte de variante, le premier cas
+// le refuse. Les faux positifs — une phrase, une adresse — n'y font aucun mal :
+// ils ne peuvent qu'ajouter un lecteur à un nom qu'aucune règle ne porte.
+const CLASSES_POSEES = new Set([
+  ...FICHIERS.flatMap(([, source]) => jetonsDe(source)),
+  ...classesDuHtml(sourceDuHtml),
+]);
 
 describe("index.css", () => {
   // Tailwind v4 ne décline de variante que sur ses propres utilitaires : une classe
@@ -137,11 +162,24 @@ describe("index.css", () => {
     expect(fautifs).toEqual([]);
   });
 
-  // Sans ce cas, une glob muette ou un extracteur cassé rendrait le précédent
-  // vert sans avoir rien lu.
+  // Une classe qui perd son dernier lecteur ne fait tomber ni le lint, ni le typage,
+  // ni le build : trois ont vécu ainsi de #176 à #183, et rien d'autre ne les voit.
+  it("ne garde aucune classe sans lecteur", () => {
+    const orphelines = [...CLASSES_MAISON].filter(
+      (nom) => !CLASSES_POSEES.has(nom),
+    );
+
+    expect(orphelines).toEqual([]);
+  });
+
+  // Sans ce cas, une glob muette ou un extracteur cassé rendrait les précédents
+  // verts sans avoir rien lu.
   it("lit bien les sources qu'il prétend contrôler", () => {
     expect(CLASSES_MAISON).toContain("nav-link");
     expect(FICHIERS.length).toBeGreaterThan(40);
     expect(VARIANTES.map(({ jeton }) => jeton)).toContain("hover:underline");
+    // `.dark` n'a pas d'autre lecteur que `useTheme.ts` : la page lue, le jour où
+    // le hook nommerait sa classe autrement, reste seule à la poser.
+    expect(classesDuHtml(sourceDuHtml)).toContain("dark");
   });
 });
