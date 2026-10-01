@@ -17,9 +17,9 @@ const SOURCES = import.meta.glob<string>("./**/*.{ts,tsx}", {
   import: "default",
 });
 
-// Aucune valeur de propriété du fichier ne porte d'identifiant pointé — ni
-// `0.75rem` ni `oklch(0.97 0 0)` n'ont de lettre après le point. Tout `.nom`
-// du fichier est donc un sélecteur de classe.
+// Aucune valeur de propriété ne porte d'identifiant pointé : ni `0.75rem` ni
+// `oklch(0.97 0 0)` n'a de lettre après le point. Tout `.nom` compte donc pour une
+// classe maison, commentaires compris — un chemin avec son extension en ajouterait une.
 const CLASSES_MAISON = new Set(
   [...sourceDuCss.matchAll(/\.([a-zA-Z][\w-]*)/g)].map(([, nom]) => nom),
 );
