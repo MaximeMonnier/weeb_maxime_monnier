@@ -1,22 +1,10 @@
 @import "tailwindcss";
 
-/* ==========================================
-   CUSTOM DARK MODE VARIANT
-   ========================================== */
-
-/* Active dark mode avec la classe .dark sur le html */
+/* La classe .dark est posée sur <html> par le hook de thème, jamais ici. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ==========================================
-   THEME VARIABLES - Tailwind v4
-   ========================================== */
-
 @theme {
-  /* ==========================================
-     COULEURS DARK MODE (basé sur la maquette Weeb)
-     ========================================== */
-
-  /* Backgrounds dark */
+  /* Couleurs du thème sombre, relevées sur la maquette Weeb (hexadécimal en fin de ligne). */
   --color-dark-bg-primary: oklch(
     0.18 0.07 250
   ); /* #0F172A - Fond principal très sombre */
@@ -27,7 +15,6 @@
   ); /* #334155 - Hover/interactif */
   --color-dark-bg-input: oklch(0.22 0.02 250); /* #1E293B - Inputs formulaire */
 
-  /* Textes dark */
   --color-dark-text-primary: oklch(1 0 0); /* #FFFFFF - Titres, labels */
   --color-dark-text-secondary: oklch(
     0.91 0.01 250
@@ -37,12 +24,10 @@
   ); /* #94A3B8 - Hints, placeholders */
   --color-dark-text-muted: oklch(0.52 0.03 250); /* #64748B - Désactivé */
 
-  /* Bordures dark */
   --color-dark-border-primary: oklch(0.3 0.02 250); /* #334155 */
   --color-dark-border-secondary: oklch(0.38 0.02 250); /* #475569 */
   --color-dark-border-input: oklch(0.38 0.02 250); /* #475569 */
 
-  /* Accents dark */
   --color-dark-accent-primary: oklch(
     0.7 0.27 305
   ); /* #A855F7 - Violet principal */
@@ -52,48 +37,38 @@
     0.64 0.14 215
   ); /* #06B6D4 - Cyan liens */
 
-  /* États dark */
   --color-dark-success: oklch(0.68 0.18 155); /* #10B981 */
   --color-dark-error: oklch(0.63 0.24 25); /* #EF4444 */
   --color-dark-warning: oklch(0.75 0.19 75); /* #F59E0B */
   --color-dark-info: oklch(0.6 0.2 260); /* #3B82F6 */
 
-  /* ==========================================
-     COULEURS LIGHT MODE (inversé pour light)
-     ========================================== */
-
-  /* Backgrounds light */
+  /* Couleurs du thème clair, en regard des sombres ligne pour ligne. */
   --color-light-bg-primary: oklch(1 0 0); /* #FFFFFF - Blanc */
   --color-light-bg-secondary: oklch(0.97 0.014 264); /* #F3F6FF */
   --color-light-bg-tertiary: oklch(0.97 0 0); /* #F1F5F9 */
   --color-light-bg-input: oklch(1 0 0); /* #FFFFFF */
 
-  /* Textes light */
   --color-light-text-primary: oklch(0.15 0.01 250); /* #0F172A - Sombre */
   --color-light-text-secondary: oklch(0.3 0.02 250); /* #334155 */
   --color-light-text-tertiary: oklch(0.52 0.03 250); /* #64748B */
   --color-light-text-muted: oklch(0.68 0.02 250); /* #94A3B8 */
 
-  /* Bordures light */
   --color-light-border-primary: oklch(0.91 0.01 250); /* #E2E8F0 */
   --color-light-border-secondary: oklch(0.85 0.01 250); /* #CBD5E1 */
   --color-light-border-input: oklch(0.85 0.01 250); /* #CBD5E1 */
 
-  /* Accents light (plus foncés pour contraste) */
+  /* Accents et états plus foncés qu'en sombre : il faut plus de contraste sur fond blanc. */
   --color-light-accent-primary: oklch(0.64 0.29 305); /* #9333EA - Plus foncé */
   --color-light-accent-hover: oklch(0.56 0.3 305); /* #7E22CE */
   --color-light-accent-light: oklch(0.7 0.27 305); /* #A855F7 */
   --color-light-accent-secondary: oklch(0.55 0.15 215); /* #0891B2 - Cyan */
 
-  /* États light (plus foncés pour contraste) */
   --color-light-success: oklch(0.58 0.18 155); /* #059669 */
   --color-light-error: oklch(0.55 0.24 25); /* #DC2626 */
   --color-light-warning: oklch(0.65 0.19 75); /* #D97706 */
   --color-light-info: oklch(0.54 0.22 260); /* #2563EB */
 
-  /* ==========================================
-     TYPOGRAPHIE CUSTOM
-     ========================================== */
+  /* Le suffixe --line-height est la forme Tailwind v4 : `text-hero` pose alors les deux. */
 
   --text-hero: 3rem;
   --text-hero--line-height: 1.2;
@@ -119,36 +94,23 @@
   --text-caption: 0.75rem;
   --text-caption--line-height: 1.5;
 
-  /* ==========================================
-     BORDER RADIUS CUSTOM
-     ========================================== */
-
   --radius-card: 0.75rem; /* 12px pour cards */
   --radius-input: 0.5rem; /* 8px pour inputs */
   --radius-button: 0.5rem; /* 8px pour boutons */
 
-  /* ==========================================
-     SHADOWS CUSTOM
-     ========================================== */
-
-  /* Shadows pour dark mode */
   --shadow-dark-sm: 0 1px 2px 0 rgb(0 0 0 / 0.5);
   --shadow-dark-md: 0 4px 6px -1px rgb(0 0 0 / 0.5);
   --shadow-dark-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
   --shadow-dark-xl: 0 20px 25px -5px rgb(0 0 0 / 0.5);
 
-  /* Focus states */
   --shadow-focus-primary: 0 0 0 3px rgb(168 85 247 / 0.15);
   --shadow-focus-error: 0 0 0 3px rgb(239 68 68 / 0.15);
   --shadow-focus-success: 0 0 0 3px rgb(16 185 129 / 0.15);
 
-  /* Glow effects */
   --shadow-glow-primary: 0 0 20px rgb(168 85 247 / 0.3);
   --shadow-glow-secondary: 0 0 20px rgb(6 182 212 / 0.3);
 
-  /* ==========================================
-     ANIMATIONS CUSTOM
-     ========================================== */
+  /* Rien de ce bloc ne sort du build tant qu'aucune source ne pose la classe animate-* qui le cite. */
 
   --animate-fade-in: fade-in 0.3s ease-out;
   --animate-slide-up: slide-up 0.3s ease-out;
@@ -186,10 +148,6 @@
   }
 }
 
-/* ==========================================
-   BASE STYLES
-   ========================================== */
-
 @layer base {
   body {
     background-color: var(--color-light-bg-primary);
@@ -204,7 +162,6 @@
     color: var(--color-dark-text-primary);
   }
 
-  /* Focus visible pour accessibilité */
   *:focus-visible {
     outline: 2px solid var(--color-light-accent-primary);
     outline-offset: 2px;
@@ -215,12 +172,7 @@
   }
 }
 
-/* ==========================================
-   COMPONENTS - Formulaire
-   ========================================== */
-
 @layer components {
-  /* Labels */
   .form-label {
     display: block;
     margin-bottom: 0.5rem;
@@ -242,7 +194,6 @@
     color: var(--color-dark-error);
   }
 
-  /* Inputs & Textarea */
   .form-input {
     width: 100%;
     padding: 0.75rem 1rem;
@@ -316,13 +267,11 @@
     background-color: var(--color-dark-bg-tertiary);
   }
 
-  /* Textarea spécifique */
   .form-textarea {
     min-height: 120px;
     resize: vertical;
   }
 
-  /* Messages */
   .form-error-message {
     margin-top: 0.25rem;
     font-size: var(--text-body-sm);
@@ -387,10 +336,6 @@
     color: var(--color-dark-text-tertiary);
   }
 
-  /* ==========================================
-     COMPONENTS - Navigation
-     ========================================== */
-
   .nav-link {
     padding: 0.5rem 1rem;
     color: var(--color-light-text-secondary);
@@ -419,10 +364,6 @@
     color: var(--color-dark-accent-primary);
   }
 
-  /* ==========================================
-     COMPONENTS - Conteneur
-     ========================================== */
-
   .container-custom {
     max-width: 80rem;
     margin-left: auto;
@@ -444,10 +385,6 @@
       padding-right: 2rem;
     }
   }
-
-  /* ==========================================
-     COMPONENTS - Footer
-     ========================================== */
 
   .footer {
     background-color: var(--color-light-bg-secondary);
@@ -480,18 +417,13 @@
   }
 }
 
-/* ==========================================
-   UTILITIES - Classes utilitaires custom
-   ========================================== */
-
 @layer utilities {
-  /* Touch targets minimum (accessibilité) */
+  /* 44 px : la plus petite cible qu'un doigt atteint sans viser. */
   .touch-target {
     min-width: 44px;
     min-height: 44px;
   }
 
-  /* Focus ring */
   .focus-ring-primary:focus {
     outline: 2px solid var(--color-light-accent-primary);
     outline-offset: 2px;
@@ -500,12 +432,8 @@
   .dark .focus-ring-primary:focus {
     outline-color: var(--color-dark-accent-primary);
   }
-  /* ==========================================
-     DESIGN TOKENS - Background / Text / Border
-     (évite les classes arbitraires)
-     ========================================== */
+  /* Classes écrites à la main : aucune variante ne s'y pose, un hover: ne produirait aucune règle. */
 
-  /* Backgrounds */
   .bg-primary {
     background-color: var(--color-light-bg-primary);
   }
@@ -520,7 +448,6 @@
     background-color: var(--color-dark-bg-secondary);
   }
 
-  /* Text colors */
   .text-primary {
     color: var(--color-light-text-primary);
   }
@@ -549,7 +476,6 @@
     color: var(--color-dark-text-muted);
   }
 
-  /* Borders */
   .border-primary {
     border-color: var(--color-light-border-primary);
   }
@@ -557,7 +483,6 @@
     border-color: var(--color-dark-border-primary);
   }
 
-  /* Accent helpers (optionnel mais pratique) */
   .text-accent {
     color: var(--color-light-accent-primary);
   }
@@ -565,9 +490,7 @@
     color: var(--color-dark-accent-primary);
   }
 }
-/* ==========================================
-   SLDIER
-   ========================================== */
+/* Carrousel : noms repris de la documentation d'Embla, hors des conventions du projet. */
 
 .embla__viewport {
   overflow: hidden;
@@ -582,9 +505,7 @@
   flex: 0 0 100%;
   min-width: 0;
 }
-/* ==========================================
-   ANNIMLATIONS BANNER
-   ========================================== */
+/* Bandeau défilant de l'accueil. Déclaré hors de @theme, donc toujours émis. */
 .marquee-mask {
   overflow: hidden;
   width: 100%;
