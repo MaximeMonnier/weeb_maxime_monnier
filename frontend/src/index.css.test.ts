@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-// La source d'`index.css`, et non une liste recopiée : une classe ajoutée là-bas
-// entre d'elle-même dans le contrôle. L'import n'est lu que grâce au `css: true`
-// de `vite.config.ts` — sans lui Vitest rend une chaîne vide, et le contrôle
-// passerait sans avoir rien lu.
+// La source d'`index.css`, et non une liste recopiée. L'import n'est lu que grâce
+// au `css: true` de `vite.config.ts` : sans lui Vitest rend une chaîne vide, d'où
+// le second cas, qui refuse de conclure sans avoir lu.
 import sourceDuCss from "./index.css?raw";
 
 // Tout le front, faute d'un endroit où les listes de classes seraient réunies.
@@ -20,6 +19,51 @@ const CLASSES_MAISON = new Set(
   [...sourceDuCss.matchAll(/\.([a-zA-Z][\w-]*)/g)].map(([, nom]) => nom),
 );
 
+/** Rend le contenu de chaque chaîne littérale d'une source TypeScript. */
+function chainesDe(source: string): string[] {
+  // Un parcours caractère par caractère, et non une expression régulière :
+  // `alt="Vue d'une interface"` lui ferait apparier l'apostrophe, et toutes les
+  // classes de la ligne partiraient avec, sans que rien ne le signale.
+  const chaines: string[] = [];
+  let i = 0;
+
+  while (i < source.length) {
+    // Les commentaires sont sautés : l'un d'eux peut citer une classe fautive pour
+    // en expliquer le piège, et l'apostrophe du français y ouvrirait une chaîne.
+    if (source[i] === "/" && source[i + 1] === "/") {
+      while (i < source.length && source[i] !== "\n") i += 1;
+      continue;
+    }
+    if (source[i] === "/" && source[i + 1] === "*") {
+      const fin = source.indexOf("*/", i + 2);
+      if (fin === -1) break;
+      i = fin + 2;
+      continue;
+    }
+
+    const guillemet = source[i];
+    if (guillemet !== '"' && guillemet !== "'" && guillemet !== "`") {
+      i += 1;
+      continue;
+    }
+
+    i += 1;
+    let contenu = "";
+    while (i < source.length && source[i] !== guillemet) {
+      // Seul le gabarit passe la ligne ; ailleurs un saut signale une chaîne non
+      // terminée, donc une source qui ne compile pas.
+      if (source[i] === "\n" && guillemet !== "`") break;
+      if (source[i] === "\\") i += 1;
+      contenu += source[i];
+      i += 1;
+    }
+    i += 1;
+    chaines.push(contenu);
+  }
+
+  return chaines;
+}
+
 /** Rend l'utilitaire visé par un jeton de classe, ou null s'il n'en porte pas. */
 function utilitaireDe(jeton: string): string | null {
   // Le découpage se fait au dernier deux-points HORS crochets : Tailwind en met
@@ -34,18 +78,22 @@ function utilitaireDe(jeton: string): string | null {
   }
   if (coupe === -1) return null;
 
-  // Un utilitaire est un identifiant nu. Ce qui n'en est pas un vient d'une
-  // chaîne qui n'est pas une liste de classes : une adresse, une phrase.
-  const utilitaire = jeton.slice(coupe + 1);
+  // Un utilitaire est un identifiant nu, le `!` d'importance et le modificateur
+  // d'opacité retirés. Ce qui n'en est pas un vient d'une chaîne qui n'est pas une
+  // liste de classes : une adresse, une phrase.
+  const utilitaire = jeton
+    .slice(coupe + 1)
+    .replace(/!$/, "")
+    .replace(/\/[^/]*$/, "");
   return /^[a-z][a-z0-9-]*$/.test(utilitaire) ? utilitaire : null;
 }
 
 /** Rend les couples jeton/utilitaire porteurs d'une variante, dans un fichier. */
 function variantesDe(source: string) {
-  // Les chaînes littérales seulement, jamais les commentaires : un commentaire
-  // qui cite `hover:bg-tertiary` pour en expliquer le piège ferait tomber le test.
-  return [...source.matchAll(/(["'`])([^"'`\n]*)\1/g)]
-    .flatMap(([, , chaine]) => chaine.split(/\s+/))
+  // Reste hors de portée, faute d'évaluer les expressions : un jeton coupé en deux
+  // par une concaténation, `"hover:" + "bg-tertiary"`.
+  return chainesDe(source)
+    .flatMap((chaine) => chaine.split(/\s+/))
     .map((jeton) => ({ jeton, utilitaire: utilitaireDe(jeton) }))
     .filter((v): v is { jeton: string; utilitaire: string } =>
       Boolean(v.utilitaire),
@@ -63,10 +111,9 @@ const VARIANTES = FICHIERS.flatMap(([chemin, source]) =>
 );
 
 describe("index.css", () => {
-  // Tailwind v4 ne décline de variante que sur les utilitaires qu'il connaît.
-  // Une classe écrite à la main dans `@layer utilities` n'en est pas un : la
-  // variante posée dessus ne produit aucune règle, et rien dans le build, le
-  // lint ou le typage ne le dit. Six ont ainsi vécu jusqu'à l'issue #184.
+  // Tailwind v4 ne décline de variante que sur ses propres utilitaires : une classe
+  // écrite à la main dans `index.css` n'en est pas un, et la variante posée dessus ne
+  // produit aucune règle. Six ont vécu ainsi jusqu'à #184. Détail au README.
   it("ne laisse aucune variante posée sur une classe écrite à la main", () => {
     const fautifs = VARIANTES.filter(({ utilitaire }) =>
       CLASSES_MAISON.has(utilitaire),
