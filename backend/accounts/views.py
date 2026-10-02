@@ -22,6 +22,7 @@ from .serializers import (
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
     PasswordChangeSerializer,
+    LoginSerializer,
     RefreshSerializer,
 )
 
@@ -82,9 +83,10 @@ class LoginView(TokenObtainPairView):
     # Redit alors que simplejwt le pose déjà : la convention du dépôt veut qu'une
     # vue publique le déclare, une vue muette étant fermée par défaut.
     permission_classes = [AllowAny]
-    # La seule raison de sous-classer : `throttle_scope` est un attribut de vue, et
-    # celle de simplejwt est importée. Le compteur compte les appels, pas les échecs.
+    # Sous-classée pour deux attributs que la vue de simplejwt, importée, ne porte pas.
+    # Le compteur compte les appels, pas les échecs.
     throttle_scope = "login"
+    serializer_class = LoginSerializer
 
 
 class LoginRefreshView(TokenRefreshView):

@@ -1187,9 +1187,9 @@ et le site sur la même origine.
 | `POST` | `/api/auth/password-change/` | connecté | Changement de mot de passe : le mot de passe actuel, plus le nouveau. Révoque **tous** les tokens de rafraîchissement du compte et rend une paire neuve à l'appelant, qui reste connecté |
 | `GET` | `/api/articles/` | public | Liste des articles, du plus récent au plus ancien, par pages de 12 : `{count, next, previous, results}`, la suivante sous `?page=2`. Chaque article y porte `id`, `title`, `excerpt` (100 caractères taillés par la base), `author` et `created_at` — ni `content` ni `updated_at`, que seul le détail rend |
 | `GET` | `/api/articles/{id}/` | public | Détail d'un article, `content` entier compris |
-| `POST` | `/api/articles/` | connecté | Crée un article, rattaché à son auteur |
-| `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression réservées à l'auteur |
-| `POST` | `/api/contact/` | public | Envoi du formulaire de contact |
+| `POST` | `/api/articles/` | connecté | Crée un article, rattaché à son auteur. `content` : 20 000 caractères au plus |
+| `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression réservées à l'auteur, `content` borné comme à la création |
+| `POST` | `/api/contact/` | public | Envoi du formulaire de contact. `message` : 5 000 caractères au plus |
 
 Dans la liste comme dans le détail, `author` est le **prénom suivi du nom**, jamais l'adresse
 électronique du compte : ces deux lectures sont ouvertes au visiteur, et le `__str__` de
@@ -1269,6 +1269,9 @@ mot de passe courant, ni entièrement numérique, et au moins une majuscule, une
 un chiffre. Cette dernière règle est un validateur du dépôt, `accounts/validators.py` : les
 quatre de Django ignorent la casse et les chiffres, que le formulaire d'inscription exige
 déjà côté navigateur — l'API était donc plus permissive que son propre formulaire.
+
+Le maximum, 128 caractères, vaut pour ces trois routes et pour `login/`. Il est posé par les
+serializers : aucun validateur de Django ne borne la longueur.
 
 Un des quatre validateurs de Django ne joue pas à la confirmation : celui qui refuse un mot
 de passe trop proche de l'email ou du nom. Le serializer n'y connaît pas encore le titulaire —

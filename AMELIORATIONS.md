@@ -137,14 +137,12 @@ Rien de ce qui reste ne bloque le développement.
       `PasswordResetConfirmView` porte le scope `password_reset_confirm`, 5 par heure et par
       adresse IP, réglable par `THROTTLE_PASSWORD_RESET_CONFIRM`. Scope à part pour que la
       demande et la confirmation ne se consomment pas leur quota l'une l'autre.
-- [ ] **Aucune borne de longueur sur les mots de passe ni sur les textes longs.** `password`,
-      `new_password` et `current_password` sont des `CharField` sans `max_length`, `Article.content` et
-      `Contact.message` des `TextField`. Seule la limite de corps de Django (2,5 Mo) arrête
-      un envoi : un mot de passe de cette taille passe entier par les validateurs puis par
-      PBKDF2, et le formulaire de contact, public, peut écrire 2,5 Mo par message dans la
-      limite de son quota. Piste : `max_length=128` sur les trois champs de mot de passe, et un
-      plafond dans les serializers d'article et de contact — non dans les modèles, pour ne
-      pas imposer de migration.
+- [x] **Aucune borne de longueur sur les mots de passe ni sur les textes longs** — réglé
+      par l'issue #215. Les mots de passe s'arrêtent à 128 caractères, connexion comprise,
+      `Article.content` à 20 000 et `Contact.message` à 5 000. La borne vit dans les
+      serializers et non dans les modèles : un `TextField` n'a pas de longueur en base, et
+      rien n'est à migrer. La connexion passe pour cela par `LoginSerializer`, qui sous-classe
+      celui de simplejwt.
 - [ ] **Envoyer les emails hors du cycle de la requête.** `PasswordResetRequestView` rend
       désormais la même réponse que le compte existe ou non, mais elle n'envoie l'email que
       dans le premier cas, et l'envoi est synchrone : mesuré sur Mailpit en local, 40 ms
