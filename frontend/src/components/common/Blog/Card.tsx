@@ -15,8 +15,11 @@ export default function ArticleCard({ article }: ArticleCardProps) {
             Par {article.author} le{" "}
             {new Date(article.created_at).toLocaleDateString()}
           </p>
-          {/* Déjà coupé par l'API : le texte entier ne descend plus jusqu'ici. */}
-          <p className="text-secondary">{article.excerpt}...</p>
+          {/* Déjà coupé par l'API, qui dit aussi s'il l'a été : un article court
+              arrive entier et ne reçoit pas de points de suspension. */}
+          <p className="text-secondary">
+            {article.excerpt_truncated ? `${article.excerpt}...` : article.excerpt}
+          </p>
         </div>
       </div>
     </Link>

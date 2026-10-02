@@ -19,6 +19,7 @@ const ARTICLE = {
   id: 1,
   title: "Premier article",
   excerpt: "Un extrait de test.",
+  excerpt_truncated: false,
   author: "Jean Dupont",
   created_at: "2026-09-01T10:00:00Z",
 };
@@ -254,6 +255,25 @@ describe("Blog — premier chargement", () => {
     // elle-même, elle rend ce que la liste lui donne.
     expect(
       screen.getByText(ARTICLE.excerpt, { exact: false }),
+    ).toBeInTheDocument();
+  });
+
+  it("ne suspend que l'extrait que l'API dit coupé", async () => {
+    const ARTICLE_COUPE = {
+      ...ARTICLE_PLUS_ANCIEN,
+      excerpt: "Le début d'un long article",
+      excerpt_truncated: true,
+    };
+    appelReseau.mockResolvedValueOnce(reponsePage([ARTICLE, ARTICLE_COUPE]));
+    await afficherLeBlog();
+
+    // Textes exacts : c'est la fin du paragraphe, et non sa présence, qui change.
+    expect(screen.getByText(ARTICLE.excerpt)).toBeInTheDocument();
+    expect(
+      screen.queryByText(`${ARTICLE.excerpt}...`),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(`${ARTICLE_COUPE.excerpt}...`),
     ).toBeInTheDocument();
   });
 

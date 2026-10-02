@@ -13,6 +13,8 @@ export type ArticleListItem = {
   id: number;
   title: string;
   excerpt: string;
+  // Calculé par l'API, seule à connaître la longueur de coupe.
+  excerpt_truncated: boolean;
   author: string;
   created_at: string;
 };
