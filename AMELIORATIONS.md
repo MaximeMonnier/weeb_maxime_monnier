@@ -117,7 +117,8 @@ Rien de ce qui reste ne bloque le développement.
       renouvellement est refusé, efface les deux jetons puis rejoue la requête sans : un
       jeton mort disparaît au premier appel, qui aboutit quand même. Le prix est deux
       allers-retours de plus sur cet appel, le renouvellement puis le rejeu. `/auth/` reste
-      exclu d'office, ses six routes étant publiques.
+      exclu d'office, sauf ce que liste `ROUTES_AUTH_PROTEGEES` : `password-change/`, seule
+      route `/auth/` réservée au membre depuis l'issue #159. Une nouvelle s'y inscrit, ou reçoit `401`.
 - [x] **Le front ne rafraîchit pas ses jetons, et la session dure 15 minutes** — réglé par
       l'issue #130. `apiFetch` appelle `/api/auth/login/refresh/` sur un `401` et **range le
       `refresh` rendu**, que la rotation de l'issue #72 rend obligatoire. La session dure
@@ -135,18 +136,19 @@ Rien de ce qui reste ne bloque le développement.
       `OutstandingToken` du compte (`BlacklistedToken.objects.get_or_create`), les tables
       existant déjà depuis l'issue #72, et un test qui refuse le refresh d'avant. Le jeton
       d'accès, lui, vit ses 15 minutes : rien ne le révoque, voir `base.py`.
+      `PasswordChangeView` le fait déjà depuis l'issue #159 : son `bulk_create` se reprend tel quel.
 - [ ] **La confirmation de réinitialisation n'a pas de quota.** `PasswordResetConfirmView`
       est la seule vue publique d'écriture sans `throttle_scope` : quatre en portent un, pas
       elle. Le token HMAC ne se devine pas, l'enjeu n'est donc pas le forçage mais le coût —
       chaque appel valide un mot de passe et le hache. Piste : un scope dédié, réglable par
       variable comme les quatre autres, et sa ligne dans le test qui lie chaque route à son
       scope.
-- [ ] **Aucune borne de longueur sur les mots de passe ni sur les textes longs.** `password`
-      et `new_password` sont des `CharField` sans `max_length`, `Article.content` et
+- [ ] **Aucune borne de longueur sur les mots de passe ni sur les textes longs.** `password`,
+      `new_password` et `current_password` sont des `CharField` sans `max_length`, `Article.content` et
       `Contact.message` des `TextField`. Seule la limite de corps de Django (2,5 Mo) arrête
       un envoi : un mot de passe de cette taille passe entier par les validateurs puis par
       PBKDF2, et le formulaire de contact, public, peut écrire 2,5 Mo par message dans la
-      limite de son quota. Piste : `max_length=128` sur les deux mots de passe, et un
+      limite de son quota. Piste : `max_length=128` sur les trois champs de mot de passe, et un
       plafond dans les serializers d'article et de contact — non dans les modèles, pour ne
       pas imposer de migration.
 - [ ] **Envoyer les emails hors du cycle de la requête.** `PasswordResetRequestView` rend
@@ -220,7 +222,8 @@ Rien de ce qui reste ne bloque le développement.
       troisième formulaire testé impose l'extraction. Piste : un module de test partagé,
       importé explicitement par chaque fichier — surtout pas un `setupFiles`, `globals`
       restant à `false`. Repéré à l'issue #119. Depuis, `useIsAuthenticated.test.ts` et
-      `Blog.test.tsx` (#132) substituent `fetch` à leur tour, sans formulaire : cinq fichiers
-      au total, `api.test.ts` compris.
+      `Blog.test.tsx` (#132) substituent `fetch` à leur tour, sans formulaire. Le seuil est franchi depuis l'issue #159 :
+      `ChangePassword.test.tsx` est le troisième formulaire testé, et `ArticleDetails.test.tsx`
+      substitue aussi `fetch` — sept fichiers au total, `api.test.ts` compris.
 
 ## (à compléter au fil de l'eau)

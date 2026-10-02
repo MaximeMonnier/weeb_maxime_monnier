@@ -51,6 +51,25 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return attrs
 
 
+class PasswordChangeSerializer(serializers.Serializer):
+    """Valide le changement : le mot de passe actuel d'abord, la robustesse du nouveau ensuite."""
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+
+    def validate_current_password(self, value):
+        # 400 et non 401 : apiFetch prendrait un 401 pour un jeton périmé et le renouvellerait.
+        if not self.context["request"].user.check_password(value):
+            raise serializers.ValidationError("Le mot de passe actuel est incorrect.")
+        return value
+
+    def validate(self, attrs):
+        """Vérifie le nouveau mot de passe contre AUTH_PASSWORD_VALIDATORS, le titulaire en main."""
+        validate_password_strength(
+            attrs["new_password"], "new_password", user=self.context["request"].user,
+        )
+        return attrs
+
+
 class RefreshSerializer(TokenRefreshSerializer):
     """Renouvelle les jetons, et refuse en 401 un compte supprimé comme un compte désactivé."""
 

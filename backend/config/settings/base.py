@@ -278,6 +278,7 @@ REST_FRAMEWORK = {
         'login': env_str('THROTTLE_LOGIN', '5/min'),
         'register': env_str('THROTTLE_REGISTER', '5/hour'),
         'password_reset': env_str('THROTTLE_PASSWORD_RESET', '3/hour'),
+        'password_change': env_str('THROTTLE_PASSWORD_CHANGE', '5/hour'),
         'contact': env_str('THROTTLE_CONTACT', '5/hour'),
     },
 }

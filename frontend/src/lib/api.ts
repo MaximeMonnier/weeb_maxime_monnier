@@ -18,9 +18,11 @@ if (!API_URL) {
 
 // DRF authentifie AVANT d'appliquer les permissions : un token périmé resté en
 // localStorage fait répondre 401 à une vue AllowAny — inscription et réinitialisation
-// de mot de passe en tête. Toutes les routes /auth/ sont publiques à ce jour.
+// de mot de passe en tête. Les routes /auth/ sont publiques, sauf celles-ci.
+const ROUTES_AUTH_PROTEGEES = new Set(["/auth/password-change/"]);
+
 function needsToken(path: string): boolean {
-  return !path.startsWith("/auth/");
+  return !path.startsWith("/auth/") || ROUTES_AUTH_PROTEGEES.has(path);
 }
 
 // Exporté pour `apiErrors.ts`, qui traduit ces refus en messages de formulaire.

@@ -98,6 +98,16 @@ describe("apiFetch — jeton d'accès", () => {
       expect(dernierAppel().entetes.Authorization).toBeUndefined();
     },
   );
+
+  // La seule route /auth/ fermée au visiteur : l'omettre y vaudrait un 401 à tout coup.
+  it("le pose sur /auth/password-change/", async () => {
+    localStorage.setItem("access", "jeton-de-test");
+    appelReseau.mockResolvedValue(reponse(200, {}));
+
+    await apiFetch("/auth/password-change/", { method: "POST", body: "{}" });
+
+    expect(dernierAppel().entetes.Authorization).toBe("Bearer jeton-de-test");
+  });
 });
 
 describe("apiFetch — jeton d'accès expiré", () => {

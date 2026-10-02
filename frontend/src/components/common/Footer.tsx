@@ -29,15 +29,16 @@ const SITE_COLUMN: FooterColumn = {
 };
 
 // Entrées du seul visiteur : connecté, l'en-tête propose la déconnexion.
-const VISITOR_LINKS: FooterLink[] = [LIEN_CONNEXION, LIEN_INSCRIPTION];
+const VISITOR_LINKS: FooterLink[] = [
+  LIEN_CONNEXION,
+  LIEN_INSCRIPTION,
+  { label: "Mot de passe oublié", to: "/forgot-password" },
+];
 
-// Servie dans les deux états : c'est le seul chemin de changement de mot de
-// passe du site, `App.tsx` n'ayant pas de page de profil et `accounts/urls.py`
-// pas de route de changement. La retirer au membre l'obligerait à se déconnecter.
-const RESET_LINK: FooterLink = {
-  label: "Mot de passe oublié",
-  to: "/forgot-password",
-};
+// Le membre connaît son mot de passe : il le change sans passer par un email.
+const MEMBER_LINKS: FooterLink[] = [
+  { label: "Changer mon mot de passe", to: "/change-password" },
+];
 
 const LEGAL_COLUMN: FooterColumn = {
   title: "LÉGAL",
@@ -56,7 +57,7 @@ const Footer = () => {
 
   const accountColumn: FooterColumn = {
     title: "COMPTE",
-    links: isAuthenticated ? [RESET_LINK] : [...VISITOR_LINKS, RESET_LINK],
+    links: isAuthenticated ? MEMBER_LINKS : VISITOR_LINKS,
   };
 
   const columns = [SITE_COLUMN, accountColumn, LEGAL_COLUMN];
