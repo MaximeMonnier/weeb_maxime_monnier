@@ -32,11 +32,12 @@ et pour les prochaines itérations).
       d'écran aurait toujours annoncé un bloc unique. Il reste posé sur chaque `<p>`, pour
       qu'une ligne simple garde son retour. Aucun `dangerouslySetInnerHTML` : React échappe
       toujours le texte, un `<b>` saisi s'affiche tel quel.
-- [ ] **L'extrait finit toujours par « ... ».** `Card.tsx` ajoute les points de suspension
-      sans condition, alors que `Left("content", LONGUEUR_EXTRAIT)` ne coupe qu'au-delà de
-      100 caractères : un article court s'affiche tronqué alors qu'il est entier. Piste :
-      ne les poser que si l'extrait atteint la longueur de coupe, ou exposer côté API un
-      booléen calculé dans le même `annotate`.
+- [x] **L'extrait finit toujours par « ... »** — réglé par l'issue #217. La liste rend
+      `excerpt_truncated`, calculé par PostgreSQL dans le même `annotate` que l'extrait, et
+      `Card.tsx` ne pose les points de suspension que s'il est vrai. Comparer la longueur de
+      l'extrait côté front aurait marché aussi, mais en recopiant `LONGUEUR_EXTRAIT` dans un
+      second fichier : un article d'exactement 100 caractères aurait de plus été pris pour
+      coupé.
 - [ ] **Sur mobile, l'accueil défile en largeur.** À 375 px, la page s'élargit à 749 px :
       dans `BrandBanner.tsx`, le `<div>` qui enveloppe `LogoBanner` est l'enfant d'un flex
       `items-center`, donc il prend la largeur de son contenu, et le `width: 100%` de

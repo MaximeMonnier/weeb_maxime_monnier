@@ -21,10 +21,11 @@ class ArticleListSerializer(serializers.ModelSerializer):
     """L'article tel que la liste le rend : un extrait, jamais le texte entier."""
 
     author = serializers.CharField(source="author.public_name", read_only=True)
-    # Déclaré à la main : excerpt n'est pas un champ du modèle mais une annotation
-    # posée par ArticleViewSet, et ModelSerializer ne sait pas la deviner.
+    # Déclarés à la main : ce ne sont pas des champs du modèle mais des annotations
+    # posées par ArticleViewSet, et ModelSerializer ne sait pas les deviner.
     excerpt = serializers.CharField(read_only=True)
+    excerpt_truncated = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Article
-        fields = ("id", "title", "excerpt", "author", "created_at")
+        fields = ("id", "title", "excerpt", "excerpt_truncated", "author", "created_at")
