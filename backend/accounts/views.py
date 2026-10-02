@@ -103,7 +103,7 @@ class RegisterView(generics.CreateAPIView):
 class PasswordResetRequestView(APIView):
     """Étape 1 : envoie par email un lien de réinitialisation. Endpoint PUBLIC (pas besoin d'être connecté)."""
     permission_classes = [AllowAny]
-    # Le quota le plus bas des quatre : chaque appel envoie un email réel, donc
+    # Le quota le plus bas des six : chaque appel envoie un email réel, donc
     # sans lui l'endpoint est un envoyeur gratuit qui fait blacklister le relais.
     throttle_scope = "password_reset"
 
@@ -128,6 +128,10 @@ class PasswordResetRequestView(APIView):
 class PasswordResetConfirmView(APIView):
     """Étape 2 : vérifie le token et applique le nouveau mot de passe. Endpoint PUBLIC (pas besoin d'être connecté)."""
     permission_classes = [AllowAny]
+    # Le token HMAC ne se devine pas : c'est le coût qu'on borne, chaque appel passant
+    # un mot de passe aux validateurs puis à PBKDF2. Scope à part : la demande et la
+    # confirmation ne doivent pas se consommer leur quota l'une l'autre.
+    throttle_scope = "password_reset_confirm"
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)

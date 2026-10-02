@@ -161,6 +161,19 @@ class PasswordResetConfirmTests(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("AncienMotDePasse123"))
 
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"password_reset_confirm": "5/hour"})
+    def test_la_sixieme_confirmation_est_refusee_meme_avec_le_bon_lien(self):
+        cache.clear()
+        for _ in range(5):
+            self.assertEqual(self.post(self.uid, "mauvais-token").status_code, 400)
+
+        response = self.confirm("NouveauMotDePasse456")
+
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("Retry-After", response.headers)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("AncienMotDePasse123"))
+
 
 class PasswordValidationTests(TestCase):
     """Les deux endpoints qui reçoivent un mot de passe passent par AUTH_PASSWORD_VALIDATORS."""
@@ -335,6 +348,7 @@ class ThrottleScopeTests(SimpleTestCase):
             "login": "login",
             "register": "register",
             "password-reset": "password_reset",
+            "password-reset-confirm": "password_reset_confirm",
             "password-change": "password_change",
             "contact": "contact",
         }.items():
