@@ -147,8 +147,8 @@ class PasswordResetConfirmView(APIView):
         if not default_token_generator.check_token(user, data["token"]):
             return Response(dict(INVALID_LINK_RESPONSE), status=status.HTTP_400_BAD_REQUEST)
 
-        user.set_password(data["new_password"])   # hashe le nouveau mdp
-        user.save()
+        # On réinitialise quand on croit sa session volée : celle de l'attaquant tombe avec.
+        set_password_and_revoke(user, data["new_password"])
         return Response({"detail": "Mot de passe réinitialisé avec succès."},
                         status=status.HTTP_200_OK)
 
