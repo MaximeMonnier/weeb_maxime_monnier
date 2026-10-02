@@ -1184,6 +1184,7 @@ et le site sur la même origine.
 | `POST` | `/api/auth/logout/` | public | Déconnexion : révoque le token de rafraîchissement envoyé dans le corps |
 | `POST` | `/api/auth/password-reset/` | public | Demande de réinitialisation. Envoie le lien **par email** et répond toujours `200` avec le même corps, que le compte existe ou non — un 404 dirait qui est inscrit |
 | `POST` | `/api/auth/password-reset/confirm/` | public | Confirmation : `uid` et `token` du lien reçu, plus le nouveau mot de passe |
+| `POST` | `/api/auth/password-change/` | connecté | Changement de mot de passe : le mot de passe actuel, plus le nouveau. Révoque **tous** les tokens de rafraîchissement du compte et rend une paire neuve à l'appelant, qui reste connecté |
 | `GET` | `/api/articles/` | public | Liste des articles, du plus récent au plus ancien, par pages de 12 : `{count, next, previous, results}`, la suivante sous `?page=2`. Chaque article y porte `id`, `title`, `excerpt` (100 caractères taillés par la base), `author` et `created_at` — ni `content` ni `updated_at`, que seul le détail rend |
 | `GET` | `/api/articles/{id}/` | public | Détail d'un article, `content` entier compris |
 | `POST` | `/api/articles/` | connecté | Crée un article, rattaché à son auteur |
@@ -1262,7 +1263,7 @@ Deux conséquences pratiques :
 
 ### Le mot de passe
 
-Les deux routes qui en reçoivent un — `register/` et `password-reset/confirm/` — appliquent
+Les trois routes qui en reçoivent un — `register/`, `password-reset/confirm/` et `password-change/` — appliquent
 les mêmes règles, celles de `AUTH_PASSWORD_VALIDATORS` : huit caractères au minimum, ni un
 mot de passe courant, ni entièrement numérique, et au moins une majuscule, une minuscule et
 un chiffre. Cette dernière règle est un validateur du dépôt, `accounts/validators.py` : les
@@ -1271,16 +1272,16 @@ déjà côté navigateur — l'API était donc plus permissive que son propre fo
 
 Un des quatre validateurs de Django ne joue pas à la confirmation : celui qui refuse un mot
 de passe trop proche de l'email ou du nom. Le serializer n'y connaît pas encore le titulaire —
-son `uid` n'est décodé qu'ensuite, dans la vue.
+son `uid` n'est décodé qu'ensuite, dans la vue. Au changement, il joue : le membre est connecté.
 
 Ces règles valent aussi pour l'administration Django : son formulaire de création hache le
 mot de passe et rejoue les mêmes validateurs, et celui d'édition ne montre plus le hachage,
 mais le lien de changement de Django.
 
 Un refus est un `400` dont le message est rangé **sous la clé du champ** — `password` à
-l'inscription, `new_password` à la confirmation — et jamais à la racine, d'où aucun champ de
-formulaire ne pourrait le reprendre. Seul `ResetPassword.tsx` lit la sienne, `new_password` ;
-les autres formulaires affichent encore un message à eux. Un `12345678` soumis à l'inscription
+l'inscription, `new_password` à la confirmation comme au changement — et jamais à la racine, d'où
+aucun champ de formulaire ne pourrait le reprendre. Le changement range de même le refus du
+mot de passe actuel sous `current_password`. Un `12345678` soumis à l'inscription
 donne :
 
 ```json
@@ -1293,7 +1294,8 @@ donne :
 
 ### Le débit
 
-Quatre routes publiques sont limitées **par adresse IP**. Au-delà du quota, la réponse est
+Quatre routes publiques sont limitées **par adresse IP**, et le changement de mot de passe
+**par compte**, la seule des cinq à exiger un membre connecté. Au-delà du quota, la réponse est
 un `429` portant un en-tête `Retry-After` en secondes :
 
 ```json
@@ -1305,13 +1307,14 @@ un `429` portant un en-tête `Retry-After` en secondes :
 | `POST /api/auth/login/` | 5 par minute | `THROTTLE_LOGIN` |
 | `POST /api/auth/register/` | 5 par heure | `THROTTLE_REGISTER` |
 | `POST /api/auth/password-reset/` | 3 par heure | `THROTTLE_PASSWORD_RESET` |
+| `POST /api/auth/password-change/` | 5 par heure | `THROTTLE_PASSWORD_CHANGE` |
 | `POST /api/contact/` | 5 par heure | `THROTTLE_CONTACT` |
 
 Le compteur compte les **appels**, pas les échecs : la sixième connexion d'une même minute
 reçoit un `429` même avec le bon mot de passe. La fenêtre du login est courte parce que se
 tromper de mot de passe deux fois de suite est ordinaire et qu'on réessaie aussitôt —
-une fenêtre d'une heure punirait le distrait autant que le robot. Les trois autres sont des gestes qu'on ne répète
-pas dans l'heure, et la réinitialisation est la plus basse des quatre : chacun de ses appels
+une fenêtre d'une heure punirait le distrait autant que le robot. Les quatre autres sont des gestes qu'on ne répète
+pas dans l'heure, et la réinitialisation est la plus basse des cinq : chacun de ses appels
 envoie un vrai email.
 
 Le front l'affiche tel quel dans le formulaire, sans lui opposer un message à lui : celui-ci
