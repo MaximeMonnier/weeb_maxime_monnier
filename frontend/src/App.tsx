@@ -10,6 +10,7 @@ import Blog from "./pages/Blog/Blog";
 import ArticleDetails from "./pages/Blog/ArticleDetails";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import ChangePassword from "./pages/ChangePassword";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import "./index.css";
@@ -27,6 +28,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/subscribe" element={<Subscribe />} />
           <Route path="/about" element={<About />} />
           <Route path="/blog" element={<Blog />} />

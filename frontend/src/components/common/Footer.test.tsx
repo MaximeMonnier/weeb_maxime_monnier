@@ -152,21 +152,21 @@ describe("Footer — visiteur", () => {
 });
 
 describe("Footer — membre connecté", () => {
-  it("ne garde de la colonne du compte que la réinitialisation", () => {
+  it("remplace les entrées du visiteur par le changement de mot de passe", () => {
     // Lu dès le premier rendu par `useIsAuthenticated` : la session se pose
     // avant, sans quoi le pied de page s'afficherait en visiteur.
     saveTokens({ access: "jeton-acces", refresh: "jeton-renouvellement" });
     rendreLePiedDePage();
 
-    for (const libelle of ["Se connecter", "Nous rejoindre"]) {
+    for (const libelle of ["Se connecter", "Nous rejoindre", "Mot de passe oublié"]) {
       expect(screen.queryByRole("link", { name: libelle })).toBeNull();
     }
 
-    // Le seul chemin de changement de mot de passe du site : le retirer au
-    // membre l'obligerait à se déconnecter pour changer le sien.
+    // Le seul accès du membre au changement : le retirer l'obligerait à se
+    // déconnecter puis à attendre un email pour changer le sien.
     expect(
-      screen.getByRole("link", { name: "Mot de passe oublié" }),
-    ).toHaveAttribute("href", "/forgot-password");
+      screen.getByRole("link", { name: "Changer mon mot de passe" }),
+    ).toHaveAttribute("href", "/change-password");
 
     expect(screen.getByRole("link", { name: "Blog" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Contact" })).toBeInTheDocument();
