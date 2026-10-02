@@ -117,7 +117,8 @@ Rien de ce qui reste ne bloque le développement.
       renouvellement est refusé, efface les deux jetons puis rejoue la requête sans : un
       jeton mort disparaît au premier appel, qui aboutit quand même. Le prix est deux
       allers-retours de plus sur cet appel, le renouvellement puis le rejeu. `/auth/` reste
-      exclu d'office, ses six routes étant publiques.
+      exclu d'office, sauf ce que liste `ROUTES_AUTH_PROTEGEES` : `password-change/`, seule
+      route `/auth/` réservée au membre depuis l'issue #159. Une nouvelle s'y inscrit, ou reçoit `401`.
 - [x] **Le front ne rafraîchit pas ses jetons, et la session dure 15 minutes** — réglé par
       l'issue #130. `apiFetch` appelle `/api/auth/login/refresh/` sur un `401` et **range le
       `refresh` rendu**, que la rotation de l'issue #72 rend obligatoire. La session dure
@@ -221,7 +222,8 @@ Rien de ce qui reste ne bloque le développement.
       troisième formulaire testé impose l'extraction. Piste : un module de test partagé,
       importé explicitement par chaque fichier — surtout pas un `setupFiles`, `globals`
       restant à `false`. Repéré à l'issue #119. Depuis, `useIsAuthenticated.test.ts` et
-      `Blog.test.tsx` (#132) substituent `fetch` à leur tour, sans formulaire : cinq fichiers
-      au total, `api.test.ts` compris.
+      `Blog.test.tsx` (#132) substituent `fetch` à leur tour, sans formulaire. Le seuil est franchi depuis l'issue #159 :
+      `ChangePassword.test.tsx` est le troisième formulaire testé, et `ArticleDetails.test.tsx`
+      substitue aussi `fetch` — sept fichiers au total, `api.test.ts` compris.
 
 ## (à compléter au fil de l'eau)
