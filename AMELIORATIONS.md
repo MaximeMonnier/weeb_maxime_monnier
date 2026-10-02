@@ -42,6 +42,14 @@ et pour les prochaines itérations).
       `.marquee-mask` suit cette largeur au lieu de celle de l'écran : le masque s'étale
       jusqu'à son `max-width` de 70rem. Piste : un `w-full` sur ce `<div>`, comme celui du
       carrousel (issue #189) — essayé au navigateur, la page revient à 375 px.
+- [ ] **Le violet du thème clair n'atteint pas le contraste minimal.** Dans `index.css`,
+      `--color-light-accent-primary` vaut `oklch(0.64 0.29 305)`, hors de la gamme sRGB :
+      l'écran le ramène vers `#B73BFF`, plus clair que le `#9333EA` de la maquette cité en
+      commentaire. Le texte violet tombe ainsi à 4,1:1 sur fond blanc et 3,8:1 sur le fond
+      secondaire, sous les 4,5:1 du niveau AA — le lien actif du menu mobile en tête. La
+      maquette donnait 5,4:1 sur blanc. Repéré à l'issue #193. Piste : transcrire
+      `#9333EA`, soit `oklch(0.558 0.252 302)`, et revoir avec lui
+      `--color-light-accent-hover`, hors gamme lui aussi.
 
 ## Docker — mise en ligne
 
