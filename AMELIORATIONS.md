@@ -196,6 +196,11 @@ Rien de ce qui reste ne bloque le développement.
       dépôt n'a ni tâche planifiée ni cron dans ses conteneurs. Sans conséquence à l'échelle
       d'un projet pédagogique ; à reprendre le jour où une file de tâches entrera, la même
       qui manque à l'envoi des emails ci-dessus.
+- [ ] **Le commentaire des quotas dans `base.py` dit « comptés par IP ».** C'est faux pour
+      `password_change` : `ScopedRateThrottle` compte par compte dès que le membre est
+      connecté, ce que le README et `.env.example` disent justement. Un lecteur de `base.py`
+      en conclurait qu'un membre derrière la même IP qu'un autre partage son quota. Repéré
+      à la revue de l'issue #214.
 
 ## Intégration continue
 
