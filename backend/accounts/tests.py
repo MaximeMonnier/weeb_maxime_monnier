@@ -96,12 +96,41 @@ class PasswordResetConfirmTests(TestCase):
     def confirm(self, new_password):
         return self.post(self.uid, self.token, new_password)
 
+    def refresh_apres_connexion(self, password):
+        tokens = self.client.post(
+            reverse("login"), {"email": self.user.email, "password": password},
+            content_type="application/json",
+        ).json()
+        return tokens["refresh"]
+
+    def rafraichir(self, refresh):
+        return self.client.post(
+            reverse("login-refresh"), {"refresh": refresh}, content_type="application/json"
+        )
+
     def test_le_lien_change_le_mot_de_passe(self):
         response = self.confirm("NouveauMotDePasse456")
 
         self.assertEqual(response.status_code, 200)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NouveauMotDePasse456"))
+
+    def test_la_session_ouverte_avant_ne_se_renouvelle_plus(self):
+        """On réinitialise quand on croit sa session volée : celle de l'attaquant doit tomber."""
+        refresh_avant = self.refresh_apres_connexion("AncienMotDePasse123")
+
+        response = self.confirm("NouveauMotDePasse456")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"detail": "Mot de passe réinitialisé avec succès."})
+        self.assertEqual(self.rafraichir(refresh_avant).status_code, 401)
+
+    def test_la_session_ouverte_apres_se_renouvelle(self):
+        self.confirm("NouveauMotDePasse456")
+
+        refresh_apres = self.refresh_apres_connexion("NouveauMotDePasse456")
+
+        self.assertEqual(self.rafraichir(refresh_apres).status_code, 200)
 
     def test_le_lien_ne_sert_quune_fois(self):
         self.assertEqual(self.confirm("NouveauMotDePasse456").status_code, 200)

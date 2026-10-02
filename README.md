@@ -1183,7 +1183,7 @@ et le site sur la même origine.
 | `POST` | `/api/auth/login/refresh/` | public | Renouvelle le token d'accès expiré, et **rend un token de rafraîchissement neuf** en révoquant celui qui a servi |
 | `POST` | `/api/auth/logout/` | public | Déconnexion : révoque le token de rafraîchissement envoyé dans le corps |
 | `POST` | `/api/auth/password-reset/` | public | Demande de réinitialisation. Envoie le lien **par email** et répond toujours `200` avec le même corps, que le compte existe ou non — un 404 dirait qui est inscrit |
-| `POST` | `/api/auth/password-reset/confirm/` | public | Confirmation : `uid` et `token` du lien reçu, plus le nouveau mot de passe |
+| `POST` | `/api/auth/password-reset/confirm/` | public | Confirmation : `uid` et `token` du lien reçu, plus le nouveau mot de passe. Révoque **tous** les tokens de rafraîchissement du compte : il faut se reconnecter partout |
 | `POST` | `/api/auth/password-change/` | connecté | Changement de mot de passe : le mot de passe actuel, plus le nouveau. Révoque **tous** les tokens de rafraîchissement du compte et rend une paire neuve à l'appelant, qui reste connecté |
 | `GET` | `/api/articles/` | public | Liste des articles, du plus récent au plus ancien, par pages de 12 : `{count, next, previous, results}`, la suivante sous `?page=2`. Chaque article y porte `id`, `title`, `excerpt` (100 caractères taillés par la base), `author` et `created_at` — ni `content` ni `updated_at`, que seul le détail rend |
 | `GET` | `/api/articles/{id}/` | public | Détail d'un article, `content` entier compris |
