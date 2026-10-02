@@ -29,7 +29,7 @@ const Home = () => {
             ctaLabel="Explorer les ressources"
             ctaHref="/blog"
             imageSrc={Image1}
-            imageAlt="Aperçu interface"
+            imageAlt="Maquette d'une interface de blog : menu latéral, blocs de texte et cartes illustrées"
             reverse={false}
           />
 
@@ -45,7 +45,7 @@ const Home = () => {
             ctaLabel="Lire les articles récents"
             ctaHref="/blog"
             imageSrc={Image2}
-            imageAlt="Illustration tendances"
+            imageAlt="Composition graphique de carrés violets superposés autour d'un carré rose"
             reverse={true}
           />
         </div>
