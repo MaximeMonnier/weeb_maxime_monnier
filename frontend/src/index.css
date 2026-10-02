@@ -39,7 +39,9 @@
   /* Couleurs du thème clair, en regard des sombres ligne pour ligne. */
   --color-light-bg-primary: oklch(1 0 0); /* #FFFFFF - Blanc */
   --color-light-bg-secondary: oklch(0.97 0.014 264); /* #F3F6FF */
-  --color-light-bg-tertiary: oklch(0.97 0 0); /* #F1F5F9 */
+  /* #E6ECF2 et non le #F1F5F9 de la maquette, indiscernable du fond secondaire :
+     le survol posé dessus ne se voyait pas. */
+  --color-light-bg-tertiary: oklch(0.94 0.01 250);
   --color-light-bg-input: oklch(1 0 0); /* #FFFFFF */
 
   --color-light-text-primary: oklch(0.15 0.01 250); /* #0F172A - Sombre */

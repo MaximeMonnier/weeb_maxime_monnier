@@ -184,3 +184,43 @@ describe("index.css", () => {
     expect(classesDuHtml(sourceDuHtml)).toContain("dark");
   });
 });
+
+/** Rend les trois composantes OKLCH d'une variable de `@theme`. */
+function oklchDe(variable: string): [number, number, number] {
+  // Prettier coupe parfois la valeur sur trois lignes, d'où les `\s*`.
+  const trouve = sourceDuCss.match(
+    new RegExp(
+      `--${variable}:\\s*oklch\\(\\s*([\\d.]+) ([\\d.]+) ([\\d.]+)\\s*\\)`,
+    ),
+  );
+  if (!trouve) throw new Error(`--${variable} introuvable ou hors oklch()`);
+  return [Number(trouve[1]), Number(trouve[2]), Number(trouve[3])];
+}
+
+/** Rend l'écart perceptuel ΔE OKLab entre deux couleurs OKLCH. */
+function ecartOklab(
+  [l1, c1, h1]: [number, number, number],
+  [l2, c2, h2]: [number, number, number],
+): number {
+  const rad = Math.PI / 180;
+  return Math.hypot(
+    l1 - l2,
+    c1 * Math.cos(h1 * rad) - c2 * Math.cos(h2 * rad),
+    c1 * Math.sin(h1 * rad) - c2 * Math.sin(h2 * rad),
+  );
+}
+
+describe("palette de index.css", () => {
+  // Le menu mobile, les flèches du carrousel et les icônes du pied de page passent
+  // du fond secondaire au tertiaire au survol. Sous 0,02 l'œil ne voit rien, et ni
+  // le build ni le lint ne le disent : le thème clair est resté ainsi jusqu'à #193.
+  it.each(["light", "dark"])(
+    "sépare à l'œil le fond de survol du fond secondaire (%s)",
+    (theme) => {
+      const repos = oklchDe(`color-${theme}-bg-secondary`);
+      const survol = oklchDe(`color-${theme}-bg-tertiary`);
+
+      expect(ecartOklab(repos, survol)).toBeGreaterThan(0.02);
+    },
+  );
+});
