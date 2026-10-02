@@ -10,6 +10,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db import transaction
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -61,6 +62,19 @@ def send_password_reset_link(user):
         # Une panne SMTP ne survient que pour un compte existant : la laisser remonter
         # en 500 rendrait la réponse distinguable et trahirait l'inscription.
         logger.exception("Échec de l'envoi du lien de réinitialisation")
+
+
+def set_password_and_revoke(user, password):
+    """Change le mot de passe et met en liste noire chaque refresh encore valable du compte."""
+    # D'un bloc : sans quoi une révocation en échec garderait le nouveau mot de passe et
+    # les sessions volées. Les jetons d'accès vivent leurs 15 minutes, voir base.py.
+    with transaction.atomic():
+        user.set_password(password)
+        user.save()
+        BlacklistedToken.objects.bulk_create(
+            [BlacklistedToken(token=token) for token in
+             OutstandingToken.objects.filter(user=user, blacklistedtoken__isnull=True)]
+        )
 
 
 class LoginView(TokenObtainPairView):
@@ -149,16 +163,9 @@ class PasswordChangeView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = request.user
-        user.set_password(serializer.validated_data["new_password"])
-        user.save()
-
         # Chaque refresh émis passe en liste noire, celui de cet appareil compris : qui
-        # change un mot de passe compromis veut couper la session volée. Les jetons
-        # d'accès, eux, vivent leurs 15 minutes — rien ne les révoque, voir base.py.
-        BlacklistedToken.objects.bulk_create(
-            [BlacklistedToken(token=token) for token in
-             OutstandingToken.objects.filter(user=user, blacklistedtoken__isnull=True)]
-        )
+        # change un mot de passe compromis veut couper la session volée.
+        set_password_and_revoke(user, serializer.validated_data["new_password"])
         # Émis après la révocation, sans quoi il y passerait avec les autres.
         refresh = RefreshToken.for_user(user)
         return Response(
