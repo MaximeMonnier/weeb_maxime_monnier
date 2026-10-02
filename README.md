@@ -1266,10 +1266,12 @@ Deux conséquences pratiques :
 Les trois routes qui en reçoivent un — `register/`, `password-reset/confirm/` et `password-change/` — appliquent
 les mêmes règles, celles de `AUTH_PASSWORD_VALIDATORS` : huit caractères au minimum, ni un
 mot de passe courant, ni entièrement numérique, et au moins une majuscule, une minuscule et
-un chiffre. Le maximum, 128 caractères, vaut pour ces trois routes et pour `login/` ; il est
-posé par les serializers, Django n'en ayant aucun parmi ses validateurs. Cette dernière règle est un validateur du dépôt, `accounts/validators.py` : les
+un chiffre. Cette dernière règle est un validateur du dépôt, `accounts/validators.py` : les
 quatre de Django ignorent la casse et les chiffres, que le formulaire d'inscription exige
 déjà côté navigateur — l'API était donc plus permissive que son propre formulaire.
+
+Le maximum, 128 caractères, vaut pour ces trois routes et pour `login/`. Il est posé par les
+serializers : aucun validateur de Django ne borne la longueur.
 
 Un des quatre validateurs de Django ne joue pas à la confirmation : celui qui refuse un mot
 de passe trop proche de l'email ou du nom. Le serializer n'y connaît pas encore le titulaire —
