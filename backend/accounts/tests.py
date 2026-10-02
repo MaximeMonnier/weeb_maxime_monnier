@@ -263,6 +263,82 @@ class PasswordValidationTests(TestCase):
                 )
 
 
+class PasswordLengthTests(TestCase):
+    """128 caractères passent, 129 sont refusés sous la clé du champ : la borne vit dans les
+    serializers seuls, AUTH_PASSWORD_VALIDATORS n'ayant pas de maximum."""
+
+    # Une majuscule, une minuscule, un chiffre : seule la longueur peut faire tomber le cas.
+    LIMITE = "Aa1" + "x" * 125
+    AUTRE_LIMITE = "Bb2" + "y" * 125
+    TROP_LONG = LIMITE + "x"
+
+    def setUp(self):
+        self.user = CustomUser.objects.create_user(
+            email="actif@example.com", first_name="A", last_name="Actif", password=self.LIMITE,
+        )
+
+    def post(self, nom_de_route, corps, **en_tetes):
+        return self.client.post(
+            reverse(nom_de_route), corps, content_type="application/json", **en_tetes
+        )
+
+    def assertRefuseSous(self, response, champ):
+        """Un seul message, une chaîne et non un dict : l'erreur n'est pas imbriquée deux fois."""
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(len(response.json()[champ]), 1)
+        self.assertIn("128", response.json()[champ][0])
+
+    def changer(self, corps):
+        jetons = self.post("login", {"email": self.user.email, "password": self.LIMITE}).json()
+        return self.post(
+            "password-change", corps, HTTP_AUTHORIZATION=f"Bearer {jetons['access']}"
+        )
+
+    def test_inscription(self):
+        corps = {"email": "nouveau@example.com", "first_name": "N", "last_name": "Nouveau"}
+
+        self.assertRefuseSous(
+            self.post("register", {**corps, "password": self.TROP_LONG}), "password"
+        )
+        self.assertEqual(
+            self.post("register", {**corps, "password": self.LIMITE}).status_code, 201
+        )
+
+    def test_confirmation_de_reinitialisation(self):
+        self.post("password-reset", {"email": self.user.email})
+        lien = re.search(r"/reset-password\?uid=([^&]+)&token=(\S+)", mail.outbox[0].body)
+        corps = {"uid": lien.group(1), "token": lien.group(2)}
+
+        self.assertRefuseSous(
+            self.post("password-reset-confirm", {**corps, "new_password": self.TROP_LONG}),
+            "new_password",
+        )
+        self.assertEqual(
+            self.post(
+                "password-reset-confirm", {**corps, "new_password": self.AUTRE_LIMITE}
+            ).status_code,
+            200,
+        )
+
+    def test_nouveau_mot_de_passe_au_changement(self):
+        corps = {"current_password": self.LIMITE}
+
+        self.assertRefuseSous(
+            self.changer({**corps, "new_password": self.TROP_LONG}), "new_password"
+        )
+        self.assertEqual(
+            self.changer({**corps, "new_password": self.AUTRE_LIMITE}).status_code, 200
+        )
+
+    def test_mot_de_passe_actuel_au_changement(self):
+        """Refusé pour sa longueur avant d'être comparé : le message dit la borne, pas l'erreur."""
+        corps = {"new_password": "NouveauSecret456"}
+
+        self.assertRefuseSous(self.changer({**corps, "current_password": self.TROP_LONG}),
+                              "current_password")
+        self.assertEqual(self.changer({**corps, "current_password": self.LIMITE}).status_code, 200)
+
+
 class CustomUserAdminTests(TestCase):
     """L'admin des utilisateurs hashe le mot de passe saisi et ne montre jamais le hash."""
 
@@ -612,6 +688,18 @@ class LoginTests(TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertNotIn("access", response.json())
         self.assertNotIn("refresh", response.json())
+
+    def test_un_mot_de_passe_trop_long_est_refuse_sans_fermer_la_porte(self):
+        """Le serializer de simplejwt ne borne rien : la limite tient au LoginSerializer
+        que LoginView déclare, et disparaît si la route revient à la vue d'origine."""
+        response = self.client.post(
+            self.url, {"email": self.membre.email, "password": "A" * 129},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("password", response.json())
+        self.assertEqual(self.connecter().status_code, 200)
 
 
 class PasswordChangeTests(TestCase):
