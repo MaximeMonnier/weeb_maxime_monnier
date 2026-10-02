@@ -685,3 +685,77 @@ sur **16 fichiers de `frontend/src`, dont 3 créés** : `lib/cx.ts`, `lib/naviga
 '*.test.*'` est vide. Les quatre `grep` de l'epic, enfin : une seule définition de `cx`, plus
 aucun `forwardRef`, `.join(" ")` réduit à trois lignes, et aucune des cinq destinations écrite en
 dur dans les trois fichiers de navigation.
+
+## Lot 9 — Code mort et conventions
+
+Clos le 2026-10-02 · Epic #174 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — rien de ce qui suit ne cassait le build ni les tests, d'où sa durée de vie.
+`index.css` comptait **837 lignes**, dont neuf classes posées par aucune source ; le plan en
+annonçait 793, chiffre déjà périmé à son écriture. `src/data/articles.json` n'était plus importé,
+`coverImg` était typé sur les deux formes d'article sans qu'aucun serializer ne le rende, et
+`index.html` chargeait un `/src/style.css` absent — un 404 à chaque chargement en
+développement : **102 lignes** mortes en tout. Les boutons s'habillaient de deux façons, le
+composant `Button` et trois classes `.btn-*` portées par neuf liens et boutons écrits à la main.
+**47 lignes de JSDoc** restaient en anglais, et un `{/* Placeholder */}` annonçait comme à
+écrire le formulaire posé juste en dessous. À l'écran : un paragraphe d'« À propos » répété trois
+fois, un carrousel de trois slides sur une seule image, une phrase coupée, et quatre appels à
+l'action de l'accueil qui ne menaient nulle part. Filet de départ : `npm test` rendait **10
+fichiers, 99 cas**.
+
+**Décision et justification** — toujours vers le retrait plutôt que l'implémentation, sauf là où
+le visiteur perdait une fonction :
+
+- `coverImg` est **retiré**, pas implémenté : une image de couverture suppose un champ, une
+  migration et un stockage, c'est une fonctionnalité et non un nettoyage ;
+- le style des boutons a une source unique, `buttonClasses()`, que le composant et les liens
+  appellent. Elle vit **à côté** de `MainButton.tsx`, pas dedans comme le ticket le demandait :
+  `eslint-plugin-react-refresh` refuse qu'un fichier de composant exporte autre chose ;
+- « Découvrir les articles » devient un `<Link>` et non un `useNavigate`, qui casserait le clic
+  milieu. « S'abonner à la newsletter » est **supprimé** : aucun abonnement n'existe côté API ;
+- `TextCtaLink` importe le routeur depuis `ui/`, seul écart assumé au partage `ui/`/`common/` :
+  il rechargeait tout le bundle sur un chemin interne ;
+- les survols inertes passent en classes arbitraires doublées de leur forme `dark:`. La
+  directive `@utility` a été écartée, pour garder une seule façon d'écrire une couleur à variante ;
+- `.section` est supprimée plutôt qu'adoptée : ses espacements ne sont ceux d'aucune section
+  en place, l'adopter changeait le rendu.
+
+**Ce qui a surpris** — le lot prévu en **quatre tâches** a été livré en **dix-huit issues** :
+huit sous-issues de l'epic, puis dix hors d'elle. Une seule cause, trois fois de suite.
+
+**Un inventaire fourni par le ticket s'est révélé incomplet à chaque fois qu'on l'a rejoué.**
+La purge des neuf classes (#176) en a laissé trois sans lecteur (#183). Elle a aussi mis au jour
+six survols que Tailwind v4 ne génère jamais (#184) : une variante posée sur une classe écrite à la
+main ne produit rien, et rien ne le signale. Les bandeaux anglais d'`index.css` avaient échappé à
+#179, qui ne lisait que le TypeScript (#187). Enfin **vingt-deux variables de `@theme`** n'avaient
+aucun lecteur (#199) : Tailwind ne les émet pas, donc elles ne pèsent rien dans le CSS construit,
+et aucun outil ne pouvait les voir. Une seule était émise, parce que le README la citait —
+Tailwind balaie aussi les `.md`. C'est ce qui a fait écrire #196, un test qui refuse une classe
+sans lecteur : la leçon ne valait que si elle cessait de dépendre de la vigilance.
+
+**Vérifier un correctif au navigateur a trouvé les défauts suivants.** Six des dix issues hors
+epic sont nées ainsi, sur la seule page d'accueil :
+- deux slides de tailles différentes (#189) ;
+- deux noms pour une même image (#190) ;
+- cinq logos menant à `#` (#192) ;
+- un survol imperceptible en thème clair, à 0,014 d'écart de couleur pour un seuil de 0,02 (#193) ;
+- chaque marque annoncée quatre fois par un lecteur d'écran (#204) ;
+- un `main` dans un `main` (#206).
+
+Aucun n'était visible à la lecture du code.
+
+**Le lot a raccourci le front, contrairement au lot 8.** Le diff du lot pèse **644 insertions
+pour 765 suppressions** sur 34 fichiers, et `index.css` passe de **837 à 466 lignes**, alors que
+trois fichiers de test se sont ajoutés.
+
+**Preuve de la correction** — rejouée sur `preprod` à `4610a22`, qui contient aussi #159, hors
+lot. Depuis `frontend/` :
+- `npm run lint` ne rend rien ;
+- `npm test` rend `Test Files  14 passed (14)` et `Tests  123 passed (123)`, dont un fichier et
+  cinq cas apportés par #159 ;
+- `npm run build` rend `✓ built in 2.95s`.
+
+`git diff --stat d60cfa5 b5e1e06 -- backend` est vide : le lot n'a pas touché au back. Plus
+aucune occurrence de `coverImg`, `articles.json` ni `btn-primary|secondary|ghost` dans `src/` et
+`index.html`, et `index.html` ne référence plus que deux fichiers existants : `/vite.svg` et
+`/src/main.tsx`.

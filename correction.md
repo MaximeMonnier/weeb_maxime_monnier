@@ -1687,7 +1687,7 @@ npm run build, et donne-moi la sortie des trois.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| En cours depuis le 2026-09-29 — quatre tâches prévues, huit sous-issues ouvertes | #174 | — | Bloc 1 — qualité |
+| Clos le 2026-10-02 — quatre tâches prévues, huit sous-issues et dix issues hors epic livrées : chaque inventaire du lot en a révélé un autre | #174 | Lot 9 | Bloc 1 — qualité |
 
 **Grain de ticket** : prévu en epic + 4 sous-issues, une par tâche — 9.1 → #175, 9.2 → #176,
 9.3 → #179, 9.4 → #178. **Ouvert en epic + 6** : #177, source unique du style des boutons et des
@@ -1695,6 +1695,10 @@ liens-boutons, et #180, destination des appels à l'action de la page d'accueil,
 au cadrage. **Puis en epic + 8** : la livraison de 9.2 a montré que son inventaire de classes
 mortes était incomplet et a ouvert #183, deux classes sans lecteur qu'il n'avait pas vues, et
 #184, six survols que Tailwind ne génère pas.
+**Puis dix issues hors epic**, sous le même label `epic:nettoyage` sauf #193 : #187, bandeaux
+anglais d'`index.css` ; #196, test qui refuse une classe sans lecteur ; #199, vingt-deux variables
+de `@theme` sans lecteur ; #200, README du design system ; et six défauts de l'accueil vus en
+vérifiant les précédents — #189, #190, #192, #193, #204, #206.
 
 > **Dépendances : lots 4 à 8.** À faire en dernier, quand plus aucune tâche ne touche à ces
 > fichiers — sinon on supprime ce qu'une autre branche est en train d'utiliser.
@@ -1789,7 +1793,9 @@ Vérifie ensuite `npm run build` et regarde l'application dans le navigateur ava
 
 ## 9.3 — Nettoyer les commentaires et la documentation de code
 
-- [ ] **Fichiers** : `Blog.tsx`, les quatre formulaires, `components/ui/**`, `Footer.tsx`
+- [x] **Fichiers** : `Blog.tsx`, les quatre formulaires, `components/ui/**`, `Footer.tsx` — livré
+  par l'issue #179 : 47 lignes de JSDoc anglaises, 26 étiquettes de section du JSX et trois traces
+  de tutoriel. Les `.ts` et `.tsx` seuls : `index.css` a suivi avec #187 et #199.
 - **Constat** :
   - `Blog.tsx:68` : `{/* Placeholder — le vrai formulaire viendra ici */}` placé **juste au-dessus
     du vrai formulaire** ; `Blog.tsx:58` : `{/* 4️⃣ Le bouton fermer */}` — traces de tutoriel ;
@@ -1835,8 +1841,10 @@ qualité.
 
 ## 9.4 — Contenu de remplissage
 
-- [ ] **Fichiers** : `frontend/src/pages/About.tsx`, `frontend/src/components/common/Home/Slider.tsx`,
-  `frontend/src/components/common/Home/HeroBanner.tsx`, `FeatureBlock` (via `Home.tsx`)
+- [x] **Fichiers** : `frontend/src/pages/About.tsx`, `frontend/src/components/common/Home/Slider.tsx`,
+  `frontend/src/components/common/Home/HeroBanner.tsx`, `FeatureBlock` (via `Home.tsx`) — le
+  contenu par l'issue #178, le carrousel ramené à deux images distinctes ; les appels à l'action
+  par #180, « S'abonner à la newsletter » supprimé faute d'abonnement côté API.
 - **Constat** :
   - `About.tsx` : le même paragraphe est répété **trois fois**, dont deux dans le même bloc ;
   - `Slider.tsx:43-63` : trois slides affichant **la même image** ;
@@ -1896,8 +1904,8 @@ vérifie seule. Ordre conseillé : 10.1 d'abord (le seul défaut de sécurité m
 10.3, qui touchent les mêmes fichiers d'`accounts` et se feront donc **l'une après l'autre** ;
 10.4 à 10.6 sont indépendantes du back et entre elles.
 
-> **Dépendances : lot 9 clos** (epic #174 fermée, entrée au journal). Vérifier avant 10.6 que
-> les issues ouvertes #189 et #192 ne touchent pas `components/common/Navigation/`.
+> **Dépendances : lot 9 clos** (epic #174 fermée, entrée au journal) — fait le 2026-10-02. #189 et
+> #192, ouvertes au cadrage, sont closes depuis sans avoir touché `components/common/Navigation/`.
 
 ## 10.1 — Révoquer les sessions ouvertes à la réinitialisation du mot de passe
 
@@ -1931,8 +1939,8 @@ dis-le dans le tableau de verdict.
 Travail demandé :
 1. Après set_password/save, mets en liste noire chaque OutstandingToken du compte
    (BlacklistedToken.objects.get_or_create(token=...)). Dis-moi si tu le poses dans la vue ou
-   dans une fonction d'accounts réutilisable par le futur changement de mot de passe connecté
-   (issue #159), et recommande — pas une question ouverte.
+   dans une fonction d'accounts que partagerait `PasswordChangeView` — livrée par l'issue #159,
+   elle fait déjà cette révocation par un `bulk_create` —, et recommande, pas une question ouverte.
 2. Les deux opérations (mot de passe et liste noire) doivent-elles être dans la même
    transaction ? Tranche, en une ligne de justification.
 3. Tests dans accounts/tests.py, classe PasswordResetConfirmTests ou JWTRotationTests selon ce
