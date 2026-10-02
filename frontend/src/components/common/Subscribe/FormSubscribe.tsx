@@ -4,7 +4,7 @@ import { Input } from "../../ui/Input";
 import MainButton from "../../ui/Button/MainButton";
 import { apiFetch } from "../../../lib/api";
 import { toFormErrors } from "../../../lib/apiErrors";
-import { isValidEmail } from "../../../lib/validationRules";
+import { isComplexPassword, isValidEmail } from "../../../lib/validationRules";
 import { useForm } from "../../../hooks/useForm";
 import type { FormErrors } from "../../../hooks/useForm";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
@@ -54,7 +54,7 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
     newErrors.password = "Le mot de passe est requis";
   } else if (formData.password.length < 8) {
     newErrors.password = "Le mot de passe doit contenir au moins 8 caractères";
-  } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
+  } else if (!isComplexPassword(formData.password)) {
     newErrors.password =
       "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre";
   }
