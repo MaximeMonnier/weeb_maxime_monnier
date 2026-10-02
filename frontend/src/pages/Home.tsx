@@ -11,7 +11,7 @@ const Home = () => {
       <header>
         <HeroBanner />
       </header>
-      <main>
+      <div>
         <div className="container-custom flex justify-center py-30">
           <Slider />
         </div>
@@ -49,7 +49,7 @@ const Home = () => {
             reverse={true}
           />
         </div>
-      </main>
+      </div>
     </>
   );
 };
