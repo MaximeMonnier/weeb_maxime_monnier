@@ -298,14 +298,15 @@ class CustomUserAdminTests(TestCase):
 
 
 class ThrottleScopeTests(SimpleTestCase):
-    """Chaque endpoint public porte son scope, et chaque scope a son taux."""
+    """Chaque endpoint sous quota porte son scope, et chaque scope a son taux."""
 
-    def test_chaque_endpoint_public_porte_son_scope(self):
+    def test_chaque_endpoint_sous_quota_porte_son_scope(self):
         taux = settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
         for nom_de_route, scope in {
             "login": "login",
             "register": "register",
             "password-reset": "password_reset",
+            "password-change": "password_change",
             "contact": "contact",
         }.items():
             with self.subTest(route=nom_de_route):
@@ -568,3 +569,97 @@ class LoginTests(TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertNotIn("access", response.json())
         self.assertNotIn("refresh", response.json())
+
+
+class PasswordChangeTests(TestCase):
+    """Le changement exige le mot de passe actuel et ferme les sessions ouvertes avec l'ancien."""
+
+    PASSWORD = "MotDePasseValide123"
+    NOUVEAU = "NouveauSecret456"
+
+    def setUp(self):
+        self.url = reverse("password-change")
+        self.membre = CustomUser.objects.create_user(
+            email="membre@example.com", first_name="Martin", last_name="Embre",
+            password=self.PASSWORD,
+        )
+        self.session = self.connecter(self.PASSWORD).json()
+        cache.clear()
+
+    def connecter(self, mot_de_passe):
+        return self.client.post(
+            reverse("login"),
+            {"email": self.membre.email, "password": mot_de_passe},
+            content_type="application/json",
+        )
+
+    def changer(self, corps, access=None):
+        en_tetes = {"HTTP_AUTHORIZATION": f"Bearer {access}"} if access else {}
+        return self.client.post(self.url, corps, content_type="application/json", **en_tetes)
+
+    def rafraichir(self, refresh):
+        return self.client.post(
+            reverse("login-refresh"), {"refresh": refresh}, content_type="application/json"
+        )
+
+    def test_le_membre_change_son_mot_de_passe_et_garde_sa_session(self):
+        response = self.changer(
+            {"current_password": self.PASSWORD, "new_password": self.NOUVEAU},
+            self.session["access"],
+        )
+
+        self.assertEqual(response.status_code, 200)
+        # Les jetons neufs sont ce qui évite de se reconnecter : le refresh d'avant est mort.
+        self.assertEqual(self.rafraichir(response.json()["refresh"]).status_code, 200)
+        self.assertEqual(self.connecter(self.NOUVEAU).status_code, 200)
+        self.assertEqual(self.connecter(self.PASSWORD).status_code, 401)
+
+    def test_les_autres_sessions_ne_se_renouvellent_plus(self):
+        autre_appareil = self.connecter(self.PASSWORD).json()
+
+        self.changer(
+            {"current_password": self.PASSWORD, "new_password": self.NOUVEAU},
+            self.session["access"],
+        )
+
+        self.assertEqual(self.rafraichir(autre_appareil["refresh"]).status_code, 401)
+        self.assertEqual(self.rafraichir(self.session["refresh"]).status_code, 401)
+
+    def test_le_jeton_seul_ne_suffit_pas(self):
+        for corps in (
+            {"new_password": self.NOUVEAU},
+            {"current_password": "MauvaisSecret789", "new_password": self.NOUVEAU},
+        ):
+            with self.subTest(corps=corps):
+                response = self.changer(corps, self.session["access"])
+
+                # 400 et jamais 401 : le front renouvellerait un jeton qui n'y est pour rien.
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("current_password", response.json())
+        self.assertEqual(self.connecter(self.PASSWORD).status_code, 200)
+
+    def test_un_mot_de_passe_faible_est_refuse_comme_a_l_inscription(self):
+        # Le dernier ne tombe que par la similarité, muette à la réinitialisation faute de titulaire.
+        for faible in ("12345678", "motdepasse1", "Membre@example.com1"):
+            with self.subTest(mot_de_passe=faible):
+                response = self.changer(
+                    {"current_password": self.PASSWORD, "new_password": faible},
+                    self.session["access"],
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("new_password", response.json())
+        self.assertEqual(self.connecter(self.PASSWORD).status_code, 200)
+
+    def test_un_visiteur_est_refuse(self):
+        response = self.changer({"current_password": self.PASSWORD, "new_password": self.NOUVEAU})
+
+        self.assertEqual(response.status_code, 401)
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"password_change": "5/hour"})
+    def test_la_sixieme_tentative_est_refusee(self):
+        corps = {"current_password": "MauvaisSecret789", "new_password": self.NOUVEAU}
+        for _ in range(5):
+            self.assertEqual(self.changer(corps, self.session["access"]).status_code, 400)
+
+        self.assertEqual(self.changer(corps, self.session["access"]).status_code, 429)

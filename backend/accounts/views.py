@@ -4,6 +4,8 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from django.conf import settings
@@ -18,6 +20,7 @@ from .serializers import (
     RegisterSerializer,
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
+    PasswordChangeSerializer,
     RefreshSerializer,
 )
 
@@ -135,3 +138,34 @@ class PasswordResetConfirmView(APIView):
         return Response({"detail": "Mot de passe réinitialisé avec succès."},
                         status=status.HTTP_200_OK)
 
+
+class PasswordChangeView(APIView):
+    """Change le mot de passe du membre connecté, ferme ses autres sessions et lui rend des jetons neufs."""
+    # Le mot de passe actuel se teste ici : sans quota, un jeton d'accès volé suffirait à le deviner.
+    throttle_scope = "password_change"
+
+    def post(self, request):
+        serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        user.set_password(serializer.validated_data["new_password"])
+        user.save()
+
+        # Chaque refresh émis passe en liste noire, celui de cet appareil compris : qui
+        # change un mot de passe compromis veut couper la session volée. Les jetons
+        # d'accès, eux, vivent leurs 15 minutes — rien ne les révoque, voir base.py.
+        BlacklistedToken.objects.bulk_create(
+            [BlacklistedToken(token=token) for token in
+             OutstandingToken.objects.filter(user=user, blacklistedtoken__isnull=True)]
+        )
+        # Émis après la révocation, sans quoi il y passerait avec les autres.
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "detail": "Mot de passe modifié.",
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
+            status=status.HTTP_200_OK,
+        )
