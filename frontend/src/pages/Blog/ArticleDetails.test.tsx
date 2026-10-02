@@ -105,6 +105,36 @@ describe("ArticleDetails — article reçu", () => {
     );
   });
 
+  it("garde les paragraphes distincts, et une ligne simple dans le sien", async () => {
+    appelReseau.mockResolvedValueOnce(
+      reponseArticle({
+        ...ARTICLE,
+        content: "Premier.\nSuite du premier.\n\nSecond.",
+      }),
+    );
+    rendreLeDetail();
+
+    const second = await screen.findByText("Second.");
+    // `getByText` ramène les retours à la ligne à des espaces avant de comparer.
+    const premier = screen.getByText("Premier. Suite du premier.");
+
+    expect(premier.tagName).toBe("P");
+    expect(second.tagName).toBe("P");
+    expect(premier).not.toBe(second);
+  });
+
+  it("affiche une balise saisie dans le texte sans l'interpréter", async () => {
+    appelReseau.mockResolvedValueOnce(
+      reponseArticle({ ...ARTICLE, content: "Un mot <b>gras</b> ici." }),
+    );
+    rendreLeDetail();
+
+    expect(
+      await screen.findByText("Un mot <b>gras</b> ici."),
+    ).toBeInTheDocument();
+    expect(document.querySelector("b")).toBeNull();
+  });
+
   it("annonce le chargement tant que la réponse n'est pas arrivée", async () => {
     let livrer: (reponse: unknown) => void = () => {};
     appelReseau.mockReturnValueOnce(
