@@ -1294,8 +1294,8 @@ donne :
 
 ### Le débit
 
-Quatre routes publiques sont limitées **par adresse IP**, et le changement de mot de passe
-**par compte**, la seule des cinq à exiger un membre connecté. Au-delà du quota, la réponse est
+Cinq routes publiques sont limitées **par adresse IP**, et le changement de mot de passe
+**par compte**, la seule des six à exiger un membre connecté. Au-delà du quota, la réponse est
 un `429` portant un en-tête `Retry-After` en secondes :
 
 ```json
@@ -1307,15 +1307,18 @@ un `429` portant un en-tête `Retry-After` en secondes :
 | `POST /api/auth/login/` | 5 par minute | `THROTTLE_LOGIN` |
 | `POST /api/auth/register/` | 5 par heure | `THROTTLE_REGISTER` |
 | `POST /api/auth/password-reset/` | 3 par heure | `THROTTLE_PASSWORD_RESET` |
+| `POST /api/auth/password-reset/confirm/` | 5 par heure | `THROTTLE_PASSWORD_RESET_CONFIRM` |
 | `POST /api/auth/password-change/` | 5 par heure | `THROTTLE_PASSWORD_CHANGE` |
 | `POST /api/contact/` | 5 par heure | `THROTTLE_CONTACT` |
 
 Le compteur compte les **appels**, pas les échecs : la sixième connexion d'une même minute
 reçoit un `429` même avec le bon mot de passe. La fenêtre du login est courte parce que se
 tromper de mot de passe deux fois de suite est ordinaire et qu'on réessaie aussitôt —
-une fenêtre d'une heure punirait le distrait autant que le robot. Les quatre autres sont des gestes qu'on ne répète
-pas dans l'heure, et la réinitialisation est la plus basse des cinq : chacun de ses appels
-envoie un vrai email.
+une fenêtre d'une heure punirait le distrait autant que le robot. Les cinq autres sont des gestes qu'on ne répète
+pas dans l'heure, et la réinitialisation est la plus basse des six : chacun de ses appels
+envoie un vrai email. Sa confirmation a son propre compteur, pour que l'une n'entame pas le
+quota de l'autre : son jeton ne se devine pas, c'est le coût de chaque appel qu'on borne,
+le nouveau mot de passe passant par les validateurs puis par le hachage.
 
 Le front l'affiche tel quel dans le formulaire, sans lui opposer un message à lui : celui-ci
 porte le délai restant, que toute reformulation perdrait. `frontend/src/lib/apiErrors.ts` tient

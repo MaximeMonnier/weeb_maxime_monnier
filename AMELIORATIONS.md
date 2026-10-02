@@ -133,12 +133,10 @@ Rien de ce qui reste ne bloque le développement.
       compte, par la même fonction que `PasswordChangeView` : `set_password_and_revoke`, qui
       change le mot de passe et révoque dans une seule transaction. Le jeton d'accès, lui,
       vit toujours ses 15 minutes : rien ne le révoque, voir `base.py`.
-- [ ] **La confirmation de réinitialisation n'a pas de quota.** `PasswordResetConfirmView`
-      est la seule vue publique d'écriture sans `throttle_scope` : quatre en portent un, pas
-      elle. Le token HMAC ne se devine pas, l'enjeu n'est donc pas le forçage mais le coût —
-      chaque appel valide un mot de passe et le hache. Piste : un scope dédié, réglable par
-      variable comme les quatre autres, et sa ligne dans le test qui lie chaque route à son
-      scope.
+- [x] **La confirmation de réinitialisation n'a pas de quota** — réglé par l'issue #214.
+      `PasswordResetConfirmView` porte le scope `password_reset_confirm`, 5 par heure et par
+      adresse IP, réglable par `THROTTLE_PASSWORD_RESET_CONFIRM`. Scope à part pour que la
+      demande et la confirmation ne se consomment pas leur quota l'une l'autre.
 - [ ] **Aucune borne de longueur sur les mots de passe ni sur les textes longs.** `password`,
       `new_password` et `current_password` sont des `CharField` sans `max_length`, `Article.content` et
       `Contact.message` des `TextField`. Seule la limite de corps de Django (2,5 Mo) arrête
