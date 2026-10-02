@@ -13,6 +13,8 @@ class ArticleSerializer(serializers.ModelSerializer):
         model = Article
         fields = ("id", "title", "content", "author", "created_at", "updated_at")
         read_only_fields = ("author", "created_at", "updated_at")
+        # Ici et pas au modèle : un TextField n'a pas de longueur en base, rien à migrer.
+        extra_kwargs = {"content": {"max_length": 20000}}
 
 
 class ArticleListSerializer(serializers.ModelSerializer):

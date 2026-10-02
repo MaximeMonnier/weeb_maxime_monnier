@@ -358,6 +358,47 @@ class ArticleDatesImposeesTests(TestCase):
         self.assertGreater(article.updated_at, modification)
 
 
+class ArticleLongueurTests(TestCase):
+    """content est un TextField sans longueur en base : la borne ne vit que dans
+    ArticleSerializer, et vaut à la modification comme à la création."""
+
+    LIMITE = 20000
+
+    def setUp(self):
+        self.auteur = membre("auteur@example.com")
+        self.article = Article.objects.create(
+            title="Article existant", content="Contenu.", author=self.auteur,
+        )
+
+    def creer(self, content):
+        return self.client.post(
+            reverse("article-list"), {"title": "Long billet", "content": content},
+            content_type="application/json", headers=porteur(self.auteur),
+        )
+
+    def modifier(self, content):
+        return self.client.patch(
+            reverse("article-detail", args=[self.article.pk]), {"content": content},
+            content_type="application/json", headers=porteur(self.auteur),
+        )
+
+    def test_la_creation(self):
+        response = self.creer("C" * (self.LIMITE + 1))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("content", response.json())
+        self.assertEqual(self.creer("C" * self.LIMITE).status_code, 201)
+
+    def test_la_modification(self):
+        response = self.modifier("C" * (self.LIMITE + 1))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("content", response.json())
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.content, "Contenu.")
+        self.assertEqual(self.modifier("C" * self.LIMITE).status_code, 200)
+
+
 class ArticleCoutDesListesTests(TestCase):
     """Les deux listes tiennent en un nombre de requêtes que le nombre d'articles ne change
     pas : l'auteur, lu sur sa ligne des deux côtés — par public_name côté API, par __str__
