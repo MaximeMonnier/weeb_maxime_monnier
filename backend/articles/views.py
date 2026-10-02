@@ -1,4 +1,5 @@
-from django.db.models.functions import Left
+from django.db.models.functions import Left, Length
+from django.db.models.lookups import GreaterThan
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from .models import Article
@@ -30,8 +31,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
             # Les deux vont ensemble : defer laisse content en base, annotate y
             # taille l'extrait. Sans l'annotation, le serializer rechargerait
             # content une requête par ligne ; sans le defer, il voyagerait entier.
+            # La coupure se mesure ici aussi : la carte n'a que l'extrait, et
+            # comparer sa longueur côté front recopierait LONGUEUR_EXTRAIT.
             return queryset.defer("content").annotate(
                 excerpt=Left("content", LONGUEUR_EXTRAIT),
+                excerpt_truncated=GreaterThan(Length("content"), LONGUEUR_EXTRAIT),
             )
         return queryset
 

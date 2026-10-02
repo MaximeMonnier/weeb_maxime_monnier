@@ -7,6 +7,7 @@ celle de l'API et celle de l'admin, quand le nombre d'articles grandit. Enfin la
 qui peuple la base de développement, et le refus qui la tient à l'écart de celle de
 production."""
 
+import re
 from datetime import timedelta
 from io import StringIO
 
@@ -234,8 +235,9 @@ class ArticleOrdreTests(TestCase):
 
 class ArticleExtraitDeListeTests(TestCase):
     """La liste et le détail ne rendent pas les mêmes champs, et rien dans le modèle ne le
-    dit : deux serializers que seule l'action de la vue départage. `excerpt` n'existe nulle
-    part comme champ — il vient de l'annotation du queryset, et repartirait avec elle."""
+    dit : deux serializers que seule l'action de la vue départage. `excerpt` et
+    `excerpt_truncated` n'existent nulle part comme champs — ils viennent de l'annotation du
+    queryset, et repartiraient avec elle."""
 
     def setUp(self):
         # Plus long que l'extrait : à contenu plus court, la liste rendrait le texte
@@ -254,10 +256,51 @@ class ArticleExtraitDeListeTests(TestCase):
         # id, author et created_at, qu'un fields raccourci ferait disparaître sans que
         # rien ne tombe ici — la carte afficherait « Par undefined le Invalid Date ».
         self.assertEqual(
-            sorted(article), ["author", "created_at", "excerpt", "id", "title"],
+            sorted(article),
+            ["author", "created_at", "excerpt", "excerpt_truncated", "id", "title"],
         )
         self.assertEqual(article["excerpt"], self.contenu[:LONGUEUR_EXTRAIT])
         self.assertEqual(len(article["excerpt"]), LONGUEUR_EXTRAIT)
+
+    def test_la_liste_dit_quels_extraits_sont_coupes(self):
+        """La borne exacte des deux côtés : un article de LONGUEUR_EXTRAIT caractères est
+        rendu entier, et ses points de suspension mentiraient."""
+        auteur = self.article.author
+        Article.objects.create(
+            title="Article juste", content="x" * LONGUEUR_EXTRAIT, author=auteur,
+        )
+        Article.objects.create(
+            title="Article juste au-delà", content="x" * (LONGUEUR_EXTRAIT + 1),
+            author=auteur,
+        )
+
+        response = self.client.get(reverse("article-list"))
+
+        self.assertEqual(response.status_code, 200)
+        coupes = {
+            article["title"]: article["excerpt_truncated"]
+            for article in response.json()["results"]
+        }
+        self.assertEqual(coupes, {
+            "Article long": True,
+            "Article juste": False,
+            "Article juste au-delà": True,
+        })
+
+    def test_la_liste_ne_lit_le_contenu_qu_au_travers_de_l_extrait(self):
+        """Le JSON ne le montre pas : sans le defer, content voyagerait entier de la base
+        au serializer, qui le tairait. Seules LEFT() et LENGTH() ont le droit d'y toucher,
+        d'où la colonne refusée partout où une parenthèse ne la précède pas."""
+        with CaptureQueriesContext(connection) as requetes:
+            response = self.client.get(reverse("article-list"))
+
+        self.assertEqual(response.status_code, 200)
+        table = connection.ops.quote_name(Article._meta.db_table)
+        colonne = f"{table}.{connection.ops.quote_name('content')}"
+        sql = " ".join(requete["sql"] for requete in requetes)
+        # Présente au moins une fois : un nom mal écrit ferait passer le refus à vide.
+        self.assertIn(colonne, sql)
+        self.assertNotRegex(sql, rf"(?<!\(){re.escape(colonne)}")
 
     def test_le_detail_rend_le_contenu_entier_et_pas_d_extrait(self):
         response = self.client.get(reverse("article-detail", args=[self.article.pk]))
@@ -265,6 +308,7 @@ class ArticleExtraitDeListeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["content"], self.contenu)
         self.assertNotIn("excerpt", response.json())
+        self.assertNotIn("excerpt_truncated", response.json())
 
 
 class ArticlePaginationTests(TestCase):
