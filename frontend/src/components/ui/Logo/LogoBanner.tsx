@@ -11,11 +11,11 @@ type Brand = {
 };
 
 const brands: Brand[] = [
-  { name: "SmartFinder", src: svg1, href: "#" },
-  { name: "Zoomerr", src: svg2, href: "#" },
-  { name: "SHELLS", src: svg3, href: "#" },
-  { name: "WAVES", src: svg4, href: "#" },
-  { name: "ArtVenue", src: svg5, href: "#" },
+  { name: "SmartFinder", src: svg1 },
+  { name: "Zoomerr", src: svg2 },
+  { name: "SHELLS", src: svg3 },
+  { name: "WAVES", src: svg4 },
+  { name: "ArtVenue", src: svg5 },
 ];
 
 const LogoItem = ({ brand }: { brand: Brand }) => {
@@ -40,12 +40,7 @@ const LogoItem = ({ brand }: { brand: Brand }) => {
       {content}
     </a>
   ) : (
-    <div
-      aria-label={brand.name}
-      className="flex min-w-max items-center gap-2 px-6 py-2"
-    >
-      {content}
-    </div>
+    <div className="flex min-w-max items-center gap-2 px-6 py-2">{content}</div>
   );
 };
 
