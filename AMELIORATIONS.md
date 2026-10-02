@@ -26,11 +26,12 @@ et pour les prochaines itérations).
       décalage inverse, une publication, est déjà absorbé — `Blog.tsx` écarte le doublon
       qu'elle produit. Piste : la `CursorPagination` de DRF, qui reprend après le dernier
       article vu, mais ne donne pas le `count` que l'issue exigeait.
-- [ ] **Les paragraphes d'un article disparaissent à la lecture.** `ArticleDetails.tsx`
-      rend `content` dans un `<p>` nu : les retours à la ligne saisis dans le `Textarea` de
-      `FormArticle` sont écrasés par le HTML, et un article de plusieurs paragraphes
-      s'affiche d'un seul bloc. Piste : `whitespace-pre-line` sur ce `<p>` — pas de
-      `dangerouslySetInnerHTML`, React continue d'échapper le texte.
+- [x] **Les paragraphes d'un article disparaissent à la lecture** — réglé par l'issue
+      #216. `ArticleDetails.tsx` découpe `content` aux lignes vides et rend un `<p>` par
+      paragraphe : `whitespace-pre-line` seul aurait rétabli l'aspect, mais un lecteur
+      d'écran aurait toujours annoncé un bloc unique. Il reste posé sur chaque `<p>`, pour
+      qu'une ligne simple garde son retour. Aucun `dangerouslySetInnerHTML` : React échappe
+      toujours le texte, un `<b>` saisi s'affiche tel quel.
 - [ ] **L'extrait finit toujours par « ... ».** `Card.tsx` ajoute les points de suspension
       sans condition, alors que `Left("content", LONGUEUR_EXTRAIT)` ne coupe qu'au-delà de
       100 caractères : un article court s'affiche tronqué alors qu'il est entier. Piste :

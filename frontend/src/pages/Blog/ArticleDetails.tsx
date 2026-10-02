@@ -15,6 +15,15 @@ type Resultat = { id: string } & (
   | { statut: "erreur"; message: string | null }
 );
 
+// Une ligne vide sépare deux paragraphes, et chacun reçoit son `<p>` : un lecteur
+// d'écran les annonce alors un par un. Le texte reste échappé par React.
+function paragraphes(texte: string): string[] {
+  return texte
+    .split(/\n\s*\n/)
+    .map((paragraphe) => paragraphe.trim())
+    .filter(Boolean);
+}
+
 // Le même écran pour le 404 de l'API et pour une adresse sans identifiant : dans
 // les deux cas l'article n'existe pas, et il ne reste que le retour à la liste.
 function ArticleIntrouvable() {
@@ -112,7 +121,14 @@ const ArticleDetails = () => {
           Par {recu.article.author} le{" "}
           {new Date(recu.article.created_at).toLocaleDateString()}
         </p>
-        <p className="text-secondary">{recu.article.content}</p>
+        <div className="text-secondary space-y-4">
+          {paragraphes(recu.article.content).map((paragraphe, index) => (
+            // Une ligne simple, elle, reste un retour à la ligne dans le paragraphe.
+            <p key={index} className="whitespace-pre-line">
+              {paragraphe}
+            </p>
+          ))}
+        </div>
       </>
     );
   }
