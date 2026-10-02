@@ -5,6 +5,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image1 from "../../../assets/img/img1.png";
 import Image2 from "../../../assets/img/img2.png";
 
+// Les deux images n'ont pas le même format : le cadre prend celui d'img1 et
+// img2 y est centrée entière, sur le fond du thème plutôt qu'un vide.
+const CADRE_SLIDE =
+  "aspect-[1100/661] w-full rounded-lg object-contain bg-[var(--color-light-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)]";
+
 const Slider = () => {
   const autoplay = useRef(Autoplay({ delay: 3500, stopOnInteraction: false }));
   const [canPrev, setCanPrev] = useState(false);
@@ -38,21 +43,21 @@ const Slider = () => {
   }, [emblaApi]);
 
   return (
-    <div className="embla">
+    <div className="embla w-full max-w-[1100px]">
       <div className="embla__viewport" ref={emblaRef}>
         <div className="embla__container">
           <div className="embla__slide">
             <img
               src={Image1}
               alt="Maquette d'une interface de blog : menu latéral, blocs de texte et cartes illustrées"
-              className="rounded-lg"
+              className={CADRE_SLIDE}
             />
           </div>
           <div className="embla__slide">
             <img
               src={Image2}
               alt="Composition graphique de carrés violets superposés autour d'un carré rose"
-              className="rounded-lg"
+              className={CADRE_SLIDE}
             />
           </div>
         </div>
