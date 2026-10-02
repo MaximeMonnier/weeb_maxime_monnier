@@ -128,15 +128,11 @@ Rien de ce qui reste ne bloque le développement.
 
 ## Backend — sécurité
 
-- [ ] **Réinitialiser son mot de passe ne coupe pas les sessions ouvertes.**
-      `PasswordResetConfirmView` appelle `set_password` puis s'arrête : les refresh déjà
-      émis restent valables jusqu'à un jour, et la rotation les prolonge. Or c'est
-      précisément le geste de qui croit sa session volée — l'attaquant qui détient un
-      refresh la garde. Piste : après `set_password`, mettre en liste noire chaque
-      `OutstandingToken` du compte (`BlacklistedToken.objects.get_or_create`), les tables
-      existant déjà depuis l'issue #72, et un test qui refuse le refresh d'avant. Le jeton
-      d'accès, lui, vit ses 15 minutes : rien ne le révoque, voir `base.py`.
-      `PasswordChangeView` le fait déjà depuis l'issue #159 : son `bulk_create` se reprend tel quel.
+- [x] **Réinitialiser son mot de passe ne coupe pas les sessions ouvertes** — réglé par
+      l'issue #213. `PasswordResetConfirmView` met désormais en liste noire chaque refresh du
+      compte, par la même fonction que `PasswordChangeView` : `set_password_and_revoke`, qui
+      change le mot de passe et révoque dans une seule transaction. Le jeton d'accès, lui,
+      vit toujours ses 15 minutes : rien ne le révoque, voir `base.py`.
 - [ ] **La confirmation de réinitialisation n'a pas de quota.** `PasswordResetConfirmView`
       est la seule vue publique d'écriture sans `throttle_scope` : quatre en portent un, pas
       elle. Le token HMAC ne se devine pas, l'enjeu n'est donc pas le forçage mais le coût —
