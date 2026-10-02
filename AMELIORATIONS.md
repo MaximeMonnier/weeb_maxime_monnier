@@ -36,6 +36,12 @@ et pour les prochaines itérations).
       100 caractères : un article court s'affiche tronqué alors qu'il est entier. Piste :
       ne les poser que si l'extrait atteint la longueur de coupe, ou exposer côté API un
       booléen calculé dans le même `annotate`.
+- [ ] **Sur mobile, l'accueil défile en largeur.** À 375 px, la page s'élargit à 749 px :
+      dans `BrandBanner.tsx`, le `<div>` qui enveloppe `LogoBanner` est l'enfant d'un flex
+      `items-center`, donc il prend la largeur de son contenu, et le `width: 100%` de
+      `.marquee-mask` suit cette largeur au lieu de celle de l'écran : le masque s'étale
+      jusqu'à son `max-width` de 70rem. Piste : un `w-full` sur ce `<div>`, comme celui du
+      carrousel (issue #189) — essayé au navigateur, la page revient à 375 px.
 
 ## Docker — mise en ligne
 
