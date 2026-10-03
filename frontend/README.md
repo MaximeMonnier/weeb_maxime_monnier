@@ -290,9 +290,8 @@ règle que rien ne lit.
 - ✅ Accessibilité (ARIA, labels, focus)
 - ✅ Responsive design mobile-first
 - ✅ Dark mode persisté
-- ✅ Code splitting avec React Router
 - ✅ Validation formulaires côté client
-- ✅ Performance optimisée (lazy loading)
+- ✅ Images hors écran chargées à la demande (`loading="lazy"` dans `FeatureBlock.tsx` et `LogoBanner.tsx`)
 - ✅ Tree-shaking automatique
 
 ## 📖 Guide de prise en main
@@ -373,16 +372,7 @@ export default function MonFormulaire() {
 
 ## 🔮 Améliorations futures
 
-- [ ] Connexion à une API backend
-- [ ] Authentification JWT
-- [x] Tests (Vitest + React Testing Library)
-- [ ] Internationalisation (i18n)
-- [ ] PWA (Progressive Web App)
-- [ ] Optimisation des images (WebP)
-
-## 📝 License
-
-MIT
+Elles sont consignées pour tout le dépôt dans [`../AMELIORATIONS.md`](../AMELIORATIONS.md).
 
 ---
 
