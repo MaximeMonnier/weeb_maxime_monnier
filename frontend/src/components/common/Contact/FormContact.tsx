@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input, Textarea } from "../../ui/Input";
-import MainButton from "../../ui/Button/MainButton";
+import Button from "../../ui/Button/Button";
 import { apiFetch } from "../../../lib/api";
 import { toFormErrors } from "../../../lib/apiErrors";
 import { isValidEmail } from "../../../lib/validationRules";
@@ -194,14 +194,14 @@ const FormContact = () => {
         />
 
         <div className="flex justify-center">
-          <MainButton
+          <Button
             type="submit"
             variant="primary"
             size="lg"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Envoi en cours..." : "Envoyer le message"}
-          </MainButton>
+          </Button>
         </div>
       </div>
     </form>

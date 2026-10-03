@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import MainTitle from "../../ui/Title/MainTitle";
+import HeroTitle from "../../ui/Title/HeroTitle";
 import { buttonClasses } from "../../ui/Button/buttonClasses";
 import { LIEN_BLOG } from "../../../lib/navigation";
 
@@ -9,7 +9,7 @@ const HeroBanner = () => {
     <div className="container-custom mt-32">
       <div className="flex flex-col items-center justify-center">
         <div className="py-6">
-          <MainTitle
+          <HeroTitle
             line1={
               <>
                 Explorez le <span className="text-accent">Web</span> sous toutes

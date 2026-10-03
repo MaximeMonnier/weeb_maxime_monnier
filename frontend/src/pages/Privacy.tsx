@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import HeroTitle from "../components/ui/Title/MainTitle";
-import SectionTitle from "../components/ui/Title/SecondTitle";
+import HeroTitle from "../components/ui/Title/HeroTitle";
+import SectionTitle from "../components/ui/Title/SectionTitle";
 
 const Privacy = () => {
   return (

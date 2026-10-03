@@ -3,8 +3,8 @@ import { apiFetch } from "../lib/api";
 import { toFormErrors } from "../lib/apiErrors";
 import { useForm } from "../hooks/useForm";
 import { Input } from "../components/ui/Input";
-import MainButton from "../components/ui/Button/MainButton";
-import MainTitle from "../components/ui/Title/MainTitle";
+import Button from "../components/ui/Button/Button";
+import HeroTitle from "../components/ui/Title/HeroTitle";
 import ErrorAlert from "../components/ui/Alert/ErrorAlert";
 
 // Un seul champ, mais la même forme que les autres formulaires : le hook indexe les
@@ -53,7 +53,7 @@ const ForgotPassword = () => {
   return (
     <div className="container-custom mt-32">
       <div className="flex flex-col items-center justify-center">
-        <MainTitle
+        <HeroTitle
           line1={<>Mot de passe oublié</>}
           line2="Entrez votre email pour réinitialiser"
         />
@@ -82,7 +82,7 @@ const ForgotPassword = () => {
                 />
 
                 <div className="flex justify-center">
-                  <MainButton
+                  <Button
                     type="submit"
                     variant="primary"
                     size="lg"
@@ -92,7 +92,7 @@ const ForgotPassword = () => {
                     {isSubmitting
                       ? "Veuillez patienter…"
                       : "Réinitialiser mon mot de passe"}
-                  </MainButton>
+                  </Button>
                 </div>
               </div>
             </form>

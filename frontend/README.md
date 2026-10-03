@@ -97,7 +97,7 @@ Ce fichier ne couvre que le front. Le reste est à la racine du dépôt :
 src/
 ├── components/                # Composants réutilisables
 │   ├── common/                # Composants métier, liés à un domaine
-│   │   ├── Blog/              # Card (export ArticleCard), FormArticle
+│   │   ├── Blog/              # ArticleCard, FormArticle
 │   │   ├── Contact/           # FormContact
 │   │   ├── Home/              # HeroBanner, FeatureBlock, BrandBanner, Slider
 │   │   ├── Login/             # FormLogin
@@ -107,11 +107,10 @@ src/
 │   │   └── ThemeToggle.tsx
 │   └── ui/                    # Composants génériques, sans métier
 │       ├── Alert/             # ErrorAlert
-│       ├── Button/            # MainButton (export Button), buttonClasses
+│       ├── Button/            # Button, buttonClasses
 │       ├── Input/             # Input, Textarea, FormField
 │       ├── Logo/              # Logo, LogoBanner
-│       └── Title/             # MainTitle (export HeroTitle), SecondTitle (export SectionTitle),
-│                              # LinkTitle (export TextCtaLink)
+│       └── Title/             # HeroTitle, SectionTitle, TextCtaLink
 ├── pages/                     # Une page par route
 │   ├── Blog/                  # Blog, ArticleDetails
 │   ├── About.tsx
@@ -171,7 +170,7 @@ import { Input } from "./components/ui/Input";
 
 ### Button
 ```tsx
-import Button from "./components/ui/Button/MainButton";
+import Button from "./components/ui/Button/Button";
 
 <Button variant="primary" size="lg" fullWidth>
   Créer mon compte
@@ -340,7 +339,7 @@ de règles : il laisse l'API juger l'adresse.
 ```tsx
 // src/components/common/MonDomaine/MonFormulaire.tsx
 import { Input } from "../../ui/Input";
-import Button from "../../ui/Button/MainButton";
+import Button from "../../ui/Button/Button";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
 import { useForm, type FormErrors } from "../../../hooks/useForm";
 import { apiFetch } from "../../../lib/api";
