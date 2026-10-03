@@ -61,6 +61,10 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
   `Button`, `Card.tsx` exporte `ArticleCard`…). Inventorier les exports, pas les noms de fichiers.
 - **Tout est rédigé en français** : code, commentaires, docstrings, commits, tickets.
 - **Commentaires** : le *pourquoi*, jamais le *quoi*, trois lignes maximum (`commentaires-code`).
+- **Documentation** : commenter seulement ce que le code ne peut pas dire. README et
+  `CLAUDE.md` : seulement pour un changement de stack, de commande ou de structure. À partir du
+  lot 12, cette règle l'emporte sur toute fin de prompt qui fait mettre à jour `CLAUDE.md`, le
+  README ou `AMELIORATIONS.md`.
 - **Avant chaque push** : dérouler `revue-avant-push`, qui rend un verdict
   `BLOQUANT / À CORRIGER / OK`.
 - **Outillage** : `/plan-chapitre <lot>` pour créer les tickets du lot, puis `/ticket <n>` pour
@@ -2173,7 +2177,7 @@ Coche l'entrée correspondante de AMELIORATIONS.md (§ « Frontend — code mort
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 + 2 — documentation |
+| Clos le 2026-10-03 — le grep a trouvé l'incitation jusque dans la règle des trois lignes | — | Lot 11 | Bloc 1 + 2 — documentation |
 
 **Origine** : les règles de sobriété existent déjà — 3 lignes au plus par commentaire
 (`commentaires-code`), « sinon n'y touche pas » à l'étape 7 de `/ticket`, budget de 40 Ko pour
@@ -2190,7 +2194,7 @@ AMELIORATIONS.md ». Une règle de plus serait contredite par ces trois-là.
 
 ## 11.1 — Retirer les incitations, poser la règle
 
-- [ ] **Fichiers** : `.claude/commands/ticket.md`, `CLAUDE.md`, ce fichier (§ « Règles communes »)
+- [x] **Fichiers** : `.claude/commands/ticket.md`, `CLAUDE.md`, ce fichier (§ « Règles communes »)
 - **Attendu** :
   - le Style de `/ticket` ne fait plus consigner chaque nuance : un arbitrage reste dans le chat,
     sauf un piège qui ferait tomber le prochain à toucher ce code ;
@@ -2341,7 +2345,7 @@ route va dans `AMELIORATIONS.md`.
   traces d'historique (`FormField.tsx:67`, « remplace Math.random ») et des nombres qui
   vieilliront (« neuf… trente-six » dans `ArticleCoutDesListesTests`).
 - **Attendu** : 0 bloc de plus de 3 lignes, aucune paraphrase, aucun nombre ni numéro d'issue
-  qui deviendra faux. Le détail utile part au README, en une ligne.
+  qui deviendra faux. Ce qui dépasse trois lignes est coupé, pas déplacé au README.
 
 ```
 Consulte `commentaires-code`. Aucune ligne de code ne change.

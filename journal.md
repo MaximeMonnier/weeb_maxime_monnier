@@ -838,6 +838,42 @@ Au navigateur, sur la pile de développement :
 - en thème clair, le lien actif du menu mobile s'affiche en `rgb(147, 51, 234)`, à 5,4:1 sur
   blanc et 4,9:1 sur le fond secondaire.
 
+## Lot 11 — Couper ce qui pousse à documenter
+
+Clos le 2026-10-03 · Sans epic ni issue · Alimente : Bloc 1 + 2 — documentation
+
+**Constat mesuré** — depuis le 2026-09-01, **156 commits `docs` pour 34 `feat`**. Les consignes
+de travail, hors dépôt, pèsent **39 999 octets** pour un budget de 40 000. Le grep de ces
+consignes a relevé **sept incitations dans cinq fichiers**, toutes chargées de faire écrire à
+chaque ticket : nuances et arbitrages envoyés au README ou à `AMELIORATIONS.md`, mise à jour
+section par section à chaque ticket, passe de budget à chaque clôture de lot, README retouché
+à chaque route ou variable.
+
+**Décision et justification** — une seule règle, posée en tête des consignes, dans les règles
+communes de `correction.md` et dans la procédure de ticket : commenter seulement ce que le code
+ne peut pas dire ; README et consignes seulement pour un changement de stack, de commande ou de
+structure. Un arbitrage reste dans la discussion.
+
+- **Gardé** : retirer une mention qu'un ticket rend fausse. Sans cela, les consignes
+  décriraient de travers les pièges que le lot 12 corrige, jusqu'à la purge du lot 13.
+- **Gardé** : `AMELIORATIONS.md` comme destination d'un défaut hors périmètre. C'est une
+  liste de travail, pas de la documentation.
+- **Retiré** : le budget de 40 Ko, que le lot 13 remplace par un seuil mesuré au pré-push.
+
+**Ce qui a surpris** — **la règle de sobriété était elle-même une incitation.** Le plafond de
+trois lignes par commentaire ne supprimait rien : il déplaçait. « Le détail part au README »,
+« rien ne se perd, le README accueille le détail ». La revue avant push recopiait la consigne,
+et la tâche 13.1 du plan aussi. Le plafond coupe désormais, sans rien déplacer.
+
+Second écart : la ligne de la règle ne tenait pas dans le budget. Pour la poser, il a fallu
+retirer trois mentions purement historiques.
+
+**Preuve de la correction** — rejouée sur `preprod` à `4e91e93`.
+- Le grep des formules d'incitation (« part au README », « accueille le détail », « vont dans
+  le code, le README ») ne rend plus rien, `correction.md` compris.
+- Les consignes passent de 39 999 à **39 983 octets**, règle comprise.
+- Aucun code touché : rien à rejouer côté tests.
+
 ## Lot 14 — Documentation et clôture
 
 Clos le 2026-10-03 · Epic #229 · Alimente : Bloc 1 + 2 — documentation
