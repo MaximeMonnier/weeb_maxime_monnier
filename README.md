@@ -157,6 +157,21 @@ cd backend && python manage.py createsuperuser
 docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
 ```
 
+Pour remplir `/blog` au-delà d'une page, publier 30 articles de démonstration :
+
+```bash
+# applications lancées sur la machine
+cd backend && python manage.py peupler_articles
+
+# applications lancées par la pile de développement
+docker compose -f compose.dev.yaml exec backend python manage.py peupler_articles
+```
+
+Relancée, la commande ne crée aucun doublon : elle republie seulement les articles de
+démonstration supprimés depuis. Elle les signe d'un compte `auteur-demo@example.com`, inactif et
+sans mot de passe, et refuse de tourner quand `DEBUG` vaut `False` — la base de production n'est
+jamais peuplée.
+
 ## Commandes utiles
 
 ### Backend (depuis `backend/`, environnement virtuel activé)
@@ -167,6 +182,7 @@ docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
 | `python manage.py migrate` | Applique les migrations à la base |
 | `python manage.py makemigrations` | Crée une migration après un changement de modèle |
 | `python manage.py createsuperuser` | Crée un compte administrateur |
+| `python manage.py peupler_articles` | Publie 30 articles de démonstration, en développement seulement |
 | `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` | Lance les tests |
 | `python manage.py check --deploy` | Vérifie la configuration de sécurité avant mise en ligne |
 | `python manage.py collectstatic --noinput` | Rassemble les fichiers statiques pour la production |
@@ -271,7 +287,9 @@ temps** — le développement sur `5173`, `8000`, `5432`, `1025` et `8025`, la
 production sur `8081` et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD`
 et `FRONTEND_PORT_PROD` : réutiliser les variables du développement remettrait
 les deux piles sur le même port, et le `up` de la seconde échouerait en
-`port is already allocated`.
+`port is already allocated`. La même erreur vient d'un autre projet de la machine
+qui tient déjà le port de l'API ou du front : le déplacer dans le `.env`, et reporter
+les deux lignes que `.env.example` nomme au-dessus de `BACKEND_PORT_DEV`.
 
 Les services démarrent en file, chacun attendant que le précédent soit
 `healthy` : base et serveur de mail, puis API, puis front. `up --wait` rend donc
@@ -391,9 +409,10 @@ hôte que le site imposerait de revenir à une adresse absolue **et** de remplir
 `compose.prod.yaml` déclare les **deux** fichiers sur son backend, dans cet
 ordre — `env_file: [.env, .env.prod]` — et le dernier de la liste l'emporte
 variable par variable. Tout ce que le `.env` apporte reste donc en place — clé
-secrète, identifiants de base, hôtes autorisés — et seules ces quatre lignes
-sont réécrites. L'ordre est écrit dans le fichier, il ne se déduit plus d'une
-règle de fusion.
+secrète, identifiants de base, hôtes autorisés — et seules les surcharges sont
+réécrites : les quatre du tableau, `POSTGRES_SSLMODE`, `DJANGO_BEHIND_PROXY`,
+`CORS_ALLOWED_ORIGINS` et `DJANGO_HSTS_SECONDS`, puis le bloc du relais SMTP.
+L'ordre est écrit dans le fichier, il ne se déduit plus d'une règle de fusion.
 
 > ⚠️ **`env_file` n'alimente que l'intérieur du conteneur.** Ce qu'un fichier
 > Compose interpole lui-même avec `${...}` ne se lit que dans le `.env` de la
@@ -757,7 +776,13 @@ Pour la faire tourner contre la base, ne pas la lancer à la main :
 pour un conteneur — voir « La stack complète avec Compose ». Le tableau ci-dessus
 sert à inspecter l'image, pas à la mettre en service.
 
-Le conteneur passe `healthy` quand `GET /api/articles/` renvoie 200.
+Le conteneur passe `healthy` quand `GET /health/` renvoie 200. Cette route ne fait
+qu'un `SELECT 1` : son coût ne bouge pas quand la table des articles grandit, là où
+la sonde interrogeait auparavant `/api/articles/`, dont la pagination compte toute
+la table à chaque passage. Elle vit hors du préfixe `/api/` — le nginx du serveur ne
+relaie que `/api/` et `/admin/`, elle reste donc joignable du seul conteneur — et
+elle répond `503` quand la base est injoignable, un Gunicorn debout devant une base
+morte ne valant pas une API en état de servir.
 
 ### Image Docker du frontend (depuis la racine)
 
@@ -765,7 +790,7 @@ Un seul `Dockerfile`, **deux images**, choisies par `--target` :
 
 | Cible | Ce qu'elle contient | Taille | Usage |
 |---|---|---|---|
-| `dev` | Node, toutes les dépendances, le serveur Vite | ~540 Mo | travailler sans installer Node sur sa machine |
+| `dev` | Node, toutes les dépendances, le serveur Vite | ~650 Mo | travailler sans installer Node sur sa machine |
 | `prod` | le site compilé et nginx, **sans Node** | ~74 Mo | servir le site en ligne |
 
 #### La cible `dev`
@@ -887,7 +912,7 @@ navigateur alors que le conteneur reste `healthy`.
 | `npm run build` | Compile la version de production dans `dist/` |
 | `npm run lint` | Vérifie le code avec ESLint |
 | `npm test` | Lance la suite Vitest |
-| `npm run test:e2e` | Rejoue la connexion dans un navigateur, contre la pile de développement |
+| `npm run test:e2e` | Rejoue la connexion et la déconnexion dans un navigateur, contre la pile de développement |
 | `npm run preview` | Sert localement le résultat de `npm run build` |
 
 Les tests sont écrits à côté du fichier qu'ils couvrent, sous le nom `<source>.test.ts`
@@ -906,6 +931,39 @@ matchers de `jest-dom` s'importent **dans le fichier de test**
 et le `cleanup` entre les cas est **explicite**, Testing Library ne s'inscrivant lui-même que
 s'il trouve un `afterEach` global. Sans lui, le formulaire du cas précédent reste dans le DOM
 et toute recherche par libellé y devient ambiguë.
+
+Un composant qui appelle `useTheme` demande une pièce de plus : jsdom n'implémente pas
+`window.matchMedia`, que le hook interroge dès le premier rendu, et le test échoue avant sa
+première assertion. `NavBar.test.tsx` et `Footer.test.tsx` en posent chacun le doublon,
+toujours faute d'un `setupFiles` où le poser une fois — le second rend la barre de navigation
+à côté du pied de page pour confronter leurs libellés, cinq destinations étant servies de part
+et d'autre.
+
+Un test ne couvre pas de TypeScript du tout : `index.css.test.ts` lit la feuille de style et
+refuse qu'une variante Tailwind — `hover:`, `dark:`, `focus-visible:` — soit posée sur une
+classe écrite à la main dans `index.css`. Tailwind v4 n'en décline que sur les utilitaires
+qu'il connaît : la classe écrite reste alors inerte, sans que le build, le lint ni le typage
+ne le disent. Sa lecture tient au `css: true` de `vite.config.ts`, Vitest remplaçant par du
+vide tout ce qu'il reconnaît comme du CSS, l'import `?raw` compris — d'où le dernier cas du
+fichier, qui vérifie que la lecture a bien eu lieu avant de conclure que tout va bien.
+
+Le même fichier refuse l'inverse : une classe de la feuille que plus aucune source ne pose.
+Elle ne fait tomber ni le lint, ni le typage, ni le build, et trois ont vécu ainsi jusqu'à ce
+qu'un inventaire à la main les trouve. Le cas croise les sélecteurs de classe de la feuille
+avec les jetons lus dans `src/`, et nomme celle qui n'a plus personne. Deux choix de lecture
+le délimitent : les fichiers de test sont écartés des lecteurs, l'un d'eux pouvant citer une
+classe pour vérifier qu'elle est refusée ; et `frontend/index.html` est lu en plus des
+sources, `.dark` n'étant posée par aucun `className` — `hooks/useTheme.ts` en écrit
+aujourd'hui le nom en toutes lettres, le `class` de la page le portera encore le jour où le
+hook cessera.
+
+Il lit les chaînes littérales par un parcours caractère par caractère et non par une expression
+régulière, l'apostrophe droite du français — `alt="Vue d'une interface"` — faisant perdre à
+celle-ci toutes les classes de la ligne. Trois formes lui échappent encore, faute d'analyser le
+TypeScript, et aucune n'existe dans le dépôt à ce jour : un jeton coupé par une concaténation
+(`"hover:" + "bg-secondary"`), et un `//` ou un `/*` rencontré hors d'une chaîne — une adresse
+nue au fil du texte JSX, par exemple — qui lui fait sauter la fin de la ligne ou le passage
+jusqu'au `*/`. Une classe écrite après eux sur la même ligne ne serait pas vue.
 
 #### Le parcours en navigateur
 
@@ -937,31 +995,32 @@ docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
 # email, prénom, nom, puis le mot de passe deux fois
 ```
 
-Les identifiants sont lus dans l'environnement et nulle part ailleurs — aucun `.env` n'est
-chargé par Playwright. Absent l'un des deux, la suite s'arrête en le nommant plutôt que
-d'échouer sur un refus de connexion.
+Les identifiants sont lus dans l'environnement et nulle part ailleurs : du `.env` de la racine,
+Playwright ne tire que `FRONTEND_PORT_DEV`, le port où Compose publie Vite. Absent l'un des
+deux identifiants, la suite s'arrête en le nommant plutôt que d'échouer sur un refus de connexion.
 
 ```bash
 E2E_EMAIL=... E2E_PASSWORD=... npm run test:e2e
 ```
 
-Le parcours ouvre le site sur `127.0.0.1:5173` quand `npm run dev` se visite d'ordinaire sur
-`localhost:5173`. Ce sont deux origines distinctes pour le navigateur, et si l'appel à l'API
+Le parcours ouvre le site sur `127.0.0.1:5173` — ou le port que `FRONTEND_PORT_DEV` y met —
+quand `npm run dev` se visite d'ordinaire sur `localhost:5173`. Ce sont deux origines
+distinctes pour le navigateur, et si l'appel à l'API
 passe, c'est parce que `CORS_ALLOWED_ORIGINS` liste **les deux écritures** — voir `.env`.
 N'en garder qu'une ferait afficher « Le serveur est injoignable » et accuser la pile.
 
 Quatre points ne se lisent dans aucun de ces fichiers pris seul :
 
 - **l'API n'accepte que cinq connexions par minute** — le scope `login`, § « Le débit ». La
-  suite en consomme deux : relancée trois fois d'affilée, elle reçoit un 429 et échoue sur un
-  message de quota, pas de connexion. Attendre une minute ;
+  suite en consomme trois, une par cas : relancée dans la minute, elle reçoit un 429 et échoue
+  sur un message de quota, pas de connexion. Attendre une minute ;
 - **aucune reprise n'est configurée**, pour cette raison même : rejouer un cas raté ferait
   répondre 429 à la reprise, et le journal montrerait un quota là où il y avait un vrai défaut ;
 - **Playwright ne démarre pas la pile.** Un bloc `webServer` relancerait Vite sans la base ni
   l'API derrière, et le parcours cesserait de prouver ce pour quoi il existe. C'est aussi ce qui
-  rend son échec informatif : `docker compose -f compose.dev.yaml stop backend`, et les deux cas
-  tombent — le premier faute de redirection, le second parce que le message affiché devient
-  « Le serveur est injoignable » au lieu du refus attendu ;
+  rend son échec informatif : `docker compose -f compose.dev.yaml stop backend`, et les trois cas
+  tombent — le premier et le troisième faute de redirection, le second parce que le message
+  affiché devient « Le serveur est injoignable » au lieu du refus attendu ;
 - **les champs se cherchent par une part de leur libellé, pas par son texte exact** : la règle
   `.form-label-required::after` ajoute « * » aux libellés obligatoires, et un vrai navigateur
   verse ce contenu généré dans le nom accessible. jsdom n'applique aucune feuille de style et
@@ -1005,9 +1064,10 @@ Les deux jobs ne se déclarent aucun `needs` : ils partent ensemble et vont au b
 leur côté, donc une seule exécution suffit à connaître l'état des deux suites. Et le nom du job
 nomme la suite : un journal rouge désigne la coupable sans qu'il faille l'ouvrir.
 
-À l'intérieur du job frontend, les trois étapes portent la même règle : un `if: !cancelled()`
-les fait toutes tourner, un style refusé ne cache donc pas l'état des tests ni celui du build.
-Le job reste rouge dès que l'une échoue. Le build n'est pas décoratif à côté des tests : il
+À l'intérieur du job frontend, le lint passe en premier, et les deux étapes suivantes —
+Vitest et le build — portent un `if: !cancelled()` qui les fait tourner même s'il échoue : un
+style refusé ne cache donc pas l'état des tests ni celui du build.
+Le job reste rouge dès que l'une des trois échoue. Le build n'est pas décoratif à côté des tests : il
 enchaîne `tsc -b` sur les **trois** projets TypeScript — `src/`, `vite.config.ts` et `e2e/` —
 et c'est le seul endroit où le parcours Playwright est compilé, faute d'être exécuté.
 
@@ -1018,10 +1078,11 @@ Trois choses ne se lisent pas dans le seul `tests.yml` :
   le workflow inexécutable sur un fork. Ils sont écrits **deux fois**, dans le bloc `services`
   et dans l'`env` du job, parce que le contexte `env` n'est pas lisible depuis `services` ;
 - **`VITE_API_URL` est posée dans le job front, et elle y sert deux fois** : `lib/api.ts` lève
-  à l'import quand elle manque — deux fichiers de test l'importent —, et `vite.config.ts`
-  interrompt le build de production sans elle. `frontend/.env` n'étant pas versionné, la
-  machine d'intégration n'en a aucune : sans cette ligne, deux suites sur trois et le build
-  échouent sur l'erreur de configuration, et non sur un défaut ;
+  à l'import quand elle manque — la plupart des fichiers de test l'atteignent, directement ou
+  par un composant —, et `vite.config.ts` interrompt le build de production sans elle.
+  `frontend/.env` n'étant pas versionné, la machine d'intégration n'en a aucune : sans cette
+  ligne, deux suites sur trois et le build échouent sur l'erreur de configuration, et non sur
+  un défaut ;
 - **Playwright n'y tourne pas** : il exige la pile Compose debout, un compte actif en base et
   660 Mo de navigateur. C'est aussi pourquoi `playwright.config.ts` pose
   `forbidOnly: !!process.env.CI` : un `test.only` oublié réduirait la suite en silence. La
@@ -1124,12 +1185,18 @@ et le site sur la même origine.
 | `POST` | `/api/auth/login/refresh/` | public | Renouvelle le token d'accès expiré, et **rend un token de rafraîchissement neuf** en révoquant celui qui a servi |
 | `POST` | `/api/auth/logout/` | public | Déconnexion : révoque le token de rafraîchissement envoyé dans le corps |
 | `POST` | `/api/auth/password-reset/` | public | Demande de réinitialisation. Envoie le lien **par email** et répond toujours `200` avec le même corps, que le compte existe ou non — un 404 dirait qui est inscrit |
-| `POST` | `/api/auth/password-reset/confirm/` | public | Confirmation : `uid` et `token` du lien reçu, plus le nouveau mot de passe |
-| `GET` | `/api/articles/` | public | Liste des articles |
-| `GET` | `/api/articles/{id}/` | public | Détail d'un article |
-| `POST` | `/api/articles/` | connecté | Crée un article, rattaché à son auteur |
-| `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression réservées à l'auteur |
-| `POST` | `/api/contact/` | public | Envoi du formulaire de contact |
+| `POST` | `/api/auth/password-reset/confirm/` | public | Confirmation : `uid` et `token` du lien reçu, plus le nouveau mot de passe. Révoque **tous** les tokens de rafraîchissement du compte : il faut se reconnecter partout |
+| `POST` | `/api/auth/password-change/` | connecté | Changement de mot de passe : le mot de passe actuel, plus le nouveau. Révoque **tous** les tokens de rafraîchissement du compte et rend une paire neuve à l'appelant, qui reste connecté |
+| `GET` | `/api/articles/` | public | Liste des articles, du plus récent au plus ancien, par pages de 12 : `{count, next, previous, results}`, la suivante sous `?page=2`. Chaque article y porte `id`, `title`, `excerpt` (100 caractères taillés par la base), `excerpt_truncated` (vrai si le texte dépasse l'extrait), `author` et `created_at` — ni `content` ni `updated_at`, que seul le détail rend |
+| `GET` | `/api/articles/{id}/` | public | Détail d'un article, `content` entier compris |
+| `POST` | `/api/articles/` | connecté | Crée un article, rattaché à son auteur. `content` : 20 000 caractères au plus |
+| `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression réservées à l'auteur, `content` borné comme à la création |
+| `POST` | `/api/contact/` | public | Envoi du formulaire de contact. `message` : 5 000 caractères au plus |
+
+Dans la liste comme dans le détail, `author` est le **prénom suivi du nom**, jamais l'adresse
+électronique du compte : ces deux lectures sont ouvertes au visiteur, et le `__str__` de
+`CustomUser`, qui rend l'email, ne doit pas les traverser. Un compte dont le prénom et le nom
+sont vides signe « Auteur anonyme ».
 
 Les routes protégées attendent le token dans l'en-tête :
 
@@ -1141,6 +1208,27 @@ Le token d'accès est valable 15 minutes, celui de rafraîchissement 1 jour — 
 
 Les messages d'erreur sortent **en français** : `LANGUAGE_CODE` vaut `fr-fr` et aucun
 `LocaleMiddleware` n'est monté, la langue ne suit donc pas l'`Accept-Language` du client.
+Ceux de simplejwt aussi, à deux conditions. L'app `rest_framework_simplejwt` figure dans
+`INSTALLED_APPS`, sans quoi Django ne charge pas son catalogue ; et `backend/locale/` traduit
+les libellés que ce catalogue laisse en anglais, « Token is expired » et « Token is invalid » en
+tête. Le `.mo` y est versionné, l'image n'embarquant pas `gettext`. Après toute modification du
+`.po`, le recompiler — `msgfmt` vient du paquet `gettext` :
+
+```bash
+msgfmt --check -o backend/locale/fr/LC_MESSAGES/django.mo backend/locale/fr/LC_MESSAGES/django.po
+```
+
+Sans `gettext` sur la machine, un conteneur jetable fait l'affaire :
+
+```bash
+docker run --rm -v "$PWD/backend/locale:/locale" debian:12-slim sh -c \
+  "apt-get update -qq && apt-get install -y -qq gettext && \
+   msgfmt --check -o /locale/fr/LC_MESSAGES/django.mo /locale/fr/LC_MESSAGES/django.po && \
+   chown $(id -u):$(id -g) /locale/fr/LC_MESSAGES/django.mo"
+```
+
+Un `runserver` relit un `.mo` recompilé, mais pas un `.mo` absent à son lancement puis créé
+— sa toute première compilation, par exemple : le redémarrer.
 
 ### Les jetons
 
@@ -1158,8 +1246,17 @@ son effet à `logout/` : la déconnexion est le même geste, sans jeton neuf en 
 Deux conséquences pratiques :
 
 - **un client qui rafraîchit doit stocker le `refresh` reçu en réponse**, sinon il se coupe
-  lui-même au prochain appel. Le front ne le fait pas encore : il ne rafraîchit pas du tout,
-  et la session s'arrête donc au bout de 15 minutes ;
+  lui-même au prochain appel. Côté front, c'est `apiFetch` (`src/lib/api.ts`) : sur un `401`
+  reçu avec un jeton, il appelle `login/refresh/`, range les deux jetons rendus et rejoue la
+  requête une fois. Les `401` reçus en même temps — `StrictMode` lance deux fois les effets en
+  développement — partagent un seul renouvellement, puisqu'un second appel avec le même
+  `refresh` serait refusé. Un renouvellement refusé efface les deux jetons et rejoue la requête
+  **sans** jeton : l'API seule sait si la route est publique, et `/blog` s'affiche au lieu de
+  répondre `401`. Une panne du renouvellement (réseau, `5xx`) garde les jetons et rend le `401`
+  d'origine. C'est pourquoi `login/refresh/` répond `401`, et non `500`, pour un compte supprimé
+  depuis la connexion : simplejwt laissait l'erreur sortir, d'où `LoginRefreshView`. Chaque
+  `refresh` neuf repartant pour un jour, la session dure jusqu'à un jour sans renouvellement,
+  et non plus 15 minutes ;
 - **la révocation vit en base**, dans les tables de `rest_framework_simplejwt.token_blacklist`.
   L'app est dans `INSTALLED_APPS` et ses migrations sont livrées avec le paquet : un
   `python manage.py migrate` suffit, `makemigrations` ne doit rien produire. Ces tables
@@ -1168,25 +1265,28 @@ Deux conséquences pratiques :
 
 ### Le mot de passe
 
-Les deux routes qui en reçoivent un — `register/` et `password-reset/confirm/` — appliquent
+Les trois routes qui en reçoivent un — `register/`, `password-reset/confirm/` et `password-change/` — appliquent
 les mêmes règles, celles de `AUTH_PASSWORD_VALIDATORS` : huit caractères au minimum, ni un
 mot de passe courant, ni entièrement numérique, et au moins une majuscule, une minuscule et
 un chiffre. Cette dernière règle est un validateur du dépôt, `accounts/validators.py` : les
 quatre de Django ignorent la casse et les chiffres, que le formulaire d'inscription exige
 déjà côté navigateur — l'API était donc plus permissive que son propre formulaire.
 
+Le maximum, 128 caractères, vaut pour ces trois routes et pour `login/`. Il est posé par les
+serializers : aucun validateur de Django ne borne la longueur.
+
 Un des quatre validateurs de Django ne joue pas à la confirmation : celui qui refuse un mot
 de passe trop proche de l'email ou du nom. Le serializer n'y connaît pas encore le titulaire —
-son `uid` n'est décodé qu'ensuite, dans la vue.
+son `uid` n'est décodé qu'ensuite, dans la vue. Au changement, il joue : le membre est connecté.
 
 Ces règles valent aussi pour l'administration Django : son formulaire de création hache le
 mot de passe et rejoue les mêmes validateurs, et celui d'édition ne montre plus le hachage,
 mais le lien de changement de Django.
 
 Un refus est un `400` dont le message est rangé **sous la clé du champ** — `password` à
-l'inscription, `new_password` à la confirmation — et jamais à la racine, d'où aucun champ de
-formulaire ne pourrait le reprendre. Seul `ResetPassword.tsx` lit la sienne, `new_password` ;
-les autres formulaires affichent encore un message à eux. Un `12345678` soumis à l'inscription
+l'inscription, `new_password` à la confirmation comme au changement — et jamais à la racine, d'où
+aucun champ de formulaire ne pourrait le reprendre. Le changement range de même le refus du
+mot de passe actuel sous `current_password`. Un `12345678` soumis à l'inscription
 donne :
 
 ```json
@@ -1199,7 +1299,8 @@ donne :
 
 ### Le débit
 
-Quatre routes publiques sont limitées **par adresse IP**. Au-delà du quota, la réponse est
+Cinq routes publiques sont limitées **par adresse IP**, et le changement de mot de passe
+**par compte**, la seule des six à exiger un membre connecté. Au-delà du quota, la réponse est
 un `429` portant un en-tête `Retry-After` en secondes :
 
 ```json
@@ -1211,14 +1312,18 @@ un `429` portant un en-tête `Retry-After` en secondes :
 | `POST /api/auth/login/` | 5 par minute | `THROTTLE_LOGIN` |
 | `POST /api/auth/register/` | 5 par heure | `THROTTLE_REGISTER` |
 | `POST /api/auth/password-reset/` | 3 par heure | `THROTTLE_PASSWORD_RESET` |
+| `POST /api/auth/password-reset/confirm/` | 5 par heure | `THROTTLE_PASSWORD_RESET_CONFIRM` |
+| `POST /api/auth/password-change/` | 5 par heure | `THROTTLE_PASSWORD_CHANGE` |
 | `POST /api/contact/` | 5 par heure | `THROTTLE_CONTACT` |
 
 Le compteur compte les **appels**, pas les échecs : la sixième connexion d'une même minute
 reçoit un `429` même avec le bon mot de passe. La fenêtre du login est courte parce que se
 tromper de mot de passe deux fois de suite est ordinaire et qu'on réessaie aussitôt —
-une fenêtre d'une heure punirait le distrait autant que le robot. Les trois autres sont des gestes qu'on ne répète
-pas dans l'heure, et la réinitialisation est la plus basse des quatre : chacun de ses appels
-envoie un vrai email.
+une fenêtre d'une heure punirait le distrait autant que le robot. Les cinq autres sont des gestes qu'on ne répète
+pas dans l'heure, et la réinitialisation est la plus basse des six : chacun de ses appels
+envoie un vrai email. Sa confirmation a son propre compteur, pour que l'une n'entame pas le
+quota de l'autre : son jeton ne se devine pas, c'est le coût de chaque appel qu'on borne,
+le nouveau mot de passe passant par les validateurs puis par le hachage.
 
 Le front l'affiche tel quel dans le formulaire, sans lui opposer un message à lui : celui-ci
 porte le délai restant, que toute reformulation perdrait. `frontend/src/lib/apiErrors.ts` tient
@@ -1243,33 +1348,49 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
 ├── .env.example              # modèle de configuration à copier en .env
 ├── .env.prod.example         # modèle des valeurs propres à la production
 ├── .github/workflows/        # les suites de tests, et la construction des images
+├── AMELIORATIONS.md          # pistes repérées en cours de route, non traitées
 ├── compose.dev.yaml          # pile de développement, autonome
 ├── compose.prod.yaml         # pile de production, autonome
 ├── backend/
 │   ├── config/               # configuration du projet Django
 │   │   ├── settings/         # base, development, test, production
-│   │   └── urls.py           # routeur principal
+│   │   ├── urls.py           # routeur principal
+│   │   ├── views.py          # route de santé, seule vue hors d'une app métier
+│   │   └── tests.py          # ce que la sonde /health/ promet au HEALTHCHECK
 │   ├── accounts/             # utilisateurs, authentification JWT
-│   ├── articles/             # articles du blog
+│   │   └── tests.py
+│   ├── articles/             # articles du blog, et la commande peupler_articles
+│   │   └── tests.py
 │   ├── contact/              # formulaire de contact
+│   │   └── tests.py
+│   ├── locale/               # libellés de simplejwt que son catalogue laisse en anglais
 │   ├── Dockerfile            # image de production de l'API
 │   ├── .dockerignore         # ce que le build n'envoie pas au démon
 │   ├── docker-entrypoint.sh  # migrations et statiques avant Gunicorn
 │   ├── healthcheck.py        # sonde de santé du conteneur
 │   └── requirements.txt
 └── frontend/
+    ├── .env.example          # modèle du .env de Vite : des VITE_* seulement, en clair dans le bundle
     ├── Dockerfile            # un fichier, deux images : --target dev ou prod
+    ├── .dockerignore         # ce que le build n'envoie pas au démon
     ├── nginx.conf            # serveur de l'image prod : site React et /static/
-    └── src/
-        ├── components/ui/         # composants réutilisables, sans logique métier
-        ├── components/common/     # composants liés à un domaine du projet
-        ├── pages/                 # une page par route
-        ├── layouts/               # gabarits partagés
-        ├── hooks/                 # hooks React, dont useForm : le socle des formulaires
-        ├── lib/api.ts             # point d'entrée unique des appels à l'API
-        ├── lib/apiErrors.ts       # refus de l'API traduits en messages de formulaire
-        ├── lib/validationRules.ts # règles de saisie partagées par plusieurs formulaires
-        └── types/                 # types TypeScript partagés
+    ├── vite.config.ts        # Vite et Vitest, une seule source de réglages
+    ├── playwright.config.ts  # le parcours en navigateur, second lanceur
+    ├── e2e/                  # parcours Playwright, contre la pile de développement
+    └── src/                  # chaque test Vitest à côté de sa source : <source>.test.ts(x)
+        ├── components/ui/              # composants réutilisables, sans logique métier
+        ├── components/common/          # composants liés à un domaine du projet
+        ├── pages/                      # une page par route
+        ├── layouts/                    # gabarits partagés
+        ├── hooks/                      # hooks React, dont useForm : le socle des formulaires
+        ├── hooks/useIsAuthenticated.ts # connecté ou non, d'après le jeton de renouvellement
+        ├── lib/api.ts                  # point d'entrée unique des appels à l'API
+        ├── lib/apiErrors.ts            # refus de l'API traduits en messages de formulaire
+        ├── lib/cx.ts                   # seul assembleur des classes CSS conditionnelles
+        ├── lib/navigation.ts           # liens servis par l'en-tête et le pied de page
+        ├── lib/tokens.ts               # seul à lire, écrire et effacer les jetons JWT
+        ├── lib/validationRules.ts      # règles de saisie partagées par plusieurs formulaires
+        └── types/                      # types TypeScript partagés
 ```
 
 Un utilisateur est identifié par son **email**, pas par un nom d'utilisateur.
@@ -1278,7 +1399,7 @@ l'autoriser explicitement.
 
 ## Contribuer
 
-- Une branche par issue, créée depuis `main` : `<numéro>-description-en-kebab-case`, sans accent.
+- Une branche par issue, créée depuis `origin/preprod` : `<numéro>-description-en-kebab-case`, sans accent.
 - Messages de commit en français, à l'impératif, préfixés par leur type :
   `feat`, `fix`, `refactor`, `style`, `docs`, `chore`, `test`. Un seul type par commit.
 - Les pull requests vont vers `preprod`, puis `preprod` est fusionnée dans `main`.
@@ -1345,7 +1466,10 @@ continue d'écouter 1025 et 8025 dans son réseau.
 **Le conteneur du backend reste `unhealthy`**
 Regarder d'abord `docker logs <conteneur>` : une erreur de connexion à la base
 y apparaît en clair. Si les journaux montrent un démarrage normal de Gunicorn,
-la sonde reçoit autre chose qu'un 200. Les deux causes habituelles : `127.0.0.1`
+la sonde reçoit autre chose qu'un 200. Interroger la route à la main dit lequel :
+`curl -s -o /dev/null -w '%{http_code}\n' -H 'X-Forwarded-Proto: https'
+http://127.0.0.1:8001/health/`. Les trois causes habituelles : la base
+injoignable, seul cas où la route répond `503` ; `127.0.0.1`
 absent de `DJANGO_ALLOWED_HOSTS`, qui vaut un 400 ; ou `DJANGO_BEHIND_PROXY`
 laissé à 0, auquel cas la redirection HTTPS des réglages de production répond
 301 à la sonde — en production, cette variable-là se règle dans `.env.prod`, où

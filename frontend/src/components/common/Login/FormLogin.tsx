@@ -4,6 +4,7 @@ import MainButton from "../../ui/Button/MainButton";
 import { apiFetch } from "../../../lib/api";
 import { toFormErrors } from "../../../lib/apiErrors";
 import { isValidEmail } from "../../../lib/validationRules";
+import { saveTokens } from "../../../lib/tokens";
 import { useForm } from "../../../hooks/useForm";
 import type { FormErrors } from "../../../hooks/useForm";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
@@ -75,12 +76,11 @@ const FormLogin = () => {
           }),
         },
       );
-      localStorage.setItem("access", data.access); // 🔑 le token que apiFetch réutilisera
-      localStorage.setItem("refresh", data.refresh);
+      saveTokens(data);
       navigate("/");
     } catch (err) {
-      // Un mot de passe faux et un compte pas encore validé donnent le même 401, en
-      // anglais : les distinguer dirait à un inconnu quelles adresses sont inscrites.
+      // Un mot de passe faux et un compte pas encore validé donnent le même 401 : les
+      // distinguer dirait à un inconnu quelles adresses sont inscrites.
       const { fieldErrors, formError } = toFormErrors(err, CHAMPS, {
         unauthorized:
           "Connexion impossible. Vérifiez votre email et votre mot de passe ; un compte tout juste créé doit d'abord être validé par un administrateur.",
@@ -100,7 +100,6 @@ const FormLogin = () => {
       <ErrorAlert message={formError} />
 
       <div className="space-y-6">
-        {/* Email */}
         <Input
           label="Adresse email"
           name="email"
@@ -113,7 +112,6 @@ const FormLogin = () => {
           fullWidth
         />
 
-        {/* Password */}
         <Input
           label="Mot de passe"
           name="password"
@@ -127,7 +125,6 @@ const FormLogin = () => {
           fullWidth
         />
 
-        {/* Forgot Password Link */}
         <div className="flex justify-end">
           <Link
             to="/forgot-password"
@@ -137,7 +134,6 @@ const FormLogin = () => {
           </Link>
         </div>
 
-        {/* Submit Button */}
         <div className="flex justify-center">
           <MainButton
             type="submit"
@@ -150,7 +146,6 @@ const FormLogin = () => {
           </MainButton>
         </div>
 
-        {/* Sign up link */}
         <div className="text-center text-sm text-secondary">
           Pas encore de compte ?{" "}
           <Link

@@ -9,4 +9,6 @@ class ContactSerializer(serializers.ModelSerializer):
         model = Contact
         fields = ("id", "first_name", "last_name", "email", "subject", "message", "created_at")
         read_only_fields = ("created_at",)
+        # Ici et pas au modèle : un TextField n'a pas de longueur en base, rien à migrer.
+        extra_kwargs = {"message": {"max_length": 5000}}
 

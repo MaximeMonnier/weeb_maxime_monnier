@@ -1,108 +1,40 @@
-import { forwardRef, useId } from "react";
+import FormField, { type FieldProps } from "./FormField";
 
-type InputVariant = "default" | "error" | "success";
+/** Props d'Input : les attributs d'un input HTML, plus l'habillage commun. */
+type InputProps = React.InputHTMLAttributes<HTMLInputElement> &
+  FieldProps & {
+    /** Référence vers l'élément `input` ; prop ordinaire depuis React 19 */
+    ref?: React.Ref<HTMLInputElement>;
+  };
 
-/**
- * Props for the Input component
- * Supports text, email, and password input types
- */
-type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
-  /** Label text displayed above the input */
-  label?: string;
-
-  /** Error message displayed below the input */
-  error?: string;
-
-  /** Helper text displayed below the input */
-  helperText?: string;
-
-  /** If true, shows an asterisk (*) next to the label */
-  required?: boolean;
-
-  /** Visual variant of the input */
-  variant?: InputVariant;
-
-  /** If true, input takes full width of container */
-  fullWidth?: boolean;
-};
-
-function cx(...classes: Array<string | false | undefined | null>) {
-  return classes.filter(Boolean).join(" ");
+/** Champ de saisie sur une ligne : texte, email, mot de passe. */
+export default function Input({
+  label,
+  error,
+  helperText,
+  required,
+  variant,
+  fullWidth,
+  className,
+  id,
+  type = "text",
+  ref,
+  ...props
+}: InputProps) {
+  return (
+    <FormField
+      label={label}
+      error={error}
+      helperText={helperText}
+      required={required}
+      variant={variant}
+      fullWidth={fullWidth}
+      id={id}
+      className={className}
+    >
+      {(attributes) => (
+        <input ref={ref} type={type} {...attributes} {...props} />
+      )}
+    </FormField>
+  );
 }
-
-/**
- * Input component for text, email, and password fields
- * Uses form-input classes from global CSS
- */
-const Input = forwardRef<HTMLInputElement, InputProps>(
-  (
-    {
-      label,
-      error,
-      helperText,
-      required = false,
-      variant = "default",
-      fullWidth = false,
-      className,
-      id,
-      type = "text",
-      ...props
-    },
-    ref
-  ) => {
-    const generatedId = useId(); // id stable généré par React (remplace Math.random)
-    const inputId = id || generatedId;
-    const hasError = !!error || variant === "error";
-    const hasSuccess = variant === "success";
-
-    return (
-      <div className={cx(fullWidth && "w-full")}>
-        {label && (
-          <label
-            htmlFor={inputId}
-            className={cx("form-label", required && "form-label-required")}
-          >
-            {label}
-          </label>
-        )}
-
-        <input
-          ref={ref}
-          id={inputId}
-          type={type}
-          className={cx(
-            "form-input",
-            hasError && "error",
-            hasSuccess && "success",
-            className
-          )}
-          aria-invalid={hasError}
-          aria-describedby={
-            error
-              ? `${inputId}-error`
-              : helperText
-                ? `${inputId}-helper`
-                : undefined
-          }
-          {...props}
-        />
-
-        {error && (
-          <p id={`${inputId}-error`} className="form-error-message">
-            {error}
-          </p>
-        )}
-
-        {helperText && !error && (
-          <p id={`${inputId}-helper`} className="form-helper-text">
-            {helperText}
-          </p>
-        )}
-      </div>
-    );
-  }
-);
-
-Input.displayName = "Input";
-
-export default Input;

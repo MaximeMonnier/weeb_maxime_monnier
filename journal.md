@@ -71,7 +71,7 @@ le routeur client, celui-là même qui a été mis à jour.
 
 ## Lot 1 — Sécurité de l'API
 
-Clos le 2026-09-07 · Epic #65, **laissée ouverte** · Alimente : Bloc 1 — sécurité
+Clos le 2026-09-07 · Epic #65, **laissée ouverte jusqu'au 2026-09-25** · Alimente : Bloc 1 — sécurité
 
 **Constat mesuré** — `PasswordResetRequestView` rendait `{"uid": …, "token": …}` dans le corps
 d'une réponse `200`, sur un endpoint `AllowAny`. Connaître une adresse email suffisait donc à
@@ -339,3 +339,501 @@ aucune ligne, `grep -rnF 's@' frontend/src` la seule ligne de `lib/validationRul
 six formulaires importent le hook. Le parcours Playwright a été rejoué à la livraison de #117
 et de #118, pile `compose.dev.yaml` levée ; il ne couvre pas l'inscription, et n'a donc pas été
 relancé après #119.
+
+---
+
+## Lot 5 — Authentification côté front
+
+Clos le 2026-09-22 · Epic #128 · Alimente : Bloc 1 — sécurité
+
+**Constat mesuré** — le front ne savait pas qui était connecté. Les jetons tenaient en trois
+lignes : `FormLogin.tsx:78-79` écrivait `access` et `refresh` dans `localStorage`, `api.ts:13`
+relisait `access`. Le jeton de rafraîchissement n'était relu **nulle part** hors d'un test,
+`git grep -i logout -- frontend/src` ne rendait **rien**, et `/blog` proposait « Crée un
+articles » à tout visiteur. Le jeton d'accès valant 15 minutes, la session mourait au quart
+d'heure sans un mot. Et un jeton mort resté dans `localStorage` faisait répondre `401` aux
+lectures publiques, `/blog` en tête : DRF authentifie avant d'appliquer les permissions.
+
+**Décision et justification** — quatre arbitrages.
+
+**Un module et un hook, pas de contexte React.** `lib/tokens.ts` est seul à toucher aux jetons,
+et `useIsAuthenticated` s'y abonne par `useSyncExternalStore`. L'état est lu dès le premier
+rendu, sans effet, et une écriture faite hors de React — par `apiFetch`, quand un
+renouvellement échoue — prévient les composants sans qu'aucun ne soit remonté. `App.tsx` n'a
+pas été touché. Le témoin est le jeton de **rafraîchissement**, celui d'accès expirant toutes
+les 15 minutes. Les clés `access` et `refresh` sont restées telles quelles : les renommer
+aurait déconnecté toutes les sessions ouvertes au déploiement, et quatre fichiers de test les
+gardent en dur pour que ce renommage fasse tomber la suite.
+
+**Seul un `401` dit qu'un jeton est mort.** `apiFetch` renouvelle sur un `401` reçu avec un
+jeton, puis rejoue la requête une fois. Un renouvellement refusé efface les deux jetons et
+rejoue sans jeton — c'est ce qui rend `/blog` au visiteur porteur d'un jeton périmé. Une panne,
+réseau ou `5xx`, garde les jetons : les effacer déconnecterait à chaque coupure. Les `401`
+simultanés partagent un seul renouvellement, la rotation de l'issue #72 refusant un second
+appel fait avec le même jeton. Les routes `/auth/` n'y entrent jamais, ce qui ferme la boucle.
+
+**La déconnexion ne lève jamais.** `logout()` envoie le jeton à `logout/`, puis efface les deux
+dans un `finally`, que l'API réponde ou non : une erreur remontée laisserait l'interface
+connectée, sans autre moyen d'en sortir.
+
+**Au visiteur, un lien à la place du bouton.** Sur `/blog`, « Se connecter pour publier »
+remplace le bouton de création au lieu de le faire disparaître. Il a ouvert une entrée dans
+`AMELIORATIONS.md` : une fois connecté, `FormLogin` ramène à `/`, et non à `/blog`.
+
+**Ce qui a surpris** — quatre fois.
+
+**Le lot devait laisser `backend/` intact, il a touché sept fichiers.** L'epic l'annonçait
+noir sur blanc. Mais `login/refresh/` répondait `500` pour un compte supprimé : simplejwt
+laissait passer l'erreur, et le front, qui tient une panne pour passagère, aurait gardé des
+jetons morts jusqu'à l'échéance du refresh. `LoginRefreshView` la ramène à `401`. Les refus de
+simplejwt sortaient aussi en anglais : l'app manquait à `INSTALLED_APPS`, son catalogue n'était
+donc pas chargé, et les libellés qu'il marque fuzzy n'y sont pas compilés. D'où
+`backend/locale/` et un `.mo` versionné, l'image n'ayant pas `gettext`.
+
+**Le plan était en retard sur le code.** Il donnait au jeton d'accès 60 minutes, que le lot 1
+avait déjà ramenées à 15, et prévoyait un `hooks/useAuth.ts` devenu un module et un hook.
+
+**Un défaut d'accessibilité attendait sous le menu mobile.** Replié, il n'était caché que par
+sa hauteur et son opacité : ses liens restaient atteignables au clavier, et « Se déconnecter »
+l'aurait été aussi, activable sans être vu. `inert` le retire de la navigation au clavier tant
+qu'il est fermé. Le parcours Playwright, lui, avait `127.0.0.1:5173` en dur, alors que ce port
+était pris sur la machine par un autre projet : il lit désormais `FRONTEND_PORT_DEV`.
+
+**Une demande est restée en route.** Le prompt de 5.4 voulait aussi qu'une liste vide et un
+échec de chargement s'affichent sur `/blog`. L'issue #132 l'a renvoyé au lot 6, qui réécrivait
+ce chargement pour la pagination — et #111, qui a livré cette pagination le même jour, ne l'a
+pas repris. Le lot 6 en hérite.
+
+**Preuve de la correction** — rejouée à l'état du merge de #136 (`5911157`), dernier du lot,
+dans un worktree jetable. Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend
+`Test Files  7 passed (7)` et `Tests  67 passed (67)` — 45 avant le lot. Depuis `backend/` :
+`Ran 64 tests`, `OK` — 59 avant. `grep -rn 'localStorage\.' frontend/src --exclude='*.test.*'`
+ne sort que `lib/tokens.ts` et `hooks/useTheme.ts`, premier critère de l'epic #128. Le parcours
+Playwright — connexion, mot de passe faux, déconnexion puis refus de l'ancien refresh en `401` —
+a tourné à la livraison de #133, #134 et #135 ; il n'a pas été rejoué à la clôture, faute
+d'identifiants de test sur la machine.
+
+---
+
+## Lot 6 — Pagination bout en bout
+
+Clos le 2026-09-23 · Epic #138 · Alimente : Bloc 1 — optimisation
+
+**Constat mesuré** — `GET /api/articles/` rendait **toute la table** : ni
+`DEFAULT_PAGINATION_CLASS` ni `PAGE_SIZE` dans `REST_FRAMEWORK`, et aucune vue n'en posait.
+L'issue #106 avait borné le **nombre de requêtes** de cette liste à une seule, jamais son
+volume. Côté front, `Card.tsx:25` téléchargeait le texte entier de chaque article pour en
+afficher cent caractères — `{article.content.slice(0, 100)}...` — et `Blog.tsx:18` typait la
+réponse `apiFetch<Article[]>`, ligne que la pagination casserait. `healthcheck.py:17`
+interrogeait `/api/articles/`. Rien ne permettait de voir tout cela à l'écran : la base de
+développement contenait **deux** articles sur la machine où le lot a été préparé, et le dépôt
+n'avait aucun moyen de la peupler — ni fixture, ni commande, ni migration de données.
+
+Le seul poids réellement mesuré l'a été **après** la pagination, à la livraison de l'extrait :
+une page de 12 articles de démonstration passe de **~10 100 à 3 206 octets**, et de 7 702 à
+1 200 caractères de texte transporté. Le volume d'avant le lot n'a jamais été chiffré.
+
+**Décision et justification** — sept arbitrages.
+
+**Pages de 12, et `PageNumberPagination`.** Douze remplit sans trou la grille du blog, qu'elle
+ait deux ou trois colonnes. La `CursorPagination` a été écartée : elle reprend après le dernier
+article vu, mais ne donne pas le `count` que l'issue exigeait. Son défaut est assumé et
+consigné dans `AMELIORATIONS.md` — un article supprimé entre deux chargements est sauté par
+« Voir plus ». Le décalage inverse, une publication, est absorbé par un `Set` d'ids.
+
+**L'ordre a dû être départagé.** `Meta.ordering` passe de `["-created_at"]` à
+`["-created_at", "-id"]`, migration `0002` sans table touchée : deux articles publiés dans la
+même seconde laissaient la base les ordonner à son gré, et une liste paginée peut alors montrer
+l'un sur deux pages et l'autre jamais.
+
+**`Page<T>` reste local à `Blog.tsx`.** Le prompt de 6.1 le conditionnait à un second lecteur ;
+un seul endpoint est paginé. Le type générique attendra le deuxième.
+
+**L'extrait est taillé par la base**, `Left("content", 100)` posé par `annotate()`, avec le
+`defer("content")` qui va avec : le texte entier ne quitte plus PostgreSQL. Le tronquer en
+Python l'aurait fait voyager pour le jeter. Les trois pièces — annotation, `defer`, champ
+déclaré à la main dans le serializer — n'ont de sens qu'ensemble. La longueur de 100 est reprise
+telle quelle du `slice(0, 100)` qu'affichait déjà la carte : **aucune autre valeur n'a été
+discutée**, ni dans l'issue ni dans la PR.
+
+**Deux types côté front, et non un type affaibli.** `ArticleListItem` à côté d'`Article`,
+plutôt qu'un `Omit<Article, "content">` ou des champs rendus optionnels : la liste et le détail
+ne rendent pas le même objet, et un `Article` complet promettrait un `content` absent.
+
+**La sonde a quitté l'API.** Une route dédiée `health/`, vue Django nue et non DRF — le défaut
+`IsAuthenticated` la fermerait, et ni le jeton ni les quotas n'ont de sens pour une sonde qui
+s'appelle elle-même —, hors du préfixe `api/` que seul le nginx du serveur relaie. Son
+`SELECT 1` coûte le même prix quel que soit le nombre d'articles. Effet de bord recherché : la
+santé du conteneur ne dépend plus de la lecture publique du blog, qu'on pouvait fermer et
+rendre ainsi tous les conteneurs malades.
+
+**Le peuplement refuse de tourner en production.** 30 articles engendrés par 10 sujets × 3
+angles, `bulk_create` dans une transaction, auteur de démonstration inactif et sans mot de
+passe utilisable, et un `CommandError` avant toute écriture dès que `DEBUG` est faux — c'est
+`production.py`, qui fige `DEBUG=False`, qui ferme la commande à la base de production.
+
+**Ce qui a surpris** — six fois.
+
+**La fréquence de la sonde était fausse d'un facteur six.** Le plan et le prompt de 6.2
+disaient « toutes les 30 secondes (HEALTHCHECK du Dockerfile) ». C'est vrai de
+`backend/Dockerfile:88`, mais les **deux** fichiers Compose surchargent l'`interval` à 5 s. Les
+piles réelles payaient donc le `COUNT(*)` six fois plus souvent que le plan ne le croyait.
+
+**6.2 devait ne toucher qu'un fichier, elle en a créé deux.** Le plan annonçait
+« **Fichiers** : `backend/healthcheck.py` ». La livraison a créé `config/views.py` et
+`config/tests.py` : `backend/` passe de trois à quatre fichiers de tests, et
+`manage.py test config` devient une cible qui n'existait pas. La piste que le plan avait
+préparée — un `?page_size=1` sur l'API — a été abandonnée avant même l'écriture du ticket : la
+poser aurait exigé un `page_size_query_param`, qui laisse tout client choisir sa taille de page
+et se borne alors par `max_page_size`.
+
+**Une demande de 5.4 a fait deux sauts, et le lot 6 l'a d'abord aggravée.** L'affichage d'une
+liste vide et d'un échec de chargement, renvoyé du lot 5 au lot 6 par #132, n'a pas été repris
+par #111 — qui a en plus posé le `console.error` du 404 de première page que #140 a dû retirer
+le lendemain.
+
+**Deux défauts ne sont apparus qu'une fois le test écrit.** #140 a découvert après coup qu'un
+message d'échec survivait à la disparition du bouton qui l'avait provoqué — « un échec
+précédent inviterait à réessayer un bouton disparu » — et que le passage de la liste à `null`
+cassait le cas d'une page suivante sur liste non chargée. #141, de son côté, a resserré son
+propre test : vérifier l'`excerpt` et l'absence de `content` ne suffisait pas, un `fields`
+raccourci aurait fait afficher « Par undefined le Invalid Date » sans qu'aucun test ne tombe.
+D'où l'assertion sur le **jeu de champs complet**.
+
+**Un champ a disparu que personne n'avait listé.** `updated_at` ne sort plus de la liste. Ni
+l'issue ni le plan ne le mentionnaient : seul `content` était visé. Il a fallu un commit dédié
+pour le dire au README.
+
+**Le lot n'a rien ajouté à `AMELIORATIONS.md`** — le premier dans ce cas. La seule entrée de sa
+matière avait été posée par #111, hors lot. Et l'epic #138 est restée **ouverte** alors que ses
+quatre sous-issues étaient closes une à une : le piège du `Closes #N` qui ne ferme pas au merge
+dans `preprod`, cette fois au niveau de l'epic.
+
+**Preuve de la correction** — rejouée sur `preprod` au merge de #146 (`5df53ff`), dernier du
+lot. Depuis `backend/` : `Ran 75 tests`, `OK` — 64 avant le lot —, et `manage.py test config`
+est une cible neuve, 3 cas. Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend
+`Test Files  7 passed (7)` et `Tests  79 passed (79)` — 67 avant le lot, **aucun fichier de
+test créé**, tout est passé par `Blog.test.tsx`, de 7 à 14 cas —, et `npm run build`
+`✓ built in 2.57s`. À la livraison de #142, les deux piles montées avec `--build` : `backend`
+`healthy` en développement comme en production, `/health/` à `200` (et `301` sans
+`X-Forwarded-Proto`, comportement attendu), sonde exécutée dans les deux conteneurs en code 0.
+`grep -n "api/articles" backend/healthcheck.py` ne rend aucune ligne. Le parcours Playwright
+n'a pas été rejoué : il ne couvre pas le blog.
+
+---
+
+## Lot 7 — Navigation, liens et pages manquantes
+
+Clos le 2026-09-25 · Epic #147 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — quatre défauts visibles à l'écran, aucun couvert par un test. Le pied de
+page portait **16 liens en `<a href>`, dont 14 vers des routes qu'`App.tsx` ne déclarait pas** :
+le seul endroit du dépôt où un lien interne rechargeait encore la page entière, pour arriver sur
+`NotFound`. « Nous rejoindre » menait à `/contact` en mobile et à `/subscribe` en desktop,
+l'inscription étant donc inatteignable depuis un téléphone. `/terms` et `/privacy`, cités par le
+formulaire d'inscription, n'existaient pas. Et `ArticleDetails.tsx` restait figé sur
+« Chargement… » à la moindre erreur, son `.catch(console.error)` laissant l'état à `null`. Filet
+de départ : `npm test` rendait **7 fichiers, 79 cas**, aucun sur la navigation.
+
+**Décision et justification** — quatre alternatives étaient ouvertes, toutes tranchées vers le
+moins de code :
+
+- les 14 destinations mortes du pied de page ont été **retirées**, non comblées par des pages
+  « bientôt disponible » : une page vide est un lien mort qui a l'air vivant ;
+- `/terms` et `/privacy` ont au contraire été **créées** plutôt que retirées du formulaire — un
+  site qui collecte des données ne peut pas ne pas les annoncer ;
+- la factorisation des liens d'action, cause de fond de la divergence mobile/desktop, a été
+  **écartée vers le lot 8** : la traiter au passage aurait mêlé un refactoring à quatre
+  corrections. Elle y est désormais inscrite, en 8.4 ;
+- `AbortController` a été **écarté** pour la condition de course du détail d'article : il lève
+  une `DOMException` qu'`isApiError` ne reconnaît pas, et `toFormErrors` l'aurait traduite par un
+  message hors-ligne. Un drapeau dans le `cleanup` fait le même travail sans mentir sur la cause.
+
+**Ce qui a surpris** — six fois, et jamais là où le plan regardait.
+
+**Deux pages statiques ont fait sortir une faille de sécurité.** #149 ne demandait que d'écrire
+des conditions d'utilisation et une politique de confidentialité sur le gabarit d'`About.tsx`.
+Confrontées au code, **neuf affirmations écrites de bonne foi** se sont révélées fausses : le
+site collecte aussi le prénom, le nom, le sujet du message et le titre de l'article ; le compte
+naît inactif et un administrateur l'ouvre ; et surtout **l'adresse électronique de l'auteur est
+publiée sous chaque article**, `CustomUser.__str__` rendant l'email que `StringRelatedField` sert
+à tout visiteur. Les textes le disent désormais plutôt que de promettre une confidentialité que
+le code ne tient pas. L'issue **#153** est née 28 secondes après la clôture de #149 — hors de ce
+lot, dans l'epic sécurité, et **toujours ouverte** : les deux pages livrées portent aujourd'hui
+l'aveu écrit d'un défaut non corrigé.
+
+**Le lot a fabriqué le défaut qu'il a ensuite corrigé.** Tant que le pied de page pointait vers
+14 routes mortes, il ne pouvait pas contredire l'en-tête. Remis sur les vraies routes par #150,
+il proposait « Connexion » et « Inscription » à un membre connecté à qui l'en-tête offrait
+« Se déconnecter ». #155 a été ouverte **une minute après le merge de #154**.
+
+**Et le correctif de #155 a cassé le parcours Playwright.** Aligner le libellé du pied de page
+sur celui du menu a donné **deux** correspondances à « Se connecter », et Playwright s'arrête sur
+une résolution ambiguë au lieu d'en choisir une — mesuré au navigateur, deux avant, une après. Il
+a fallu nommer les **deux** `nav` de la page là où l'issue n'en demandait qu'une. Parti corriger
+la navigation, le lot a fini par la nommer.
+
+**Masquer une entrée de menu a failli fermer le seul chemin de changement de mot de passe.**
+Retirer toute la colonne COMPTE au membre connecté paraissait cohérent — jusqu'à ce que la revue
+de la PR #158 rappelle qu'`App.tsx` n'a pas de page de profil et `accounts/urls.py` pas de route
+de changement : `/forgot-password` est le seul recours, et le masquer obligeait à se déconnecter
+pour changer son mot de passe. La colonne est restée, réduite à cette entrée. L'issue #159 ouvre
+le vrai sujet.
+
+**Un test a fait reparaître le défaut qu'il venait de couvrir.** #151 corrigeait la page figée sur
+« Chargement… » ; le test écrit ensuite a montré qu'un refus arrivé après avoir quitté l'article
+la figeait de nouveau, par un autre chemin. Dans le même lot, la revue de #150 a relevé qu'un
+**garde-fou de test ne pouvait pas échouer** — et celle de #158, qu'un second ancrait sa garde
+sur `/blog`, la seule destination qui n'avait jamais divergé.
+
+**Le plan pointait des lignes qui n'existaient plus.** 7.1 citait `MobileMenu.tsx:66` et
+`NavBar.tsx:85`, le code en était à `:86` et `:110` ; 7.3 citait `FormSubscribe.tsx:182` et
+`:189`, le code en était à `:213` et `:220`. Les lots 4 et 5 avaient déplacé ces lignes entre la
+rédaction du plan et sa mise en œuvre : le constat restait juste, l'adresse non.
+
+**Preuve de la correction** — rejouée sur `preprod` au merge de #158 (`d06efe6`), dernier du lot.
+Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend `Test Files  10 passed (10)` et
+`Tests  99 passed (99)` — **7 fichiers et 79 cas avant le lot**, soit +3 fichiers et +20 cas, tous
+dans des fichiers neufs —, et `npm run build` `✓ built in 2.84s`. Le diff du lot pèse
+`1020 insertions(+), 67 deletions(-)` pour **5 fichiers créés sous `frontend/src/` : 2 pages et
+3 tests**, soit 566 lignes de test pour 226 lignes de page. Le backend n'a pas été touché. Le
+parcours Playwright n'a pas été rejoué faute de pile montée : la seule ligne que le lot y change,
+la résolution du lien de connexion, a été mesurée dans un Chromium réel.
+
+---
+
+## Lot 8 — Dédoublonnage de la couche UI
+
+Clos le 2026-09-29 · Epic #161 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — quatre redites, aucune visible à l'écran, aucune couverte par un test qui
+en supprime la cause. `cx()` — `classes.filter(Boolean).join(" ")` — était écrite **à l'identique
+quatre fois**, dans
+`MainButton.tsx`, `Input.tsx`, `Textarea.tsx` et `LinkTitle.tsx` ; `CLAUDE.md` n'en annonçait que
+trois. **Sept autres sites, dans six fichiers**, l'évitaient par un `[...].join(" ")` posé sur
+place. `Input.tsx` (**108 lignes**) et `Textarea.tsx` (**113**) étaient identiques à environ 90 % —
+mêmes props, même `useId`, même calcul de `hasError`, même logique `aria-invalid` /
+`aria-describedby`, même rendu des messages ; seuls le tag, la classe `form-textarea` et `minRows`
+différaient — et portaient encore le `forwardRef` de React 18, inutile en React 19. Enfin **cinq
+couples libellé/destination** étaient recopiés entre `NavBar.tsx`, `MobileMenu.tsx` et
+`Footer.tsx`, redite qui avait déjà coûté deux défauts livrés, #148 et #155, gardés depuis par
+deux tests qui n'en supprimaient pas la cause. Filet de départ : `npm test` rendait **10 fichiers,
+99 cas** — les mêmes à la fin du lot, refactoring pur oblige.
+
+**Décision et justification** — quatre arbitrages, tous tranchés vers le moins de code à tenir :
+
+- `cx()` va dans `lib/` et non dans `ui/` : elle ne dépend ni de React, ni du routeur, ni d'un
+  type métier. Sa docstring la réservait d'abord aux composants de `ui/`, ses quatre seuls
+  appelants ; #166 l'a **élargie**, la laisser aurait invité le prochain composant de `common/`
+  à réécrire le `join(" ")` que le lot venait de retirer ;
+- la fusion d'`Input` et de `Textarea` passe par un habillage `FormField` qui **ne rend pas le
+  champ** : il le confie à une fonction `children` à qui il passe `id`, `className`,
+  `aria-invalid` et `aria-describedby`. Écartés sur le critère de lisibilité : le **composant
+  polymorphe à prop `as`**, qui déplace la difficulté dans les types sans rien simplifier à la
+  lecture, et le **champ englobant**, qui obligeait à relayer toutes les props natives des deux
+  tags ;
+- `forwardRef` est retiré, mais **le support de `ref` est conservé**, en prop ordinaire. Aucun
+  consommateur n'en passe — les seuls `ref=` du projet sont ceux du slider et du `dialog` du
+  blog —, mais fermer le focus programmatique sur un champ de formulaire coûte plus cher que la
+  ligne de type qui le garde ouvert ;
+- seuls les **cinq** couples servis des deux côtés sont partagés. « Accueil », « Mot de passe
+  oublié » et les deux pages légales restent écrits dans le pied de page, leur unique servant ;
+  les deux liens croisés des formulaires n'entrent pas dans le compte, ce sont des appels à
+  l'action et non de la navigation.
+
+**Ce qui a surpris** — cinq fois, et la première met en cause la façon même d'écrire un critère.
+
+**Un critère d'acceptation formulé comme un `grep` ne garantit que ce que le `grep` voit.**
+L'epic exigeait que `grep -rn '\.join(" ")' frontend/src/` ne rende plus que `lib/cx.ts` et les
+deux assemblages de phrases d'`apiErrors.ts`. Le critère est passé au vert à la clôture de #166 —
+et **trois sites assemblaient toujours leurs classes à la main**, par gabarit de chaîne, hors
+d'atteinte de ce motif. #172 a été ouverte et close le même jour, **seize minutes l'une après
+l'autre**. Le lot prévu en cinq tâches a été livré en six issues.
+
+**Le dédoublonnage a corrigé un défaut de rendu que personne ne cherchait.** Cinq sites
+poussaient une chaîne vide dans leur assemblage — `className ?? ""` pour trois d'entre eux
+(#166), une branche de ternaire vide dans un gabarit pour les deux autres (#172) : l'assemblage
+y laissait **un espace surnuméraire dans l'attribut `class`**, quand aucune classe n'était
+passée pour les premiers, quand le lien de navigation n'était pas actif pour les seconds. `cx()`
+le filtre. Invisible à l'écran, jamais signalé, retiré au passage.
+
+**Le front a grossi.** `frontend/src` pesait **6 731 lignes** avant le lot, **6 765** après, pour
+trois fichiers de plus. Fusionner deux composants « identiques à 90 % » n'a rendu que **24
+lignes** : 108 + 113 avant, 40 + 45 + 112 après. Ce lot n'a pas raccourci le code ; il a réduit
+le nombre d'endroits où corriger la même chose — de quatre à un pour `cx()`, de deux à un pour
+l'habillage des champs, de trois à un pour les cinq couples de navigation. C'est le seul gain, et
+il ne se lit dans aucun compteur de lignes.
+
+**Deux preuves ont été faites, puis effacées.** Le critère interdisait tout diff sur les tests. La
+transmission de la `ref` et l'égalité des classes rendues sur les sept sites ont donc été prouvées
+par des **tests jetables** — celui de la `ref` validé par mutation, `ref={ref}` retiré du JSX le
+fait tomber — puis supprimés. Rien dans le dépôt ne garde ces deux mesures : cette entrée les
+remplace.
+
+**Le plan a périmé pendant sa propre exécution.** La tâche 8.2 citait les lignes de `forwardRef`
+que sa fusion a fait disparaître : 8.3 a dû être réalignée avant d'être traitée. #166 annonçait
+quatre sites poussant `className ?? ""`, il n'y en avait que trois — `MainTitle` n'a pas de prop
+`className`. Et le README, remis à jour par #170, manquait `cx.ts` depuis #162 : trois issues ont
+passé devant une arborescence incomplète sans la voir.
+
+**Preuve de la correction** — rejouée sur `preprod` au merge de #173 (`4a15e19`), dernier du lot.
+Depuis `frontend/` : `npm run lint` ne rend rien, `npm test` rend `Test Files  10 passed (10)` et
+`Tests  99 passed (99)` — **les mêmes qu'à la clôture du lot 7**, aucun test ajouté ni modifié —,
+et `npm run build` `✓ built in 2.67s`. Le diff du lot pèse `309 insertions(+), 275 deletions(-)`
+sur **16 fichiers de `frontend/src`, dont 3 créés** : `lib/cx.ts`, `lib/navigation.ts` et
+`ui/Input/FormField.tsx`. Le backend n'a pas été touché, et `git diff --stat 0b48ef7..HEAD --
+'*.test.*'` est vide. Les quatre `grep` de l'epic, enfin : une seule définition de `cx`, plus
+aucun `forwardRef`, `.join(" ")` réduit à trois lignes, et aucune des cinq destinations écrite en
+dur dans les trois fichiers de navigation.
+
+## Lot 9 — Code mort et conventions
+
+Clos le 2026-10-02 · Epic #174 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — rien de ce qui suit ne cassait le build ni les tests, d'où sa durée de vie.
+`index.css` comptait **837 lignes**, dont neuf classes posées par aucune source ; le plan en
+annonçait 793, chiffre déjà périmé à son écriture. `src/data/articles.json` n'était plus importé,
+`coverImg` était typé sur les deux formes d'article sans qu'aucun serializer ne le rende, et
+`index.html` chargeait un `/src/style.css` absent — un 404 à chaque chargement en
+développement : **102 lignes** mortes en tout. Les boutons s'habillaient de deux façons, le
+composant `Button` et trois classes `.btn-*` portées par neuf liens et boutons écrits à la main.
+**47 lignes de JSDoc** restaient en anglais, et un `{/* Placeholder */}` annonçait comme à
+écrire le formulaire posé juste en dessous. À l'écran : un paragraphe d'« À propos » répété trois
+fois, un carrousel de trois slides sur une seule image, une phrase coupée, et quatre appels à
+l'action de l'accueil qui ne menaient nulle part. Filet de départ : `npm test` rendait **10
+fichiers, 99 cas**.
+
+**Décision et justification** — toujours vers le retrait plutôt que l'implémentation, sauf là où
+le visiteur perdait une fonction :
+
+- `coverImg` est **retiré**, pas implémenté : une image de couverture suppose un champ, une
+  migration et un stockage, c'est une fonctionnalité et non un nettoyage ;
+- le style des boutons a une source unique, `buttonClasses()`, que le composant et les liens
+  appellent. Elle vit **à côté** de `MainButton.tsx`, pas dedans comme le ticket le demandait :
+  `eslint-plugin-react-refresh` refuse qu'un fichier de composant exporte autre chose ;
+- « Découvrir les articles » devient un `<Link>` et non un `useNavigate`, qui casserait le clic
+  milieu. « S'abonner à la newsletter » est **supprimé** : aucun abonnement n'existe côté API ;
+- `TextCtaLink` importe le routeur depuis `ui/`, seul écart assumé au partage `ui/`/`common/` :
+  il rechargeait tout le bundle sur un chemin interne ;
+- les survols inertes passent en classes arbitraires doublées de leur forme `dark:`. La
+  directive `@utility` a été écartée, pour garder une seule façon d'écrire une couleur à variante ;
+- `.section` est supprimée plutôt qu'adoptée : ses espacements ne sont ceux d'aucune section
+  en place, l'adopter changeait le rendu.
+
+**Ce qui a surpris** — le lot prévu en **quatre tâches** a été livré en **dix-huit issues** :
+huit sous-issues de l'epic, puis dix hors d'elle. Une seule cause, trois fois de suite.
+
+**Un inventaire fourni par le ticket s'est révélé incomplet à chaque fois qu'on l'a rejoué.**
+La purge des neuf classes (#176) en a laissé trois sans lecteur (#183). Elle a aussi mis au jour
+six survols que Tailwind v4 ne génère jamais (#184) : une variante posée sur une classe écrite à la
+main ne produit rien, et rien ne le signale. Les bandeaux anglais d'`index.css` avaient échappé à
+#179, qui ne lisait que le TypeScript (#187). Enfin **vingt-deux variables de `@theme`** n'avaient
+aucun lecteur (#199) : Tailwind ne les émet pas, donc elles ne pèsent rien dans le CSS construit,
+et aucun outil ne pouvait les voir. Une seule était émise, parce que le README la citait —
+Tailwind balaie aussi les `.md`. C'est ce qui a fait écrire #196, un test qui refuse une classe
+sans lecteur : la leçon ne valait que si elle cessait de dépendre de la vigilance.
+
+**Vérifier un correctif au navigateur a trouvé les défauts suivants.** Six des dix issues hors
+epic sont nées ainsi, sur la seule page d'accueil :
+- deux slides de tailles différentes (#189) ;
+- deux noms pour une même image (#190) ;
+- cinq logos menant à `#` (#192) ;
+- un survol imperceptible en thème clair, à 0,014 d'écart de couleur pour un seuil de 0,02 (#193) ;
+- chaque marque annoncée quatre fois par un lecteur d'écran (#204) ;
+- un `main` dans un `main` (#206).
+
+Aucun n'était visible à la lecture du code.
+
+**Le lot a raccourci le front, contrairement au lot 8.** Le diff du lot pèse **644 insertions
+pour 765 suppressions** sur 34 fichiers, et `index.css` passe de **837 à 466 lignes**, alors que
+trois fichiers de test se sont ajoutés.
+
+**Preuve de la correction** — rejouée sur `preprod` à `4610a22`, qui contient aussi #159, hors
+lot. Depuis `frontend/` :
+- `npm run lint` ne rend rien ;
+- `npm test` rend `Test Files  14 passed (14)` et `Tests  123 passed (123)`, dont un fichier et
+  cinq cas apportés par #159 ;
+- `npm run build` rend `✓ built in 2.95s`.
+
+`git diff --stat d60cfa5 b5e1e06 -- backend` est vide : le lot n'a pas touché au back. Plus
+aucune occurrence de `coverImg`, `articles.json` ni `btn-primary|secondary|ghost` dans `src/` et
+`index.html`, et `index.html` ne référence plus que deux fichiers existants : `/vite.svg` et
+`/src/main.tsx`.
+
+## Lot 10 — Finitions issues de la revue du 2026-10-01
+
+Clos le 2026-10-03 · Epic #212 · Alimente : Bloc 1 — sécurité et qualité
+
+**Constat mesuré** — la revue complète de `preprod` au merge de #195 n'avait trouvé **aucun
+défaut bloquant** : lint, tests, build et `npm audit` au vert. Elle a relevé six défauts réels,
+tous invisibles à ces contrôles.
+- Côté API : une réinitialisation de mot de passe laissait vivre jusqu'à un jour les sessions
+  déjà ouvertes, la confirmation de réinitialisation était la seule vue publique d'écriture
+  sans quota, et ni les mots de passe, ni les articles, ni les messages de contact n'avaient de
+  longueur maximale.
+- Côté front : un article de plusieurs paragraphes s'affichait d'un seul bloc, chaque extrait
+  finissait par « ... », même entier, et la navigation portait une variante `hash` que plus
+  aucun lien n'empruntait.
+- Deux défauts d'affichage, repérés au lot 9, s'y sont ajoutés. À 375 px, l'accueil s'étalait
+  sur **748 px** de large (#189). Le texte violet du thème clair tombait à **4,1:1** sur blanc,
+  sous les 4,5:1 du niveau AA (#193).
+
+Filet de départ, à `bddb2a6` : **84 tests back**, **123 tests front**.
+
+**Décision et justification** — la correction la plus étroite qui tienne, et une seule source
+pour chaque règle :
+
+- la révocation des sessions passe par `set_password_and_revoke`, **partagée** avec
+  `PasswordChangeView`, qui révoquait déjà de son côté. Le mot de passe et la liste noire sont
+  écrits dans une seule transaction ;
+- la confirmation de réinitialisation a son **propre** scope, `password_reset_confirm`, pour que
+  la demande et la confirmation ne s'épuisent pas l'une l'autre ;
+- les longueurs maximales vivent dans les **serializers**, pas dans les modèles : un `TextField`
+  n'a pas de longueur en base, et rien n'est à migrer. La connexion passe pour cela par
+  `LoginSerializer` ;
+- un `<p>` par paragraphe plutôt que `whitespace-pre-line` seul, qui rétablissait l'aspect mais
+  laissait un lecteur d'écran annoncer un bloc unique ;
+- les points de suspension tiennent à `excerpt_truncated`, **calculé par l'API**. Comparer la
+  longueur côté front aurait recopié `LONGUEUR_EXTRAIT` dans un second fichier, et pris pour
+  coupé un article d'exactement 100 caractères ;
+- la variante `hash` est **retirée** et non réutilisée : aucune ancre de défilement n'est
+  prévue ;
+- le survol sombre garde la couleur qu'il affichait, et non celle de la maquette, qui
+  l'aurait fait tomber de 4,5:1 à 3,5:1 sur le fond sombre.
+
+**Ce qui a surpris** — contrairement au lot 9, celui-ci a été livré **sans issue hors
+epic** : les deux ajouts, #219 et #220, figuraient dans l'epic dès le cadrage. Trois constats,
+tous en dehors du code changé.
+
+**Une couleur hors de la gamme sRGB ment sans rien casser.** Le violet du thème clair était écrit
+en `oklch`, sous un commentaire `#9333EA`. L'écran ne pouvait pas afficher cette valeur et la
+ramenait à `#B73BFF`, plus clair. Ni le build, ni le lint, ni le typage ne le voient. Même la
+valeur proposée par l'issue manquait sa cible d'une unité : `oklch(0.558 0.252 302)` donne
+`rgb(146, 52, 234)`, et il a fallu quatre décimales pour retomber sur la maquette. Deux autres
+couleurs du thème sombre ont le même défaut, consigné dans `AMELIORATIONS.md`.
+
+**La revue a trouvé des commentaires faux à côté du diff, pas dedans.** Celle de #214 a vu que
+`base.py` dit les quotas « comptés par IP », ce qui est faux pour un membre connecté. Celle de
+#220 a vu les deux couleurs sombres ci-dessus. Les deux sont renvoyées à
+`AMELIORATIONS.md` : aucune ne venait de la branche revue.
+
+**Seule la mesure au navigateur prouvait les deux défauts d'affichage.** Pour le débordement,
+jsdom ne calcule aucune mise en page. Pour le violet, `getComputedStyle` rend la valeur `oklch`
+telle quelle : il a fallu lire le pixel affiché.
+
+**Le lot a surtout touché le back.** Le diff pèse **484 insertions pour 200 suppressions** sur
+25 fichiers. Dans `backend/` : 9 fichiers, 288 insertions pour 30 suppressions, dont 227
+insertions dans les trois `tests.py`. Dans `frontend/src` : 12 fichiers, 114 insertions pour
+103 suppressions.
+
+**Preuve de la correction** — rejouée sur `preprod` à `1cb5c14`.
+- Back, depuis le conteneur : `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py
+  test` rend `Ran 96 tests` puis `OK`, soit **12 de plus** qu'au départ.
+- Front, depuis `frontend/` : `npm run lint` ne rend rien.
+- `npm test` rend `Test Files  14 passed (14)` et `Tests  126 passed (126)`, soit **3 de plus**.
+- `npm run build` rend `✓ built in 2.46s`.
+
+Au navigateur, sur la pile de développement :
+- à 375 px, l'accueil fait 375 px de large, mesuré à la livraison de #219 ;
+- en thème clair, le lien actif du menu mobile s'affiche en `rgb(147, 51, 234)`, à 5,4:1 sur
+  blanc et 4,9:1 sur le fond secondaire.

@@ -20,7 +20,10 @@ class Article(models.Model):
     updated_at = models.DateTimeField(auto_now=True)       # mis à jour à CHAQUE sauvegarde
 
     class Meta:
-        ordering = ["-created_at"]       # les plus récents affichés en premier
+        # Les plus récents en premier. L'id départage deux dates égales : sans lui,
+        # la base les ordonne à son gré à chaque requête, et une liste paginée peut
+        # montrer l'un sur deux pages et jamais l'autre.
+        ordering = ["-created_at", "-id"]
 
     def __str__(self):
         return self.title

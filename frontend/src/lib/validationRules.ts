@@ -11,3 +11,12 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function isValidEmail(value: string): boolean {
   return EMAIL.test(value);
 }
+
+// Copie de PasswordComplexityValidator côté API : les deux doivent accepter les mêmes
+// mots de passe, sinon le front refuse ce que l'API admettrait.
+const COMPLEXITE = /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+
+/** Dit si un mot de passe porte une minuscule, une majuscule et un chiffre. */
+export function isComplexPassword(value: string): boolean {
+  return COMPLEXITE.test(value);
+}

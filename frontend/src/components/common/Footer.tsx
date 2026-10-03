@@ -1,77 +1,78 @@
-import Logo from "../ui/Logo/Logo";
+import { Link } from "react-router-dom";
 
-/** Represents a single link in the footer */
+import Logo from "../ui/Logo/Logo";
+import {
+  LIEN_A_PROPOS,
+  LIEN_BLOG,
+  LIEN_CONNEXION,
+  LIEN_CONTACT,
+  LIEN_INSCRIPTION,
+} from "../../lib/navigation";
+import { useIsAuthenticated } from "../../hooks/useIsAuthenticated";
+
 type FooterLink = {
-  /** Display text for the link */
   label: string;
-  /** URL for the link */
-  href: string;
+  to: string;
 };
 
-/** Represents a column of links in the footer */
 type FooterColumn = {
-  /** Column heading */
   title: string;
-  /** Array of links in this column */
   links: FooterLink[];
 };
 
-const columns: FooterColumn[] = [
-  {
-    title: "PRODUIT",
-    links: [
-      { label: "Tarifs", href: "/pricing" },
-      { label: "Aperçu", href: "/overview" },
-      { label: "Explorer", href: "/browse" },
-      { label: "Accessibilité", href: "/accessibility" },
-      { label: "Five", href: "/five" },
-    ],
-  },
-  {
-    title: "SOLUTIONS",
-    links: [
-      { label: "Brainstorming", href: "/solutions/brainstorming" },
-      { label: "Idéation", href: "/solutions/ideation" },
-      { label: "Wireframing", href: "/solutions/wireframing" },
-      { label: "Recherche", href: "/solutions/research" },
-    ],
-  },
-  {
-    title: "RESSOURCES",
-    links: [
-      { label: "Centre d’aide", href: "/help" },
-      { label: "Blog", href: "/blog" },
-      { label: "Tutoriels", href: "/tutorials" },
-    ],
-  },
-  {
-    title: "ENTREPRISE",
-    links: [
-      { label: "À propos", href: "/about" },
-      { label: "Presse", href: "/press" },
-      { label: "Événements", href: "/events" },
-      { label: "Carrières", href: "/careers" },
-    ],
-  },
+// Chaque `to` doit exister dans `App.tsx` : `Footer.test.tsx` le tient. Les
+// entrées servies aussi par l'en-tête viennent de `lib/navigation.ts`, seul
+// endroit où s'écrivent leur libellé et leur destination.
+const SITE_COLUMN: FooterColumn = {
+  title: "SITE",
+  links: [{ label: "Accueil", to: "/" }, LIEN_BLOG, LIEN_A_PROPOS],
+};
+
+// Entrées du seul visiteur : connecté, l'en-tête propose la déconnexion.
+const VISITOR_LINKS: FooterLink[] = [
+  LIEN_CONNEXION,
+  LIEN_INSCRIPTION,
+  { label: "Mot de passe oublié", to: "/forgot-password" },
 ];
+
+// Le membre connaît son mot de passe : il le change sans passer par un email.
+const MEMBER_LINKS: FooterLink[] = [
+  { label: "Changer mon mot de passe", to: "/change-password" },
+];
+
+const LEGAL_COLUMN: FooterColumn = {
+  title: "LÉGAL",
+  links: [
+    { label: "Conditions d'utilisation", to: "/terms" },
+    { label: "Politique de confidentialité", to: "/privacy" },
+    LIEN_CONTACT,
+  ],
+};
 
 const Footer = () => {
   const year = new Date().getFullYear();
+  // La même source que `NavBar.tsx` : sans elle, l'en-tête proposerait la
+  // déconnexion pendant que le pied de page propose encore l'inscription.
+  const isAuthenticated = useIsAuthenticated();
+
+  const accountColumn: FooterColumn = {
+    title: "COMPTE",
+    links: isAuthenticated ? MEMBER_LINKS : VISITOR_LINKS,
+  };
+
+  const columns = [SITE_COLUMN, accountColumn, LEGAL_COLUMN];
 
   return (
     <footer className="footer">
       <div className="container-custom">
-        {/* Top */}
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
-          {/* Brand */}
           <div className="flex items-start">
             <Logo size="lg" />
           </div>
 
-          {/* Columns */}
           <nav
-            aria-label="Footer navigation"
-            className="grid w-full grid-cols-2 gap-10 sm:grid-cols-4 md:w-auto"
+            aria-label="Navigation du pied de page"
+            className="grid w-full grid-cols-2 gap-10 sm:grid-cols-3 md:w-auto"
           >
             {columns.map((col) => (
               <div key={col.title} className="min-w-[140px]">
@@ -82,9 +83,9 @@ const Footer = () => {
                 <ul className="mt-4 space-y-2">
                   {col.links.map((l) => (
                     <li key={l.label}>
-                      <a href={l.href} className="footer-link text-sm">
+                      <Link to={l.to} className="footer-link text-sm">
                         {l.label}
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>
@@ -93,7 +94,6 @@ const Footer = () => {
           </nav>
         </div>
 
-        {/* Bottom */}
         <div className="mt-10 flex flex-col gap-4 border-t border-[var(--color-light-border-primary)] pt-6 dark:border-[var(--color-dark-border-primary)] sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-[var(--color-light-text-tertiary)] dark:text-[var(--color-dark-text-tertiary)]">
             © {year} Weeb, Inc. All rights reserved.
@@ -134,10 +134,6 @@ const Footer = () => {
 
 export default Footer;
 
-/* -----------------------------
-   Small components
------------------------------- */
-
 function SocialIcon({
   href,
   label,
@@ -160,10 +156,6 @@ function SocialIcon({
     </a>
   );
 }
-
-/* -----------------------------
-   Inline SVG Icons (no deps)
------------------------------- */
 
 function YoutubeIcon() {
   return (

@@ -4,10 +4,13 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db import transaction
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -18,6 +21,9 @@ from .serializers import (
     RegisterSerializer,
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
+    PasswordChangeSerializer,
+    LoginSerializer,
+    RefreshSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -59,14 +65,34 @@ def send_password_reset_link(user):
         logger.exception("Échec de l'envoi du lien de réinitialisation")
 
 
+def set_password_and_revoke(user, password):
+    """Change le mot de passe et met en liste noire chaque refresh encore valable du compte."""
+    # D'un bloc : sans quoi une révocation en échec garderait le nouveau mot de passe et
+    # les sessions volées. Les jetons d'accès vivent leurs 15 minutes, voir base.py.
+    with transaction.atomic():
+        user.set_password(password)
+        user.save()
+        BlacklistedToken.objects.bulk_create(
+            [BlacklistedToken(token=token) for token in
+             OutstandingToken.objects.filter(user=user, blacklistedtoken__isnull=True)]
+        )
+
+
 class LoginView(TokenObtainPairView):
     """Connexion : délivre les tokens JWT. Endpoint PUBLIC (pas besoin d'être connecté)."""
     # Redit alors que simplejwt le pose déjà : la convention du dépôt veut qu'une
     # vue publique le déclare, une vue muette étant fermée par défaut.
     permission_classes = [AllowAny]
-    # La seule raison de sous-classer : `throttle_scope` est un attribut de vue, et
-    # celle de simplejwt est importée. Le compteur compte les appels, pas les échecs.
+    # Sous-classée pour deux attributs que la vue de simplejwt, importée, ne porte pas.
+    # Le compteur compte les appels, pas les échecs.
     throttle_scope = "login"
+    serializer_class = LoginSerializer
+
+
+class LoginRefreshView(TokenRefreshView):
+    """Renouvellement des jetons JWT. Endpoint PUBLIC : le refresh envoyé tient lieu d'identité."""
+    permission_classes = [AllowAny]
+    serializer_class = RefreshSerializer
 
 
 class RegisterView(generics.CreateAPIView):
@@ -79,7 +105,7 @@ class RegisterView(generics.CreateAPIView):
 class PasswordResetRequestView(APIView):
     """Étape 1 : envoie par email un lien de réinitialisation. Endpoint PUBLIC (pas besoin d'être connecté)."""
     permission_classes = [AllowAny]
-    # Le quota le plus bas des quatre : chaque appel envoie un email réel, donc
+    # Le quota le plus bas des six : chaque appel envoie un email réel, donc
     # sans lui l'endpoint est un envoyeur gratuit qui fait blacklister le relais.
     throttle_scope = "password_reset"
 
@@ -104,6 +130,10 @@ class PasswordResetRequestView(APIView):
 class PasswordResetConfirmView(APIView):
     """Étape 2 : vérifie le token et applique le nouveau mot de passe. Endpoint PUBLIC (pas besoin d'être connecté)."""
     permission_classes = [AllowAny]
+    # Le token HMAC ne se devine pas : c'est le coût qu'on borne, chaque appel passant
+    # un mot de passe aux validateurs puis à PBKDF2. Scope à part : la demande et la
+    # confirmation ne doivent pas se consommer leur quota l'une l'autre.
+    throttle_scope = "password_reset_confirm"
 
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
@@ -123,8 +153,32 @@ class PasswordResetConfirmView(APIView):
         if not default_token_generator.check_token(user, data["token"]):
             return Response(dict(INVALID_LINK_RESPONSE), status=status.HTTP_400_BAD_REQUEST)
 
-        user.set_password(data["new_password"])   # hashe le nouveau mdp
-        user.save()
+        # On réinitialise quand on croit sa session volée : celle de l'attaquant tombe avec.
+        set_password_and_revoke(user, data["new_password"])
         return Response({"detail": "Mot de passe réinitialisé avec succès."},
                         status=status.HTTP_200_OK)
 
+
+class PasswordChangeView(APIView):
+    """Change le mot de passe du membre connecté, ferme ses autres sessions et lui rend des jetons neufs."""
+    # Le mot de passe actuel se teste ici : sans quota, un jeton d'accès volé suffirait à le deviner.
+    throttle_scope = "password_change"
+
+    def post(self, request):
+        serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        # Chaque refresh émis passe en liste noire, celui de cet appareil compris : qui
+        # change un mot de passe compromis veut couper la session volée.
+        set_password_and_revoke(user, serializer.validated_data["new_password"])
+        # Émis après la révocation, sans quoi il y passerait avec les autres.
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "detail": "Mot de passe modifié.",
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            },
+            status=status.HTTP_200_OK,
+        )

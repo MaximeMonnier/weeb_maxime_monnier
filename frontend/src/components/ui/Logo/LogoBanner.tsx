@@ -11,19 +11,26 @@ type Brand = {
 };
 
 const brands: Brand[] = [
-  { name: "SmartFinder", src: svg1, href: "#" },
-  { name: "Zoomerr", src: svg2, href: "#" },
-  { name: "SHELLS", src: svg3, href: "#" },
-  { name: "WAVES", src: svg4, href: "#" },
-  { name: "ArtVenue", src: svg5, href: "#" },
+  { name: "SmartFinder", src: svg1 },
+  { name: "Zoomerr", src: svg2 },
+  { name: "SHELLS", src: svg3 },
+  { name: "WAVES", src: svg4 },
+  { name: "ArtVenue", src: svg5 },
 ];
 
-const LogoItem = ({ brand }: { brand: Brand }) => {
+const LogoItem = ({
+  brand,
+  isLoopCopy,
+}: {
+  brand: Brand;
+  isLoopCopy: boolean;
+}) => {
+  // `alt` vide : le `<span>` nomme déjà la marque, et le lecteur d'écran la lirait deux fois.
   const content = (
     <>
       <img
         src={brand.src}
-        alt={brand.name}
+        alt=""
         className="h-14 w-auto opacity-70 transition-opacity duration-200 hover:opacity-100"
         loading="lazy"
       />
@@ -34,14 +41,15 @@ const LogoItem = ({ brand }: { brand: Brand }) => {
   return brand.href ? (
     <a
       href={brand.href}
-      aria-label={brand.name}
+      aria-hidden={isLoopCopy || undefined}
+      tabIndex={isLoopCopy ? -1 : undefined}
       className="flex min-w-max items-center gap-2 px-6 py-2"
     >
       {content}
     </a>
   ) : (
     <div
-      aria-label={brand.name}
+      aria-hidden={isLoopCopy || undefined}
       className="flex min-w-max items-center gap-2 px-6 py-2"
     >
       {content}
@@ -54,8 +62,14 @@ export default function LogoBanner() {
     <section className="w-full py-6">
       <div className="marquee-mask">
         <div className="marquee-track">
+          {/* La copie n'existe que pour boucler l'animation : masquée aux lecteurs
+              d'écran, et son lien éventuel retiré du parcours au clavier. */}
           {[...brands, ...brands].map((brand, index) => (
-            <LogoItem key={`${brand.name}-${index}`} brand={brand} />
+            <LogoItem
+              key={`${brand.name}-${index}`}
+              brand={brand}
+              isLoopCopy={index >= brands.length}
+            />
           ))}
         </div>
       </div>

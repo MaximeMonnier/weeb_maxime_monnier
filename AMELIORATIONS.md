@@ -14,23 +14,57 @@ et pour les prochaines itérations).
       inchangée : librairie type
       `react-hot-toast` ou `sonner`, ou un composant Toast maison — c'est le point où ce
       message survivrait à la navigation.
+- [ ] **La connexion ne ramène pas là d'où l'on vient.** `FormLogin.tsx` mène toujours à
+      `/` après succès. Depuis l'issue #132, le blog envoie le visiteur vers `/login` par un
+      lien « Se connecter pour publier » : une fois connecté, il doit retrouver `/blog` seul.
+      Piste : l'origine passée dans le `state` du `Link`, que `FormLogin` relit — et non un
+      paramètre `?next=` dans l'adresse, qui, recopié tel quel, ouvrirait une redirection
+      vers un site tiers.
+- [ ] **« Voir plus d'articles » peut en sauter un.** Depuis l'issue #111, l'API découpe la
+      liste par position (`?page=N`) : un article supprimé entre deux chargements remonte
+      la suite d'un cran, et le premier de la page suivante n'est jamais affiché. Le
+      décalage inverse, une publication, est déjà absorbé — `Blog.tsx` écarte le doublon
+      qu'elle produit. Piste : la `CursorPagination` de DRF, qui reprend après le dernier
+      article vu, mais ne donne pas le `count` que l'issue exigeait.
+- [ ] **Le refus d'une publication reste affiché à la réouverture de la modale.** Le
+      `<dialog>` de `Blog.tsx` reste monté, fermé ou non : `FormArticle` garde ses erreurs, et
+      qui ferme la modale après un refus le retrouve en la rouvrant. Écarté au lot 10 comme
+      trop mineur. Piste : vider les seules erreurs sur l'événement `close` du `<dialog>` — une
+      `key` changée à l'ouverture remonterait le formulaire, mais perdrait aussi le texte que
+      le message du `401` invite à copier.
+
+## Frontend — code
+
+- [ ] **La palette n'affiche pas les couleurs que ses commentaires annoncent.** Dans le
+      `@theme` d'`index.css`, 23 des 28 couleurs annotées s'écartent de leur hexadécimal ;
+      seuls les blancs et les deux violets clairs, recalculés depuis, tombent juste. Deux
+      causes. Cinq valeurs sont hors de la gamme sRGB et le navigateur les ramène au bord :
+      le fond sombre annoncé `#0F172A` s'affiche `#00112F`, le violet sombre `#A855F7`
+      s'affiche `#C75EFF`, et les deux verts et le rouge clair glissent de même. Les autres
+      sont dans la gamme mais ne sont pas les conversions des couleurs citées : les gris,
+      écrits `oklch(0.3 0.02 250)` pour `#334155`, s'affichent `#262F38`, plus sombres et moins
+      bleus, et deux valeurs différentes se réclament toutes deux de `#1E293B`. Le contraste
+      « 4,5:1 sur le fond principal » du survol sombre vaut contre le fond affiché, et 4,3:1
+      contre `#0F172A`. Repéré aux issues #220 et #233. Piste : décider entre l'écran actuel,
+      dont on réécrit alors les commentaires, et la maquette, dont on recalcule les valeurs —
+      puis mesurer les contrastes qui en dépendent avant de choisir.
+- [ ] **Le seuil de 8 caractères du mot de passe est recopié dans quatre formulaires.**
+      `FormSubscribe.tsx`, `ResetPassword.tsx`, `ChangePassword.tsx` et `FormLogin.tsx`
+      écrivent chacun `length < 8` et son message, là où la complexité vit une seule fois
+      dans `lib/validationRules.ts`. Le seuil reprend celui de `MinimumLengthValidator`
+      (`config/settings/base.py`) : s'il change côté API, trois formulaires sur quatre
+      restent en retard sans que rien ne le signale. La confirmation du mot de passe se
+      répète aussi, entre `FormSubscribe.tsx` et `ChangePassword.tsx`. Et la copie de
+      `FormLogin.tsx` applique une règle de création à la connexion : un compte au mot de
+      passe plus court, né d'un `create_user()` au shell, ne pourrait pas se connecter depuis
+      le site. Repéré à l'issue #233. Piste : une constante et une fonction dans
+      `lib/validationRules.ts`, et retirer le contrôle de longueur de la connexion.
 
 ## Docker — mise en ligne
 
-Quatre critères de l'epic de dockerisation qu'aucune sous-issue n'a couverts, plus une dette
-née de la façade — cinq entrées en tout, dont deux livrées : le terminateur TLS, dont le
-travail vit désormais hors du dépôt, et la construction des images en intégration continue.
-Rien de ce qui reste ne bloque le développement.
+Trois critères de l'epic de dockerisation #47 qu'aucune sous-issue n'a livrés, plus une dette
+née de la façade. Rien de ce qui reste ne bloque le développement.
 
-- [x] **Terminateur TLS devant la production** — livré, puis **retiré du dépôt le
-      2026-09-03**. Un service `proxy` (nginx, `proxy/`) a porté le TLS, le routage et
-      l'écrasement de `X-Forwarded-Proto` jusqu'à ce qu'il apparaisse que le serveur de
-      production a déjà nginx : deux terminateurs empilés, dont le second ne payait rien.
-      Ce qui reste du travail est la **configuration de référence du nginx du serveur**,
-      au README, § « Déployer derrière le nginx du serveur ». La pile, elle, publie le
-      front et l'API en clair sur `127.0.0.1` et rien d'autre. Ce qui n'a pas bougé : le
-      site et l'API sur la même origine, donc pas de CORS en production et
-      `VITE_API_URL=/api`.
 - [ ] **Durcir la façade du serveur.** Le nginx du serveur ne fait aujourd'hui que router :
       `/admin/` et les routes d'authentification (`/api/auth/login/`,
       `/api/auth/password-reset/`) n'y ont aucune limitation de débit ni restriction
@@ -40,19 +74,6 @@ Rien de ce qui reste ne bloque le développement.
       `/admin/`, que le throttling de DRF ne voit pas. S'y ajoutent les deux chantiers qu'un domaine réel ouvre : Let's Encrypt
       et HSTS remonté par paliers, à `0` tant que la pile est jointe sur `localhost`,
       qu'elle partage avec le développement.
-- [x] **Construction des images en intégration continue** — livré.
-      `.github/workflows/docker-images.yml` construit les **deux** images à chaque push sur
-      `preprod` ou sur `main`, et sur chaque pull request qui vise l'une des deux — `main`
-      étant la branche qui partira sur un serveur, elle est vérifiée aussi. Un job par image,
-      avec un cache de layers dont la portée est propre à chacune. La machine de GitHub part
-      de zéro — sans cache, sans `node_modules`, sans `.env` — ce qui est le seul endroit où
-      se voient un `.dockerignore` mal réglé ou une dépendance absente de `requirements.txt`.
-
-      **La publication vers un registre reste écartée volontairement** (décidé le 2026-09-03),
-      alors que l'epic #47 la demandait. Pousser des images n'a de valeur que si quelqu'un
-      fait `docker pull`, et il n'existe aucun serveur où déployer : le bénéfice serait nul
-      et la dette réelle. À reprendre le jour où une mise en ligne existe — ajouter le
-      `push` au workflow existant sera une dizaine de lignes.
 - [ ] **Logs et métriques depuis une interface unique** : piste, Grafana + Loki pour les
       logs, cAdvisor pour les métriques de conteneurs, dans un troisième fichier Compose
       que la pile de production n'a pas à connaître : elle doit démarrer sans lui. Reste à
@@ -61,31 +82,11 @@ Rien de ce qui reste ne bloque le développement.
 - [ ] **Exécution des tests en conteneur isolé** : sur l'image de production, avec un
       service `db` éphémère, jamais sur l'image de développement. À reprendre avec le
       chantier des tests, qui dépasse Docker.
-
-## Frontend — sécurité
-
-- [ ] **`apiFetch` joint encore le token aux endpoints publics hors `/auth/`.** simplejwt
-      authentifie **avant** d'appliquer les permissions : un `localStorage.access` périmé
-      fait répondre `401` à une vue `AllowAny`, sans que rien ne le dise. `lib/api.ts`
-      n'envoie plus l'en-tête sur `/auth/` — les six routes y sont publiques, et le
-      parcours de réinitialisation en dépendait — mais les publiques d'ailleurs restent
-      exposées : `POST /api/contact/`, et les lectures `GET /api/articles/` et
-      `/api/articles/{id}/`, que `IsAuthenticatedOrReadOnly` autorise sans jamais être
-      atteint. La cause de fond demeure : l'issue #72 a ouvert
-      `POST /api/auth/logout/` côté API, mais aucun écran du front ne l'appelle ni ne vide
-      `localStorage`, donc un token mort y reste indéfiniment. Pistes :
-      lister les chemins publics plutôt que le seul préfixe `/auth/`, ou purger
-      `localStorage.access` à la réception d'un `401`.
-- [ ] **Le front ne rafraîchit pas ses jetons, et la session dure 15 minutes.**
-      `FormLogin.tsx` range `access` et `refresh` dans `localStorage`, mais aucun fichier
-      n'appelle `/api/auth/login/refresh/` : le jeton d'accès expire sans être renouvelé et
-      l'utilisateur se retrouve déconnecté. L'issue #72 a resserré `ACCESS_TOKEN_LIFETIME`
-      de 60 à 15 minutes — le bon arbitrage pour un jeton logé dans `localStorage`, mais il
-      raccourcit d'autant une session que rien ne prolonge. Le lot 5.2 doit poser ce
-      rafraîchissement, et **stocker le `refresh` renvoyé en réponse** : depuis la même
-      issue, `login/refresh/` en rend un neuf et révoque celui qui a servi, donc un client
-      qui garde l'ancien se coupe lui-même au deuxième appel. La déconnexion existe côté
-      API, `POST /api/auth/logout/`, et attend le même geste côté front.
+- [ ] **Les images ne sont publiées vers aucun registre.** `docker-images.yml` les construit
+      sans les pousser, écarté volontairement le 2026-09-03 alors que l'epic #47 le
+      demandait : sans serveur où faire `docker pull`, une image publiée ne sert à personne.
+      Piste : ajouter le `push` au workflow existant le jour où une mise en ligne existe,
+      conditionné à un push sur `main`, sinon chaque pull request pousserait une image.
 
 ## Backend — sécurité
 
@@ -140,16 +141,27 @@ Rien de ce qui reste ne bloque le développement.
       dépôt n'a ni tâche planifiée ni cron dans ses conteneurs. Sans conséquence à l'échelle
       d'un projet pédagogique ; à reprendre le jour où une file de tâches entrera, la même
       qui manque à l'envoi des emails ci-dessus.
+- [ ] **Le commentaire des quotas dans `base.py` dit « comptés par IP ».** C'est faux pour
+      `password_change` : `ScopedRateThrottle` compte par compte dès que le membre est
+      connecté, ce que le README et `.env.example` disent justement. Un lecteur de `base.py`
+      en conclurait qu'un membre derrière la même IP qu'un autre partage son quota. Repéré
+      à la revue de l'issue #214.
 
-## Intégration continue
+## Fonctionnalités écartées
 
-- [ ] **Aucun job de test dans la CI.** `.github/workflows/docker-images.yml` construit les
-      deux images et rien d'autre ; depuis l'issue #68 le dépôt a une suite de tests, qui ne
-      tourne donc que sur la machine de qui pense à la lancer. Un job avec un service `postgres`
-      et les `POSTGRES_*` en variables suffit — `config/settings/test.py` appelle
-      `postgres_database()` et `env_required`, il lui faut une vraie base. À ne pas confondre
-      avec l'entrée « Exécution des tests en conteneur isolé » ci-dessus, qui vise l'image
-      de production et reste un chantier distinct.
+- [ ] **Aucun endpoint profil.** L'API n'expose ni `GET /api/auth/me/` ni équivalent : le
+      front sait qu'un membre est connecté, jamais qui il est, et `App.tsx` n'a pas de page de
+      profil. La tâche 5.1 de `correction.md` a tranché pour un simple booléen, l'ajout
+      backend devant être proposé à part. Piste : une `RetrieveUpdateAPIView` sur
+      `request.user`, réservée au membre, dont le serializer ne rend que le prénom, le nom et
+      l'email — rendre l'email modifiable y ajouterait un second point d'énumération, voir
+      « `/api/auth/register/` énumère les comptes » ci-dessus.
+- [ ] **Images de couverture d'article.** `coverImg` a été retiré du type et de `Card.tsx` par
+      l'issue #175 (tâche 9.1) : ni le modèle `Article` ni les deux serializers de
+      `backend/articles/serializers.py` n'ont de champ image, et la branche d'affichage ne
+      s'exécutait jamais. C'est une fonctionnalité, pas un nettoyage. Piste : un `ImageField`
+      (donc Pillow), des médias servis par le conteneur du front comme `/static/`, et le champ
+      ajouté aux types `Article` et `ArticleListItem` en même temps qu'aux serializers.
 
 ## Tests
 
@@ -160,6 +172,16 @@ Rien de ce qui reste ne bloque le développement.
       à deux endroits, elles dériveront séparément le jour où `lib/api.ts` changera. Un
       troisième formulaire testé impose l'extraction. Piste : un module de test partagé,
       importé explicitement par chaque fichier — surtout pas un `setupFiles`, `globals`
-      restant à `false`. Repéré à l'issue #119.
+      restant à `false`. Repéré à l'issue #119. Depuis, `useIsAuthenticated.test.ts` et
+      `Blog.test.tsx` (#132) substituent `fetch` à leur tour, sans formulaire. Le seuil est franchi depuis l'issue #159 :
+      `ChangePassword.test.tsx` est le troisième formulaire testé, et `ArticleDetails.test.tsx`
+      substitue aussi `fetch` — sept fichiers au total, `api.test.ts` compris.
+- [ ] **Le parcours Playwright ne tourne pas en intégration continue.** `tests.yml` lance
+      les suites Django et Vitest, mais `npm run test:e2e` exige la pile de `compose.dev.yaml`
+      démarrée et les navigateurs de Playwright, qu'aucun job ne prépare. Le `forbidOnly` de
+      `playwright.config.ts` reste donc une garde qui ne s'arme jamais. Piste : un job qui
+      monte la pile par Compose et installe Chromium, avec un compte de test créé avant le
+      parcours. Distinct de « Exécution des tests en conteneur isolé », qui vise l'image de
+      production.
 
 ## (à compléter au fil de l'eau)

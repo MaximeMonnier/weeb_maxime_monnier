@@ -120,6 +120,9 @@ INSTALLED_APPS = [
     # elle qui apporte les tables où atterrissent les refresh révoqués, donc la
     # condition de BLACKLIST_AFTER_ROTATION comme de la vue de déconnexion.
     'rest_framework_simplejwt.token_blacklist',
+    # Sans modèle ni route : présente pour que Django charge son catalogue, faute de
+    # quoi tous ses refus sortent en anglais. backend/locale/ bouche ses trous.
+    'rest_framework_simplejwt',
 
     # --- Applications ---
     'accounts',
@@ -220,6 +223,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # du client, tous les libellés écrits par le projet étant français.
 LANGUAGE_CODE = 'fr-fr'
 
+# Lu avant les catalogues des apps : traduit les libellés que simplejwt laisse en anglais.
+LOCALE_PATHS = [BASE_DIR / 'locale']
+
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
@@ -251,6 +257,10 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    # Toute liste sort par pages, sous la forme {count, next, previous, results}.
+    # 12 remplit sans trou la grille du blog, qu'elle ait deux ou trois colonnes.
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 12,
     # Quotas d'appels, comptés par IP. ScopedRateThrottle ne compte QUE les vues
     # qui déclarent un `throttle_scope` : les autres, articles compris, ne sont
     # pas limitées. Un scope absent des taux ci-dessous fait échouer sa vue.
@@ -268,6 +278,8 @@ REST_FRAMEWORK = {
         'login': env_str('THROTTLE_LOGIN', '5/min'),
         'register': env_str('THROTTLE_REGISTER', '5/hour'),
         'password_reset': env_str('THROTTLE_PASSWORD_RESET', '3/hour'),
+        'password_reset_confirm': env_str('THROTTLE_PASSWORD_RESET_CONFIRM', '5/hour'),
+        'password_change': env_str('THROTTLE_PASSWORD_CHANGE', '5/hour'),
         'contact': env_str('THROTTLE_CONTACT', '5/hour'),
     },
 }

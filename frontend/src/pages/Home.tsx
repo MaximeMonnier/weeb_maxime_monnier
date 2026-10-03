@@ -11,7 +11,7 @@ const Home = () => {
       <header>
         <HeroBanner />
       </header>
-      <main>
+      <div>
         <div className="container-custom flex justify-center py-30">
           <Slider />
         </div>
@@ -27,9 +27,9 @@ const Home = () => {
             titleLine2="progressez"
             description="Que vous débutiez en développement web ou que vous soyez un expert cherchant à approfondir vos connaissances, nous vous proposons des tutoriels, guides et bonnes pratiques pour apprendre efficacement."
             ctaLabel="Explorer les ressources"
-            ctaHref="#ressources"
+            ctaHref="/blog"
             imageSrc={Image1}
-            imageAlt="Aperçu interface"
+            imageAlt="Maquette d'une interface de blog : menu latéral, blocs de texte et cartes illustrées"
             reverse={false}
           />
 
@@ -41,15 +41,15 @@ const Home = () => {
                 dernières <span className="text-accent">tendances</span>
               </>
             }
-            description="Chaque semaine, nous analysons les nouveautés du web..."
+            description="Chaque semaine, nous analysons les nouveautés du web — frameworks, outils et standards — pour vous dire ce qui mérite votre attention et ce qui peut attendre."
             ctaLabel="Lire les articles récents"
-            ctaHref="#articles"
+            ctaHref="/blog"
             imageSrc={Image2}
-            imageAlt="Illustration tendances"
+            imageAlt="Composition graphique de carrés violets superposés autour d'un carré rose"
             reverse={true}
           />
         </div>
-      </main>
+      </div>
     </>
   );
 };

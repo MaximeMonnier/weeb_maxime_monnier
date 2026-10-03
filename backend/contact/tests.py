@@ -95,11 +95,15 @@ class ContactValidationTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Contact.objects.count(), 0)
 
-    def test_un_message_long_passe(self):
-        """message est un TextField : rien ne borne sa longueur, seul le quota borne le volume."""
-        response = envoyer(self.client, {**MESSAGE, "message": "M" * 5000})
+    def test_un_message_plus_long_que_la_borne_est_refuse(self):
+        """message est un TextField, sans longueur en base : la borne ne vit que dans
+        ContactSerializer, là où celle du sujet vient du modèle."""
+        response = envoyer(self.client, {**MESSAGE, "message": "M" * 5001})
 
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("message", response.json())
+        self.assertEqual(Contact.objects.count(), 0)
+        self.assertEqual(envoyer(self.client, {**MESSAGE, "message": "M" * 5000}).status_code, 201)
 
 
 class ContactDateImposeeTests(TestCase):

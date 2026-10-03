@@ -4,6 +4,7 @@ jusqu'à quand un refresh reste bon, et à qui la connexion en délivre — l'in
 créant qu'un compte en attente."""
 
 import re
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.conf import settings
@@ -16,6 +17,7 @@ from django.urls import resolve, reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import CustomUser
 from .validators import PasswordComplexityValidator
@@ -94,12 +96,41 @@ class PasswordResetConfirmTests(TestCase):
     def confirm(self, new_password):
         return self.post(self.uid, self.token, new_password)
 
+    def refresh_apres_connexion(self, password):
+        tokens = self.client.post(
+            reverse("login"), {"email": self.user.email, "password": password},
+            content_type="application/json",
+        ).json()
+        return tokens["refresh"]
+
+    def rafraichir(self, refresh):
+        return self.client.post(
+            reverse("login-refresh"), {"refresh": refresh}, content_type="application/json"
+        )
+
     def test_le_lien_change_le_mot_de_passe(self):
         response = self.confirm("NouveauMotDePasse456")
 
         self.assertEqual(response.status_code, 200)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NouveauMotDePasse456"))
+
+    def test_la_session_ouverte_avant_ne_se_renouvelle_plus(self):
+        """On réinitialise quand on croit sa session volée : celle de l'attaquant doit tomber."""
+        refresh_avant = self.refresh_apres_connexion("AncienMotDePasse123")
+
+        response = self.confirm("NouveauMotDePasse456")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"detail": "Mot de passe réinitialisé avec succès."})
+        self.assertEqual(self.rafraichir(refresh_avant).status_code, 401)
+
+    def test_la_session_ouverte_apres_se_renouvelle(self):
+        self.confirm("NouveauMotDePasse456")
+
+        refresh_apres = self.refresh_apres_connexion("NouveauMotDePasse456")
+
+        self.assertEqual(self.rafraichir(refresh_apres).status_code, 200)
 
     def test_le_lien_ne_sert_quune_fois(self):
         self.assertEqual(self.confirm("NouveauMotDePasse456").status_code, 200)
@@ -127,6 +158,19 @@ class PasswordResetConfirmTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), INVALID_LINK_RESPONSE)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("AncienMotDePasse123"))
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"password_reset_confirm": "5/hour"})
+    def test_la_sixieme_confirmation_est_refusee_meme_avec_le_bon_lien(self):
+        cache.clear()
+        for _ in range(5):
+            self.assertEqual(self.post(self.uid, "mauvais-token").status_code, 400)
+
+        response = self.confirm("NouveauMotDePasse456")
+
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("Retry-After", response.headers)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("AncienMotDePasse123"))
 
@@ -219,6 +263,82 @@ class PasswordValidationTests(TestCase):
                 )
 
 
+class PasswordLengthTests(TestCase):
+    """128 caractères passent, 129 sont refusés sous la clé du champ : la borne vit dans les
+    serializers seuls, AUTH_PASSWORD_VALIDATORS n'ayant pas de maximum."""
+
+    # Une majuscule, une minuscule, un chiffre : seule la longueur peut faire tomber le cas.
+    LIMITE = "Aa1" + "x" * 125
+    AUTRE_LIMITE = "Bb2" + "y" * 125
+    TROP_LONG = LIMITE + "x"
+
+    def setUp(self):
+        self.user = CustomUser.objects.create_user(
+            email="actif@example.com", first_name="A", last_name="Actif", password=self.LIMITE,
+        )
+
+    def post(self, nom_de_route, corps, **en_tetes):
+        return self.client.post(
+            reverse(nom_de_route), corps, content_type="application/json", **en_tetes
+        )
+
+    def assertRefuseSous(self, response, champ):
+        """Un seul message, une chaîne et non un dict : l'erreur n'est pas imbriquée deux fois."""
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(len(response.json()[champ]), 1)
+        self.assertIn("128", response.json()[champ][0])
+
+    def changer(self, corps):
+        jetons = self.post("login", {"email": self.user.email, "password": self.LIMITE}).json()
+        return self.post(
+            "password-change", corps, HTTP_AUTHORIZATION=f"Bearer {jetons['access']}"
+        )
+
+    def test_inscription(self):
+        corps = {"email": "nouveau@example.com", "first_name": "N", "last_name": "Nouveau"}
+
+        self.assertRefuseSous(
+            self.post("register", {**corps, "password": self.TROP_LONG}), "password"
+        )
+        self.assertEqual(
+            self.post("register", {**corps, "password": self.LIMITE}).status_code, 201
+        )
+
+    def test_confirmation_de_reinitialisation(self):
+        self.post("password-reset", {"email": self.user.email})
+        lien = re.search(r"/reset-password\?uid=([^&]+)&token=(\S+)", mail.outbox[0].body)
+        corps = {"uid": lien.group(1), "token": lien.group(2)}
+
+        self.assertRefuseSous(
+            self.post("password-reset-confirm", {**corps, "new_password": self.TROP_LONG}),
+            "new_password",
+        )
+        self.assertEqual(
+            self.post(
+                "password-reset-confirm", {**corps, "new_password": self.AUTRE_LIMITE}
+            ).status_code,
+            200,
+        )
+
+    def test_nouveau_mot_de_passe_au_changement(self):
+        corps = {"current_password": self.LIMITE}
+
+        self.assertRefuseSous(
+            self.changer({**corps, "new_password": self.TROP_LONG}), "new_password"
+        )
+        self.assertEqual(
+            self.changer({**corps, "new_password": self.AUTRE_LIMITE}).status_code, 200
+        )
+
+    def test_mot_de_passe_actuel_au_changement(self):
+        """Refusé pour sa longueur avant d'être comparé : le message dit la borne, pas l'erreur."""
+        corps = {"new_password": "NouveauSecret456"}
+
+        self.assertRefuseSous(self.changer({**corps, "current_password": self.TROP_LONG}),
+                              "current_password")
+        self.assertEqual(self.changer({**corps, "current_password": self.LIMITE}).status_code, 200)
+
+
 class CustomUserAdminTests(TestCase):
     """L'admin des utilisateurs hashe le mot de passe saisi et ne montre jamais le hash."""
 
@@ -296,14 +416,16 @@ class CustomUserAdminTests(TestCase):
 
 
 class ThrottleScopeTests(SimpleTestCase):
-    """Chaque endpoint public porte son scope, et chaque scope a son taux."""
+    """Chaque endpoint sous quota porte son scope, et chaque scope a son taux."""
 
-    def test_chaque_endpoint_public_porte_son_scope(self):
+    def test_chaque_endpoint_sous_quota_porte_son_scope(self):
         taux = settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
         for nom_de_route, scope in {
             "login": "login",
             "register": "register",
             "password-reset": "password_reset",
+            "password-reset-confirm": "password_reset_confirm",
+            "password-change": "password_change",
             "contact": "contact",
         }.items():
             with self.subTest(route=nom_de_route):
@@ -397,6 +519,13 @@ class JWTRotationTests(TestCase):
 
         self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
 
+    def test_un_compte_supprime_ne_rafraichit_plus(self):
+        """Monté sur TokenRefreshView, login/refresh/ répondrait 500 : le front y voit une
+        panne passagère et garde des jetons morts jusqu'à l'échéance du refresh."""
+        CustomUser.objects.get(email="membre@example.com").delete()
+
+        self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
+
     def test_la_deconnexion_revoque_le_refresh(self):
         # Aucun en-tête d'authentification ici : la vue est publique, et le refresh
         # envoyé est la seule preuve exigée. Un IsAuthenticated hérité la fermerait.
@@ -410,6 +539,60 @@ class JWTRotationTests(TestCase):
         self.deconnecter(self.refresh)
 
         self.assertEqual(self.deconnecter(self.refresh).status_code, 401)
+
+
+class JWTMessagesTests(TestCase):
+    """Les refus de simplejwt sortent en français : son catalogue n'est lu que parce que l'app
+    est dans INSTALLED_APPS, et backend/locale/ traduit ce qu'il laisse en anglais."""
+
+    def setUp(self):
+        self.user = CustomUser.objects.create_user(
+            email="membre@example.com", first_name="M", last_name="Embre",
+            password="MotDePasseValide123",
+        )
+
+    def rafraichir(self, refresh):
+        return self.client.post(
+            reverse("login-refresh"), {"refresh": str(refresh)}, content_type="application/json"
+        )
+
+    def test_la_connexion_refusee(self):
+        """Traduit par le catalogue de simplejwt : tombe si l'app sort d'INSTALLED_APPS."""
+        response = self.client.post(
+            reverse("login"),
+            {"email": "membre@example.com", "password": "MauvaisMotDePasse123"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(
+            response.json()["detail"],
+            "Aucun compte actif n'a été trouvé avec les identifiants fournis",
+        )
+
+    def test_le_refresh_expire(self):
+        """Entrée fuzzy chez simplejwt : seul backend/locale/ la traduit."""
+        refresh = RefreshToken.for_user(self.user)
+        refresh.set_exp(lifetime=-timedelta(seconds=1))
+
+        self.assertEqual(self.rafraichir(refresh).json()["detail"], "Le jeton a expiré")
+
+    def test_le_compte_supprime(self):
+        refresh = RefreshToken.for_user(self.user)
+        self.user.delete()
+
+        self.assertEqual(
+            self.rafraichir(refresh).json()["detail"],
+            "Aucun compte actif ne correspond à ce jeton.",
+        )
+
+    def test_un_jeton_illisible_sur_une_route_protegee(self):
+        """Le refus mêle les deux catalogues : le motif de simplejwt, le détail du nôtre."""
+        response = self.client.post(
+            reverse("article-list"), {}, HTTP_AUTHORIZATION="Bearer illisible"
+        )
+
+        self.assertEqual(response.json()["detail"], "Le type de jeton fourni n'est pas valide")
+        self.assertEqual(response.json()["messages"][0]["message"], "Le jeton est invalide")
 
 
 class RegisterTests(TestCase):
@@ -505,3 +688,109 @@ class LoginTests(TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertNotIn("access", response.json())
         self.assertNotIn("refresh", response.json())
+
+    def test_un_mot_de_passe_trop_long_est_refuse_sans_fermer_la_porte(self):
+        """Le serializer de simplejwt ne borne rien : la limite tient au LoginSerializer
+        que LoginView déclare, et disparaît si la route revient à la vue d'origine."""
+        response = self.client.post(
+            self.url, {"email": self.membre.email, "password": "A" * 129},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("password", response.json())
+        self.assertEqual(self.connecter().status_code, 200)
+
+
+class PasswordChangeTests(TestCase):
+    """Le changement exige le mot de passe actuel et ferme les sessions ouvertes avec l'ancien."""
+
+    PASSWORD = "MotDePasseValide123"
+    NOUVEAU = "NouveauSecret456"
+
+    def setUp(self):
+        self.url = reverse("password-change")
+        self.membre = CustomUser.objects.create_user(
+            email="membre@example.com", first_name="Martin", last_name="Embre",
+            password=self.PASSWORD,
+        )
+        self.session = self.connecter(self.PASSWORD).json()
+        cache.clear()
+
+    def connecter(self, mot_de_passe):
+        return self.client.post(
+            reverse("login"),
+            {"email": self.membre.email, "password": mot_de_passe},
+            content_type="application/json",
+        )
+
+    def changer(self, corps, access=None):
+        en_tetes = {"HTTP_AUTHORIZATION": f"Bearer {access}"} if access else {}
+        return self.client.post(self.url, corps, content_type="application/json", **en_tetes)
+
+    def rafraichir(self, refresh):
+        return self.client.post(
+            reverse("login-refresh"), {"refresh": refresh}, content_type="application/json"
+        )
+
+    def test_le_membre_change_son_mot_de_passe_et_garde_sa_session(self):
+        response = self.changer(
+            {"current_password": self.PASSWORD, "new_password": self.NOUVEAU},
+            self.session["access"],
+        )
+
+        self.assertEqual(response.status_code, 200)
+        # Les jetons neufs sont ce qui évite de se reconnecter : le refresh d'avant est mort.
+        self.assertEqual(self.rafraichir(response.json()["refresh"]).status_code, 200)
+        self.assertEqual(self.connecter(self.NOUVEAU).status_code, 200)
+        self.assertEqual(self.connecter(self.PASSWORD).status_code, 401)
+
+    def test_les_autres_sessions_ne_se_renouvellent_plus(self):
+        autre_appareil = self.connecter(self.PASSWORD).json()
+
+        self.changer(
+            {"current_password": self.PASSWORD, "new_password": self.NOUVEAU},
+            self.session["access"],
+        )
+
+        self.assertEqual(self.rafraichir(autre_appareil["refresh"]).status_code, 401)
+        self.assertEqual(self.rafraichir(self.session["refresh"]).status_code, 401)
+
+    def test_le_jeton_seul_ne_suffit_pas(self):
+        for corps in (
+            {"new_password": self.NOUVEAU},
+            {"current_password": "MauvaisSecret789", "new_password": self.NOUVEAU},
+        ):
+            with self.subTest(corps=corps):
+                response = self.changer(corps, self.session["access"])
+
+                # 400 et jamais 401 : le front renouvellerait un jeton qui n'y est pour rien.
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("current_password", response.json())
+        self.assertEqual(self.connecter(self.PASSWORD).status_code, 200)
+
+    def test_un_mot_de_passe_faible_est_refuse_comme_a_l_inscription(self):
+        # Le dernier ne tombe que par la similarité, muette à la réinitialisation faute de titulaire.
+        for faible in ("12345678", "motdepasse1", "Membre@example.com1"):
+            with self.subTest(mot_de_passe=faible):
+                response = self.changer(
+                    {"current_password": self.PASSWORD, "new_password": faible},
+                    self.session["access"],
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("new_password", response.json())
+        self.assertEqual(self.connecter(self.PASSWORD).status_code, 200)
+
+    def test_un_visiteur_est_refuse(self):
+        response = self.changer({"current_password": self.PASSWORD, "new_password": self.NOUVEAU})
+
+        self.assertEqual(response.status_code, 401)
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"password_change": "5/hour"})
+    def test_la_sixieme_tentative_est_refusee(self):
+        corps = {"current_password": "MauvaisSecret789", "new_password": self.NOUVEAU}
+        for _ in range(5):
+            self.assertEqual(self.changer(corps, self.session["access"]).status_code, 400)
+
+        self.assertEqual(self.changer(corps, self.session["access"]).status_code, 429)

@@ -10,7 +10,7 @@ from rest_framework import serializers
 class PasswordComplexityValidator:
     """Exige une minuscule, une majuscule et un chiffre — ce qu'aucun des quatre validateurs de Django ne regarde."""
 
-    # Classes ASCII, celles de la regex de FormSubscribe.tsx : les deux règles doivent
+    # Classes ASCII, celles de la regex de lib/validationRules.ts : les deux règles doivent
     # accepter les mêmes mots de passe, sinon le front refuse ce que l'API vient d'admettre.
     REQUIRED_CLASSES = (r"[a-z]", r"[A-Z]", r"[0-9]")
     MESSAGE = "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre."

@@ -47,7 +47,7 @@ test.describe("Connexion", () => {
     // et l'API ne serait jamais appelée.
     await seConnecter(page, "mot-de-passe-faux-42");
 
-    // Ce libellé est celui que le front substitue au 401 anglais de simplejwt.
+    // Ce libellé est celui que le front substitue au 401 de simplejwt.
     // Une pile arrêtée donnerait « Le serveur est injoignable » : ce cas tombe
     // donc si l'API n'est pas là, au lieu de passer sur un refus de façade.
     await expect(page.getByRole("alert")).toContainText("Connexion impossible.");
@@ -56,5 +56,42 @@ test.describe("Connexion", () => {
     // le jeton de rafraîchissement rendrait une session récupérable.
     expect(await jeton(page, "access")).toBeNull();
     expect(await jeton(page, "refresh")).toBeNull();
+  });
+});
+
+test.describe("Déconnexion", () => {
+  test("révoque la session et rend le menu d'un visiteur", async ({ page }) => {
+    await seConnecter(page, MOT_DE_PASSE);
+    await expect(page).toHaveURL("/");
+    // Loin de l'accueil : sinon le retour vers « / » serait acquis d'avance.
+    await page.goto("/blog");
+    const refresh = await jeton(page, "refresh");
+
+    const reponseLogout = page.waitForResponse(
+      (r) => r.url().endsWith("/auth/logout/") && r.request().method() === "POST",
+    );
+    await page.getByRole("button", { name: "Se déconnecter" }).click();
+    const logout = await reponseLogout;
+
+    expect(logout.status()).toBe(200);
+    await expect(page).toHaveURL("/");
+    // Dans l'en-tête, et non sur toute la page : le pied de page sert le même
+    // libellé, et deux correspondances arrêtent Playwright au lieu de choisir.
+    // Le menu mobile n'en ajoute pas tant que le projet est Desktop Chrome.
+    await expect(
+      page
+        .getByRole("navigation", { name: "Navigation principale" })
+        .getByRole("link", { name: "Se connecter" }),
+    ).toBeVisible();
+    expect(await jeton(page, "access")).toBeNull();
+    expect(await jeton(page, "refresh")).toBeNull();
+
+    // Effacer le jeton ne suffit pas : l'API doit aussi le refuser. Son adresse
+    // est prise sur l'appel du front, seul à connaître VITE_API_URL.
+    const renouvellement = await page.request.post(
+      logout.url().replace(/logout\/$/, "login/refresh/"),
+      { data: { refresh } },
+    );
+    expect(renouvellement.status()).toBe(401);
   });
 });

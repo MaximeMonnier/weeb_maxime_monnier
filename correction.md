@@ -79,11 +79,15 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 | 3 | Qualité et performance de l'API | 4 | Corrections backend isolées, sans impact sur le contrat d'API |
 | 4 | Socle des formulaires front | 4 (+2) | Une seule extraction règle quatre copier-coller à la fois |
 | 5 | Authentification côté front | 4 | S'appuie sur le socle du lot 4 |
-| 6 | Pagination bout en bout | 2 | Change le contrat d'API : après la stabilisation du front |
+| 6 | Pagination bout en bout | 2 (+2) | Change le contrat d'API : après la stabilisation du front |
 | 7 | Navigation, liens et pages manquantes | 4 | Corrections de surface, sans dépendance |
-| 8 | Dédoublonnage de la couche UI | 3 | Refactoring pur, protégé par le lot 2 |
+| 8 | Dédoublonnage de la couche UI | 5 | Refactoring pur, protégé par le lot 2 |
 | 9 | Code mort et conventions | 4 | Nettoyage final, une fois que plus rien n'y touche |
-| 10 | Documentation et clôture | 3 | Consigne ce qui a été appris |
+| 10 | Finitions issues de la revue du 2026-10-01 | 6 | Ce que la revue de fin des lots 0 à 9 a encore trouvé |
+| 11 | Couper ce qui pousse à documenter | 1 | Sinon les lots suivants rajoutent ce que le 13 retire |
+| 12 | Corriger les causes dans le code | 4 | Chaque cause retirée supprime un piège à documenter |
+| 13 | Régime : purge et contrôle | 4 | Purge sur l'état propre, puis une mesure pour qu'il le reste |
+| 14 | Documentation et clôture | 3 | Consigne ce qui a été appris |
 
 ---
 
@@ -106,7 +110,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
   par Docker comme point de montage du volume anonyme `/app/node_modules` déclaré dans
   `compose.dev.yaml`. Toute commande npm lancée depuis la machine échoue en `EACCES`.
 - **Attendu** : le dossier est rendu à l'utilisateur, `npm ci` passe, `npm run lint` et
-  `npm run build` s'exécutent. Le piège est documenté (voir 10.1).
+  `npm run build` s'exécutent. Le piège est documenté (voir 14.1).
 
 ```
 Contexte : `frontend/node_modules` est un dossier vide appartenant à root, créé par le volume
@@ -159,7 +163,7 @@ Commit `chore:` séparé, avec le package-lock.json.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| Clos le 2026-09-07 — 1.2 pour moitié, le reste renvoyé | #65, **laissée ouverte** | Lot 1 | Bloc 1 — sécurité |
+| Clos le 2026-09-07 — 1.2 pour moitié, le reste renvoyé | #65 | Lot 1 | Bloc 1 — sécurité |
 
 **Grain de ticket** : epic + 6 sous-issues, une par tâche.
 
@@ -235,8 +239,9 @@ Critères d'acceptation :
 - [ ] **Moitié inscription non livrée** : l'`UniqueValidator` du champ `email` de
   `RegisterSerializer` nomme toujours l'adresse déjà prise. L'issue #79 pose un cache côté
   front — `FormSubscribe` ne relaie pas ce message — mais la réponse HTTP n'a pas bougé, et
-  c'est elle qu'un script lit. **Reste à traiter dans l'epic #65**, qui n'est donc pas fermée
-  avec le lot ; l'entrée est à `AMELIORATIONS.md`, § « Backend — sécurité ».
+  c'est elle qu'un script lit. L'epic #65 a été fermée le 2026-09-25 sans ce point, ses sept
+  sous-issues étant livrées : **il ne vit plus qu'à `AMELIORATIONS.md`**, § « Backend —
+  sécurité ».
 - **Fichiers** : `backend/accounts/views.py`, `backend/accounts/serializers.py`
 - **Constat** : `accounts/views.py:35-36` répond `404 "Aucun compte associé à cet email."` — on
   apprend qui est inscrit. Même fuite à l'inscription : l'unicité de l'email produit un 400
@@ -944,9 +949,11 @@ seulement celui-ci.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — sécurité |
+| Clos le 2026-09-22 — backend touché, une demande de 5.4 renvoyée au lot 6 | #128 | Lot 5 | Bloc 1 — sécurité |
 
-**Grain de ticket** : epic + 4 sous-issues, une par tâche.
+**Grain de ticket** : epic + 4 sous-issues, une par tâche. **Livré tel quel** : #129, #130,
+#131, #132 — mais l'epic, qui annonçait « aucun fichier de `backend/` », en a touché sept (5.2),
+et l'affichage d'une liste vide ou d'un échec de chargement, demandé en 5.4, est passé au lot 6.
 
 > **Dépendances : lot 4** (le socle des formulaires) **et 1.6** (l'endpoint de déconnexion).
 > Aujourd'hui le front n'a **aucune notion d'utilisateur connecté** : pas d'état partagé, pas de
@@ -954,13 +961,16 @@ seulement celui-ci.
 
 ## 5.1 — Centraliser l'état d'authentification
 
-- [ ] **Fichiers** : `frontend/src/hooks/useAuth.ts` (à créer, nom à valider par l'inventaire),
+- [x] **Fichiers** : `frontend/src/hooks/useAuth.ts` (à créer, nom à valider par l'inventaire),
   `frontend/src/lib/api.ts`, `frontend/src/App.tsx`
 - **Constat** : la seule trace d'authentification est `localStorage.setItem("access", …)` dans
   `FormLogin.tsx:75` et `localStorage.getItem("access")` dans `api.ts:13`. Aucun composant ne sait
   si l'utilisateur est connecté.
 - **Attendu** : un point unique qui répond « connecté ou non », consommable par la navigation et
   les pages.
+- **Livré** : #129, sans `useAuth.ts` : `lib/tokens.ts`, seul module à toucher aux jetons, et
+  `hooks/useIsAuthenticated.ts`, abonné par `useSyncExternalStore` — aucun contexte, `App.tsx`
+  intact. Hors plan, `playwright.config.ts` lit `FRONTEND_PORT_DEV` au lieu d'un port en dur.
 
 ```
 Objectif : donner au front une notion d'utilisateur connecté, qu'il n'a pas du tout aujourd'hui.
@@ -1001,13 +1011,17 @@ protection des routes (5.4). Cette tâche pose seulement le socle.
 
 ## 5.2 — Rafraîchir le jeton expiré dans `apiFetch`
 
-- [ ] **Fichiers** : `frontend/src/lib/api.ts`, `frontend/src/hooks/useAuth.ts`
+- [x] **Fichiers** : `frontend/src/lib/api.ts`, `frontend/src/hooks/useAuth.ts`
 - **Constat** : le refresh token est stocké (`FormLogin.tsx:76`) puis **jamais relu**. L'endpoint
   `/api/auth/login/refresh/` existe pourtant (`accounts/urls.py:13`). Au bout d'une heure
   (`ACCESS_TOKEN_LIFETIME`), chaque appel authentifié part en 401 silencieux, sans message et sans
   redirection.
 - **Attendu** : l'expiration est rattrapée de façon transparente ; un refresh mort déconnecte
   proprement.
+- **Livré** : #130. Hors plan, deux corrections côté API : `login/refresh/` rend `401` et non
+  `500` pour un compte supprimé, et les refus de simplejwt sortent en français
+  (`backend/locale/`, `.mo` versionné). Le constat ci-dessous datait : le jeton d'accès valait
+  déjà 15 minutes, pas 60.
 - **Dépend de** : 5.1, et de la décision prise en 1.6 sur la rotation
 
 ```
@@ -1047,12 +1061,14 @@ Critère d'acceptation : avec un access token expiré et un refresh valide, un a
 
 ## 5.3 — Déconnexion et navigation conditionnelle
 
-- [ ] **Fichiers** : `NavBar.tsx`, `MobileMenu.tsx`, `frontend/src/hooks/useAuth.ts`
+- [x] **Fichiers** : `NavBar.tsx`, `MobileMenu.tsx`, `frontend/src/hooks/useAuth.ts`
 - **Constat** : il n'existe **aucun moyen de se déconnecter**. `NavBar.tsx:81-87` affiche
   « Se connecter » et « Nous rejoindre » en permanence, y compris pour un utilisateur déjà
   connecté. Rien ne vide jamais `localStorage`.
 - **Attendu** : la navigation reflète l'état de connexion, et la déconnexion invalide le jeton
   côté serveur.
+- **Livré** : #131, `logout()` rangé dans `hooks/useIsAuthenticated.ts`. Hors plan, le menu
+  mobile replié sort de la navigation au clavier (`inert`) : ses liens y restaient atteignables.
 - **Dépend de** : 5.1, 1.6
 
 ```
@@ -1093,11 +1109,14 @@ requête authentifiée échoue.
 
 ## 5.4 — Protéger la création d'article
 
-- [ ] **Fichiers** : `frontend/src/pages/Blog/Blog.tsx`, `frontend/src/App.tsx`
+- [x] **Fichiers** : `frontend/src/pages/Blog/Blog.tsx`, `frontend/src/App.tsx`
 - **Constat** : `Blog.tsx:37-43` affiche le bouton « Crée un articles » (faute de français au
   passage) à **tout visiteur**, connecté ou non. Un visiteur anonyme ouvre la modale, remplit le
   formulaire, et l'API répond 401 — que `FormArticle.tsx:74` avale dans un `console.error`.
 - **Attendu** : l'action n'est proposée qu'aux utilisateurs connectés, et le libellé est correct.
+- **Livré** : #132 — le visiteur voit un lien « Se connecter pour publier » à la place du
+  bouton, le libellé est corrigé, et la page a son premier test. **Non livré** : la liste vide
+  et l'échec de chargement (point 3 du prompt), que l'issue a renvoyés au lot 6 — voir 6.1.
 - **Dépend de** : 5.1, 4.2
 
 ```
@@ -1139,9 +1158,14 @@ Ne modifie pas FormArticle.tsx dans cette tâche au-delà de ce que 4.1 et 4.2 o
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — optimisation |
+| Clos le 2026-09-23 — 6.2 a quitté l'API au lieu de l'interroger, et a créé deux fichiers là où le plan n'en annonçait qu'un | #138 | Lot 6 | Bloc 1 — optimisation |
 
-**Grain de ticket** : ticket unique — 6.1 est atomique par construction, 6.2 en découle.
+**Grain de ticket** : prévu en ticket unique, livré en **epic + 4 sous-issues**.
+**Livré en avance, hors lot** : 6.1, par l'issue #111, ouverte le 2026-09-09 à la suite de #106.
+L'epic #138 a donc porté 6.2 et les deux points que #111 n'avait pas pris, plus un cinquième
+besoin qu'aucune des deux tâches ne prévoyait : de quoi peupler la base de développement, sans
+quoi rien de tout cela ne se voyait à l'écran. **Livré tel quel** : #139 (commande de
+peuplement), #140 (liste vide et échec de chargement), #141 (extrait), #142 (route de santé).
 
 > **Dépendances : lots 2, 3 et 5.**
 > ⚠️ Cette tâche **change le contrat de l'API** : la réponse de `/api/articles/` passe d'un
@@ -1150,13 +1174,21 @@ Ne modifie pas FormArticle.tsx dans cette tâche au-delà de ce que 4.1 et 4.2 o
 
 ## 6.1 — Paginer `/api/articles/` et adapter le front
 
-- [ ] **Fichiers** : `backend/config/settings/base.py`, `backend/articles/views.py`,
+- [x] **Fichiers** : `backend/config/settings/base.py`, `backend/articles/views.py`,
   `frontend/src/pages/Blog/Blog.tsx`, `frontend/src/lib/api.ts`, `frontend/src/types/article.ts`
 - **Constat** : `/api/articles/` renvoie **toute la table** à chaque appel. `Card.tsx:25`
   télécharge le contenu entier de chaque article pour n'en afficher que 100 caractères.
   Côté front, `Blog.tsx:18` type la réponse `apiFetch<Article[]>` : l'activation de la pagination
   casse cette ligne.
 - **Attendu** : liste paginée, front adapté, aucun écran vide.
+- **Livré** : #111 — `PageNumberPagination` réglée dans `REST_FRAMEWORK`, pages de 12,
+  `Meta.ordering` départagé par `-id` (migration `0002`), bouton « Voir plus d'articles » sur
+  `/blog`. `Page<T>` reste local à `Blog.tsx`, son seul lecteur. **Non livré par #111**,
+  repris dans le lot : l'affichage d'une liste vide et d'un échec de chargement, hérité de 5.4
+  — #111 avait même posé un `console.error` de plus, retiré depuis, et c'est #140 qui l'a
+  livré ; et le serializer allégé pour la liste, point bonus jamais chiffré — #141 l'a chiffré
+  (une page de 12 passe de ~10 100 à 3 206 octets) et livré, extrait taillé en base par
+  `Left("content", 100)`.
 
 ```
 Objectif : paginer la liste des articles, côté API ET côté front, dans la même branche.
@@ -1196,13 +1228,26 @@ Critère d'acceptation : la page /blog affiche toujours des articles après le c
 
 ## 6.2 — Alléger la sonde de santé du conteneur
 
-- [ ] **Fichiers** : `backend/healthcheck.py`
+- [x] **Fichiers** : `backend/healthcheck.py` — **en réalité cinq**, dont deux créés :
+  `backend/config/views.py`, `backend/config/tests.py`, `backend/config/urls.py` et le `README.md`
 - **Constat** : `healthcheck.py:17` interroge `/api/articles/` **toutes les 30 secondes**, sur un
   endpoint non paginé qui lit toute la table. Le principe est bon — une sonde doit toucher la base,
   un Gunicorn debout devant une base morte répondrait quand même au TCP — mais le coût croît avec
   le nombre d'articles.
 - **Attendu** : la sonde continue de lire la base, à coût constant.
 - **Dépend de** : 6.1
+- **État au 2026-09-22** : la liste étant paginée, la sonde lit un `COUNT` et 12 articles, et
+  non plus toute la table — mais le `COUNT(*)` de PostgreSQL parcourt encore toutes les lignes.
+  `?page_size=1` n'est **pas** accepté : #111 n'a pas posé de `page_size_query_param`, et en
+  poser un laisserait tout client choisir sa taille de page, à borner alors par `max_page_size`.
+- **Livré** : #142 — la sonde a **quitté l'API** au lieu d'y prendre un paramètre. Route `health/`
+  servie par `config/views.py`, hors du préfixe `api/` que seul le nginx du serveur relaie, vue
+  Django nue et non DRF — c'est ce qui la laisse hors du défaut `IsAuthenticated`, du jeton et
+  des quotas. Un `SELECT 1`, `200` ou `503` sur `DatabaseError`. Trois cas dans `config/tests.py`,
+  quatrième fichier de tests du backend. Deux corrections de fond au passage : la sonde passait
+  **toutes les 5 secondes** et non 30, les deux fichiers Compose surchargeant l'`interval` du
+  Dockerfile ; et la santé du conteneur ne dépend plus de la lecture publique du blog, qu'on
+  pouvait fermer et rendre ainsi tous les conteneurs malades.
 
 ```
 Objectif : réduire le coût de la sonde de santé du conteneur backend.
@@ -1233,22 +1278,44 @@ Vérifie ensuite que le conteneur passe bien `healthy` :
 `docker compose -f compose.dev.yaml ps`. Donne-moi la sortie.
 ```
 
+## 6.3 et 6.4 — Peupler la base et dire l'état de la liste (hors plan initial)
+
+- [x] **Fichiers** : `backend/articles/management/commands/peupler_articles.py`,
+  `backend/articles/tests.py`, `frontend/src/pages/Blog/Blog.tsx`,
+  `frontend/src/pages/Blog/Blog.test.tsx`
+- **Constat** : deux trous que le plan ne voyait pas. Rien ne permettait de **voir** la
+  pagination : la base de développement contenait deux articles, et le dépôt n'avait aucun
+  moyen de la peupler — avec des pages de 12, « Voir plus d'articles » ne s'affichait jamais.
+  Et `Blog.tsx` n'affichait **rien** ni sur une liste vide ni sur un chargement refusé : le
+  `catch` ne faisait qu'un `console.error`, posé par #111 lui-même. Cette seconde demande
+  venait de 5.4, renvoyée au lot 6 par #132 et non reprise par #111.
+- **Livré** : #139 une commande `peupler_articles` — 30 articles, auteur de démonstration
+  inactif, `CommandError` avant toute écriture dès que `DEBUG` est faux · #140 une liste
+  `null` tant que la première page n'est pas arrivée, donc distincte d'un blog vide, et un
+  message d'échec rendu par `toFormErrors` et `ErrorAlert`, posé près du bouton qui l'a
+  demandé.
+- **Attendu** : atteint. Le backend passe de 65 à 70 cas, le front de 72 à 78.
+
 ---
 
 # Lot 7 — Navigation, liens et pages manquantes
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — qualité |
+| Clos le 2026-09-25 — quatre tâches prévues, cinq issues livrées : le pied de page remis sur les vraies routes s'est mis à contredire l'en-tête | #147 | Lot 7 | Bloc 1 — qualité |
 
-**Grain de ticket** : epic + 4 sous-issues, une par tâche.
+**Grain de ticket** : prévu en epic + 4 sous-issues, une par tâche ; **livré en 5**.
+**Livré tel quel** : #149 (pages légales), #150 (pied de page dans le routeur), #148 (menu
+mobile), #151 (états de la page de détail). **#155 s'est ajoutée en cours de lot**, une
+minute après le merge de #150 : le pied de page ne pouvait contredire l'en-tête qu'une fois
+remis sur les vraies routes.
 
 > **Dépendances : lot 5** pour 7.1 (la navigation est retouchée en 5.3).
 > Les autres tâches sont indépendantes et peuvent être prises à tout moment.
 
 ## 7.1 — « Nous rejoindre » du menu mobile mène au mauvais endroit
 
-- [ ] **Fichiers** : `frontend/src/components/common/Navigation/MobileMenu.tsx`
+- [x] **Fichiers** : `frontend/src/components/common/Navigation/MobileMenu.tsx`
 - **Constat** : `MobileMenu.tsx:66` — le bouton « Nous rejoindre » pointe vers `/contact`, alors
   que la version desktop (`NavBar.tsx:85`) pointe vers `/subscribe`. Sur mobile, l'inscription est
   donc inatteignable depuis la navigation.
@@ -1281,7 +1348,7 @@ Consulte `frontend-react-ts`, puis :
 
 ## 7.2 — Remettre le footer dans le routeur
 
-- [ ] **Fichiers** : `frontend/src/components/common/Footer.tsx`, `frontend/src/App.tsx`
+- [x] **Fichiers** : `frontend/src/components/common/Footer.tsx`, `frontend/src/App.tsx`
 - **Constat** : `Footer.tsx:85` utilise `<a href>` pour ses 16 liens. Résultat : même `/blog` et
   `/about`, qui existent, **rechargent toute l'application** au lieu de naviguer côté client. Pire,
   14 des 16 destinations (`/pricing`, `/overview`, `/help`, `/careers`…) **n'existent pas** et
@@ -1318,7 +1385,7 @@ frontend/src.
 
 ## 7.3 — Les liens « conditions d'utilisation » et « confidentialité »
 
-- [ ] **Fichiers** : `frontend/src/components/common/Subscribe/FormSubscribe.tsx`,
+- [x] **Fichiers** : `frontend/src/components/common/Subscribe/FormSubscribe.tsx`,
   `frontend/src/App.tsx`
 - **Constat** : `FormSubscribe.tsx:182` et `:189` renvoient vers `/terms` et `/privacy`, qui
   n'existent pas. Un utilisateur qui veut lire ce qu'il accepte tombe sur une 404.
@@ -1348,7 +1415,7 @@ footer (traité en 7.2).
 
 ## 7.4 — `ArticleDetails` reste bloqué sur « Chargement… »
 
-- [ ] **Fichiers** : `frontend/src/pages/Blog/ArticleDetails.tsx`
+- [x] **Fichiers** : `frontend/src/pages/Blog/ArticleDetails.tsx`
 - **Constat** : `ArticleDetails.tsx:11-15` — le `.catch(console.error)` laisse `article` à `null`,
   donc un identifiant inexistant affiche **« Chargement… » indéfiniment**. Aucune protection non
   plus contre la condition de course si l'`id` change pendant une requête en vol.
@@ -1385,9 +1452,11 @@ si la tâche 5.4 ne l'a pas déjà traité, signale-le.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — qualité |
+| Clos le 2026-09-29 — cinq tâches prévues, six issues livrées : le grep de 8.5 ne voyait pas les assemblages écrits en gabarit de chaîne | #161 | Lot 8 | Bloc 1 — qualité |
 
-**Grain de ticket** : ticket unique — trois refactorings de la même couche, 8.3 découle de 8.2.
+**Grain de ticket** : prévu en ticket unique — trois refactorings de `ui/`, dont 8.3 qui découle
+de 8.2 ; 8.4, qui déborde sur `common/` et ne dépend d'aucun des trois ; et 8.5, qui suit 8.1 et
+touche les deux dossiers. **Livré en epic + 6 sous-issues** : la seule 8.5 en a demandé deux.
 
 > **Dépendances : lot 2** (les tests backend ne couvrent pas le front, mais le lot 4 a déjà
 > stabilisé les formulaires qui consomment ces composants).
@@ -1395,8 +1464,8 @@ si la tâche 5.4 ne l'a pas déjà traité, signale-le.
 
 ## 8.1 — Extraire `cx()`
 
-- [ ] **Fichiers** : `frontend/src/lib/cx.ts` (à créer, nom à valider par l'inventaire),
-  `MainButton.tsx`, `Input.tsx`, `Textarea.tsx`, `LinkTitle.tsx`
+- [x] **Fichiers** : `frontend/src/lib/cx.ts` (créé), `MainButton.tsx`, `Input.tsx`,
+  `Textarea.tsx`, `LinkTitle.tsx` — livré par l'issue #162
 - **Constat** : la fonction `cx()` est redéfinie **à l'identique quatre fois** —
   `MainButton.tsx:40`, `Input.tsx:29`, `Textarea.tsx:32`, `LinkTitle.tsx:24`. `CLAUDE.md` en
   annonce trois : il y en a quatre, et la skill `revue-avant-push` interdit explicitement une
@@ -1441,7 +1510,9 @@ passer, donne-moi leur sortie.
 
 ## 8.2 — Fusionner `Input` et `Textarea`
 
-- [ ] **Fichiers** : `frontend/src/components/ui/Input/Input.tsx`, `Textarea.tsx`, `index.ts`
+- [x] **Fichiers** : `frontend/src/components/ui/Input/FormField.tsx` (créé), `Input.tsx`,
+  `Textarea.tsx` — livré par l'issue #163 ; `index.ts` est resté inchangé, l'habillage étant
+  interne au dossier
 - **Constat** : les deux composants sont **identiques à environ 90 %** : mêmes props (`label`,
   `error`, `helperText`, `required`, `variant`, `fullWidth`), même génération d'`id` par `useId`,
   même logique `aria-invalid` / `aria-describedby`, même rendu du message d'erreur et du texte
@@ -1488,8 +1559,9 @@ Refactoring PUR : aucun changement visible. Vérifie que les cinq consommateurs 
 
 ## 8.3 — Retirer `forwardRef` (React 19)
 
-- [ ] **Fichiers** : `Input.tsx`, `Textarea.tsx`
-- **Constat** : les deux composants utilisent `forwardRef` (`Input.tsx:37`, `Textarea.tsx:40`),
+- [x] **Fichiers** : `Input.tsx`, `Textarea.tsx` — livré par l'issue #164 ; le support de `ref`
+  est conservé en prop ordinaire, aucun consommateur n'en passant à ce jour
+- **Constat** : les deux composants utilisent `forwardRef` (`Input.tsx:8`, `Textarea.tsx:13`),
   avec le `displayName` que ce pattern impose. Depuis React 19, `ref` est une prop comme une
   autre : le wrapper est du code hérité de React 18.
 - **Attendu** : composants en fonctions simples, `ref` reçue en prop.
@@ -1499,8 +1571,8 @@ Refactoring PUR : aucun changement visible. Vérifie que les cinq consommateurs 
 Objectif : moderniser Input et Textarea pour React 19.
 
 Constat :
-- frontend/src/components/ui/Input/Input.tsx:37 et :106 — forwardRef + displayName ;
-- frontend/src/components/ui/Input/Textarea.tsx:40 et :111 — idem.
+- frontend/src/components/ui/Input/Input.tsx:8 et :41 — forwardRef + displayName ;
+- frontend/src/components/ui/Input/Textarea.tsx:13 et :47 — idem.
 Le projet est en React 19 (frontend/package.json : "react": "^19.2.0"), où ref est une prop
 normale. Le wrapper forwardRef et le displayName qu'il impose sont du code hérité de React 18.
 
@@ -1518,23 +1590,130 @@ Vérifie ensuite que `npm run build` (qui lance `tsc -b`) passe : c'est le typag
 que rien n'est cassé. Donne-moi la sortie.
 ```
 
+
+## 8.4 — Factoriser les libellés de navigation
+
+- [x] **Fichiers** : `NavBar.tsx`, `MobileMenu.tsx`, `Footer.tsx` — livré par l'issue #165. La
+  source unique est `frontend/src/lib/navigation.ts` ; `types/navigation.ts` n'a pas bougé, son
+  `NavItem` typant les cinq couples depuis sa variante `route`
+- **Constat** : deux couples libellé/destination sont écrits dans **trois** fichiers —
+  « Se connecter » → `/login` et « Nous rejoindre » → `/subscribe`, que `NavBar.tsx`,
+  `MobileMenu.tsx` et `Footer.tsx` recopient chacun. Trois autres le sont dans **deux** :
+  « Blog » → `/blog`, « À propos de nous » → `/about` et « Contact » → `/contact`, que
+  `navItems` porte déjà pour les deux menus mais que le pied de page réécrit. Cette redite a
+  déjà coûté deux défauts : « Nous rejoindre » menait à `/contact` en mobile et à `/subscribe` en desktop
+  (issue #148), et le pied de page disait « Connexion » quand le menu disait « Se connecter »
+  (issue #155). Les deux tests posés depuis la gardent, mais ne la suppriment pas.
+- **Attendu** : une source unique des liens partagés, les trois composants la lisant.
+
+```
+Objectif : supprimer la recopie des liens de navigation entre l'en-tête et le pied de page.
+
+Constat :
+- frontend/src/components/common/Navigation/NavBar.tsx — navItems, puis les deux blocs
+  d'actions qui écrivent chacun « Se connecter » et « Nous rejoindre » ;
+- frontend/src/components/common/Navigation/MobileMenu.tsx — le second de ces blocs ;
+- frontend/src/components/common/Footer.tsx — SITE_COLUMN, ACCOUNT_COLUMN, LEGAL_COLUMN.
+
+Deux tests gardent aujourd'hui l'accord, et ils ne visent pas la même chose :
+- NavBar.test.tsx : un libellé servi des deux côtés mène au même endroit (le défaut #148) ;
+- Footer.test.tsx : une destination servie par l'en-tête et le pied de page y porte le même
+  libellé (le défaut #155), en les rendant ensemble.
+
+Travail demandé :
+
+1. Déroule `inventaire-avant-dev` : où poser une liste de liens lue par trois composants de
+   common/ ? types/navigation.ts porte déjà NavItem. Produis le verdict avant d'écrire.
+2. Attention : les trois jeux ne se recouvrent pas. Le pied de page a des entrées que le menu
+   n'a pas (mentions légales, mot de passe oublié) et le menu a des ancres de défilement. La
+   source unique doit porter le libellé et la destination, pas la mise en page.
+3. Les deux tests doivent rester verts SANS être réécrits : s'ils demandent une adaptation,
+   dis-le-moi avant, c'est le signe que la factorisation change un comportement.
+4. Refactoring pur : aucun libellé, aucune destination, aucun ordre d'affichage ne change.
+
+Consulte `frontend-react-ts`. Vérifie par npm run lint, npm test et npm run build, et donne-moi
+la sortie des trois.
+```
+
+## 8.5 — Aligner les derniers assemblages de classes sur `cx()`
+
+- [x] **Fichiers** : `MainTitle.tsx`, `SecondTitle.tsx`, `Logo.tsx`, `NavBar.tsx`,
+  `MobileMenu.tsx`, `FeatureBlock.tsx` — livrés par l'issue #166 ; un second site de
+  `MobileMenu.tsx`, plus `ThemeToggle.tsx` et
+  `DesktopNav.tsx` par l'issue #172, née du constat ci-dessous : il visait les `join(" ")` et
+  ne voyait pas les trois assemblages écrits en gabarit de chaîne.
+- **Constat** : sept endroits, dans six fichiers, construisent leur `className` par un
+  `[...].join(" ")` écrit sur place — `MainTitle.tsx:33`, `SecondTitle.tsx:49`, `Logo.tsx:25`,
+  `NavBar.tsx:79`, `MobileMenu.tsx:31`, `FeatureBlock.tsx:57` et `:96`. La tâche 8.1 les signale
+  mais laisse la décision ouverte, et aucun autre lot ne les reprend : sans cette tâche, le lot
+  supprime quatre copies de `cx()` pour en laisser sept contournements. Trois d'entre eux
+  poussent `className ?? ""` dans le tableau, où le `join` laisse une espace en trop que `cx()`
+  filtre.
+- **Attendu** : un seul assembleur de classes dans tout le front.
+- **À traiter après** : 8.1 — `cx()` doit exister avant d'avoir des appelants.
+
+```
+Objectif : faire passer par cx() les derniers assemblages de classes écrits à la main.
+
+Constat, une fois la tâche 8.1 faite :
+- frontend/src/components/ui/Title/MainTitle.tsx:33
+- frontend/src/components/ui/Title/SecondTitle.tsx:49
+- frontend/src/components/ui/Logo/Logo.tsx:25
+- frontend/src/components/common/Navigation/NavBar.tsx:79
+- frontend/src/components/common/Navigation/MobileMenu.tsx:31
+- frontend/src/components/common/Home/FeatureBlock.tsx:57 et :96
+Ces numéros de ligne datent du 2026-09-25 : revérifie-les par grep avant d'agir.
+
+Travail demandé :
+
+1. Aucun inventaire à dérouler : rien n'est créé ici, cx() existe déjà. S'il n'existe pas, c'est
+   que 8.1 n'est pas faite — arrête-toi et dis-le-moi.
+
+2. Remplace chaque tableau suivi de join par un appel à cx(). Deux cas à ne pas confondre :
+   - ceux qui poussent `className ?? ""` dans le tableau (MainTitle, SecondTitle, Logo,
+     FeatureBlock:57) : le join y laisse une espace en trop dans l'attribut rendu, cx() la
+     filtre. L'attribut change donc, sans rien changer à l'écran — préviens-moi si un test
+     compare un className entier ;
+   - ceux dont toutes les entrées sont non vides (NavBar, MobileMenu, FeatureBlock:96) : la
+     chaîne produite est identique au caractère près.
+
+3. Ne touche pas aux deux join(" ") de lib/apiErrors.ts : ils assemblent des phrases, pas des
+   classes.
+
+Consulte `frontend-react-ts`. Refactoring PUR : vérifie par npm run lint, npm test et
+npm run build, et donne-moi la sortie des trois.
+```
+
 ---
 
 # Lot 9 — Code mort et conventions
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — qualité |
+| Clos le 2026-10-02 — quatre tâches prévues, huit sous-issues et dix issues hors epic livrées : chaque inventaire du lot en a révélé un autre | #174 | Lot 9 | Bloc 1 — qualité |
 
-**Grain de ticket** : epic + 4 sous-issues, une par tâche.
+**Grain de ticket** : prévu en epic + 4 sous-issues, une par tâche — 9.1 → #175, 9.2 → #176,
+9.3 → #179, 9.4 → #178. **Ouvert en epic + 6** : #177, source unique du style des boutons et des
+liens-boutons, et #180, destination des appels à l'action de la page d'accueil, se sont ajoutées
+au cadrage. **Puis en epic + 8** : la livraison de 9.2 a montré que son inventaire de classes
+mortes était incomplet et a ouvert #183, deux classes sans lecteur qu'il n'avait pas vues, et
+#184, six survols que Tailwind ne génère pas.
+**Puis dix issues hors epic**, sous le même label `epic:nettoyage` sauf #193 : #187, bandeaux
+anglais d'`index.css` ; #196, test qui refuse une classe sans lecteur ; #199, vingt-deux variables
+de `@theme` sans lecteur ; #200, README du design system ; et six défauts de l'accueil vus en
+vérifiant les précédents — #189, #190, #192, #193, #204, #206.
 
 > **Dépendances : lots 4 à 8.** À faire en dernier, quand plus aucune tâche ne touche à ces
 > fichiers — sinon on supprime ce qu'une autre branche est en train d'utiliser.
 
 ## 9.1 — Supprimer `articles.json` et le champ fantôme `coverImg`
 
-- [ ] **Fichiers** : `frontend/src/data/articles.json`, `frontend/src/types/article.ts`,
-  `frontend/src/components/common/Blog/Card.tsx`, `CLAUDE.md`
+- [x] **Fichiers** : `frontend/src/data/articles.json`, `frontend/src/types/article.ts`,
+  `frontend/src/components/common/Blog/Card.tsx`, `CLAUDE.md` — livrés par l'issue #175, plus
+  `frontend/index.html`, quatrième référence morte trouvée à l'inventaire : un `<link>` vers
+  `/src/style.css`, fichier absent du dépôt. `coverImg` a été **retiré** et non implémenté, au
+  motif du point 2 ci-dessous. Le point 4 a été déroulé : aucun autre orphelin dans
+  `frontend/src/`.
 - **Constat** :
   - `src/data/articles.json` n'est plus importé nulle part (`CLAUDE.md` le documente comme mort) ;
   - `types/article.ts:8` déclare `coverImg?: string`, **qui n'existe pas** dans `ArticleSerializer`
@@ -1573,7 +1752,17 @@ Travail demandé :
 
 ## 9.2 — Purger les classes CSS jamais utilisées
 
-- [ ] **Fichiers** : `frontend/src/index.css`
+- [x] **Fichiers** : `frontend/src/index.css` — livrés par l'issue #176, qui a retiré les neuf
+  classes, leurs variantes `.dark`, les bandeaux de section devenus vides et le `@media print`
+  qui n'avait plus de règle : 81 lignes, sans toucher au bloc `@theme`. Le point 2 ci-dessous a
+  été tranché dans le sens du retrait — `.btn-sm` et `.btn-lg` n'accompagnaient plus rien, le
+  composant `Button` portant ses tailles en Tailwind ; la question du double emploi entre le
+  système CSS des boutons et ce composant reste entière et appartient à #177. L'inventaire du
+  ticket s'est révélé **incomplet** : `.section` et `.border-secondary` n'ont pas de lecteur non
+  plus (#183), et six survols écrits dans le front ne produisent rien, Tailwind v4 ne déclinant
+  aucune variante sur une classe écrite à la main dans `@layer utilities` (#184). La leçon vaut
+  pour 9.3 et 9.4 : un inventaire fourni par le ticket se rejoue en entier, il n'est pas une
+  liste à cocher.
 - **Constat** : neuf classes définies dans `index.css` (793 lignes) et employées **nulle part**
   dans `src/` : `.btn-sm`, `.btn-lg`, `.card`, `.card-hover`, `.section-secondary`,
   `.smooth-scroll`, `.scrollbar-hide`, `.no-print`, `.text-accent-secondary`.
@@ -1607,7 +1796,9 @@ Vérifie ensuite `npm run build` et regarde l'application dans le navigateur ava
 
 ## 9.3 — Nettoyer les commentaires et la documentation de code
 
-- [ ] **Fichiers** : `Blog.tsx`, les quatre formulaires, `components/ui/**`, `Footer.tsx`
+- [x] **Fichiers** : `Blog.tsx`, les quatre formulaires, `components/ui/**`, `Footer.tsx` — livré
+  par l'issue #179 : 47 lignes de JSDoc anglaises, 26 étiquettes de section du JSX et trois traces
+  de tutoriel. Les `.ts` et `.tsx` seuls : `index.css` a suivi avec #187 et #199.
 - **Constat** :
   - `Blog.tsx:68` : `{/* Placeholder — le vrai formulaire viendra ici */}` placé **juste au-dessus
     du vrai formulaire** ; `Blog.tsx:58` : `{/* 4️⃣ Le bouton fermer */}` — traces de tutoriel ;
@@ -1653,8 +1844,10 @@ qualité.
 
 ## 9.4 — Contenu de remplissage
 
-- [ ] **Fichiers** : `frontend/src/pages/About.tsx`, `frontend/src/components/common/Home/Slider.tsx`,
-  `frontend/src/components/common/Home/HeroBanner.tsx`, `FeatureBlock` (via `Home.tsx`)
+- [x] **Fichiers** : `frontend/src/pages/About.tsx`, `frontend/src/components/common/Home/Slider.tsx`,
+  `frontend/src/components/common/Home/HeroBanner.tsx`, `FeatureBlock` (via `Home.tsx`) — le
+  contenu par l'issue #178, le carrousel ramené à deux images distinctes ; les appels à l'action
+  par #180, « S'abonner à la newsletter » supprimé faute d'abonnement côté API.
 - **Constat** :
   - `About.tsx` : le même paragraphe est répété **trois fois**, dont deux dans le même bloc ;
   - `Slider.tsx:43-63` : trois slides affichant **la même image** ;
@@ -1695,7 +1888,521 @@ site. Ne la bâcle pas.
 
 ---
 
-# Lot 10 — Documentation et clôture
+# Lot 10 — Finitions issues de la revue du 2026-10-01
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| Clos le 2026-10-03 — six tâches prévues, huit sous-issues livrées : deux défauts d'affichage repérés au lot 9 s'y sont ajoutés | #212 | Lot 10 | Bloc 1 — sécurité et qualité |
+
+**Origine** : revue complète de `preprod` au merge de #195 (`755a5c6`), lots 0 à 9 livrés.
+Lint, 105 tests front, 78 tests back, build et `npm audit` au vert, **aucun défaut bloquant**.
+Les six tâches ci-dessous sont les défauts réels relevés et revérifiés dans le code ; chacun a
+aussi son entrée dans `AMELIORATIONS.md`, à cocher à la livraison. Écartés comme trop mineurs :
+la course rare entre « Voir plus » et une publication dans `Blog.tsx`, l'alerte d'erreur que la
+modale de création garde à sa réouverture, et l'instance d'`Autoplay` recréée à chaque rendu
+de `Slider.tsx`.
+
+**Grain de ticket** : epic + 6 sous-issues, une par tâche — chacune a un livrable propre et se
+vérifie seule. Ordre conseillé : 10.1 d'abord (le seul défaut de sécurité moyen), puis 10.2 et
+10.3, qui touchent les mêmes fichiers d'`accounts` et se feront donc **l'une après l'autre** ;
+10.4 à 10.6 sont indépendantes du back et entre elles.
+Ouvert ainsi : 10.1 → #213, 10.2 → #214, 10.3 → #215, 10.4 → #216, 10.5 → #217, 10.6 → #218.
+**Puis en epic + 8**, dès le cadrage : #219, l'accueil qui déborde en largeur sur mobile, repéré
+à #189, et #220, le violet du thème clair sous le contraste minimal, repéré à #193.
+
+> **Dépendances : lot 9 clos** (epic #174 fermée, entrée au journal) — fait le 2026-10-02. #189 et
+> #192, ouvertes au cadrage, sont closes depuis sans avoir touché `components/common/Navigation/`.
+
+## 10.1 — Révoquer les sessions ouvertes à la réinitialisation du mot de passe
+
+- [x] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/tests.py` — livré par
+  l'issue #213 : `set_password_and_revoke`, partagée avec `PasswordChangeView`, change le mot de
+  passe et révoque les refresh du compte dans une seule transaction.
+- **Constat** : `PasswordResetConfirmView` (`accounts/views.py:111`) appelle `set_password`
+  puis `save` (l. 133-134) et s'arrête. Les refresh déjà émis restent valables jusqu'à
+  `REFRESH_TOKEN_LIFETIME` (1 jour, `base.py:293`), et `ROTATE_REFRESH_TOKENS` les prolonge à
+  chaque renouvellement. Or réinitialiser est le geste de qui croit sa session volée : un
+  attaquant qui détient un refresh — `localStorage` lu par un script, poste partagé — garde la
+  session après le changement de mot de passe.
+- **Attendu** : après une réinitialisation réussie, tout refresh émis avant est refusé en `401`
+  au renouvellement. Le jeton d'accès, lui, vit ses 15 minutes : rien ne le révoque, c'est le
+  compromis déjà assumé dans `base.py:290`.
+
+```
+Objectif : couper toutes les sessions ouvertes d'un compte quand son mot de passe est réinitialisé.
+
+Constat :
+- backend/accounts/views.py:111 — PasswordResetConfirmView vérifie le lien, puis l. 133-134
+  appelle user.set_password() et user.save(), et rend 200. Aucun jeton n'est touché.
+- backend/config/settings/base.py:288-297 — REFRESH_TOKEN_LIFETIME = 1 jour,
+  ROTATE_REFRESH_TOKENS et BLACKLIST_AFTER_ROTATION à True. L'app
+  rest_framework_simplejwt.token_blacklist est installée (base.py:120) : les tables
+  OutstandingToken et BlacklistedToken existent et se remplissent à chaque connexion.
+- Conséquence : un refresh volé reste utilisable, et se renouvelle, après que la victime a
+  réinitialisé son mot de passe pour reprendre la main.
+
+Consulte `backend-django-drf`, puis `inventaire-avant-dev` : aucun fichier ne devrait être créé,
+dis-le dans le tableau de verdict.
+
+Travail demandé :
+1. Après set_password/save, mets en liste noire chaque OutstandingToken du compte
+   (BlacklistedToken.objects.get_or_create(token=...)). Dis-moi si tu le poses dans la vue ou
+   dans une fonction d'accounts que partagerait `PasswordChangeView` — livrée par l'issue #159,
+   elle fait déjà cette révocation par un `bulk_create` —, et recommande, pas une question ouverte.
+2. Les deux opérations (mot de passe et liste noire) doivent-elles être dans la même
+   transaction ? Tranche, en une ligne de justification.
+3. Tests dans accounts/tests.py, classe PasswordResetConfirmTests ou JWTRotationTests selon ce
+   qui se lit le mieux : un refresh obtenu AVANT la réinitialisation est refusé en 401 sur
+   login/refresh/ APRÈS ; un refresh obtenu APRÈS fonctionne. Valide le premier par mutation :
+   retire la mise en liste noire, le test doit tomber (restaure par l'édition inverse, pas par
+   git checkout).
+4. Ne touche pas au message ni au statut des réponses : la réinitialisation ne doit rien dire de
+   plus qu'aujourd'hui.
+
+Coche ensuite l'entrée correspondante de AMELIORATIONS.md (§ « Backend — sécurité ») et mets à
+jour le § « Jetons JWT » de CLAUDE.md : la révocation n'y tient plus seulement à la déconnexion.
+
+Lance la suite complète : DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test
+```
+
+## 10.2 — Poser un quota sur la confirmation de réinitialisation
+
+- [x] **Fichiers** : `backend/accounts/views.py`, `backend/config/settings/base.py`,
+  `.env.example`, `backend/accounts/tests.py` — livré par l'issue #214 : scope
+  `password_reset_confirm`, 5 par heure, réglable par `THROTTLE_PASSWORD_RESET_CONFIRM`.
+- **Constat** : `PasswordResetConfirmView` est la **seule vue publique d'écriture** sans
+  `throttle_scope`. Les quatre autres en portent un (`login`, `register`, `password_reset`,
+  `contact`, réglables par `THROTTLE_*`, `base.py:277-282`). Le token HMAC ne se devine pas :
+  l'enjeu n'est pas le forçage mais le coût, chaque appel validant un mot de passe contre cinq
+  validateurs puis le hachant en PBKDF2.
+- **Attendu** : un cinquième scope, réglable par variable comme les autres, et lié à sa route
+  par le test qui existe déjà pour les quatre premiers.
+
+```
+Objectif : limiter le débit de POST /api/auth/password-reset/confirm/.
+
+Constat :
+- backend/accounts/views.py:111 — PasswordResetConfirmView déclare AllowAny mais aucun
+  throttle_scope. DEFAULT_THROTTLE_CLASSES vaut ScopedRateThrottle : sans scope, la vue n'est
+  pas limitée du tout.
+- backend/config/settings/base.py:277-282 — quatre taux, chacun lu par env_str('THROTTLE_*').
+- .env.example:87-94 — les quatre variables, commentées avec leur défaut.
+- backend/accounts/tests.py:300 — ThrottleScopeTests.test_chaque_endpoint_public_porte_son_scope
+  lie chaque route à son scope. La confirmation n'y figure pas.
+- backend/config/settings/test.py:43 — éteint les TAUX de tous les scopes déclarés, jamais la
+  classe : un nouveau scope y est éteint automatiquement.
+
+Consulte `backend-django-drf`.
+
+Travail demandé :
+1. Choisis entre un scope dédié et la réutilisation de « password_reset ». Recommande : partager
+   le scope ferait qu'une confirmation consomme le quota de la demande, et inversement.
+2. Propose un taux par défaut et justifie-le par l'usage réel : un titulaire qui se trompe deux
+   fois sur la complexité de son mot de passe ne doit pas être bloqué.
+3. Ajoute la variable THROTTLE_* à base.py et à .env.example, commentée comme ses voisines.
+4. Ajoute la route à ThrottleScopeTests, et un test de quota réarmé scope par scope sur le modèle
+   de LoginThrottleTests (accounts/tests.py:319). Mutation : retire le throttle_scope de la vue,
+   les deux doivent tomber.
+5. Mets à jour CLAUDE.md, § « Quotas de débit », qui annonce « les quatre qui en portent un ».
+
+Ne touche pas au corps des réponses de la vue.
+```
+
+## 10.3 — Borner la longueur des mots de passe et des textes longs
+
+- [x] **Fichiers** : `backend/accounts/serializers.py`, `backend/articles/serializers.py`,
+  `backend/contact/serializers.py`, les trois `tests.py` — livré par l'issue #215 : 128
+  caractères par mot de passe, connexion comprise, 20 000 par article, 5 000 par message.
+- **Constat** : `password` (`accounts/serializers.py:13`) et `new_password` (l. 44) sont des
+  `CharField` sans `max_length` ; `Article.content` (`articles/models.py:9`) et
+  `Contact.message` (`contact/models.py:11`) des `TextField`, que le `ModelSerializer` laisse
+  sans plafond. Seule la limite de corps de Django (`DATA_UPLOAD_MAX_MEMORY_SIZE`, 2,5 Mo)
+  arrête un envoi : un mot de passe de cette taille traverse les cinq validateurs puis PBKDF2,
+  et le formulaire de contact, public, écrit 2,5 Mo par message dans la limite de son quota.
+- **Attendu** : chaque champ libre a un plafond applicatif qui rend un `400` lisible, sans
+  migration.
+
+```
+Objectif : donner une longueur maximale aux mots de passe et aux deux champs de texte long.
+
+Constat :
+- backend/accounts/serializers.py:13 — RegisterSerializer.password = CharField(write_only=True)
+- backend/accounts/serializers.py:44 — PasswordResetConfirmSerializer.new_password, idem
+- backend/articles/models.py:9 — content = TextField() ; ArticleSerializer ne le borne pas
+- backend/contact/models.py:11 — message = TextField() ; ContactSerializer ne le borne pas
+- Seul DATA_UPLOAD_MAX_MEMORY_SIZE (2,5 Mo par défaut) arrête aujourd'hui un corps démesuré.
+
+Consulte `backend-django-drf`.
+
+Travail demandé :
+1. Pose le plafond dans les SERIALIZERS, pas dans les modèles : un TextField n'a pas de
+   max_length en base, et en changer le type imposerait une migration pour rien. Confirme ou
+   contredis ce choix.
+2. Propose une valeur pour chacun et justifie-la : 128 est l'usage pour un mot de passe ; pour
+   content et message, pars de ce que le front laisse saisir et de ce qu'un article de blog
+   mesure réellement.
+3. Côté front, les formulaires concernés (FormSubscribe, ResetPassword, FormArticle,
+   FormContact) doivent-ils poser un maxLength sur leur champ ? Le refus de l'API arrive déjà
+   par toFormErrors : recommande, sans dupliquer une règle sur deux fichiers si ce n'est pas
+   nécessaire — et si tu la dupliques, dis où elle vit des deux côtés.
+4. Un test par champ : la longueur limite passe, limite + 1 rend 400 avec l'erreur sous la clé
+   du champ. Pour new_password, vérifie que l'erreur ne remonte pas imbriquée deux fois (voir
+   CLAUDE.md, § « Robustesse du mot de passe »).
+
+Lance la suite complète du backend et npm test si le front est touché.
+```
+
+## 10.4 — Préserver les paragraphes d'un article à l'affichage
+
+- [x] **Fichiers** : `frontend/src/pages/Blog/ArticleDetails.tsx`, son test s'il existe — livré
+  par l'issue #216 : un `<p>` par paragraphe, découpé aux lignes vides, et son test étendu.
+- **Constat** : `ArticleDetails.tsx:115` rend `{recu.article.content}` dans un `<p>` nu. Le
+  `Textarea` de `FormArticle` accepte les retours à la ligne et l'API les conserve, mais le HTML
+  les écrase : un article de plusieurs paragraphes s'affiche d'un seul bloc.
+- **Attendu** : les sauts de ligne saisis se retrouvent à la lecture, sans HTML interprété.
+
+```
+Objectif : afficher un article avec les paragraphes que son auteur a saisis.
+
+Constat :
+- frontend/src/pages/Blog/ArticleDetails.tsx:115 — <p className="text-secondary">
+  {recu.article.content}</p>. Les \n du texte sont rendus comme des espaces.
+- Le contenu est saisi dans le Textarea de FormArticle et stocké tel quel par l'API.
+
+Consulte `frontend-react-ts`.
+
+Travail demandé :
+1. Recommande entre la classe Tailwind whitespace-pre-line sur le <p> existant et un découpage
+   du texte en plusieurs <p> sur les lignes vides. Critères : sémantique pour un lecteur
+   d'écran, et aucun dangerouslySetInnerHTML — React doit continuer d'échapper le texte.
+2. Si tu poses une classe, vérifie qu'index.css.test.ts reste vert : c'est un utilitaire
+   Tailwind, pas une classe écrite à la main, mais le test croise les deux.
+3. Un test rendu qui prouve que deux paragraphes saisis restent distincts. Mutation : retire la
+   correction, le test doit tomber.
+4. Regarde le résultat dans le navigateur sur un article à plusieurs paragraphes, en thème clair
+   et sombre.
+
+Coche l'entrée correspondante de AMELIORATIONS.md (§ « Frontend — UX »).
+```
+
+## 10.5 — N'afficher « ... » que sous un extrait réellement coupé
+
+- [x] **Fichiers** : `frontend/src/components/common/Blog/Card.tsx`, et selon l'option
+  retenue `backend/articles/views.py`, `backend/articles/serializers.py`,
+  `frontend/src/types/article.ts` — livré par l'issue #217, option API : `excerpt_truncated`
+  calculé par PostgreSQL, les quatre fichiers touchés.
+- **Constat** : `Card.tsx:19` (export `ArticleCard`) écrit `{article.excerpt}...` sans
+  condition, alors que l'API ne coupe qu'au-delà de `LONGUEUR_EXTRAIT` = 100 caractères
+  (`articles/views.py:10`, annotation `Left` l. 34). Un article court s'affiche avec des points
+  de suspension alors qu'il est entier.
+- **Attendu** : les points de suspension disent vrai.
+
+```
+Objectif : ne poser les points de suspension de la carte d'article que si l'extrait a été coupé.
+
+Constat :
+- frontend/src/components/common/Blog/Card.tsx:19 — <p>{article.excerpt}...</p>, toujours.
+- backend/articles/views.py:10 — LONGUEUR_EXTRAIT = 100 ; l. 34 — excerpt=Left("content",
+  LONGUEUR_EXTRAIT) dans get_queryset, avec un defer("content") qui garde le texte en base.
+- Voir CLAUDE.md, § « La liste et le détail des articles ne rendent pas les mêmes champs » :
+  annotate, defer et serializer n'ont de sens qu'ensemble.
+
+Consulte `inventaire-avant-dev`, `backend-django-drf` et `frontend-react-ts`.
+
+Deux options, recommande-en une :
+A. Côté front seul : comparer excerpt.length à 100. Simple, mais recopie une constante du back
+   dans le front — deux fichiers pour une règle, ce que le projet évite.
+B. Côté API : un booléen annoté dans le même get_queryset (Length("content") >
+   LONGUEUR_EXTRAIT), déclaré dans ArticleListSerializer et dans ArticleListItem. Le contrat
+   d'API change : dis ce que ça coûte.
+
+Travail demandé :
+1. Tranche, puis applique. Le defer("content") doit rester efficace : vérifie que la requête de
+   la liste ne charge toujours pas le texte entier.
+2. Tests : côté back si l'API change (un article court, un article long) ; côté front, la carte
+   avec et sans points de suspension.
+3. Si l'option B est retenue, mets à jour le § de CLAUDE.md cité plus haut.
+```
+
+## 10.6 — Retirer la variante `hash` de la navigation, que plus aucun lien n'emprunte
+
+- [x] **Fichiers** : `frontend/src/types/navigation.ts`, `frontend/src/lib/navigation.ts`,
+  `NavBar.tsx`, `DesktopNav.tsx`, `MobileMenu.tsx` — livré par l'issue #218 : `NavItem` réduit
+  à `{ to, label }`.
+- **Constat** : `types/navigation.ts:2` déclare une variante `{ type: "hash" }` de `NavItem`, et
+  trois composants la servent — `scrollToHash` et `handleHashClick` (`NavBar.tsx:50-64`), la
+  prop `onHashClick` passée l. 93 et 159, la branche `<a>` de `DesktopNav.tsx:26-34` et de
+  `MobileMenu.tsx:56-65`. Mais `lib/navigation.ts` ne produit que des routes, et `navItems`
+  (`NavBar.tsx:66`) vaut `[LIEN_BLOG, LIEN_A_PROPOS, LIEN_CONTACT]` : la branche ne s'exécute
+  jamais.
+- **Attendu** : `NavItem` décrit ce que la navigation sert vraiment, et plus aucune prop ne
+  traverse trois composants pour rien.
+
+```
+Objectif : supprimer la branche de navigation par ancre, que plus aucun lien n'emprunte.
+
+Constat :
+- frontend/src/types/navigation.ts:2 — | { type: "hash"; href: string; label: string }
+- frontend/src/components/common/Navigation/NavBar.tsx:50-64 — scrollToHash et handleHashClick ;
+  l. 93 et 159 — onHashClick passé à DesktopNav et MobileMenu.
+- DesktopNav.tsx:7, 10, 26-34 et MobileMenu.tsx:13, 22, 56-65 — la prop et la branche <a>.
+- frontend/src/lib/navigation.ts:3-6 — LienPartage = Extract<NavItem, { type: "route" }>,
+  commenté par l'existence de la variante hash. Sans elle, le Extract n'a plus d'objet.
+- Aucune entrée de lib/navigation.ts ni de navItems ne porte type: "hash".
+
+Consulte `frontend-react-ts` et `commentaires-code`.
+
+Travail demandé :
+1. Vérifie par grep sur tout frontend/src (et e2e/) qu'aucun lien hash n'est construit
+   ailleurs, ni qu'une ancre de défilement soit prévue sur l'accueil (issues ouvertes
+   comprises). Si oui, arrête-toi et dis-le.
+2. Retire la variante, les deux fonctions, la prop et les deux branches. Décide si NavItem garde
+   son champ discriminant `type` une fois réduit à une variante, et si LienPartage et son
+   commentaire disparaissent au profit de NavItem — recommande.
+3. Refactoring PUR : rien ne change à l'écran. NavBar.test.tsx et Footer.test.tsx doivent
+   rester verts sans modification ; index.css.test.ts aussi (la classe nav-link garde ses
+   lecteurs dans la branche route).
+4. npm run lint, npm test et npm run build : montre la sortie.
+
+Coche l'entrée correspondante de AMELIORATIONS.md (§ « Frontend — code mort »).
+```
+
+---
+
+# Lot 11 — Couper ce qui pousse à documenter
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| À faire | — | — | Bloc 1 + 2 — documentation |
+
+**Origine** : les règles de sobriété existent déjà — 3 lignes au plus par commentaire
+(`commentaires-code`), « sinon n'y touche pas » à l'étape 7 de `/ticket`, budget de 40 Ko pour
+`CLAUDE.md` — et n'ont pas tenu. D'autres consignes poussent dans l'autre sens, et elles
+gagnent : le Style de `/ticket` envoie « les nuances, les pièges et les arbitrages » dans le
+code, le README ou `AMELIORATIONS.md` ; son étape 7 fait documenter tout piège corrigé ; et
+presque chaque prompt de ce plan finit par « mets à jour CLAUDE.md » ou « coche
+AMELIORATIONS.md ». Une règle de plus serait contredite par ces trois-là.
+
+**Grain de ticket** : aucun — `.claude/` et `CLAUDE.md` ne sont pas versionnés. À faire
+**avant** le lot 12 : sinon chaque ticket de code rajoute la documentation que le lot 13 retire.
+
+> **Dépendances : lot 10 clos.**
+
+## 11.1 — Retirer les incitations, poser la règle
+
+- [ ] **Fichiers** : `.claude/commands/ticket.md`, `CLAUDE.md`, ce fichier (§ « Règles communes »)
+- **Attendu** :
+  - le Style de `/ticket` ne fait plus consigner chaque nuance : un arbitrage reste dans le chat,
+    sauf un piège qui ferait tomber le prochain à toucher ce code ;
+  - son étape 7 se réduit à : `CLAUDE.md` et README seulement si la stack, une commande ou la
+    structure change ;
+  - en tête de `CLAUDE.md`, une ligne : « Commenter seulement ce que le code ne peut pas dire.
+    README et CLAUDE.md : seulement pour un changement de stack, de commande ou de structure. » ;
+  - dans les « Règles communes » de ce plan, la même règle pour les prompts des lots suivants.
+
+```
+Avant d'écrire, grep dans .claude/ et CLAUDE.md toute autre consigne qui fait écrire de la
+documentation à chaque ticket, et liste-la. Modifie ensuite les fichiers, montre-moi le diff.
+Rien ne part sur GitHub.
+```
+
+---
+
+# Lot 12 — Corriger les causes dans le code
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| À faire | — | — | Bloc 1 — qualité |
+
+**Origine** : audit du 2026-10-03 (back 7,5/10, front 7/10, 96 tests back et 126 front au
+vert). Aucune faille. Le défaut de fond : plusieurs pièges sont **documentés au lieu d'être
+corrigés**, et chaque explication pèse ensuite sur `CLAUDE.md`, les tests et les commentaires.
+Ce lot retire les causes ; le lot 13 retire ensuite la documentation devenue inutile.
+
+**Grain de ticket** : epic + 4 sous-issues. 12.1 est indépendante. 12.2, 12.3 et 12.4 touchent
+en partie les mêmes composants (`NavBar.tsx`, `HeroBanner.tsx`, les formulaires) : elles passent
+l'une après l'autre, dans cet ordre.
+
+> **Dépendances : lot 11 clos**, sans quoi ces tickets rajoutent la documentation que le lot 13
+> doit retirer.
+
+## 12.1 — Révocation sans conflit et clé de test valide
+
+- [ ] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/tests.py`, `backend/config/settings/test.py`
+- **Constat** : `set_password_and_revoke` (`accounts/views.py:76`) fait un `bulk_create` de
+  `BlacklistedToken` sans `ignore_conflicts`. Une rotation de refresh pendant un changement de
+  mot de passe viole l'unicité : `500`, et la transaction annule le nouveau mot de passe. La clé
+  de `test.py:13` fait 23 octets, sous les 32 qu'attend la signature HMAC : un
+  `InsecureKeyLengthWarning` par test noie la sortie.
+- **Attendu** : le conflit est ignoré, un test le prouve, la suite tourne sans avertissement.
+
+```
+Consulte `backend-django-drf`. Aucun fichier à créer.
+1. Ajoute ignore_conflicts=True au bulk_create de set_password_and_revoke. Test : un refresh
+   déjà en liste noire avant l'appel ne fait pas tomber le changement de mot de passe. Valide
+   par mutation (retire l'option, le test tombe ; restaure par l'édition inverse).
+2. Porte la clé de test.py à 32 octets au moins. Montre la sortie de la suite, sans avertissement.
+```
+
+## 12.2 — Thème en variables sémantiques
+
+- [ ] **Fichiers** : `frontend/src/index.css`, `frontend/src/components/ui/Button/buttonClasses.ts`,
+  `frontend/src/components/common/Home/Slider.tsx`, `frontend/src/index.css.test.ts`, les composants
+  qui portent des paires `bg-[var(--color-light-…)] dark:bg-[var(--color-dark-…)]`
+- **Constat** : chaque couleur est écrite deux fois — `.X` puis `.dark .X` dans `index.css`, et
+  des paires clair/sombre dans `buttonClasses.ts`. D'où le piège des classes écrites à la main
+  sans variante `hover:`, la classe de 400 caractères recopiée deux fois dans `Slider.tsx`, et
+  la moitié d'`index.css.test.ts`, qui ne sert qu'à surveiller ce piège.
+- **Attendu** : des variables sémantiques (`--color-surface`, `--color-text`…) déclarées dans
+  `@theme` et redéfinies sous `.dark`. Une couleur s'écrit une fois, `hover:` fonctionne partout,
+  le bloc de classes écrites à la main disparaît. Rendu identique dans les deux thèmes.
+
+```
+Consulte `frontend-react-ts` et `inventaire-avant-dev`.
+1. Inventorie les couleurs réellement utilisées, puis propose la liste des variables
+   sémantiques AVANT de toucher au code. Attends mon accord.
+2. Migre. Rendu identique : capture avant/après des pages d'accueil, blog et connexion, en
+   clair et en sombre.
+3. Réduis index.css.test.ts à ce qui garde encore un sens (les classes mortes), supprime le reste.
+4. npm run lint, npm test, npm run build : montre la sortie.
+```
+
+## 12.3 — Fichiers nommés comme leur export, routes exportées
+
+- [ ] **Fichiers** : `MainButton.tsx`, `Card.tsx`, `MainTitle.tsx`, `SecondTitle.tsx`,
+  `LinkTitle.tsx` et leurs 19 importeurs ; `frontend/src/App.tsx`, `Footer.test.tsx`, `NavBar.test.tsx`
+- **Constat** : cinq fichiers n'exportent pas leur nom, et le même composant s'importe sous deux
+  noms (`Button` dans `Blog.tsx`, `MainButton` dans `FormArticle.tsx`) : grep ne le retrouve
+  plus. Deux tests lisent `App.tsx` comme du texte pour en extraire les routes par regex, et
+  `App.tsx:18-20` doit prévenir le code de production qu'un test le lit.
+- **Attendu** : nom de fichier = nom d'export, un seul nom d'import par composant. `App.tsx`
+  exporte un tableau de routes que les deux tests importent : plus de `?raw`, plus de regex.
+
+```
+Consulte `frontend-react-ts`. Refactoring PUR : rien ne change à l'écran.
+1. Renomme les cinq fichiers (git mv) et aligne chaque import. grep doit trouver chaque
+   composant sous un seul nom.
+2. Sors les routes d'App.tsx dans un tableau exporté ; Footer.test.tsx et NavBar.test.tsx
+   l'importent. Valide par mutation : une route retirée du tableau fait tomber les deux tests.
+3. Retire le commentaire d'App.tsx devenu sans objet.
+4. npm run lint, npm test, npm run build : montre la sortie.
+```
+
+## 12.4 — `submit()` dans `useForm`, et quatre défauts du front
+
+- [ ] **Fichiers** : `frontend/src/hooks/useForm.ts` et son test, les 7 formulaires,
+  `frontend/src/pages/ResetPassword.tsx`, `frontend/src/pages/Blog/Blog.tsx`, `frontend/index.html`
+- **Constat** : les 7 formulaires recopient le même `handleSubmit` d'environ 25 lignes
+  (valider, remettre à zéro, `isSubmitting`, `try/catch` vers `toFormErrors`, `finally`).
+  À côté : `ResetPassword.tsx` ne demande ni confirmation ni complexité ; `/blog` n'a pas de
+  `<h1>` (`Blog.tsx:78` rend son titre en `h2`) ; `index.html:2` pose `class="dark"` et un thème
+  clair voit un flash sombre au chargement ; `Blog.tsx` importe `react` deux fois.
+- **Attendu** : `useForm` expose `submit(envoi)`, chaque formulaire n'écrit plus que son appel
+  réseau et son succès. Les quatre défauts sont corrigés.
+
+```
+Consulte `frontend-react-ts` et `inventaire-avant-dev` : aucun fichier à créer.
+1. Ajoute submit() à useForm, teste-le dans useForm.test.ts, puis migre les 7 formulaires.
+   Leurs tests existants restent verts sans modification.
+2. ResetPassword : confirmation et complexité, par les règles de lib/validationRules.ts.
+3. /blog : un h1. index.html : script inline dans <head> qui pose le thème avant le rendu.
+   Blog.tsx : un seul import de react, aucune extension .tsx dans les imports.
+4. npm run lint, npm test, npm run build : montre la sortie.
+```
+
+---
+
+# Lot 13 — Régime : purge et contrôle
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| À faire | — | — | Bloc 1 + 2 — documentation |
+
+**Origine** : depuis le 2026-09-01, 156 commits `docs` pour 34 `feat`, 6 126 lignes de Markdown
+ajoutées pour environ 3 960 de code. `CLAUDE.md` pèse 39 999 octets pour un budget de 40 000,
+le README 85 Ko. Le code compte 31 blocs de commentaires de plus de 3 lignes, plafond de
+`commentaires-code`, et `production.py` porte plus de commentaires que de code. Des chiffres
+écrits en dur se contredisent déjà : 96 tests back, 72 selon `revue-avant-push`, 59 selon le
+hook de pré-push.
+
+**Grain de ticket** : 13.1 et 13.3 en issues ; 13.2 et 13.4 sans issue ni PR, `CLAUDE.md` et
+`.claude/` n'étant pas versionnés. Cette fois, **le lot ne s'étend pas** : un défaut repéré en
+route va dans `AMELIORATIONS.md`.
+
+> **Dépendances : lot 12 clos**, qui rend caduques une partie des explications à retirer.
+
+## 13.1 — Commentaires : aucun bloc de plus de 3 lignes
+
+- [ ] **Fichiers** : en tête `backend/config/settings/*.py`, `compose.dev.yaml`, `compose.prod.yaml`,
+  `backend/healthcheck.py`, puis tout le code
+- **Constat** : 31 blocs de plus de 3 lignes, dont 7 dans `base.py` et 7 dans
+  `compose.prod.yaml`. `production.py:34-46` consacre 13 lignes à un réglage. Restent aussi des
+  paraphrases (`accounts/models.py:17`, `:39`, les fins de ligne de `config/urls.py`), des
+  traces d'historique (`FormField.tsx:67`, « remplace Math.random ») et des nombres qui
+  vieilliront (« neuf… trente-six » dans `ArticleCoutDesListesTests`).
+- **Attendu** : 0 bloc de plus de 3 lignes, aucune paraphrase, aucun nombre ni numéro d'issue
+  qui deviendra faux. Le détail utile part au README, en une ligne.
+
+```
+Consulte `commentaires-code`. Aucune ligne de code ne change.
+1. Liste les 31 blocs (fichier:ligne) et, pour chacun, ta version d'une à trois lignes.
+   Attends mon accord.
+2. Applique, puis passe tout le code au même tri : paraphrase, historique, chiffres en dur.
+3. Lint, tests front et back, build : montre la sortie.
+```
+
+## 13.2 — `CLAUDE.md` à 15 Ko, skills sans chiffres en dur
+
+- [ ] **Fichiers** : `CLAUDE.md`, `.claude/skills/*/SKILL.md`, `.claude/hooks/verifications.sh` — hors dépôt
+- **Constat** : `CLAUDE.md` est relu à chaque session et touche son plafond. Une bonne part
+  décrit ce que contiennent les fichiers de test, ou des pièges que le lot 12 a retirés. Les
+  skills portent des chiffres déjà faux (72 tests, « six formulaires » contre sept).
+- **Attendu** : `CLAUDE.md` ≤ 15 000 octets, ne garde que les pièges qui demandent de lire
+  plusieurs fichiers et qui ont réellement coûté. Aucun compte de tests ni de fichiers dans les
+  skills ou le hook : une commande qui compte, si le nombre est utile.
+
+```
+Lis la règle « Qui porte quoi » en tête de CLAUDE.md.
+1. Classe chaque paragraphe : piège encore vrai et coûteux / devenu faux / se lit dans un seul
+   fichier / porté par une skill. Montre-moi le tableau et la taille visée par section.
+2. Réécris. Donne la taille avant et après (wc -c CLAUDE.md).
+3. grep les nombres écrits en dur dans .claude/ et retire-les.
+```
+
+## 13.3 — README à 35 Ko
+
+- [ ] **Fichiers** : `README.md`, `frontend/README.md`
+- **Constat** : 85 Ko pour un site vitrine et un blog. Le README sert à qui installe et lance
+  le projet ; il porte aussi le récit de choix que le journal et les PR gardent déjà.
+- **Attendu** : `README.md` ≤ 35 000 octets ; installer, lancer, tester, déployer. Le reste
+  disparaît ou tient en une ligne. Toute variable de `@theme` encore citée dans le tableau du
+  `frontend/README.md` a toujours un lecteur.
+
+```
+Consulte `style-documentation`.
+1. Propose le nouveau plan du README, section par section, avec la taille visée. Attends mon accord.
+2. Réécris. Vérifie chaque commande citée en la lançant, et donne la taille avant et après.
+```
+
+## 13.4 — Contrôle au pré-push
+
+- [ ] **Fichiers** : `.claude/hooks/verifications.sh` — hors dépôt
+- **Constat** : les règles écrites ont déjà dérivé sans que rien ne le montre. Seule une mesure
+  le voit avant que la dérive s'installe.
+- **Attendu** : le hook refuse le push si `CLAUDE.md` dépasse 15 000 octets, `README.md` 35 000,
+  ou si un bloc de commentaire du code versionné dépasse 3 lignes. Un fichier qui dépasse avec
+  une raison est nommé en exception, la raison en une ligne. Ni CI ni hook Claude Code
+  (arbitré le 2026-10-03) : un seul endroit à tenir.
+
+```
+Mesure l'état après 13.1 à 13.3 et confirme les seuils. Ajoute les trois contrôles à
+verifications.sh. Valide par mutation : un bloc de 4 lignes ajouté fait refuser le push,
+retiré il passe.
+```
+
+---
+
+# Lot 14 — Documentation et clôture
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
@@ -1703,9 +2410,10 @@ site. Ne la bâcle pas.
 
 **Grain de ticket** : ticket unique — un seul livrable, la documentation à jour.
 
-> **Dépendances : tous les lots précédents.**
+> **Dépendances : tous les lots précédents**, lots 11 à 13 compris. Le lot 13 réécrit
+> `CLAUDE.md` et le README : 14.1 et 14.2 se réduisent alors à un contrôle des écarts restants.
 
-## 10.1 — Consigner le piège `node_modules` et les écarts de `CLAUDE.md`
+## 14.1 — Consigner le piège `node_modules` et les écarts de `CLAUDE.md`
 
 - [ ] **Fichiers** : `CLAUDE.md`, `README.md`
 - **Constat** : `CLAUDE.md` recense « six pièges de la pile » Docker, mais pas celui qui bloque
@@ -1713,7 +2421,7 @@ site. Ne la bâcle pas.
   `compose.dev.yaml` crée côté hôte un dossier vide appartenant à `root`, ce qui fait
   échouer toute commande npm ultérieure. Le fichier annonce par ailleurs `cx()` « redéfini dans
   trois composants `ui/` » alors qu'il l'est dans quatre.
-- **Attendu** : la documentation décrit le dépôt tel qu'il est après les lots 0 à 9.
+- **Attendu** : la documentation décrit le dépôt tel qu'il est après les lots 0 à 10.
 
 ```
 Objectif : remettre CLAUDE.md et le README en accord avec le dépôt.
@@ -1723,16 +2431,18 @@ Objectif : remettre CLAUDE.md et le README en accord avec le dépôt.
    poste : le volume anonyme /app/node_modules de compose.dev.yaml fait créer par Docker, du
    côté HÔTE, un frontend/node_modules vide appartenant à root. Toute commande npm lancée ensuite
    depuis la machine échoue en EACCES. C'est un septième piège, au même titre que les six autres.
-2. CLAUDE.md indique « cx(), redéfini dans trois composants ui/ » — il l'est dans quatre
-   (MainButton, Input, Textarea, LinkTitle). Après la tâche 8.1, il ne l'est plus du tout.
-3. CLAUDE.md documente src/data/articles.json et types/Article.coverImg comme des pièges. Après la
-   tâche 9.1, ils n'existent plus.
+2. DÉJÀ FAIT par l'issue #162 : le § « Duplication connue » annonçait « cx(), redéfini dans trois
+   composants ui/ » là où il l'était dans quatre ; la tâche 8.1 l'ayant extrait dans lib/cx.ts, le
+   § entier a été supprimé. Rien à reprendre ici, sauf si le texte est revenu.
+3. DÉJÀ FAIT par l'issue #175 : le § « Pièges » documentait src/data/articles.json et
+   types/Article.coverImg comme vivants ; la tâche 9.1 les ayant supprimés, le § entier a été
+   retiré. Rien à reprendre ici, sauf si le texte est revenu.
 4. CLAUDE.md indique « Les trois tests.py sont encore des stubs vides ». Après le lot 2, c'est faux.
 
 Consulte la skill `style-documentation` avant d'écrire.
 
 Travail demandé :
-1. Relis CLAUDE.md ligne à ligne contre l'état réel du dépôt après les lots 0 à 9, et liste-moi
+1. Relis CLAUDE.md ligne à ligne contre l'état réel du dépôt après les lots 0 à 10, et liste-moi
    TOUS les écarts avant de corriger — pas seulement les quatre ci-dessus.
 2. Décide, pour chaque piège Docker, s'il relève de CLAUDE.md, du README, ou des deux : le README
    s'adresse à un humain qui installe le projet, CLAUDE.md à un agent qui code dedans.
@@ -1743,7 +2453,7 @@ Ne réécris pas ce qui est juste : ces deux fichiers sont d'excellente qualité
 mise à jour ciblée, pas une refonte.
 ```
 
-## 10.2 — Mettre à jour `AMELIORATIONS.md` et le `README`
+## 14.2 — Mettre à jour `AMELIORATIONS.md` et le `README`
 
 - [ ] **Fichiers** : `AMELIORATIONS.md`, `README.md`
 - **Constat** : `AMELIORATIONS.md` ne contient qu'une seule entrée — les toasts — traitée par la
@@ -1779,7 +2489,7 @@ Travail demandé :
    par le code après les corrections. C'est une règle explicite du projet.
 ```
 
-## 10.3 — Revue finale et clôture
+## 14.3 — Revue finale et clôture
 
 - [ ] **Fichiers** : l'ensemble du diff
 - **Attendu** : un verdict `OK` sur les six axes, puis les issues fermées à la main.
@@ -1851,6 +2561,8 @@ Cette skill ne pousse jamais rien : elle lit et elle rapporte. Le push reste ma 
 | 5.4 | Création d'article offerte aux anonymes | Moyen | 5.1, 4.2 | Bloc 1 — sécurité |
 | 6.1 | Pagination bout en bout | Performance | 2, 3, 5 | Bloc 1 — optimisation |
 | 6.2 | Sonde de santé non paginée | Faible | 6.1 | Bloc 1 — optimisation |
+| 6.3 | Base de développement impossible à peupler | Structurant | 6.1 | Bloc 1 — qualité |
+| 6.4 | Liste vide et échec de chargement muets | Moyen (UX) | 6.1, 4.2 | Bloc 1 — qualité |
 | 7.1 | « Nous rejoindre » mobile → `/contact` | Moyen | 5.3 | Bloc 1 — qualité |
 | 7.2 | Footer hors routeur, 14 liens morts | Moyen | — | Bloc 1 — qualité |
 | 7.3 | `/terms` et `/privacy` inexistantes | Faible | — | Bloc 1 — qualité |
@@ -1862,13 +2574,29 @@ Cette skill ne pousse jamais rien : elle lit et elle rapporte. Le push reste ma 
 | 9.2 | Neuf classes CSS mortes | Code mort | 4-8 | Bloc 1 — qualité |
 | 9.3 | Commentaires de tutoriel et JSDoc anglais | Conventions | 4-8 | Bloc 1 — qualité |
 | 9.4 | Contenu de remplissage visible | Moyen (vitrine) | — | Bloc 1 — qualité |
-| 10.1 | `CLAUDE.md` et README en retard sur le code | Documentation | 0-9 | Bloc 1 + 2 — documentation |
-| 10.2 | `AMELIORATIONS.md` et README | Documentation | 0-9 | Bloc 1 + 2 — documentation |
-| 10.3 | Revue finale et fermeture des issues | Clôture | tout | Bloc 1 + 2 — documentation |
+| 10.1 | Réinitialisation sans révocation des sessions | Moyen (sécurité) | 9 | Bloc 1 — sécurité |
+| 10.2 | Confirmation de réinitialisation sans quota | Faible | 10.1 | Bloc 1 — sécurité |
+| 10.3 | Mots de passe et textes longs sans plafond | Faible | 10.2 | Bloc 1 — sécurité |
+| 10.4 | Paragraphes d'un article perdus à l'affichage | Moyen (UX) | 9 | Bloc 1 — qualité |
+| 10.5 | « ... » sous un extrait non coupé | Faible (UX) | 9 | Bloc 1 — qualité |
+| 10.6 | Variante `hash` de la navigation sans lien | Code mort | 9 | Bloc 1 — qualité |
+| 11.1 | Consignes qui font documenter chaque ticket | Méthode | 10 | — |
+| 12.1 | Révocation en `500` sur conflit, clé de test courte | Moyen | 11 | Bloc 1 — sécurité |
+| 12.2 | Couleurs écrites deux fois (clair et sombre) | Structurant | 11 | Bloc 1 — qualité |
+| 12.3 | Fichiers mal nommés, tests qui lisent `App.tsx` en texte | Conventions | 12.2 | Bloc 1 — qualité |
+| 12.4 | `handleSubmit` recopié 7 fois, quatre défauts front | Duplication | 12.3 | Bloc 1 — qualité |
+| 13.1 | 31 blocs de commentaires au-delà de 3 lignes | Conventions | 12 | Bloc 1 + 2 — documentation |
+| 13.2 | `CLAUDE.md` au plafond, chiffres faux dans les skills | Documentation | 12 | Bloc 1 + 2 — documentation |
+| 13.3 | README de 85 Ko | Documentation | 12 | Bloc 1 + 2 — documentation |
+| 13.4 | Aucune mesure de la taille ni des commentaires | Structurant | 13.1-13.3 | Bloc 1 + 2 — qualité |
+| 14.1 | `CLAUDE.md` et README en retard sur le code | Documentation | 0-13 | Bloc 1 + 2 — documentation |
+| 14.2 | `AMELIORATIONS.md` et README | Documentation | 0-13 | Bloc 1 + 2 — documentation |
+| 14.3 | Revue finale et fermeture des issues | Clôture | tout | Bloc 1 + 2 — documentation |
 
-Trois tâches ne portent pas le bloc de leur lot : **0.2** est une remédiation de vulnérabilités
+Cinq tâches ne portent pas le bloc de leur lot : **0.2** est une remédiation de vulnérabilités
 avec preuve avant/après ; **3.3** et **3.4** relèvent de la qualité dans un lot classé
-optimisation.
+optimisation, comme **6.3** et **6.4**, qui n'y sont entrées que pour rendre la pagination
+visible et lisible.
 
 ---
 

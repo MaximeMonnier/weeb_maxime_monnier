@@ -10,8 +10,14 @@ import Blog from "./pages/Blog/Blog";
 import ArticleDetails from "./pages/Blog/ArticleDetails";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import ChangePassword from "./pages/ChangePassword";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import "./index.css";
 
+// `Footer.test.tsx` et `NavBar.test.tsx` lisent ce fichier comme du texte pour
+// en extraire les routes : des `path` autres que littéraux videraient leurs
+// listes, et ni le pied de page ni les menus ne seraient plus contrôlés.
 function App() {
   return (
     <BrowserRouter>
@@ -22,10 +28,13 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/subscribe" element={<Subscribe />} />
           <Route path="/about" element={<About />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/articles/:id" element={<ArticleDetails />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

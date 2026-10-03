@@ -1,12 +1,20 @@
 """Tests des articles : ce que le visiteur lit sans compte, ce que l'API refuse d'écrire,
 à qui l'article appartient quoi qu'en dise le corps envoyé, et dans quel ordre la liste
-sort — le tri, l'auteur et les dates ne venant jamais du client. Et ce que coûtent les
-deux listes, celle de l'API et celle de l'admin, quand le nombre d'articles grandit."""
+sort — le tri, l'auteur et les dates ne venant jamais du client. Sous quel nom l'article
+est signé, et quelle adresse n'en sort jamais. Ce que la liste rend de
+moins que le détail, comment elle se découpe en pages, et ce que coûtent les deux listes,
+celle de l'API et celle de l'admin, quand le nombre d'articles grandit. Enfin la commande
+qui peuple la base de développement, et le refus qui la tient à l'écart de celle de
+production."""
 
+import re
 from datetime import timedelta
+from io import StringIO
 
+from django.conf import settings
+from django.core.management import CommandError, call_command
 from django.db import connection
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -14,7 +22,9 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from accounts.models import CustomUser
 
+from .management.commands.peupler_articles import DEMO_AUTHOR_EMAIL
 from .models import Article
+from .views import LONGUEUR_EXTRAIT
 
 
 def membre(email):
@@ -42,7 +52,7 @@ class ArticleLecturePubliqueTests(TestCase):
         response = self.client.get(reverse("article-list"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(len(response.json()["results"]), 1)
 
     def test_le_detail_est_ouvert_au_visiteur(self):
         response = self.client.get(reverse("article-detail", args=[self.article.pk]))
@@ -77,7 +87,7 @@ class ArticleProprieteTests(TestCase):
     def test_l_auteur_envoye_par_le_client_est_ignore(self):
         """À la création, c'est perform_create qui impose l'auteur : il écrase ce que le
         corps propose, et l'article partirait sans auteur si la ligne s'en allait. Le champ
-        déclaré en lecture seule, lui, ne tient ici que la forme rendue, l'email et non l'id."""
+        déclaré en lecture seule, lui, ne tient ici que la forme rendue, le nom et non l'id."""
         response = self.client.post(
             reverse("article-list"),
             {"title": "Article signé d'un autre", "content": "Contenu.",
@@ -87,7 +97,7 @@ class ArticleProprieteTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()["author"], self.auteur.email)
+        self.assertEqual(response.json()["author"], self.auteur.public_name)
         self.assertEqual(Article.objects.get(pk=response.json()["id"]).author, self.auteur)
 
     def test_l_auteur_ne_cede_pas_son_article_par_une_modification(self):
@@ -141,6 +151,64 @@ class ArticleProprieteTests(TestCase):
         self.assertTrue(Article.objects.filter(pk=self.article.pk).exists())
 
 
+class ArticleSignatureTests(TestCase):
+    """L'article est signé du prénom et du nom, et l'adresse du compte ne paraît nulle part
+    dans la réponse. Rien dans `articles` ne le garantit seul : le nom vient de la propriété
+    `public_name` d'`accounts`, que les DEUX serializers doivent viser, quand le `__str__` du
+    même compte rend l'email et continue de le rendre pour l'admin. La lecture étant ouverte
+    au visiteur, un `StringRelatedField` reposé publierait l'adresse de chaque auteur sans
+    qu'aucun refus ne le signale — et les pages `/terms` et `/privacy` promettent l'inverse."""
+
+    def setUp(self):
+        self.auteur = CustomUser.objects.create_user(
+            email="jean@example.com", first_name="Jean", last_name="Dupont",
+            password="MotDePasseValide123",
+        )
+        self.article = Article.objects.create(
+            title="Article signé", content="Contenu.", author=self.auteur,
+        )
+
+    def urls(self):
+        """Les deux lectures publiques, qui ne passent pas par le même serializer."""
+        return {
+            "liste": reverse("article-list"),
+            "détail": reverse("article-detail", args=[self.article.pk]),
+        }
+
+    def signature(self, url):
+        """L'auteur tel que la réponse le rend, la liste fût-elle paginée."""
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        corps = response.json()
+        return corps["results"][0]["author"] if "results" in corps else corps["author"]
+
+    def test_la_liste_et_le_detail_signent_du_prenom_et_du_nom(self):
+        for nom, url in self.urls().items():
+            with self.subTest(vue=nom):
+                self.assertEqual(self.signature(url), "Jean Dupont")
+
+    def test_aucune_adresse_electronique_ne_sort_de_la_lecture_publique(self):
+        """Sur la réponse brute et non sur le seul champ `author` : un email réexposé sous
+        une autre clé compte autant, et `fields` s'allonge d'un champ sans rien casser."""
+        for nom, url in self.urls().items():
+            with self.subTest(vue=nom):
+                self.assertNotIn(self.auteur.email, self.client.get(url).content.decode())
+
+    def test_un_compte_sans_prenom_ni_nom_est_signe_d_un_repli(self):
+        """Le cas que l'inscription ne produit pas : les deux champs y sont obligatoires,
+        la base ne les exige pas, et un compte créé au shell signerait d'une chaîne vide."""
+        sans_nom = CustomUser.objects.create_user(
+            email="sans-nom@example.com", password="MotDePasseValide123",
+        )
+        self.article.author = sans_nom
+        self.article.save()
+
+        for nom, url in self.urls().items():
+            with self.subTest(vue=nom):
+                self.assertEqual(self.signature(url), "Auteur anonyme")
+
+
 class ArticleOrdreTests(TestCase):
     """La liste sort du plus récent au plus ancien, et rien dans la vue ne le dit."""
 
@@ -160,9 +228,125 @@ class ArticleOrdreTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            [article["title"] for article in response.json()],
+            [article["title"] for article in response.json()["results"]],
             ["Récent", "Intermédiaire", "Ancien"],
         )
+
+
+class ArticleExtraitDeListeTests(TestCase):
+    """La liste et le détail ne rendent pas les mêmes champs, et rien dans le modèle ne le
+    dit : deux serializers que seule l'action de la vue départage. `excerpt` et
+    `excerpt_truncated` n'existent nulle part comme champs — ils viennent de l'annotation du
+    queryset, et repartiraient avec elle."""
+
+    def setUp(self):
+        # Plus long que l'extrait : à contenu plus court, la liste rendrait le texte
+        # entier et une coupure disparue passerait inaperçue.
+        self.contenu = "Phrase de démonstration. " * 20
+        self.article = Article.objects.create(
+            title="Article long", content=self.contenu, author=membre("auteur@example.com"),
+        )
+
+    def test_la_liste_rend_l_extrait_et_jamais_le_contenu(self):
+        response = self.client.get(reverse("article-list"))
+
+        self.assertEqual(response.status_code, 200)
+        article = response.json()["results"][0]
+        # Le jeu entier, et pas seulement l'absence de content : ArticleCard lit aussi
+        # id, author et created_at, qu'un fields raccourci ferait disparaître sans que
+        # rien ne tombe ici — la carte afficherait « Par undefined le Invalid Date ».
+        self.assertEqual(
+            sorted(article),
+            ["author", "created_at", "excerpt", "excerpt_truncated", "id", "title"],
+        )
+        self.assertEqual(article["excerpt"], self.contenu[:LONGUEUR_EXTRAIT])
+        self.assertEqual(len(article["excerpt"]), LONGUEUR_EXTRAIT)
+
+    def test_la_liste_dit_quels_extraits_sont_coupes(self):
+        """La borne exacte des deux côtés : un article de LONGUEUR_EXTRAIT caractères est
+        rendu entier, et ses points de suspension mentiraient."""
+        auteur = self.article.author
+        Article.objects.create(
+            title="Article juste", content="x" * LONGUEUR_EXTRAIT, author=auteur,
+        )
+        Article.objects.create(
+            title="Article juste au-delà", content="x" * (LONGUEUR_EXTRAIT + 1),
+            author=auteur,
+        )
+
+        response = self.client.get(reverse("article-list"))
+
+        self.assertEqual(response.status_code, 200)
+        coupes = {
+            article["title"]: article["excerpt_truncated"]
+            for article in response.json()["results"]
+        }
+        self.assertEqual(coupes, {
+            "Article long": True,
+            "Article juste": False,
+            "Article juste au-delà": True,
+        })
+
+    def test_la_liste_ne_lit_le_contenu_qu_au_travers_de_l_extrait(self):
+        """Le JSON ne le montre pas : sans le defer, content voyagerait entier de la base
+        au serializer, qui le tairait. Seules LEFT() et LENGTH() ont le droit d'y toucher,
+        d'où la colonne refusée partout où une parenthèse ne la précède pas."""
+        with CaptureQueriesContext(connection) as requetes:
+            response = self.client.get(reverse("article-list"))
+
+        self.assertEqual(response.status_code, 200)
+        table = connection.ops.quote_name(Article._meta.db_table)
+        colonne = f"{table}.{connection.ops.quote_name('content')}"
+        sql = " ".join(requete["sql"] for requete in requetes)
+        # Présente au moins une fois : un nom mal écrit ferait passer le refus à vide.
+        self.assertIn(colonne, sql)
+        self.assertNotRegex(sql, rf"(?<!\(){re.escape(colonne)}")
+
+    def test_le_detail_rend_le_contenu_entier_et_pas_d_extrait(self):
+        response = self.client.get(reverse("article-detail", args=[self.article.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["content"], self.contenu)
+        self.assertNotIn("excerpt", response.json())
+        self.assertNotIn("excerpt_truncated", response.json())
+
+
+class ArticlePaginationTests(TestCase):
+    """La liste sort par pages de PAGE_SIZE, que ni la vue ni le serializer ne déclarent :
+    seuls les réglages de DRF en décident, comme Meta.ordering de l'ordre qui les traverse."""
+
+    def test_la_page_suivante_reprend_ou_la_premiere_s_arrete(self):
+        auteur = membre("auteur@example.com")
+        taille = settings.REST_FRAMEWORK["PAGE_SIZE"]
+        total = taille + 3
+        # Deux par deux à la même date, une paire à cheval sur la coupure quand la
+        # taille est paire : l'id seul les départage, et sans lui l'un des deux peut
+        # sortir sur les deux pages. L'UPDATE, parce qu'auto_now_add écrase la date.
+        maintenant = timezone.now()
+        for rang in range(total):
+            article = Article.objects.create(
+                title=f"Article {rang}", content="Contenu.", author=auteur,
+            )
+            Article.objects.filter(pk=article.pk).update(
+                created_at=maintenant - timedelta(hours=(rang + 1) // 2),
+            )
+        attendu = [
+            article.pk for article in sorted(
+                Article.objects.all(), key=lambda a: (a.created_at, a.pk), reverse=True,
+            )
+        ]
+
+        premiere = self.client.get(reverse("article-list")).json()
+
+        self.assertEqual(premiere["count"], total)
+        self.assertIsNone(premiere["previous"])
+        self.assertEqual([a["id"] for a in premiere["results"]], attendu[:taille])
+
+        # Le lien tel que l'API le donne, et non une page recalculée par le test.
+        seconde = self.client.get(premiere["next"]).json()
+
+        self.assertIsNone(seconde["next"])
+        self.assertEqual([a["id"] for a in seconde["results"]], attendu[taille:])
 
 
 class ArticleDatesImposeesTests(TestCase):
@@ -218,9 +402,51 @@ class ArticleDatesImposeesTests(TestCase):
         self.assertGreater(article.updated_at, modification)
 
 
+class ArticleLongueurTests(TestCase):
+    """content est un TextField sans longueur en base : la borne ne vit que dans
+    ArticleSerializer, et vaut à la modification comme à la création."""
+
+    LIMITE = 20000
+
+    def setUp(self):
+        self.auteur = membre("auteur@example.com")
+        self.article = Article.objects.create(
+            title="Article existant", content="Contenu.", author=self.auteur,
+        )
+
+    def creer(self, content):
+        return self.client.post(
+            reverse("article-list"), {"title": "Long billet", "content": content},
+            content_type="application/json", headers=porteur(self.auteur),
+        )
+
+    def modifier(self, content):
+        return self.client.patch(
+            reverse("article-detail", args=[self.article.pk]), {"content": content},
+            content_type="application/json", headers=porteur(self.auteur),
+        )
+
+    def test_la_creation(self):
+        response = self.creer("C" * (self.LIMITE + 1))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("content", response.json())
+        self.assertEqual(self.creer("C" * self.LIMITE).status_code, 201)
+
+    def test_la_modification(self):
+        response = self.modifier("C" * (self.LIMITE + 1))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("content", response.json())
+        self.article.refresh_from_db()
+        self.assertEqual(self.article.content, "Contenu.")
+        self.assertEqual(self.modifier("C" * self.LIMITE).status_code, 200)
+
+
 class ArticleCoutDesListesTests(TestCase):
     """Les deux listes tiennent en un nombre de requêtes que le nombre d'articles ne change
-    pas : l'auteur, rendu par son __str__ des deux côtés, coûterait sinon une requête par
+    pas : l'auteur, lu sur sa ligne des deux côtés — par public_name côté API, par __str__
+    côté admin —, coûterait sinon une requête par
     ligne. Aucun des deux comptes n'est écrit ici — c'est leur égalité qui prouve la
     jointure, un nombre en dur ne prouvant que lui-même et cédant à la première requête
     ajoutée ailleurs, session ou filtre de l'admin.
@@ -256,16 +482,20 @@ class ArticleCoutDesListesTests(TestCase):
         self.assertEqual(reponse.status_code, 200)
         return len(requetes)
 
-    def test_la_liste_de_l_api_coute_autant_a_30_articles_qu_a_3(self):
+    def test_chaque_page_de_l_api_coute_autant_a_30_articles_qu_a_3(self):
+        """Les pages pleines comme la dernière, entamée. La référence tient en une page moins
+        remplie que les autres, sans quoi une requête par ligne coûterait autant des deux
+        côtés et passerait inaperçue."""
         url = reverse("article-list")
         self.publier(3)
         reference = self.compter(url)
 
         self.publier(27)
 
-        with self.assertNumQueries(reference):
-            reponse = self.client.get(url)
-        self.assertEqual(len(reponse.json()), 30)
+        suivante = url
+        while suivante:
+            with self.assertNumQueries(reference):
+                suivante = self.client.get(suivante).json()["next"]
 
     def test_la_liste_de_l_admin_coute_autant_a_30_articles_qu_a_3(self):
         # force_login et non un jeton porteur : l'API ne monte que JWTAuthentication,
@@ -279,3 +509,62 @@ class ArticleCoutDesListesTests(TestCase):
 
         with self.assertNumQueries(reference):
             self.assertEqual(self.client.get(url).status_code, 200)
+
+
+@override_settings(DEBUG=True)
+class PeuplerArticlesTests(TestCase):
+    """La commande peuple la base de développement, une seule fois quel que soit le nombre de
+    lancements. DEBUG est forcé ici : test.py le fige à False, et le runner de Django aussi."""
+
+    def peupler(self):
+        call_command("peupler_articles", stdout=StringIO())
+
+    def demonstration(self):
+        return Article.objects.filter(author__email=DEMO_AUTHOR_EMAIL)
+
+    def test_la_commande_publie_30_articles_plus_longs_que_le_resume(self):
+        """Plus longs que l'extrait de la liste : c'est cette coupure que la commande existe
+        pour montrer à l'écran, et des articles plus courts ne la feraient pas voir."""
+        self.peupler()
+
+        self.assertEqual(self.demonstration().count(), 30)
+        self.assertEqual(self.demonstration().values("title").distinct().count(), 30)
+        for article in self.demonstration():
+            self.assertGreater(len(article.content), LONGUEUR_EXTRAIT)
+
+    def test_un_second_lancement_ne_cree_aucun_doublon(self):
+        self.peupler()
+        self.peupler()
+
+        self.assertEqual(Article.objects.count(), 30)
+        self.assertEqual(CustomUser.objects.filter(email=DEMO_AUTHOR_EMAIL).count(), 1)
+
+    def test_un_article_de_demonstration_supprime_est_republie(self):
+        """Les articles se reconnaissent à leur auteur puis à leur titre : un article d'un
+        autre auteur portant le même titre ne tient pas lieu de celui qui manque."""
+        self.peupler()
+        disparu = self.demonstration().first()
+        disparu.delete()
+        Article.objects.create(
+            title=disparu.title, content="Contenu.", author=membre("membre@example.com"),
+        )
+
+        self.peupler()
+
+        self.assertEqual(self.demonstration().count(), 30)
+        self.assertTrue(self.demonstration().filter(title=disparu.title).exists())
+
+    def test_l_auteur_de_demonstration_ne_peut_pas_se_connecter(self):
+        self.peupler()
+
+        auteur = CustomUser.objects.get(email=DEMO_AUTHOR_EMAIL)
+        self.assertFalse(auteur.is_active)
+        self.assertFalse(auteur.has_usable_password())
+
+    @override_settings(DEBUG=False)
+    def test_la_commande_refuse_quand_debug_vaut_false(self):
+        with self.assertRaises(CommandError):
+            self.peupler()
+
+        self.assertFalse(Article.objects.exists())
+        self.assertFalse(CustomUser.objects.filter(email=DEMO_AUTHOR_EMAIL).exists())

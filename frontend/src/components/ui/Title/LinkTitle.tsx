@@ -1,29 +1,14 @@
 import { ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { cx } from "../../../lib/cx";
 
-/**
- * Props for the LinkTitle (Text CTA Link) component
- * Used for text links with an arrow icon
- */
 type TextCtaLinkProps = {
-  /** URL for the link */
   href: string;
-
-  /** Link text content */
   children: React.ReactNode;
-
-  /** If true, opens the link in a new tab */
   external?: boolean;
-
-  /** If true, applies accent color on hover */
   hoverAccent?: boolean;
-
-  /** Additional CSS classes */
   className?: string;
 };
-
-function cx(...classes: Array<string | false | undefined | null>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function TextCtaLink({
   href,
@@ -32,21 +17,40 @@ export default function TextCtaLink({
   hoverAccent = false,
   className,
 }: TextCtaLinkProps) {
-  return (
-    <a
-      href={href}
-      className={cx(
-        "group inline-flex items-center gap-2 text-lg font-medium focus-ring-primary",
-        "link-soft",
-        hoverAccent && "hover:text-accent",
-        className
-      )}
-      target={external ? "_blank" : undefined}
-      rel={external ? "noreferrer" : undefined}
-    >
+  const classes = cx(
+    "group inline-flex items-center gap-2 text-lg font-medium focus-ring-primary",
+    hoverAccent &&
+      "hover:text-[var(--color-light-accent-primary)] dark:hover:text-[var(--color-dark-accent-primary)]",
+    className,
+  );
+
+  const contenu = (
+    <>
       <span>{children}</span>
 
       <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-    </a>
+    </>
+  );
+
+  // Seul composant de `ui/` à connaître le routeur : un `<a>` vers un chemin de
+  // l'application rechargerait tout le bundle au lieu de changer de vue. Les
+  // ancres de défilement et les liens externes gardent le leur.
+  if (external || href.startsWith("#")) {
+    return (
+      <a
+        href={href}
+        className={classes}
+        target={external ? "_blank" : undefined}
+        rel={external ? "noreferrer" : undefined}
+      >
+        {contenu}
+      </a>
+    );
+  }
+
+  return (
+    <Link to={href} className={classes}>
+      {contenu}
+    </Link>
   );
 }
