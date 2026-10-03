@@ -10,7 +10,7 @@ DEBUG = False
 # aucune donnée réelle, et la suite doit tourner en CI sans clé Django à
 # fournir. Les identifiants de base, eux, restent exigés (voir plus bas).
 # C'est la raison pour laquelle base.py ne définit pas SECRET_KEY lui-même.
-SECRET_KEY = 'cle-de-test-non-secrete'
+SECRET_KEY = 'cle-de-test-non-secrete-de-32-octets-au-moins'
 
 # Le client de test Django utilise l'hôte "testserver".
 ALLOWED_HOSTS = ['testserver', 'localhost', '127.0.0.1']
