@@ -19,12 +19,18 @@ Application web React/TypeScript avec système de routing, authentification et d
 - **React Router DOM 7.12** - Routing SPA
 - **Tailwind CSS 4.1** - Framework CSS utility-first
 - **Lucide React** - Bibliothèque d'icônes
+- **Embla Carousel 8.6** - Carrousel de l'accueil (`embla-carousel-react`, `embla-carousel-autoplay`)
+- **Vitest 5** et **Testing Library** - Tests unitaires et de composants, sous `jsdom`
+- **Playwright 1.63** - Parcours de bout en bout dans un navigateur
 
 ## 📦 Installation
 
 ```bash
 # Installer les dépendances
 npm install
+
+# Créer la configuration locale : sans VITE_API_URL, src/lib/api.ts lève à l'import
+cp .env.example .env
 
 # Lancer le serveur de développement
 npm run dev
@@ -53,6 +59,8 @@ npm run lint
 | `/about` | Page de présentation |
 | `/blog` | Liste des articles |
 | `/articles/:id` | Détail d'un article |
+| `/terms` | Conditions d'utilisation |
+| `/privacy` | Politique de confidentialité |
 | `/*` | Page 404 personnalisée |
 
 ## ✨ Features
@@ -78,52 +86,72 @@ npm run lint
 
 ## 📚 Documentation
 
-Pour une documentation complète, consultez **`RAPPORT_TECHNIQUE.md`** qui contient :
+Ce fichier ne couvre que le front. Le reste est à la racine du dépôt :
 
-- 📂 Architecture détaillée des dossiers
-- 🔧 Justification des choix techniques
-- 📖 Guide de prise en main complet
-- 🎨 Documentation du design system
-- ✅ Bonnes pratiques implémentées
-- 🔮 Améliorations futures possibles
+- [`../README.md`](../README.md) - installation complète, API, pile Docker et intégration continue
+- [`../AMELIORATIONS.md`](../AMELIORATIONS.md) - limites connues et améliorations envisagées
 
 ## 📁 Structure du projet
 
 ```
 src/
-├── components/           # Composants réutilisables
-│   ├── common/          # Composants métier spécifiques
-│   │   ├── Navigation/  # NavBar, DesktopNav, MobileMenu
-│   │   ├── Home/        # HeroBanner, FeatureBlock, BrandBanner
-│   │   ├── Contact/     # FormContact
-│   │   ├── Login/       # FormLogin
-│   │   ├── Subscribe/   # FormSubscribe
+├── components/                # Composants réutilisables
+│   ├── common/                # Composants métier, liés à un domaine
+│   │   ├── Blog/              # Card (export ArticleCard), FormArticle
+│   │   ├── Contact/           # FormContact
+│   │   ├── Home/              # HeroBanner, FeatureBlock, BrandBanner, Slider
+│   │   ├── Login/             # FormLogin
+│   │   ├── Navigation/        # NavBar, DesktopNav, MobileMenu
+│   │   ├── Subscribe/         # FormSubscribe
 │   │   ├── Footer.tsx
 │   │   └── ThemeToggle.tsx
-│   └── ui/              # Composants UI génériques
-│       ├── Button/      # MainButton
-│       ├── Input/       # Input, Textarea
-│       ├── Logo/        # Logo, LogoBanner
-│       └── Title/       # MainTitle, SecondTitle, LinkTitle
-├── pages/               # Pages de l'application
-│   ├── Home.tsx
+│   └── ui/                    # Composants génériques, sans métier
+│       ├── Alert/             # ErrorAlert
+│       ├── Button/            # MainButton (export Button), buttonClasses
+│       ├── Input/             # Input, Textarea, FormField
+│       ├── Logo/              # Logo, LogoBanner
+│       └── Title/             # MainTitle (export HeroTitle), SecondTitle (export SectionTitle),
+│                              # LinkTitle (export TextCtaLink)
+├── pages/                     # Une page par route
+│   ├── Blog/                  # Blog, ArticleDetails
+│   ├── About.tsx
+│   ├── ChangePassword.tsx
 │   ├── Contact.tsx
+│   ├── ForgotPassword.tsx
+│   ├── Home.tsx
 │   ├── Login.tsx
+│   ├── NotFound.tsx
+│   ├── Privacy.tsx
+│   ├── ResetPassword.tsx
 │   ├── Subscribe.tsx
-│   └── NotFound.tsx
-├── layouts/             # Layouts
+│   └── Terms.tsx
+├── layouts/
 │   └── MainLayout.tsx
-├── hooks/               # Hooks personnalisés
+├── hooks/
+│   ├── useForm.ts             # Socle des formulaires : champs, erreurs, envoi
+│   ├── useIsAuthenticated.ts  # État de connexion, et logout
 │   └── useTheme.ts
-├── types/               # Types TypeScript
-│   └── navigation.ts
-├── assets/              # Images et SVG
+├── lib/
+│   ├── api.ts                 # apiFetch, seul point d'appel réseau
+│   ├── apiErrors.ts           # toFormErrors : refus de l'API -> messages du formulaire
+│   ├── cx.ts                  # Assemblage de classes conditionnelles
+│   ├── navigation.ts          # Liens servis par l'en-tête et le pied de page
+│   ├── tokens.ts              # Lecture et écriture des jetons JWT
+│   └── validationRules.ts     # Règles partagées : email, complexité du mot de passe
+├── types/
+│   ├── article.ts             # Article, ArticleListItem
+│   └── navigation.ts          # NavItem
+├── assets/                    # Images et SVG
 │   ├── img/
 │   └── svg/
-├── App.tsx              # Composant racine
-├── main.tsx             # Point d'entrée
-└── index.css            # Styles globaux et design system
+├── App.tsx                    # Routes
+├── main.tsx                   # Point d'entrée
+├── index.css                  # Styles globaux et design system
+└── vite-env.d.ts
 ```
+
+Les tests Vitest (`*.test.ts`, `*.test.tsx`) vivent à côté de leur source. Le parcours
+Playwright est hors de `src/`, dans `e2e/`.
 
 ## 🎨 Composants UI disponibles
 
@@ -168,10 +196,11 @@ import { Textarea } from "./components/ui/Input";
 | Commande | Description |
 |----------|-------------|
 | `npm run dev` | Lance le serveur de développement sur http://localhost:5173 |
-| `npm run build` | Build de production dans `/dist` |
+| `npm run build` | Vérifie les types (`tsc -b`), puis build de production dans `/dist` |
 | `npm run preview` | Preview du build de production |
 | `npm run lint` | Vérification ESLint |
 | `npm test` | Lance la suite Vitest, sans base ni conteneur |
+| `npm run test:e2e` | Lance le parcours Playwright contre la pile de développement de Compose ; identifiants dans `E2E_EMAIL` et `E2E_PASSWORD` |
 
 ## 🎨 Design System
 
