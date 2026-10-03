@@ -72,7 +72,7 @@ npm run lint
 
 ### Formulaires
 - ✅ Validation côté client complète
-- ✅ Messages d'erreur en temps réel
+- ✅ Messages d'erreur sous chaque champ, à l'envoi
 - ✅ Clearing automatique des erreurs à la saisie
 - ✅ Support : text, email, password, textarea
 - ✅ États de chargement (isSubmitting)
