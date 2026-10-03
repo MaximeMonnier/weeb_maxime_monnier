@@ -1,5 +1,5 @@
 import { Link, NavLink as RRNavLink } from "react-router-dom";
-import Button from "../../ui/Button/MainButton";
+import Button from "../../ui/Button/Button";
 import { buttonClasses } from "../../ui/Button/buttonClasses";
 import { cx } from "../../../lib/cx";
 import { LIEN_CONNEXION, LIEN_INSCRIPTION } from "../../../lib/navigation";

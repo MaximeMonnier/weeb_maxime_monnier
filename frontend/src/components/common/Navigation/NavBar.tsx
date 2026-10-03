@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import Button from "../../ui/Button/MainButton";
+import Button from "../../ui/Button/Button";
 import { buttonClasses } from "../../ui/Button/buttonClasses";
 import Logo from "../../ui/Logo/Logo";
 import ThemeToggle from "../ThemeToggle";

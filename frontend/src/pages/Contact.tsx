@@ -1,12 +1,12 @@
 import Form from "../components/common/Contact/FormContact";
-import MainTitle from "../components/ui/Title/MainTitle";
+import HeroTitle from "../components/ui/Title/HeroTitle";
 
 const Contact = () => {
   return (
     <div className="container-custom mt-32">
       <div className="flex flex-col items-center justify-center">
         <div>
-          <MainTitle line1={<>Votre avis compte !</>} />
+          <HeroTitle line1={<>Votre avis compte !</>} />
         </div>
         <div className="text-center w-1/2 py-6">
           Votre retour est essentiel pour nous améliorer ! Partagez votre

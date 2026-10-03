@@ -156,7 +156,7 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       `request.user`, réservée au membre, dont le serializer ne rend que le prénom, le nom et
       l'email — rendre l'email modifiable y ajouterait un second point d'énumération, voir
       « `/api/auth/register/` énumère les comptes » ci-dessus.
-- [ ] **Images de couverture d'article.** `coverImg` a été retiré du type et de `Card.tsx` par
+- [ ] **Images de couverture d'article.** `coverImg` a été retiré du type et de `ArticleCard.tsx` par
       l'issue #175 (tâche 9.1) : ni le modèle `Article` ni les deux serializers de
       `backend/articles/serializers.py` n'ont de champ image, et la branche d'affichage ne
       s'exécutait jamais. C'est une fonctionnalité, pas un nettoyage. Piste : un `ImageField`

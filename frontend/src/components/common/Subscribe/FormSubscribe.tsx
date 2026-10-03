@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
-import MainButton from "../../ui/Button/MainButton";
+import Button from "../../ui/Button/Button";
 import { apiFetch } from "../../../lib/api";
 import { toFormErrors } from "../../../lib/apiErrors";
 import { isComplexPassword, isValidEmail } from "../../../lib/validationRules";
@@ -222,7 +222,7 @@ const FormSubscribe = () => {
         </div>
 
         <div className="flex justify-center">
-          <MainButton
+          <Button
             type="submit"
             variant="primary"
             size="lg"
@@ -230,7 +230,7 @@ const FormSubscribe = () => {
             fullWidth
           >
             {isSubmitting ? "Création du compte..." : "Créer mon compte"}
-          </MainButton>
+          </Button>
         </div>
 
         <div className="text-center text-sm text-ink-soft">

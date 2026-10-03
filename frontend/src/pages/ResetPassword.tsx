@@ -4,8 +4,8 @@ import { toFormErrors } from "../lib/apiErrors";
 import { useForm } from "../hooks/useForm";
 import type { FormErrors } from "../hooks/useForm";
 import { Input } from "../components/ui/Input";
-import MainButton from "../components/ui/Button/MainButton";
-import MainTitle from "../components/ui/Title/MainTitle";
+import Button from "../components/ui/Button/Button";
+import HeroTitle from "../components/ui/Title/HeroTitle";
 import ErrorAlert from "../components/ui/Alert/ErrorAlert";
 
 // La clé porte le nom du champ côté API : `toFormErrors` range son refus dessous.
@@ -81,7 +81,7 @@ const ResetPassword = () => {
   return (
     <div className="container-custom mt-32">
       <div className="flex flex-col items-center justify-center">
-        <MainTitle
+        <HeroTitle
           line1={<>Nouveau mot de passe</>}
           line2="Choisissez le mot de passe de votre compte"
         />
@@ -117,7 +117,7 @@ const ResetPassword = () => {
                 />
 
                 <div className="flex justify-center">
-                  <MainButton
+                  <Button
                     type="submit"
                     variant="primary"
                     size="lg"
@@ -127,7 +127,7 @@ const ResetPassword = () => {
                     {isSubmitting
                       ? "Veuillez patienter…"
                       : "Valider le nouveau mot de passe"}
-                  </MainButton>
+                  </Button>
                 </div>
               </div>
             </form>

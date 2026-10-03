@@ -1,17 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, type ApiError } from "../../lib/api";
 import { toFormErrors } from "../../lib/apiErrors";
 import { useIsAuthenticated } from "../../hooks/useIsAuthenticated";
 import type { ArticleListItem } from "../../types/article";
 import ErrorAlert from "../../components/ui/Alert/ErrorAlert";
-import Button from "../../components/ui/Button/MainButton";
+import Button from "../../components/ui/Button/Button";
 import { buttonClasses } from "../../components/ui/Button/buttonClasses";
-import MainTitle from "../../components/ui/Title/MainTitle";
-import Card from "../../components/common/Blog/Card.tsx";
-
-import { useRef } from "react";
-import FormArticle from "../../components/common/Blog/FormArticle.tsx";
+import HeroTitle from "../../components/ui/Title/HeroTitle";
+import ArticleCard from "../../components/common/Blog/ArticleCard";
+import FormArticle from "../../components/common/Blog/FormArticle";
 
 // La forme que DRF donne à toute liste de l'API, découpée en pages.
 type Page<T> = {
@@ -73,7 +71,7 @@ const Blog = () => {
 
   return (
     <div className="container-custom mt-32">
-      <MainTitle
+      <HeroTitle
         center={false}
         as="h2"
         line1={<>Nos articles vont vous plaire !</>}
@@ -111,7 +109,7 @@ const Blog = () => {
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {articles?.map((article) => (
-            <Card key={article.id} article={article} />
+            <ArticleCard key={article.id} article={article} />
           ))}
         </div>
         {/* Sous la liste et non au-dessus : l'échec d'une page suivante se lit
