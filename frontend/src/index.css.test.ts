@@ -185,15 +185,30 @@ describe("index.css", () => {
   });
 });
 
-/** Rend les trois composantes OKLCH d'une variable de `@theme`. */
-function oklchDe(variable: string): [number, number, number] {
+/** Rend le corps du premier bloc ouvert par `selecteur` dans `index.css`. */
+function blocDe(selecteur: string): string {
+  const debut = sourceDuCss.indexOf(`${selecteur} {`);
+  if (debut === -1) throw new Error(`bloc ${selecteur} introuvable`);
+  return sourceDuCss.slice(debut, sourceDuCss.indexOf("}", debut));
+}
+
+// Le clair est la valeur de `@theme`, le sombre sa redéfinition sous `.dark`.
+const PALETTES = { clair: blocDe("@theme"), sombre: blocDe(".dark") };
+
+/** Rend les trois composantes OKLCH d'une variable de couleur, dans un thème. */
+function oklchDe(
+  theme: keyof typeof PALETTES,
+  variable: string,
+): [number, number, number] {
   // Prettier coupe parfois la valeur sur trois lignes, d'où les `\s*`.
-  const trouve = sourceDuCss.match(
+  const trouve = PALETTES[theme].match(
     new RegExp(
       `--${variable}:\\s*oklch\\(\\s*([\\d.]+) ([\\d.]+) ([\\d.]+)\\s*\\)`,
     ),
   );
-  if (!trouve) throw new Error(`--${variable} introuvable ou hors oklch()`);
+  if (!trouve) {
+    throw new Error(`--${variable} introuvable en ${theme} ou hors oklch()`);
+  }
   return [Number(trouve[1]), Number(trouve[2]), Number(trouve[3])];
 }
 
@@ -212,13 +227,13 @@ function ecartOklab(
 
 describe("palette de index.css", () => {
   // Le menu mobile, les flèches du carrousel et les icônes du pied de page passent
-  // du fond secondaire au tertiaire au survol. Sous 0,02 l'œil ne voit rien, et ni
+  // de `surface-alt` à `surface-hover` au survol. Sous 0,02 l'œil ne voit rien, et ni
   // le build ni le lint ne le disent : le thème clair est resté ainsi jusqu'à #193.
-  it.each(["light", "dark"])(
+  it.each(["clair", "sombre"] as const)(
     "sépare à l'œil le fond de survol du fond secondaire (%s)",
     (theme) => {
-      const repos = oklchDe(`color-${theme}-bg-secondary`);
-      const survol = oklchDe(`color-${theme}-bg-tertiary`);
+      const repos = oklchDe(theme, "color-surface-alt");
+      const survol = oklchDe(theme, "color-surface-hover");
 
       expect(ecartOklab(repos, survol)).toBeGreaterThan(0.02);
     },

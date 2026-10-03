@@ -121,7 +121,7 @@ const FormContact = () => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-2xl my-8 border border-primary p-6 rounded-lg"
+      className="w-full max-w-2xl my-8 border border-line p-6 rounded-lg"
     >
       <ErrorAlert message={formError} />
       {/* Monté en permanence : une région live apparue avec son texte n'est pas

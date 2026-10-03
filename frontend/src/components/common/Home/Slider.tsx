@@ -8,7 +8,7 @@ import Image2 from "../../../assets/img/img2.png";
 // Les deux images n'ont pas le même format : le cadre prend celui d'img1 et
 // img2 y est centrée entière, sur le fond du thème plutôt qu'un vide.
 const CADRE_SLIDE =
-  "aspect-[1100/661] w-full rounded-lg object-contain bg-[var(--color-light-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)]";
+  "aspect-[1100/661] w-full rounded-lg object-contain bg-surface-alt";
 
 const Slider = () => {
   const autoplay = useRef(Autoplay({ delay: 3500, stopOnInteraction: false }));
@@ -64,15 +64,12 @@ const Slider = () => {
       </div>
 
       <div className="mt-4 flex items-center justify-center gap-3">
-      {/* Les deux flèches épellent leur fond au lieu de porter `bg-secondary` :
-          `.dark .bg-secondary` pèse autant que le survol sombre et est écrite
-          après lui, donc elle gagnait et le survol ne se voyait pas. */}
         <button
           type="button"
           onClick={goToPrev}
           disabled={!canPrev}
           aria-label="Slide précédente"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary bg-[var(--color-light-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] text-primary transition-all duration-200 hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface-alt text-ink transition-all duration-200 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <ChevronLeft size={20} strokeWidth={2.2} />
         </button>
@@ -82,7 +79,7 @@ const Slider = () => {
           onClick={goToNext}
           disabled={!canNext}
           aria-label="Slide suivante"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-primary bg-[var(--color-light-bg-secondary)] dark:bg-[var(--color-dark-bg-secondary)] text-primary transition-all duration-200 hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface-alt text-ink transition-all duration-200 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <ChevronRight size={20} strokeWidth={2.2} />
         </button>
