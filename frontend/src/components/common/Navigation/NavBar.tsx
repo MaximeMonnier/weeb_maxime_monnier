@@ -47,22 +47,6 @@ function NavBar() {
     navigate("/");
   };
 
-  const scrollToHash = (hash: string) => {
-    const id = hash.replace("#", "");
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const handleHashClick = (
-    e: React.MouseEvent<HTMLAnchorElement>,
-    hash: string,
-  ) => {
-    e.preventDefault();
-    scrollToHash(hash);
-    closeMobileMenu();
-  };
-
   const navItems: NavItem[] = [LIEN_BLOG, LIEN_A_PROPOS, LIEN_CONTACT];
 
   return (
@@ -90,7 +74,7 @@ function NavBar() {
                 <Logo size="md" />
               </Link>
 
-              <DesktopNav navItems={navItems} onHashClick={handleHashClick} />
+              <DesktopNav navItems={navItems} />
             </div>
 
             <div className="hidden md:flex items-center">
@@ -156,7 +140,6 @@ function NavBar() {
           isAuthenticated={isAuthenticated}
           navItems={navItems}
           onClose={closeMobileMenu}
-          onHashClick={handleHashClick}
           onLogout={handleLogout}
         />
       </nav>
