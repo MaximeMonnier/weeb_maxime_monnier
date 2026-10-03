@@ -32,14 +32,33 @@ et pour les prochaines itérations).
       trop mineur. Piste : vider les seules erreurs sur l'événement `close` du `<dialog>` — une
       `key` changée à l'ouverture remonterait le formulaire, mais perdrait aussi le texte que
       le message du `401` invite à copier.
-- [ ] **Deux couleurs du thème sombre ne sont pas celles que leur commentaire annonce.**
-      Dans `index.css`, `--color-dark-bg-primary` et `--color-dark-accent-primary` sont hors
-      de la gamme sRGB, comme l'étaient les violets clairs : le fond annoncé `#0F172A`
-      s'affiche `#00112F`, le violet annoncé `#A855F7` s'affiche `#C75EFF`. Le contraste
+
+## Frontend — code
+
+- [ ] **La palette n'affiche pas les couleurs que ses commentaires annoncent.** Dans le
+      `@theme` d'`index.css`, 23 des 28 couleurs annotées s'écartent de leur hexadécimal ;
+      seuls les blancs et les deux violets clairs, recalculés depuis, tombent juste. Deux
+      causes. Cinq valeurs sont hors de la gamme sRGB et le navigateur les ramène au bord :
+      le fond sombre annoncé `#0F172A` s'affiche `#00112F`, le violet sombre `#A855F7`
+      s'affiche `#C75EFF`, et les deux verts et le rouge clair glissent de même. Les autres
+      sont dans la gamme mais ne sont pas les conversions des couleurs citées : les gris,
+      écrits `oklch(0.3 0.02 250)` pour `#334155`, s'affichent `#262F38`, plus sombres et moins
+      bleus, et deux valeurs différentes se réclament toutes deux de `#1E293B`. Le contraste
       « 4,5:1 sur le fond principal » du survol sombre vaut contre le fond affiché, et 4,3:1
-      contre `#0F172A`. Repéré à l'issue #220. Piste : décider pour chacune entre la couleur
-      affichée, qui garde l'écran tel quel, et celle de la maquette, puis mesurer les
-      contrastes qui en dépendent avant de choisir.
+      contre `#0F172A`. Repéré aux issues #220 et #233. Piste : décider entre l'écran actuel,
+      dont on réécrit alors les commentaires, et la maquette, dont on recalcule les valeurs —
+      puis mesurer les contrastes qui en dépendent avant de choisir.
+- [ ] **Le seuil de 8 caractères du mot de passe est recopié dans quatre formulaires.**
+      `FormSubscribe.tsx`, `ResetPassword.tsx`, `ChangePassword.tsx` et `FormLogin.tsx`
+      écrivent chacun `length < 8` et son message, là où la complexité vit une seule fois
+      dans `lib/validationRules.ts`. Le seuil reprend celui de `MinimumLengthValidator`
+      (`config/settings/base.py`) : s'il change côté API, trois formulaires sur quatre
+      restent en retard sans que rien ne le signale. La confirmation du mot de passe se
+      répète aussi, entre `FormSubscribe.tsx` et `ChangePassword.tsx`. Et la copie de
+      `FormLogin.tsx` applique une règle de création à la connexion : un compte au mot de
+      passe plus court, né d'un `create_user()` au shell, ne pourrait pas se connecter depuis
+      le site. Repéré à l'issue #233. Piste : une constante et une fonction dans
+      `lib/validationRules.ts`, et retirer le contrôle de longueur de la connexion.
 
 ## Docker — mise en ligne
 
