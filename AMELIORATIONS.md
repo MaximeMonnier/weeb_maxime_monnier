@@ -102,12 +102,10 @@ Rien de ce qui reste ne bloque le développement.
 
 ## Frontend — code mort
 
-- [ ] **La variante `hash` de `NavItem` n'a plus aucun lien.** `types/navigation.ts` la
-      déclare et trois composants la servent — `scrollToHash` et `handleHashClick` dans
-      `NavBar.tsx`, la prop `onHashClick` de `DesktopNav.tsx` et de `MobileMenu.tsx` —, mais
-      `lib/navigation.ts` ne produit que des routes : la branche ne s'exécute jamais. Piste :
-      la retirer, type compris, sauf si une ancre de défilement est prévue sur l'accueil —
-      auquel cas le dire là où elle est déclarée.
+- [x] **La variante `hash` de `NavItem` n'a plus aucun lien** — réglé par l'issue #218.
+      La variante, `scrollToHash`, `handleHashClick` et la prop `onHashClick` sont retirés,
+      aucune ancre de défilement n'étant prévue. `NavItem` se réduit à `{ to, label }` : son
+      champ `type` ne départageait plus rien, et `LienPartage` disparaît avec lui.
 
 ## Frontend — sécurité
 

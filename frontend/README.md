@@ -59,7 +59,6 @@ npm run lint
 
 ### Navigation
 - ✅ Menu responsive avec version mobile
-- ✅ Navigation smooth scroll pour les ancres (#section)
 - ✅ Dark mode avec persistance localStorage
 - ✅ Indicateur de page active
 
@@ -293,8 +292,8 @@ import MaPage from "./pages/MaPage";
 
 3. Optionnel : Ajouter un lien dans `NavBar.tsx`
 ```tsx
-// Dans navItems
-{ type: "route", to: "/ma-page", label: "Ma Page" }
+// Dans navItems — dans `lib/navigation.ts` si le pied de page le sert aussi
+{ to: "/ma-page", label: "Ma Page" }
 ```
 
 ### Créer un formulaire
