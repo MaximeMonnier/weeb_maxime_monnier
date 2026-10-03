@@ -144,7 +144,7 @@ const Blog = () => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold">Nouvel article</h3>
           <button
-            className="text-ink cursor-pointer text-2xl font-bold hover:text-red-800 transition-colors"
+            className="text-ink cursor-pointer text-2xl font-bold hover:text-error transition-colors"
             onClick={() => dialogRef.current?.close()}
             aria-label="Fermer"
           >
