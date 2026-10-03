@@ -2406,16 +2406,20 @@ retiré il passe.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 + 2 — documentation |
+| Clos le 2026-10-03 — livré sous son ancien numéro, le lot 11, avant les lots 11 à 13 ajoutés le même jour | #229 | Lot 14 | Bloc 1 + 2 — documentation |
 
 **Grain de ticket** : ticket unique — un seul livrable, la documentation à jour.
+Ouvert finalement en epic + 4 sous-issues, une par fichier livré et une pour la remontée :
+14.1 → #230 (`README.md`) et #231 (`frontend/README.md`), 14.2 → #232, 14.3 → #233.
 
 > **Dépendances : tous les lots précédents**, lots 11 à 13 compris. Le lot 13 réécrit
 > `CLAUDE.md` et le README : 14.1 et 14.2 se réduisent alors à un contrôle des écarts restants.
+> Livré à la fin du lot 10 : la fin du lot 13 appellera ce contrôle, puis une nouvelle remontée
+> de `preprod` dans `main`.
 
 ## 14.1 — Consigner le piège `node_modules` et les écarts de `CLAUDE.md`
 
-- [ ] **Fichiers** : `CLAUDE.md`, `README.md`
+- [x] **Fichiers** : `CLAUDE.md`, `README.md` — livré par #230 (PR #234) et #231 (PR #235)
 - **Constat** : `CLAUDE.md` recense « six pièges de la pile » Docker, mais pas celui qui bloque
   effectivement le poste de travail : le volume anonyme `/app/node_modules` de
   `compose.dev.yaml` crée côté hôte un dossier vide appartenant à `root`, ce qui fait
@@ -2455,7 +2459,7 @@ mise à jour ciblée, pas une refonte.
 
 ## 14.2 — Mettre à jour `AMELIORATIONS.md` et le `README`
 
-- [ ] **Fichiers** : `AMELIORATIONS.md`, `README.md`
+- [x] **Fichiers** : `AMELIORATIONS.md`, `README.md` — livré par #232 (PR #236)
 - **Constat** : `AMELIORATIONS.md` ne contient qu'une seule entrée — les toasts — traitée par la
   tâche 4.2. Le README ne mentionne ni la configuration email (tâche 1.1), ni les quotas
   (tâche 1.5), ni la façon de lancer la suite de tests désormais non vide.
@@ -2491,7 +2495,7 @@ Travail demandé :
 
 ## 14.3 — Revue finale et clôture
 
-- [ ] **Fichiers** : l'ensemble du diff
+- [x] **Fichiers** : l'ensemble du diff — livré par #233 (PR #237, `preprod` → `main`)
 - **Attendu** : un verdict `OK` sur les six axes, puis les issues fermées à la main.
 
 ```

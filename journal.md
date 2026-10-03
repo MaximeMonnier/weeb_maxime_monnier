@@ -837,3 +837,72 @@ Au navigateur, sur la pile de développement :
 - à 375 px, l'accueil fait 375 px de large, mesuré à la livraison de #219 ;
 - en thème clair, le lien actif du menu mobile s'affiche en `rgb(147, 51, 234)`, à 5,4:1 sur
   blanc et 4,9:1 sur le fond secondaire.
+
+## Lot 14 — Documentation et clôture
+
+Clos le 2026-10-03 · Epic #229 · Alimente : Bloc 1 + 2 — documentation
+
+**Constat mesuré** — l'audit du 2026-10-03, lots 0 à 10 livrés dans `preprod`, relevait trois
+documents en retard sur le dépôt et une branche de production figée :
+- `README.md` : **huit écarts**, dont une règle de branche contraire au flux du projet, partant
+  de `main` au lieu de `origin/preprod`, et une image `dev` annoncée à ~540 Mo qui en pèse ~650 ;
+- `frontend/README.md` : environ **la moitié des sections** périmées. L'exemple de formulaire
+  s'écrivait encore avec des `useState` et un `fetch`, et le fichier renvoyait à un
+  `RAPPORT_TECHNIQUE.md` inexistant ;
+- `AMELIORATIONS.md` : **treize entrées** déjà livrées, toujours dans la liste ;
+- `main` : **238 commits** de retard sur `preprod`, sans remontée depuis la PR #127 du
+  2026-09-21. Il y en avait 256 à la remontée.
+
+Filet de départ, à `5718aee` : **96 tests back**, **126 tests front**. Aucun ne bouge : le lot
+ne touche aucun code.
+
+**Décision et justification** :
+
+- le plan prévoyait un ticket unique, mais le lot est parti en **epic + 4** : une sous-issue par
+  document, chacune vérifiable seule, plus une pour la remontée ;
+- la remontée (#233) **ne suit pas le parcours d'un ticket** : la PR #237 part de `preprod`
+  elle-même, sans branche d'issue. Elle est fusionnée par un commit de fusion, comme #124 et
+  #127, et `preprod` est conservée ;
+- la revue finale porte sur tout l'écart `origin/main...origin/preprod`, soit 87 fichiers. Ses
+  deux points à corriger étaient **déjà sur `main`** : ils vont dans `AMELIORATIONS.md`, pas
+  dans des issues ouvertes avant la PR ;
+- les mentions de l'outillage dans `correction.md` et dans trois messages de commit partent
+  **telles quelles**. `main` en portait déjà, et les retirer des messages aurait obligé à
+  réécrire l'historique de `preprod`, puis à le pousser en force ;
+- l'instance d'`Autoplay` recréée à chaque rendu n'est pas consignée : elle n'a aucun effet
+  visible.
+
+**Ce qui a surpris** — quatre constats.
+
+**Le lot a changé de numéro le jour de sa livraison.** Il a été ouvert comme lot 11. Le même
+matin, l'audit a inséré trois lots avant lui, et il est devenu le lot 14. Il est donc livré
+**avant** les lots 11 à 13 dont il dépend désormais. La fin du lot 13, qui réécrira le README et
+les consignes hors dépôt, appellera un second contrôle des écarts, puis une nouvelle remontée dans `main`.
+
+**L'entrée sur les couleurs sous-estimait le défaut.** Au lot 10, `AMELIORATIONS.md` notait
+deux couleurs dont l'affichage ne suivait pas le commentaire, et en rendait la gamme sRGB
+responsable. La revue finale a recalculé toute la palette. **23 des 28** couleurs annotées
+s'écartent de leur commentaire, et 5 seulement sont hors gamme. Les autres ne sont tout
+simplement pas la conversion de la couleur citée.
+
+**`Closes #233` a fermé l'issue tout seul.** C'est une première pour ce dépôt : la PR visait
+`main`, la branche par défaut. Aucune fermeture à la main n'a été nécessaire, et l'item du
+Project est passé à « Done » de lui-même.
+
+**La séparation des ports ne protège que des deux piles du projet.** La pile de production n'a
+pas pu publier son front sur 8081, le port étant pris par le conteneur d'un autre projet de la
+machine. La vérification a été lancée avec `FRONTEND_PORT_PROD=8082`. Rien à corriger dans le
+dépôt : c'est la variable qui sert à cela.
+
+Le diff du lot pèse **470 insertions pour 198 suppressions**, sur quatre fichiers de
+documentation, `correction.md` compris.
+
+**Preuve de la correction** — rejouée sur `preprod` à `b9da1f3`, puis sur la PR #237.
+- Back : `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` rend `Ran 96 tests`
+  puis `OK`. `check` et `makemigrations --check --dry-run` ne signalent rien.
+- Front : `npm run lint` ne rend rien, `npm test` rend `Tests  126 passed (126)` et
+  `npm run build` aboutit.
+- `check --deploy`, en settings de production : `security.W004` seul, comme sur `main`.
+- Les deux piles démarrent, tous services `healthy`, images reconstruites.
+- `tests.yml` et `docker-images.yml` sont verts sur la PR. Après la fusion,
+  `git log --oneline origin/main..origin/preprod` ne rend rien.
