@@ -1348,16 +1348,21 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
 ├── .env.example              # modèle de configuration à copier en .env
 ├── .env.prod.example         # modèle des valeurs propres à la production
 ├── .github/workflows/        # les suites de tests, et la construction des images
+├── AMELIORATIONS.md          # pistes repérées en cours de route, non traitées
 ├── compose.dev.yaml          # pile de développement, autonome
 ├── compose.prod.yaml         # pile de production, autonome
 ├── backend/
 │   ├── config/               # configuration du projet Django
 │   │   ├── settings/         # base, development, test, production
 │   │   ├── urls.py           # routeur principal
-│   │   └── views.py          # route de santé, seule vue hors d'une app métier
+│   │   ├── views.py          # route de santé, seule vue hors d'une app métier
+│   │   └── tests.py          # ce que la sonde /health/ promet au HEALTHCHECK
 │   ├── accounts/             # utilisateurs, authentification JWT
+│   │   └── tests.py
 │   ├── articles/             # articles du blog, et la commande peupler_articles
+│   │   └── tests.py
 │   ├── contact/              # formulaire de contact
+│   │   └── tests.py
 │   ├── locale/               # libellés de simplejwt que son catalogue laisse en anglais
 │   ├── Dockerfile            # image de production de l'API
 │   ├── .dockerignore         # ce que le build n'envoie pas au démon
@@ -1365,9 +1370,14 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
 │   ├── healthcheck.py        # sonde de santé du conteneur
 │   └── requirements.txt
 └── frontend/
+    ├── .env.example          # modèle du .env de Vite : des VITE_* seulement, en clair dans le bundle
     ├── Dockerfile            # un fichier, deux images : --target dev ou prod
+    ├── .dockerignore         # ce que le build n'envoie pas au démon
     ├── nginx.conf            # serveur de l'image prod : site React et /static/
-    └── src/
+    ├── vite.config.ts        # Vite et Vitest, une seule source de réglages
+    ├── playwright.config.ts  # le parcours en navigateur, second lanceur
+    ├── e2e/                  # parcours Playwright, contre la pile de développement
+    └── src/                  # chaque test Vitest à côté de sa source : <source>.test.ts(x)
         ├── components/ui/              # composants réutilisables, sans logique métier
         ├── components/common/          # composants liés à un domaine du projet
         ├── pages/                      # une page par route
