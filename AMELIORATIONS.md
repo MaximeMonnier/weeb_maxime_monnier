@@ -52,6 +52,14 @@ et pour les prochaines itérations).
       la piste `oklch(0.558 0.252 302)` donnait `rgb(146, 52, 234)`. Le survol sombre, lui,
       garde le `#B73BFF` qu'il affichait sous un commentaire `#9333EA` : la maquette l'aurait
       fait tomber de 4,5:1 à 3,5:1 sur le fond principal.
+- [ ] **Deux couleurs du thème sombre ne sont pas celles que leur commentaire annonce.**
+      Dans `index.css`, `--color-dark-bg-primary` et `--color-dark-accent-primary` sont hors
+      de la gamme sRGB, comme l'étaient les violets clairs : le fond annoncé `#0F172A`
+      s'affiche `#00112F`, le violet annoncé `#A855F7` s'affiche `#C75EFF`. Le contraste
+      « 4,5:1 sur le fond principal » du survol sombre vaut contre le fond affiché, et 4,3:1
+      contre `#0F172A`. Repéré à l'issue #220. Piste : décider pour chacune entre la couleur
+      affichée, qui garde l'écran tel quel, et celle de la maquette, puis mesurer les
+      contrastes qui en dépendent avant de choisir.
 
 ## Docker — mise en ligne
 
