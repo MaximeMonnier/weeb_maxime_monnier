@@ -17,6 +17,7 @@ from django.urls import resolve, reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import CustomUser
@@ -755,6 +756,25 @@ class PasswordChangeTests(TestCase):
 
         self.assertEqual(self.rafraichir(autre_appareil["refresh"]).status_code, 401)
         self.assertEqual(self.rafraichir(self.session["refresh"]).status_code, 401)
+
+    def test_une_rotation_concurrente_n_annule_pas_le_changement(self):
+        inscrire = BlacklistedToken.objects.bulk_create
+
+        def rotation_entre_lecture_et_ecriture(jetons, **options):
+            BlacklistedToken.objects.create(token=jetons[0].token)
+            return inscrire(jetons, **options)
+
+        with patch.object(
+            BlacklistedToken.objects, "bulk_create", side_effect=rotation_entre_lecture_et_ecriture
+        ) as enveloppe:
+            response = self.changer(
+                {"current_password": self.PASSWORD, "new_password": self.NOUVEAU},
+                self.session["access"],
+            )
+
+        enveloppe.assert_called_once()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.connecter(self.NOUVEAU).status_code, 200)
 
     def test_le_jeton_seul_ne_suffit_pas(self):
         for corps in (

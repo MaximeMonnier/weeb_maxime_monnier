@@ -74,7 +74,9 @@ def set_password_and_revoke(user, password):
         user.save()
         BlacklistedToken.objects.bulk_create(
             [BlacklistedToken(token=token) for token in
-             OutstandingToken.objects.filter(user=user, blacklistedtoken__isnull=True)]
+             OutstandingToken.objects.filter(user=user, blacklistedtoken__isnull=True)],
+            # Une rotation de login/refresh/ peut inscrire l'un d'eux entre lecture et écriture.
+            ignore_conflicts=True,
         )
 
 
