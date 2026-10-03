@@ -30,7 +30,7 @@ function ArticleIntrouvable() {
   return (
     <>
       <h1 className="text-2xl font-bold mb-4">Article introuvable</h1>
-      <p className="text-secondary mb-6">
+      <p className="text-ink-soft mb-6">
         Cet article n'existe pas ou a été supprimé.
       </p>
       <Link
@@ -117,11 +117,11 @@ const ArticleDetails = () => {
     return (
       <>
         <h1 className="text-2xl font-bold mb-4">{recu.article.title}</h1>
-        <p className="text-tertiary text-sm mb-4">
+        <p className="text-ink-faint text-sm mb-4">
           Par {recu.article.author} le{" "}
           {new Date(recu.article.created_at).toLocaleDateString()}
         </p>
-        <div className="text-secondary space-y-4">
+        <div className="text-ink-soft space-y-4">
           {paragraphes(recu.article.content).map((paragraphe, index) => (
             // Une ligne simple, elle, reste un retour à la ligne dans le paragraphe.
             <p key={index} className="whitespace-pre-line">

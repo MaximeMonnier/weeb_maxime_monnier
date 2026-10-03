@@ -86,7 +86,7 @@ const ResetPassword = () => {
           line2="Choisissez le mot de passe de votre compte"
         />
 
-        <div className="w-full max-w-md my-8 border border-primary p-6 rounded-lg">
+        <div className="w-full max-w-md my-8 border border-line p-6 rounded-lg">
           {!uid || !token ? (
             <p className="text-center">
               Ce lien est incomplet. Reprenez depuis la{" "}

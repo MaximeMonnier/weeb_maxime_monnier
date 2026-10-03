@@ -20,7 +20,7 @@ export default function TextCtaLink({
   const classes = cx(
     "group inline-flex items-center gap-2 text-lg font-medium focus-ring-primary",
     hoverAccent &&
-      "hover:text-[var(--color-light-accent-primary)] dark:hover:text-[var(--color-dark-accent-primary)]",
+      "hover:text-accent",
     className,
   );
 

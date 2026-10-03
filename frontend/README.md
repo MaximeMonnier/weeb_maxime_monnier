@@ -236,12 +236,10 @@ liens-boutons écrits à la main.
 
 **Utilitaires :**
 - `.container-custom` - Container responsive (max-width: 80rem)
-- `.text-primary`, `.text-secondary`, `.text-tertiary`, `.text-muted`, `.text-accent`
-- `.bg-primary`, `.bg-secondary`
-- `.border-primary`
 
-Ces couleurs sont écrites à la main dans `index.css` : aucune variante ne s'y pose, et un
-`hover:bg-secondary` ne produit aucune règle.
+Les couleurs ne passent par aucune classe écrite à la main : ce sont les utilitaires de
+Tailwind (`bg-surface-alt`, `text-ink-soft`, `border-line`…), tirés des variables ci-dessous,
+et toutes les variantes s'y posent.
 
 **Carrousel :** `.embla__viewport`, `.embla__container`, `.embla__slide` - noms repris de la
 documentation d'Embla.
@@ -252,15 +250,23 @@ arrêté quand le système demande moins d'animations.
 ### Variables CSS
 
 ```css
-/* Couleurs Light Mode */
---color-light-bg-primary     /* #FFFFFF */
---color-light-text-primary   /* #0F172A */
---color-light-accent-primary /* #9333EA */
-
-/* Couleurs Dark Mode */
---color-dark-bg-primary      /* #0F172A */
---color-dark-text-primary    /* #FFFFFF */
---color-dark-accent-primary  /* #A855F7 */
+/* Couleurs : valeur claire dans @theme, redéfinie sous .dark */
+--color-surface              /* fond de page */
+--color-surface-alt          /* sections et cartes */
+--color-surface-hover        /* fond au survol */
+--color-field                /* fond de champ */
+--color-field-focus          /* fond de champ actif */
+--color-ink                  /* titres, étiquettes */
+--color-ink-soft             /* descriptions */
+--color-ink-faint            /* indications */
+--color-ink-muted            /* désactivé */
+--color-ink-caption          /* titres de colonne du pied de page, même valeur en sombre */
+--color-line                 /* bordures */
+--color-line-strong          /* bordures appuyées et champs */
+--color-accent               /* violet */
+--color-accent-hover
+--color-success
+--color-error
 
 /* Texte */
 --text-body                  /* 1rem */

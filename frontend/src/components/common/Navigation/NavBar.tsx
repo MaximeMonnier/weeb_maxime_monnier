@@ -58,12 +58,12 @@ function NavBar() {
         className={cx(
           "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
           isScrolled
-            ? "bg-primary shadow-md dark:shadow-dark-md"
+            ? "bg-surface shadow-md dark:shadow-dark-md"
             : "bg-transparent",
         )}
       >
         <div className="container-custom py-6">
-          <div className="flex items-center justify-between rounded-2xl bg-secondary p-4">
+          <div className="flex items-center justify-between rounded-2xl bg-surface-alt p-4">
             <div className="flex items-center gap-6">
               <Link
                 to="/"

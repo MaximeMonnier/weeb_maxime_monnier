@@ -50,7 +50,7 @@ export default function FeatureBlock({
             </div>
 
             {description ? (
-              <p className="mt-4 max-w-prose text-secondary text-sm sm:text-base leading-relaxed">
+              <p className="mt-4 max-w-prose text-ink-soft text-sm sm:text-base leading-relaxed">
                 {description}
               </p>
             ) : null}

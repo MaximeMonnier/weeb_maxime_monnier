@@ -18,7 +18,7 @@ export default function Logo({ size = "md", className }: LogoProps) {
     <span
       className={cx(
         "font-bold tracking-tight leading-none",
-        "text-primary",
+        "text-ink",
         sizes[size],
         className,
       )}

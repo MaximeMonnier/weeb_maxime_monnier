@@ -95,7 +95,7 @@ const FormLogin = () => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-md my-8 border border-primary p-6 rounded-lg"
+      className="w-full max-w-md my-8 border border-line p-6 rounded-lg"
     >
       <ErrorAlert message={formError} />
 
@@ -146,7 +146,7 @@ const FormLogin = () => {
           </MainButton>
         </div>
 
-        <div className="text-center text-sm text-secondary">
+        <div className="text-center text-sm text-ink-soft">
           Pas encore de compte ?{" "}
           <Link
             to="/subscribe"

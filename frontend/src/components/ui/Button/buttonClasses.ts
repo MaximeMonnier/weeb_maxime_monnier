@@ -32,32 +32,26 @@ const sizes: Record<ButtonSize, string> = {
 const variants: Record<ButtonVariant, string> = {
   primary:
     "font-medium transition-all duration-200 text-white " +
-    "bg-[var(--color-light-accent-primary)] hover:bg-[var(--color-light-accent-hover)] " +
-    "dark:bg-[var(--color-dark-accent-primary)] dark:hover:bg-[var(--color-dark-accent-hover)] " +
+    "bg-accent hover:bg-accent-hover " +
     "hover:-translate-y-[1px] hover:shadow-[var(--shadow-glow-primary)] active:translate-y-0 " +
-    "focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]",
+    "focus-visible:outline-accent",
 
   outline:
     "font-medium transition-all duration-200 bg-transparent " +
-    "text-[var(--color-light-text-primary)] border border-[var(--color-light-border-secondary)] " +
-    "hover:bg-[var(--color-light-bg-tertiary)] " +
-    "dark:text-[var(--color-dark-text-primary)] dark:border-[var(--color-dark-border-secondary)] " +
-    "dark:hover:bg-[var(--color-dark-bg-tertiary)] " +
-    "focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]",
+    "text-ink border border-line-strong " +
+    "hover:bg-surface-hover " +
+    "focus-visible:outline-accent",
 
   secondary:
     "font-medium transition-all duration-200 bg-transparent " +
-    "text-[var(--color-light-accent-primary)] border-2 border-[var(--color-light-accent-primary)] " +
-    "hover:bg-[var(--color-light-accent-primary)] hover:text-white " +
-    "dark:text-[var(--color-dark-accent-primary)] dark:border-[var(--color-dark-accent-primary)] " +
-    "dark:hover:bg-[var(--color-dark-accent-primary)] " +
-    "focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]",
+    "text-accent border-2 border-accent " +
+    "hover:bg-accent hover:text-white " +
+    "focus-visible:outline-accent",
 
   ghost:
     "transition-colors duration-200 bg-transparent " +
-    "text-[var(--color-light-text-primary)] hover:bg-[var(--color-light-bg-tertiary)] " +
-    "dark:text-[var(--color-dark-text-primary)] dark:hover:bg-[var(--color-dark-bg-tertiary)] " +
-    "focus-visible:outline-[var(--color-light-accent-primary)] dark:focus-visible:outline-[var(--color-dark-accent-primary)]",
+    "text-ink hover:bg-surface-hover " +
+    "focus-visible:outline-accent",
 };
 
 /** Habille un lien ou un bouton écrit à la main du même style que `Button`. */

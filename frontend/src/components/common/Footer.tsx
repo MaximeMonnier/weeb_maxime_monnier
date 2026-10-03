@@ -76,7 +76,7 @@ const Footer = () => {
           >
             {columns.map((col) => (
               <div key={col.title} className="min-w-[140px]">
-                <p className="text-[11px] font-semibold tracking-[0.12em] text-[var(--color-light-text-muted)] dark:text-[var(--color-dark-text-tertiary)]">
+                <p className="text-[11px] font-semibold tracking-[0.12em] text-ink-caption">
                   {col.title}
                 </p>
 
@@ -94,8 +94,8 @@ const Footer = () => {
           </nav>
         </div>
 
-        <div className="mt-10 flex flex-col gap-4 border-t border-[var(--color-light-border-primary)] pt-6 dark:border-[var(--color-dark-border-primary)] sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-[var(--color-light-text-tertiary)] dark:text-[var(--color-dark-text-tertiary)]">
+        <div className="mt-10 flex flex-col gap-4 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-ink-faint">
             © {year} Weeb, Inc. All rights reserved.
           </p>
 
@@ -150,7 +150,7 @@ function SocialIcon({
       title={label}
       target="_blank"
       rel="noreferrer"
-      className="touch-target inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-light-text-secondary)] transition hover:bg-[var(--color-light-bg-tertiary)] hover:text-[var(--color-light-text-primary)] dark:text-[var(--color-dark-text-secondary)] dark:hover:bg-[var(--color-dark-bg-tertiary)] dark:hover:text-[var(--color-dark-text-primary)]"
+      className="touch-target inline-flex h-9 w-9 items-center justify-center rounded-full text-ink-soft transition hover:bg-surface-hover hover:text-ink"
     >
       {icon}
     </a>

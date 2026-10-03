@@ -110,7 +110,7 @@ const ChangePassword = () => {
           line2="Sans vous déconnecter ni attendre d'email"
         />
 
-        <div className="w-full max-w-md my-8 border border-primary p-6 rounded-lg">
+        <div className="w-full max-w-md my-8 border border-line p-6 rounded-lg">
           {!isAuthenticated ? (
             <p className="text-center">
               Cette page est réservée aux membres.{" "}

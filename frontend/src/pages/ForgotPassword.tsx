@@ -58,7 +58,7 @@ const ForgotPassword = () => {
           line2="Entrez votre email pour réinitialiser"
         />
 
-        <div className="w-full max-w-md my-8 border border-primary p-6 rounded-lg">
+        <div className="w-full max-w-md my-8 border border-line p-6 rounded-lg">
           {/* Monté en permanence : une région live apparue avec son texte n'est
               pas annoncée de façon fiable. */}
           <p role="status" className="text-center">

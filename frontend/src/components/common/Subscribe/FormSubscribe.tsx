@@ -130,7 +130,7 @@ const FormSubscribe = () => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-2xl my-8 border border-primary p-6 rounded-lg"
+      className="w-full max-w-2xl my-8 border border-line p-6 rounded-lg"
     >
       <ErrorAlert message={formError} />
       {/* Monté en permanence : une région live apparue avec son texte n'est pas
@@ -203,7 +203,7 @@ const FormSubscribe = () => {
           fullWidth
         />
 
-        <div className="text-sm text-secondary">
+        <div className="text-sm text-ink-soft">
           En vous inscrivant, vous acceptez nos{" "}
           <Link
             to="/terms"
@@ -233,7 +233,7 @@ const FormSubscribe = () => {
           </MainButton>
         </div>
 
-        <div className="text-center text-sm text-secondary">
+        <div className="text-center text-sm text-ink-soft">
           Vous avez déjà un compte ?{" "}
           <Link
             to="/login"
