@@ -940,12 +940,14 @@ toujours faute d'un `setupFiles` où le poser une fois — le second rend la bar
 et d'autre.
 
 Un test ne couvre pas de TypeScript du tout : `index.css.test.ts` lit la feuille de style et
-refuse qu'une variante Tailwind — `hover:`, `dark:`, `focus-visible:` — soit posée sur une
-classe écrite à la main dans `index.css`. Tailwind v4 n'en décline que sur les utilitaires
-qu'il connaît : la classe écrite reste alors inerte, sans que le build, le lint ni le typage
-ne le disent. Sa lecture tient au `css: true` de `vite.config.ts`, Vitest remplaçant par du
-vide tout ce qu'il reconnaît comme du CSS, l'import `?raw` compris — d'où le dernier cas du
-fichier, qui vérifie que la lecture a bien eu lieu avant de conclure que tout va bien.
+refuse qu'une variante Tailwind — `hover:`, `md:`, `focus-visible:` — soit posée sur une
+classe écrite à la main dans `index.css`, comme `.nav-link` ou `.form-input`. Tailwind v4 n'en
+décline que sur les utilitaires qu'il connaît : la classe écrite reste alors inerte, sans que
+le build, le lint ni le typage ne le disent. Les couleurs n'y sont plus exposées, étant des
+utilitaires depuis la palette en variables. Sa lecture tient au `css: true` de
+`vite.config.ts`, Vitest remplaçant par du vide tout ce qu'il reconnaît comme du CSS, l'import
+`?raw` compris — d'où le cas du fichier qui vérifie que la lecture a bien eu lieu avant de
+conclure que tout va bien.
 
 Le même fichier refuse l'inverse : une classe de la feuille que plus aucune source ne pose.
 Elle ne fait tomber ni le lint, ni le typage, ni le build, et trois ont vécu ainsi jusqu'à ce
@@ -961,7 +963,7 @@ Il lit les chaînes littérales par un parcours caractère par caractère et non
 régulière, l'apostrophe droite du français — `alt="Vue d'une interface"` — faisant perdre à
 celle-ci toutes les classes de la ligne. Trois formes lui échappent encore, faute d'analyser le
 TypeScript, et aucune n'existe dans le dépôt à ce jour : un jeton coupé par une concaténation
-(`"hover:" + "bg-secondary"`), et un `//` ou un `/*` rencontré hors d'une chaîne — une adresse
+(`"hover:" + "nav-link"`), et un `//` ou un `/*` rencontré hors d'une chaîne — une adresse
 nue au fil du texte JSX, par exemple — qui lui fait sauter la fin de la ligne ou le passage
 jusqu'au `*/`. Une classe écrite après eux sur la même ligne ne serait pas vue.
 
