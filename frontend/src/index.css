@@ -31,7 +31,8 @@
   --color-dark-accent-primary: oklch(
     0.7 0.27 305
   ); /* #A855F7 - Violet principal */
-  --color-dark-accent-hover: oklch(0.64 0.29 305); /* #9333EA - Survol */
+  /* #B73BFF et non le #9333EA de la maquette : 4,5:1 sur le fond principal au lieu de 3,5:1. */
+  --color-dark-accent-hover: oklch(0.6239 0.272 309.12);
 
   --color-dark-success: oklch(0.68 0.18 155); /* #10B981 */
   --color-dark-error: oklch(0.63 0.24 25); /* #EF4444 */
@@ -53,9 +54,10 @@
   --color-light-border-secondary: oklch(0.85 0.01 250); /* #CBD5E1 */
   --color-light-border-input: oklch(0.85 0.01 250); /* #CBD5E1 */
 
-  /* Accents et états plus foncés qu'en sombre : il faut plus de contraste sur fond blanc. */
-  --color-light-accent-primary: oklch(0.64 0.29 305); /* #9333EA - Plus foncé */
-  --color-light-accent-hover: oklch(0.56 0.3 305); /* #7E22CE */
+  /* Accents et états plus foncés qu'en sombre : il faut plus de contraste sur fond blanc.
+     Quatre décimales : arrondie à trois, la valeur ne retombe plus sur l'hexadécimal. */
+  --color-light-accent-primary: oklch(0.5575 0.2525 302.32); /* #9333EA - Plus foncé */
+  --color-light-accent-hover: oklch(0.496 0.237 301.9); /* #7E22CE */
 
   --color-light-success: oklch(0.58 0.18 155); /* #059669 */
   --color-light-error: oklch(0.55 0.24 25); /* #DC2626 */

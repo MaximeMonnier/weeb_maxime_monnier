@@ -44,14 +44,22 @@ et pour les prochaines itérations).
       jusqu'à ses 70rem. Il porte désormais `w-full`, comme celui du carrousel (#189). La
       mesure se fait au navigateur, jsdom ne calculant aucune mise en page : à 375 px, la
       page passe de 748 à 375 px de large.
-- [ ] **Le violet du thème clair n'atteint pas le contraste minimal.** Dans `index.css`,
-      `--color-light-accent-primary` vaut `oklch(0.64 0.29 305)`, hors de la gamme sRGB :
-      l'écran le ramène vers `#B73BFF`, plus clair que le `#9333EA` de la maquette cité en
-      commentaire. Le texte violet tombe ainsi à 4,1:1 sur fond blanc et 3,8:1 sur le fond
-      secondaire, sous les 4,5:1 du niveau AA — le lien actif du menu mobile en tête. La
-      maquette donnait 5,4:1 sur blanc. Repéré à l'issue #193. Piste : transcrire
-      `#9333EA`, soit `oklch(0.558 0.252 302)`, et revoir avec lui
-      `--color-light-accent-hover`, hors gamme lui aussi.
+- [x] **Le violet du thème clair n'atteint pas le contraste minimal** — réglé par
+      l'issue #220. `--color-light-accent-primary` et `--color-light-accent-hover`, hors de
+      la gamme sRGB, s'affichaient plus pâles que leur couleur de maquette ; ils en sont
+      désormais la transcription exacte, et le texte violet passe de 4,1:1 à 5,4:1 sur blanc,
+      de 3,8:1 à 4,9:1 sur le fond secondaire. Le violet principal porte quatre décimales :
+      la piste `oklch(0.558 0.252 302)` donnait `rgb(146, 52, 234)`. Le survol sombre, lui,
+      garde le `#B73BFF` qu'il affichait sous un commentaire `#9333EA` : la maquette l'aurait
+      fait tomber de 4,5:1 à 3,5:1 sur le fond principal.
+- [ ] **Deux couleurs du thème sombre ne sont pas celles que leur commentaire annonce.**
+      Dans `index.css`, `--color-dark-bg-primary` et `--color-dark-accent-primary` sont hors
+      de la gamme sRGB, comme l'étaient les violets clairs : le fond annoncé `#0F172A`
+      s'affiche `#00112F`, le violet annoncé `#A855F7` s'affiche `#C75EFF`. Le contraste
+      « 4,5:1 sur le fond principal » du survol sombre vaut contre le fond affiché, et 4,3:1
+      contre `#0F172A`. Repéré à l'issue #220. Piste : décider pour chacune entre la couleur
+      affichée, qui garde l'écran tel quel, et celle de la maquette, puis mesurer les
+      contrastes qui en dépendent avant de choisir.
 
 ## Docker — mise en ligne
 
