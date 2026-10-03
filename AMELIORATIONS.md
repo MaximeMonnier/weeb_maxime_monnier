@@ -26,6 +26,12 @@ et pour les prochaines itérations).
       décalage inverse, une publication, est déjà absorbé — `Blog.tsx` écarte le doublon
       qu'elle produit. Piste : la `CursorPagination` de DRF, qui reprend après le dernier
       article vu, mais ne donne pas le `count` que l'issue exigeait.
+- [ ] **Le refus d'une publication reste affiché à la réouverture de la modale.** Le
+      `<dialog>` de `Blog.tsx` reste monté, fermé ou non : `FormArticle` garde ses erreurs, et
+      qui ferme la modale après un refus le retrouve en la rouvrant. Écarté au lot 10 comme
+      trop mineur. Piste : vider les seules erreurs sur l'événement `close` du `<dialog>` — une
+      `key` changée à l'ouverture remonterait le formulaire, mais perdrait aussi le texte que
+      le message du `401` invite à copier.
 - [ ] **Deux couleurs du thème sombre ne sont pas celles que leur commentaire annonce.**
       Dans `index.css`, `--color-dark-bg-primary` et `--color-dark-accent-primary` sont hors
       de la gamme sRGB, comme l'étaient les violets clairs : le fond annoncé `#0F172A`
