@@ -759,3 +759,81 @@ lot. Depuis `frontend/` :
 aucune occurrence de `coverImg`, `articles.json` ni `btn-primary|secondary|ghost` dans `src/` et
 `index.html`, et `index.html` ne référence plus que deux fichiers existants : `/vite.svg` et
 `/src/main.tsx`.
+
+## Lot 10 — Finitions issues de la revue du 2026-10-01
+
+Clos le 2026-10-03 · Epic #212 · Alimente : Bloc 1 — sécurité et qualité
+
+**Constat mesuré** — la revue complète de `preprod` au merge de #195 n'avait trouvé **aucun
+défaut bloquant** : lint, tests, build et `npm audit` au vert. Elle a relevé six défauts réels,
+tous invisibles à ces contrôles.
+- Côté API : une réinitialisation de mot de passe laissait vivre jusqu'à un jour les sessions
+  déjà ouvertes, la confirmation de réinitialisation était la seule vue publique d'écriture
+  sans quota, et ni les mots de passe, ni les articles, ni les messages de contact n'avaient de
+  longueur maximale.
+- Côté front : un article de plusieurs paragraphes s'affichait d'un seul bloc, chaque extrait
+  finissait par « ... », même entier, et la navigation portait une variante `hash` que plus
+  aucun lien n'empruntait.
+- Deux défauts d'affichage, repérés au lot 9, s'y sont ajoutés. À 375 px, l'accueil s'étalait
+  sur **748 px** de large (#189). Le texte violet du thème clair tombait à **4,1:1** sur blanc,
+  sous les 4,5:1 du niveau AA (#193).
+
+Filet de départ, à `bddb2a6` : **84 tests back**, **123 tests front**.
+
+**Décision et justification** — la correction la plus étroite qui tienne, et une seule source
+pour chaque règle :
+
+- la révocation des sessions passe par `set_password_and_revoke`, **partagée** avec
+  `PasswordChangeView`, qui révoquait déjà de son côté. Le mot de passe et la liste noire sont
+  écrits dans une seule transaction ;
+- la confirmation de réinitialisation a son **propre** scope, `password_reset_confirm`, pour que
+  la demande et la confirmation ne s'épuisent pas l'une l'autre ;
+- les longueurs maximales vivent dans les **serializers**, pas dans les modèles : un `TextField`
+  n'a pas de longueur en base, et rien n'est à migrer. La connexion passe pour cela par
+  `LoginSerializer` ;
+- un `<p>` par paragraphe plutôt que `whitespace-pre-line` seul, qui rétablissait l'aspect mais
+  laissait un lecteur d'écran annoncer un bloc unique ;
+- les points de suspension tiennent à `excerpt_truncated`, **calculé par l'API**. Comparer la
+  longueur côté front aurait recopié `LONGUEUR_EXTRAIT` dans un second fichier, et pris pour
+  coupé un article d'exactement 100 caractères ;
+- la variante `hash` est **retirée** et non réutilisée : aucune ancre de défilement n'est
+  prévue ;
+- le survol sombre garde la couleur qu'il affichait, et non celle de la maquette, qui
+  l'aurait fait tomber de 4,5:1 à 3,5:1 sur le fond sombre.
+
+**Ce qui a surpris** — contrairement au lot 9, celui-ci a été livré **sans issue hors
+epic** : les deux ajouts, #219 et #220, figuraient dans l'epic dès le cadrage. Trois constats,
+tous en dehors du code changé.
+
+**Une couleur hors de la gamme sRGB ment sans rien casser.** Le violet du thème clair était écrit
+en `oklch`, sous un commentaire `#9333EA`. L'écran ne pouvait pas afficher cette valeur et la
+ramenait à `#B73BFF`, plus clair. Ni le build, ni le lint, ni le typage ne le voient. Même la
+valeur proposée par l'issue manquait sa cible d'une unité : `oklch(0.558 0.252 302)` donne
+`rgb(146, 52, 234)`, et il a fallu quatre décimales pour retomber sur la maquette. Deux autres
+couleurs du thème sombre ont le même défaut, consigné dans `AMELIORATIONS.md`.
+
+**La revue a trouvé des commentaires faux à côté du diff, pas dedans.** Celle de #214 a vu que
+`base.py` dit les quotas « comptés par IP », ce qui est faux pour un membre connecté. Celle de
+#220 a vu les deux couleurs sombres ci-dessus. Les deux sont renvoyées à
+`AMELIORATIONS.md` : aucune ne venait de la branche revue.
+
+**Seule la mesure au navigateur prouvait les deux défauts d'affichage.** Pour le débordement,
+jsdom ne calcule aucune mise en page. Pour le violet, `getComputedStyle` rend la valeur `oklch`
+telle quelle : il a fallu lire le pixel affiché.
+
+**Le lot a surtout touché le back.** Le diff pèse **484 insertions pour 200 suppressions** sur
+25 fichiers. Dans `backend/` : 9 fichiers, 288 insertions pour 30 suppressions, dont 227
+insertions dans les trois `tests.py`. Dans `frontend/src` : 12 fichiers, 114 insertions pour
+103 suppressions.
+
+**Preuve de la correction** — rejouée sur `preprod` à `1cb5c14`.
+- Back, depuis le conteneur : `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py
+  test` rend `Ran 96 tests` puis `OK`, soit **12 de plus** qu'au départ.
+- Front, depuis `frontend/` : `npm run lint` ne rend rien.
+- `npm test` rend `Test Files  14 passed (14)` et `Tests  126 passed (126)`, soit **3 de plus**.
+- `npm run build` rend `✓ built in 2.46s`.
+
+Au navigateur, sur la pile de développement :
+- à 375 px, l'accueil fait 375 px de large, mesuré à la livraison de #219 ;
+- en thème clair, le lien actif du menu mobile s'affiche en `rgb(147, 51, 234)`, à 5,4:1 sur
+  blanc et 4,9:1 sur le fond secondaire.

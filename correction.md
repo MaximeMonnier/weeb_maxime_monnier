@@ -1889,7 +1889,7 @@ site. Ne la bâcle pas.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — sécurité et qualité |
+| Clos le 2026-10-03 — six tâches prévues, huit sous-issues livrées : deux défauts d'affichage repérés au lot 9 s'y sont ajoutés | #212 | Lot 10 | Bloc 1 — sécurité et qualité |
 
 **Origine** : revue complète de `preprod` au merge de #195 (`755a5c6`), lots 0 à 9 livrés.
 Lint, 105 tests front, 78 tests back, build et `npm audit` au vert, **aucun défaut bloquant**.
@@ -1903,13 +1903,18 @@ de `Slider.tsx`.
 vérifie seule. Ordre conseillé : 10.1 d'abord (le seul défaut de sécurité moyen), puis 10.2 et
 10.3, qui touchent les mêmes fichiers d'`accounts` et se feront donc **l'une après l'autre** ;
 10.4 à 10.6 sont indépendantes du back et entre elles.
+Ouvert ainsi : 10.1 → #213, 10.2 → #214, 10.3 → #215, 10.4 → #216, 10.5 → #217, 10.6 → #218.
+**Puis en epic + 8**, dès le cadrage : #219, l'accueil qui déborde en largeur sur mobile, repéré
+à #189, et #220, le violet du thème clair sous le contraste minimal, repéré à #193.
 
 > **Dépendances : lot 9 clos** (epic #174 fermée, entrée au journal) — fait le 2026-10-02. #189 et
 > #192, ouvertes au cadrage, sont closes depuis sans avoir touché `components/common/Navigation/`.
 
 ## 10.1 — Révoquer les sessions ouvertes à la réinitialisation du mot de passe
 
-- [ ] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/tests.py`
+- [x] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/tests.py` — livré par
+  l'issue #213 : `set_password_and_revoke`, partagée avec `PasswordChangeView`, change le mot de
+  passe et révoque les refresh du compte dans une seule transaction.
 - **Constat** : `PasswordResetConfirmView` (`accounts/views.py:111`) appelle `set_password`
   puis `save` (l. 133-134) et s'arrête. Les refresh déjà émis restent valables jusqu'à
   `REFRESH_TOKEN_LIFETIME` (1 jour, `base.py:293`), et `ROTATE_REFRESH_TOKENS` les prolonge à
@@ -1959,8 +1964,9 @@ Lance la suite complète : DJANGO_SETTINGS_MODULE=config.settings.test python ma
 
 ## 10.2 — Poser un quota sur la confirmation de réinitialisation
 
-- [ ] **Fichiers** : `backend/accounts/views.py`, `backend/config/settings/base.py`,
-  `.env.example`, `backend/accounts/tests.py`
+- [x] **Fichiers** : `backend/accounts/views.py`, `backend/config/settings/base.py`,
+  `.env.example`, `backend/accounts/tests.py` — livré par l'issue #214 : scope
+  `password_reset_confirm`, 5 par heure, réglable par `THROTTLE_PASSWORD_RESET_CONFIRM`.
 - **Constat** : `PasswordResetConfirmView` est la **seule vue publique d'écriture** sans
   `throttle_scope`. Les quatre autres en portent un (`login`, `register`, `password_reset`,
   `contact`, réglables par `THROTTLE_*`, `base.py:277-282`). Le token HMAC ne se devine pas :
@@ -2001,8 +2007,9 @@ Ne touche pas au corps des réponses de la vue.
 
 ## 10.3 — Borner la longueur des mots de passe et des textes longs
 
-- [ ] **Fichiers** : `backend/accounts/serializers.py`, `backend/articles/serializers.py`,
-  `backend/contact/serializers.py`, les trois `tests.py`
+- [x] **Fichiers** : `backend/accounts/serializers.py`, `backend/articles/serializers.py`,
+  `backend/contact/serializers.py`, les trois `tests.py` — livré par l'issue #215 : 128
+  caractères par mot de passe, connexion comprise, 20 000 par article, 5 000 par message.
 - **Constat** : `password` (`accounts/serializers.py:13`) et `new_password` (l. 44) sont des
   `CharField` sans `max_length` ; `Article.content` (`articles/models.py:9`) et
   `Contact.message` (`contact/models.py:11`) des `TextField`, que le `ModelSerializer` laisse
@@ -2044,7 +2051,8 @@ Lance la suite complète du backend et npm test si le front est touché.
 
 ## 10.4 — Préserver les paragraphes d'un article à l'affichage
 
-- [ ] **Fichiers** : `frontend/src/pages/Blog/ArticleDetails.tsx`, son test s'il existe
+- [x] **Fichiers** : `frontend/src/pages/Blog/ArticleDetails.tsx`, son test s'il existe — livré
+  par l'issue #216 : un `<p>` par paragraphe, découpé aux lignes vides, et son test étendu.
 - **Constat** : `ArticleDetails.tsx:115` rend `{recu.article.content}` dans un `<p>` nu. Le
   `Textarea` de `FormArticle` accepte les retours à la ligne et l'API les conserve, mais le HTML
   les écrase : un article de plusieurs paragraphes s'affiche d'un seul bloc.
@@ -2076,9 +2084,10 @@ Coche l'entrée correspondante de AMELIORATIONS.md (§ « Frontend — UX »).
 
 ## 10.5 — N'afficher « ... » que sous un extrait réellement coupé
 
-- [ ] **Fichiers** : `frontend/src/components/common/Blog/Card.tsx`, et selon l'option
+- [x] **Fichiers** : `frontend/src/components/common/Blog/Card.tsx`, et selon l'option
   retenue `backend/articles/views.py`, `backend/articles/serializers.py`,
-  `frontend/src/types/article.ts`
+  `frontend/src/types/article.ts` — livré par l'issue #217, option API : `excerpt_truncated`
+  calculé par PostgreSQL, les quatre fichiers touchés.
 - **Constat** : `Card.tsx:19` (export `ArticleCard`) écrit `{article.excerpt}...` sans
   condition, alors que l'API ne coupe qu'au-delà de `LONGUEUR_EXTRAIT` = 100 caractères
   (`articles/views.py:10`, annotation `Left` l. 34). Un article court s'affiche avec des points
@@ -2114,8 +2123,9 @@ Travail demandé :
 
 ## 10.6 — Retirer la variante `hash` de la navigation, que plus aucun lien n'emprunte
 
-- [ ] **Fichiers** : `frontend/src/types/navigation.ts`, `frontend/src/lib/navigation.ts`,
-  `NavBar.tsx`, `DesktopNav.tsx`, `MobileMenu.tsx`
+- [x] **Fichiers** : `frontend/src/types/navigation.ts`, `frontend/src/lib/navigation.ts`,
+  `NavBar.tsx`, `DesktopNav.tsx`, `MobileMenu.tsx` — livré par l'issue #218 : `NavItem` réduit
+  à `{ to, label }`.
 - **Constat** : `types/navigation.ts:2` déclare une variante `{ type: "hash" }` de `NavItem`, et
   trois composants la servent — `scrollToHash` et `handleHashClick` (`NavBar.tsx:50-64`), la
   prop `onHashClick` passée l. 93 et 159, la branche `<a>` de `DesktopNav.tsx:26-34` et de
@@ -2164,7 +2174,7 @@ Coche l'entrée correspondante de AMELIORATIONS.md (§ « Frontend — code mort
 
 **Grain de ticket** : ticket unique — un seul livrable, la documentation à jour.
 
-> **Dépendances : tous les lots précédents.**
+> **Dépendances : tous les lots précédents** — tenues depuis la clôture du lot 10, le 2026-10-03.
 
 ## 11.1 — Consigner le piège `node_modules` et les écarts de `CLAUDE.md`
 
