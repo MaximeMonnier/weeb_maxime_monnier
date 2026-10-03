@@ -38,12 +38,12 @@ et pour les prochaines itérations).
       l'extrait côté front aurait marché aussi, mais en recopiant `LONGUEUR_EXTRAIT` dans un
       second fichier : un article d'exactement 100 caractères aurait de plus été pris pour
       coupé.
-- [ ] **Sur mobile, l'accueil défile en largeur.** À 375 px, la page s'élargit à 749 px :
-      dans `BrandBanner.tsx`, le `<div>` qui enveloppe `LogoBanner` est l'enfant d'un flex
-      `items-center`, donc il prend la largeur de son contenu, et le `width: 100%` de
-      `.marquee-mask` suit cette largeur au lieu de celle de l'écran : le masque s'étale
-      jusqu'à son `max-width` de 70rem. Piste : un `w-full` sur ce `<div>`, comme celui du
-      carrousel (issue #189) — essayé au navigateur, la page revient à 375 px.
+- [x] **Sur mobile, l'accueil défile en largeur** — réglé par l'issue #219. Dans
+      `BrandBanner.tsx`, le `<div>` qui enveloppe `LogoBanner`, enfant d'un flex
+      `items-center`, prenait la largeur de son contenu, et le masque du bandeau s'étalait
+      jusqu'à ses 70rem. Il porte désormais `w-full`, comme celui du carrousel (#189). La
+      mesure se fait au navigateur, jsdom ne calculant aucune mise en page : à 375 px, la
+      page passe de 748 à 375 px de large.
 - [ ] **Le violet du thème clair n'atteint pas le contraste minimal.** Dans `index.css`,
       `--color-light-accent-primary` vaut `oklch(0.64 0.29 305)`, hors de la gamme sRGB :
       l'écran le ramène vers `#B73BFF`, plus clair que le `#9333EA` de la maquette cité en
