@@ -411,8 +411,8 @@ ordre — `env_file: [.env, .env.prod]` — et le dernier de la liste l'emporte
 variable par variable. Tout ce que le `.env` apporte reste donc en place — clé
 secrète, identifiants de base, hôtes autorisés — et seules les surcharges sont
 réécrites : les quatre du tableau, `POSTGRES_SSLMODE`, `DJANGO_BEHIND_PROXY`,
-`CORS_ALLOWED_ORIGINS` et `DJANGO_HSTS_SECONDS`, puis le bloc du relais SMTP. L'ordre est écrit dans le fichier, il ne se déduit plus d'une
-règle de fusion.
+`CORS_ALLOWED_ORIGINS` et `DJANGO_HSTS_SECONDS`, puis le bloc du relais SMTP.
+L'ordre est écrit dans le fichier, il ne se déduit plus d'une règle de fusion.
 
 > ⚠️ **`env_file` n'alimente que l'intérieur du conteneur.** Ce qu'un fichier
 > Compose interpole lui-même avec `${...}` ne se lit que dans le `.env` de la
@@ -1067,7 +1067,7 @@ nomme la suite : un journal rouge désigne la coupable sans qu'il faille l'ouvri
 À l'intérieur du job frontend, le lint passe en premier, et les deux étapes suivantes —
 Vitest et le build — portent un `if: !cancelled()` qui les fait tourner même s'il échoue : un
 style refusé ne cache donc pas l'état des tests ni celui du build.
-Le job reste rouge dès que l'une échoue. Le build n'est pas décoratif à côté des tests : il
+Le job reste rouge dès que l'une des trois échoue. Le build n'est pas décoratif à côté des tests : il
 enchaîne `tsc -b` sur les **trois** projets TypeScript — `src/`, `vite.config.ts` et `e2e/` —
 et c'est le seul endroit où le parcours Playwright est compilé, faute d'être exécuté.
 
