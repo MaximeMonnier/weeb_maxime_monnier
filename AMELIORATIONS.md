@@ -107,6 +107,11 @@ Rien de ce qui reste ne bloque le développement.
 - [ ] **Exécution des tests en conteneur isolé** : sur l'image de production, avec un
       service `db` éphémère, jamais sur l'image de développement. À reprendre avec le
       chantier des tests, qui dépasse Docker.
+- [ ] **Les images ne sont publiées vers aucun registre.** `docker-images.yml` les construit
+      sans les pousser, écarté volontairement le 2026-09-03 alors que l'epic #47 le
+      demandait : sans serveur où faire `docker pull`, une image publiée ne sert à personne.
+      Piste : ajouter le `push` au workflow existant le jour où une mise en ligne existe,
+      conditionné à un push sur `main`, sinon chaque pull request pousserait une image.
 
 ## Frontend — code mort
 
@@ -230,5 +235,12 @@ Rien de ce qui reste ne bloque le développement.
       `Blog.test.tsx` (#132) substituent `fetch` à leur tour, sans formulaire. Le seuil est franchi depuis l'issue #159 :
       `ChangePassword.test.tsx` est le troisième formulaire testé, et `ArticleDetails.test.tsx`
       substitue aussi `fetch` — sept fichiers au total, `api.test.ts` compris.
+- [ ] **Le parcours Playwright ne tourne pas en intégration continue.** `tests.yml` lance
+      les suites Django et Vitest, mais `npm run test:e2e` exige la pile de `compose.dev.yaml`
+      et un navigateur, que la machine de GitHub n'a pas. Le `forbidOnly` de
+      `playwright.config.ts` reste donc une garde qui ne s'arme jamais. Piste : un job qui
+      monte la pile par Compose et installe Chromium, avec un compte de test créé avant le
+      parcours. Distinct de « Exécution des tests en conteneur isolé », qui vise l'image de
+      production.
 
 ## (à compléter au fil de l'eau)
