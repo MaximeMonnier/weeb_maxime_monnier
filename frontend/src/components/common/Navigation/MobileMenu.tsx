@@ -10,7 +10,6 @@ type MobileMenuProps = {
   isAuthenticated: boolean;
   navItems: NavItem[];
   onClose: () => void;
-  onHashClick: (e: React.MouseEvent<HTMLAnchorElement>, hash: string) => void;
   onLogout: () => void;
 };
 
@@ -19,7 +18,6 @@ export default function MobileMenu({
   isAuthenticated,
   navItems,
   onClose,
-  onHashClick,
   onLogout,
 }: MobileMenuProps) {
   return (
@@ -35,36 +33,21 @@ export default function MobileMenu({
       <div className="bg-secondary border-t border-primary">
         <div className="container-custom py-4">
           <div className="flex flex-col gap-2">
-            {navItems.map((item) => {
-              if (item.type === "route") {
-                return (
-                  <RRNavLink
-                    key={item.to}
-                    to={item.to}
-                    onClick={onClose}
-                    className={({ isActive }) =>
-                      cx(
-                        "nav-link block py-3 px-4 rounded-lg hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)]",
-                        isActive && "active",
-                      )
-                    }
-                  >
-                    {item.label}
-                  </RRNavLink>
-                );
-              }
-
-              return (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  onClick={(e) => onHashClick(e, item.href)}
-                  className="nav-link block py-3 px-4 rounded-lg hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)]"
-                >
-                  {item.label}
-                </a>
-              );
-            })}
+            {navItems.map((item) => (
+              <RRNavLink
+                key={item.to}
+                to={item.to}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  cx(
+                    "nav-link block py-3 px-4 rounded-lg hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)]",
+                    isActive && "active",
+                  )
+                }
+              >
+                {item.label}
+              </RRNavLink>
+            ))}
 
             {isAuthenticated ? (
               <Button
