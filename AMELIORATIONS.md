@@ -122,6 +122,21 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       en conclurait qu'un membre derrière la même IP qu'un autre partage son quota. Repéré
       à la revue de l'issue #214.
 
+## Fonctionnalités écartées
+
+- [ ] **Aucun endpoint profil.** L'API n'expose ni `GET /api/auth/me/` ni équivalent : le
+      front sait qu'un membre est connecté, jamais qui il est, et `App.tsx` n'a pas de page de
+      profil. La tâche 5.1 de `correction.md` a tranché pour un simple booléen, l'ajout
+      backend devant être proposé à part. Piste : une `RetrieveUpdateAPIView` sur
+      `request.user`, réservée au membre, dont le serializer ne rend que le prénom, le nom et
+      l'email — rendre l'email modifiable rouvrirait l'énumération à reprendre avec #65.
+- [ ] **Images de couverture d'article.** `coverImg` a été retiré du type et de `Card.tsx` par
+      l'issue #175 (tâche 9.1) : ni le modèle `Article` ni les deux serializers de
+      `backend/articles/serializers.py` n'ont de champ image, et la branche d'affichage ne
+      s'exécutait jamais. C'est une fonctionnalité, pas un nettoyage. Piste : un `ImageField`
+      (donc Pillow), des médias servis par le conteneur du front comme `/static/`, et le champ
+      ajouté aux types `Article` et `ArticleListItem` en même temps qu'aux serializers.
+
 ## Tests
 
 - [ ] **Doublon réseau d'un test rendu à l'autre.** `FormLogin.test.tsx` et
