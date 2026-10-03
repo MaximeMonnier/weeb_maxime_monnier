@@ -84,7 +84,10 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 | 8 | Dédoublonnage de la couche UI | 5 | Refactoring pur, protégé par le lot 2 |
 | 9 | Code mort et conventions | 4 | Nettoyage final, une fois que plus rien n'y touche |
 | 10 | Finitions issues de la revue du 2026-10-01 | 6 | Ce que la revue de fin des lots 0 à 9 a encore trouvé |
-| 11 | Documentation et clôture | 3 | Consigne ce qui a été appris |
+| 11 | Couper ce qui pousse à documenter | 1 | Sinon les lots suivants rajoutent ce que le 13 retire |
+| 12 | Corriger les causes dans le code | 4 | Chaque cause retirée supprime un piège à documenter |
+| 13 | Régime : purge et contrôle | 4 | Purge sur l'état propre, puis une mesure pour qu'il le reste |
+| 14 | Documentation et clôture | 3 | Consigne ce qui a été appris |
 
 ---
 
@@ -107,7 +110,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
   par Docker comme point de montage du volume anonyme `/app/node_modules` déclaré dans
   `compose.dev.yaml`. Toute commande npm lancée depuis la machine échoue en `EACCES`.
 - **Attendu** : le dossier est rendu à l'utilisateur, `npm ci` passe, `npm run lint` et
-  `npm run build` s'exécutent. Le piège est documenté (voir 11.1).
+  `npm run build` s'exécutent. Le piège est documenté (voir 14.1).
 
 ```
 Contexte : `frontend/node_modules` est un dossier vide appartenant à root, créé par le volume
@@ -2166,7 +2169,240 @@ Coche l'entrée correspondante de AMELIORATIONS.md (§ « Frontend — code mort
 
 ---
 
-# Lot 11 — Documentation et clôture
+# Lot 11 — Couper ce qui pousse à documenter
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| À faire | — | — | Bloc 1 + 2 — documentation |
+
+**Origine** : les règles de sobriété existent déjà — 3 lignes au plus par commentaire
+(`commentaires-code`), « sinon n'y touche pas » à l'étape 7 de `/ticket`, budget de 40 Ko pour
+`CLAUDE.md` — et n'ont pas tenu. D'autres consignes poussent dans l'autre sens, et elles
+gagnent : le Style de `/ticket` envoie « les nuances, les pièges et les arbitrages » dans le
+code, le README ou `AMELIORATIONS.md` ; son étape 7 fait documenter tout piège corrigé ; et
+presque chaque prompt de ce plan finit par « mets à jour CLAUDE.md » ou « coche
+AMELIORATIONS.md ». Une règle de plus serait contredite par ces trois-là.
+
+**Grain de ticket** : aucun — `.claude/` et `CLAUDE.md` ne sont pas versionnés. À faire
+**avant** le lot 12 : sinon chaque ticket de code rajoute la documentation que le lot 13 retire.
+
+> **Dépendances : lot 10 clos.**
+
+## 11.1 — Retirer les incitations, poser la règle
+
+- [ ] **Fichiers** : `.claude/commands/ticket.md`, `CLAUDE.md`, ce fichier (§ « Règles communes »)
+- **Attendu** :
+  - le Style de `/ticket` ne fait plus consigner chaque nuance : un arbitrage reste dans le chat,
+    sauf un piège qui ferait tomber le prochain à toucher ce code ;
+  - son étape 7 se réduit à : `CLAUDE.md` et README seulement si la stack, une commande ou la
+    structure change ;
+  - en tête de `CLAUDE.md`, une ligne : « Commenter seulement ce que le code ne peut pas dire.
+    README et CLAUDE.md : seulement pour un changement de stack, de commande ou de structure. » ;
+  - dans les « Règles communes » de ce plan, la même règle pour les prompts des lots suivants.
+
+```
+Avant d'écrire, grep dans .claude/ et CLAUDE.md toute autre consigne qui fait écrire de la
+documentation à chaque ticket, et liste-la. Modifie ensuite les fichiers, montre-moi le diff.
+Rien ne part sur GitHub.
+```
+
+---
+
+# Lot 12 — Corriger les causes dans le code
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| À faire | — | — | Bloc 1 — qualité |
+
+**Origine** : audit du 2026-10-03 (back 7,5/10, front 7/10, 96 tests back et 126 front au
+vert). Aucune faille. Le défaut de fond : plusieurs pièges sont **documentés au lieu d'être
+corrigés**, et chaque explication pèse ensuite sur `CLAUDE.md`, les tests et les commentaires.
+Ce lot retire les causes ; le lot 13 retire ensuite la documentation devenue inutile.
+
+**Grain de ticket** : epic + 4 sous-issues. 12.1 est indépendante. 12.2, 12.3 et 12.4 touchent
+en partie les mêmes composants (`NavBar.tsx`, `HeroBanner.tsx`, les formulaires) : elles passent
+l'une après l'autre, dans cet ordre.
+
+> **Dépendances : lot 11 clos**, sans quoi ces tickets rajoutent la documentation que le lot 13
+> doit retirer.
+
+## 12.1 — Révocation sans conflit et clé de test valide
+
+- [ ] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/tests.py`, `backend/config/settings/test.py`
+- **Constat** : `set_password_and_revoke` (`accounts/views.py:76`) fait un `bulk_create` de
+  `BlacklistedToken` sans `ignore_conflicts`. Une rotation de refresh pendant un changement de
+  mot de passe viole l'unicité : `500`, et la transaction annule le nouveau mot de passe. La clé
+  de `test.py:13` fait 23 octets, sous les 32 qu'attend la signature HMAC : un
+  `InsecureKeyLengthWarning` par test noie la sortie.
+- **Attendu** : le conflit est ignoré, un test le prouve, la suite tourne sans avertissement.
+
+```
+Consulte `backend-django-drf`. Aucun fichier à créer.
+1. Ajoute ignore_conflicts=True au bulk_create de set_password_and_revoke. Test : un refresh
+   déjà en liste noire avant l'appel ne fait pas tomber le changement de mot de passe. Valide
+   par mutation (retire l'option, le test tombe ; restaure par l'édition inverse).
+2. Porte la clé de test.py à 32 octets au moins. Montre la sortie de la suite, sans avertissement.
+```
+
+## 12.2 — Thème en variables sémantiques
+
+- [ ] **Fichiers** : `frontend/src/index.css`, `frontend/src/components/ui/Button/buttonClasses.ts`,
+  `frontend/src/components/common/Home/Slider.tsx`, `frontend/src/index.css.test.ts`, les composants
+  qui portent des paires `bg-[var(--color-light-…)] dark:bg-[var(--color-dark-…)]`
+- **Constat** : chaque couleur est écrite deux fois — `.X` puis `.dark .X` dans `index.css`, et
+  des paires clair/sombre dans `buttonClasses.ts`. D'où le piège des classes écrites à la main
+  sans variante `hover:`, la classe de 400 caractères recopiée deux fois dans `Slider.tsx`, et
+  la moitié d'`index.css.test.ts`, qui ne sert qu'à surveiller ce piège.
+- **Attendu** : des variables sémantiques (`--color-surface`, `--color-text`…) déclarées dans
+  `@theme` et redéfinies sous `.dark`. Une couleur s'écrit une fois, `hover:` fonctionne partout,
+  le bloc de classes écrites à la main disparaît. Rendu identique dans les deux thèmes.
+
+```
+Consulte `frontend-react-ts` et `inventaire-avant-dev`.
+1. Inventorie les couleurs réellement utilisées, puis propose la liste des variables
+   sémantiques AVANT de toucher au code. Attends mon accord.
+2. Migre. Rendu identique : capture avant/après des pages d'accueil, blog et connexion, en
+   clair et en sombre.
+3. Réduis index.css.test.ts à ce qui garde encore un sens (les classes mortes), supprime le reste.
+4. npm run lint, npm test, npm run build : montre la sortie.
+```
+
+## 12.3 — Fichiers nommés comme leur export, routes exportées
+
+- [ ] **Fichiers** : `MainButton.tsx`, `Card.tsx`, `MainTitle.tsx`, `SecondTitle.tsx`,
+  `LinkTitle.tsx` et leurs 19 importeurs ; `frontend/src/App.tsx`, `Footer.test.tsx`, `NavBar.test.tsx`
+- **Constat** : cinq fichiers n'exportent pas leur nom, et le même composant s'importe sous deux
+  noms (`Button` dans `Blog.tsx`, `MainButton` dans `FormArticle.tsx`) : grep ne le retrouve
+  plus. Deux tests lisent `App.tsx` comme du texte pour en extraire les routes par regex, et
+  `App.tsx:18-20` doit prévenir le code de production qu'un test le lit.
+- **Attendu** : nom de fichier = nom d'export, un seul nom d'import par composant. `App.tsx`
+  exporte un tableau de routes que les deux tests importent : plus de `?raw`, plus de regex.
+
+```
+Consulte `frontend-react-ts`. Refactoring PUR : rien ne change à l'écran.
+1. Renomme les cinq fichiers (git mv) et aligne chaque import. grep doit trouver chaque
+   composant sous un seul nom.
+2. Sors les routes d'App.tsx dans un tableau exporté ; Footer.test.tsx et NavBar.test.tsx
+   l'importent. Valide par mutation : une route retirée du tableau fait tomber les deux tests.
+3. Retire le commentaire d'App.tsx devenu sans objet.
+4. npm run lint, npm test, npm run build : montre la sortie.
+```
+
+## 12.4 — `submit()` dans `useForm`, et quatre défauts du front
+
+- [ ] **Fichiers** : `frontend/src/hooks/useForm.ts` et son test, les 7 formulaires,
+  `frontend/src/pages/ResetPassword.tsx`, `frontend/src/pages/Blog/Blog.tsx`, `frontend/index.html`
+- **Constat** : les 7 formulaires recopient le même `handleSubmit` d'environ 25 lignes
+  (valider, remettre à zéro, `isSubmitting`, `try/catch` vers `toFormErrors`, `finally`).
+  À côté : `ResetPassword.tsx` ne demande ni confirmation ni complexité ; `/blog` n'a pas de
+  `<h1>` (`Blog.tsx:78` rend son titre en `h2`) ; `index.html:2` pose `class="dark"` et un thème
+  clair voit un flash sombre au chargement ; `Blog.tsx` importe `react` deux fois.
+- **Attendu** : `useForm` expose `submit(envoi)`, chaque formulaire n'écrit plus que son appel
+  réseau et son succès. Les quatre défauts sont corrigés.
+
+```
+Consulte `frontend-react-ts` et `inventaire-avant-dev` : aucun fichier à créer.
+1. Ajoute submit() à useForm, teste-le dans useForm.test.ts, puis migre les 7 formulaires.
+   Leurs tests existants restent verts sans modification.
+2. ResetPassword : confirmation et complexité, par les règles de lib/validationRules.ts.
+3. /blog : un h1. index.html : script inline dans <head> qui pose le thème avant le rendu.
+   Blog.tsx : un seul import de react, aucune extension .tsx dans les imports.
+4. npm run lint, npm test, npm run build : montre la sortie.
+```
+
+---
+
+# Lot 13 — Régime : purge et contrôle
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| À faire | — | — | Bloc 1 + 2 — documentation |
+
+**Origine** : depuis le 2026-09-01, 156 commits `docs` pour 34 `feat`, 6 126 lignes de Markdown
+ajoutées pour environ 3 960 de code. `CLAUDE.md` pèse 39 999 octets pour un budget de 40 000,
+le README 85 Ko. Le code compte 31 blocs de commentaires de plus de 3 lignes, plafond de
+`commentaires-code`, et `production.py` porte plus de commentaires que de code. Des chiffres
+écrits en dur se contredisent déjà : 96 tests back, 72 selon `revue-avant-push`, 59 selon le
+hook de pré-push.
+
+**Grain de ticket** : 13.1 et 13.3 en issues ; 13.2 et 13.4 sans issue ni PR, `CLAUDE.md` et
+`.claude/` n'étant pas versionnés. Cette fois, **le lot ne s'étend pas** : un défaut repéré en
+route va dans `AMELIORATIONS.md`.
+
+> **Dépendances : lot 12 clos**, qui rend caduques une partie des explications à retirer.
+
+## 13.1 — Commentaires : aucun bloc de plus de 3 lignes
+
+- [ ] **Fichiers** : en tête `backend/config/settings/*.py`, `compose.dev.yaml`, `compose.prod.yaml`,
+  `backend/healthcheck.py`, puis tout le code
+- **Constat** : 31 blocs de plus de 3 lignes, dont 7 dans `base.py` et 7 dans
+  `compose.prod.yaml`. `production.py:34-46` consacre 13 lignes à un réglage. Restent aussi des
+  paraphrases (`accounts/models.py:17`, `:39`, les fins de ligne de `config/urls.py`), des
+  traces d'historique (`FormField.tsx:67`, « remplace Math.random ») et des nombres qui
+  vieilliront (« neuf… trente-six » dans `ArticleCoutDesListesTests`).
+- **Attendu** : 0 bloc de plus de 3 lignes, aucune paraphrase, aucun nombre ni numéro d'issue
+  qui deviendra faux. Le détail utile part au README, en une ligne.
+
+```
+Consulte `commentaires-code`. Aucune ligne de code ne change.
+1. Liste les 31 blocs (fichier:ligne) et, pour chacun, ta version d'une à trois lignes.
+   Attends mon accord.
+2. Applique, puis passe tout le code au même tri : paraphrase, historique, chiffres en dur.
+3. Lint, tests front et back, build : montre la sortie.
+```
+
+## 13.2 — `CLAUDE.md` à 15 Ko, skills sans chiffres en dur
+
+- [ ] **Fichiers** : `CLAUDE.md`, `.claude/skills/*/SKILL.md`, `.claude/hooks/verifications.sh` — hors dépôt
+- **Constat** : `CLAUDE.md` est relu à chaque session et touche son plafond. Une bonne part
+  décrit ce que contiennent les fichiers de test, ou des pièges que le lot 12 a retirés. Les
+  skills portent des chiffres déjà faux (72 tests, « six formulaires » contre sept).
+- **Attendu** : `CLAUDE.md` ≤ 15 000 octets, ne garde que les pièges qui demandent de lire
+  plusieurs fichiers et qui ont réellement coûté. Aucun compte de tests ni de fichiers dans les
+  skills ou le hook : une commande qui compte, si le nombre est utile.
+
+```
+Lis la règle « Qui porte quoi » en tête de CLAUDE.md.
+1. Classe chaque paragraphe : piège encore vrai et coûteux / devenu faux / se lit dans un seul
+   fichier / porté par une skill. Montre-moi le tableau et la taille visée par section.
+2. Réécris. Donne la taille avant et après (wc -c CLAUDE.md).
+3. grep les nombres écrits en dur dans .claude/ et retire-les.
+```
+
+## 13.3 — README à 35 Ko
+
+- [ ] **Fichiers** : `README.md`, `frontend/README.md`
+- **Constat** : 85 Ko pour un site vitrine et un blog. Le README sert à qui installe et lance
+  le projet ; il porte aussi le récit de choix que le journal et les PR gardent déjà.
+- **Attendu** : `README.md` ≤ 35 000 octets ; installer, lancer, tester, déployer. Le reste
+  disparaît ou tient en une ligne. Toute variable de `@theme` encore citée dans le tableau du
+  `frontend/README.md` a toujours un lecteur.
+
+```
+Consulte `style-documentation`.
+1. Propose le nouveau plan du README, section par section, avec la taille visée. Attends mon accord.
+2. Réécris. Vérifie chaque commande citée en la lançant, et donne la taille avant et après.
+```
+
+## 13.4 — Contrôle au pré-push
+
+- [ ] **Fichiers** : `.claude/hooks/verifications.sh` — hors dépôt
+- **Constat** : les règles écrites ont déjà dérivé sans que rien ne le montre. Seule une mesure
+  le voit avant que la dérive s'installe.
+- **Attendu** : le hook refuse le push si `CLAUDE.md` dépasse 15 000 octets, `README.md` 35 000,
+  ou si un bloc de commentaire du code versionné dépasse 3 lignes. Un fichier qui dépasse avec
+  une raison est nommé en exception, la raison en une ligne. Ni CI ni hook Claude Code
+  (arbitré le 2026-10-03) : un seul endroit à tenir.
+
+```
+Mesure l'état après 13.1 à 13.3 et confirme les seuils. Ajoute les trois contrôles à
+verifications.sh. Valide par mutation : un bloc de 4 lignes ajouté fait refuser le push,
+retiré il passe.
+```
+
+---
+
+# Lot 14 — Documentation et clôture
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
@@ -2174,9 +2410,10 @@ Coche l'entrée correspondante de AMELIORATIONS.md (§ « Frontend — code mort
 
 **Grain de ticket** : ticket unique — un seul livrable, la documentation à jour.
 
-> **Dépendances : tous les lots précédents** — tenues depuis la clôture du lot 10, le 2026-10-03.
+> **Dépendances : tous les lots précédents**, lots 11 à 13 compris. Le lot 13 réécrit
+> `CLAUDE.md` et le README : 14.1 et 14.2 se réduisent alors à un contrôle des écarts restants.
 
-## 11.1 — Consigner le piège `node_modules` et les écarts de `CLAUDE.md`
+## 14.1 — Consigner le piège `node_modules` et les écarts de `CLAUDE.md`
 
 - [ ] **Fichiers** : `CLAUDE.md`, `README.md`
 - **Constat** : `CLAUDE.md` recense « six pièges de la pile » Docker, mais pas celui qui bloque
@@ -2216,7 +2453,7 @@ Ne réécris pas ce qui est juste : ces deux fichiers sont d'excellente qualité
 mise à jour ciblée, pas une refonte.
 ```
 
-## 11.2 — Mettre à jour `AMELIORATIONS.md` et le `README`
+## 14.2 — Mettre à jour `AMELIORATIONS.md` et le `README`
 
 - [ ] **Fichiers** : `AMELIORATIONS.md`, `README.md`
 - **Constat** : `AMELIORATIONS.md` ne contient qu'une seule entrée — les toasts — traitée par la
@@ -2252,7 +2489,7 @@ Travail demandé :
    par le code après les corrections. C'est une règle explicite du projet.
 ```
 
-## 11.3 — Revue finale et clôture
+## 14.3 — Revue finale et clôture
 
 - [ ] **Fichiers** : l'ensemble du diff
 - **Attendu** : un verdict `OK` sur les six axes, puis les issues fermées à la main.
@@ -2343,9 +2580,18 @@ Cette skill ne pousse jamais rien : elle lit et elle rapporte. Le push reste ma 
 | 10.4 | Paragraphes d'un article perdus à l'affichage | Moyen (UX) | 9 | Bloc 1 — qualité |
 | 10.5 | « ... » sous un extrait non coupé | Faible (UX) | 9 | Bloc 1 — qualité |
 | 10.6 | Variante `hash` de la navigation sans lien | Code mort | 9 | Bloc 1 — qualité |
-| 11.1 | `CLAUDE.md` et README en retard sur le code | Documentation | 0-10 | Bloc 1 + 2 — documentation |
-| 11.2 | `AMELIORATIONS.md` et README | Documentation | 0-10 | Bloc 1 + 2 — documentation |
-| 11.3 | Revue finale et fermeture des issues | Clôture | tout | Bloc 1 + 2 — documentation |
+| 11.1 | Consignes qui font documenter chaque ticket | Méthode | 10 | — |
+| 12.1 | Révocation en `500` sur conflit, clé de test courte | Moyen | 11 | Bloc 1 — sécurité |
+| 12.2 | Couleurs écrites deux fois (clair et sombre) | Structurant | 11 | Bloc 1 — qualité |
+| 12.3 | Fichiers mal nommés, tests qui lisent `App.tsx` en texte | Conventions | 12.2 | Bloc 1 — qualité |
+| 12.4 | `handleSubmit` recopié 7 fois, quatre défauts front | Duplication | 12.3 | Bloc 1 — qualité |
+| 13.1 | 31 blocs de commentaires au-delà de 3 lignes | Conventions | 12 | Bloc 1 + 2 — documentation |
+| 13.2 | `CLAUDE.md` au plafond, chiffres faux dans les skills | Documentation | 12 | Bloc 1 + 2 — documentation |
+| 13.3 | README de 85 Ko | Documentation | 12 | Bloc 1 + 2 — documentation |
+| 13.4 | Aucune mesure de la taille ni des commentaires | Structurant | 13.1-13.3 | Bloc 1 + 2 — qualité |
+| 14.1 | `CLAUDE.md` et README en retard sur le code | Documentation | 0-13 | Bloc 1 + 2 — documentation |
+| 14.2 | `AMELIORATIONS.md` et README | Documentation | 0-13 | Bloc 1 + 2 — documentation |
+| 14.3 | Revue finale et fermeture des issues | Clôture | tout | Bloc 1 + 2 — documentation |
 
 Cinq tâches ne portent pas le bloc de leur lot : **0.2** est une remédiation de vulnérabilités
 avec preuve avant/après ; **3.3** et **3.4** relèvent de la qualité dans un lot classé
