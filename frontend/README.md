@@ -328,7 +328,8 @@ import MaPage from "./pages/MaPage";
 
 Les sept formulaires du site suivent le même patron : `useForm` porte l'état, une fonction
 pure hors du composant porte les règles, `apiFetch` envoie et `toFormErrors` répartit le
-refus de l'API entre les champs et le message d'ensemble.
+refus de l'API entre les champs et le message d'ensemble. Seul `ForgotPassword.tsx` n'a pas
+de règles : il laisse l'API juger l'adresse.
 
 ```tsx
 // src/components/common/MonDomaine/MonFormulaire.tsx
