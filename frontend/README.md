@@ -171,11 +171,11 @@ import { Input } from "./components/ui/Input";
 
 ### Button
 ```tsx
-import MainButton from "./components/ui/Button/MainButton";
+import Button from "./components/ui/Button/MainButton";
 
-<MainButton variant="primary" size="lg" fullWidth>
+<Button variant="primary" size="lg" fullWidth>
   Créer mon compte
-</MainButton>
+</Button>
 ```
 
 ### Textarea
@@ -326,49 +326,90 @@ import MaPage from "./pages/MaPage";
 
 ### Créer un formulaire
 
+Les sept formulaires du site suivent le même patron : `useForm` porte l'état, une fonction
+pure hors du composant porte les règles, `apiFetch` envoie et `toFormErrors` répartit le
+refus de l'API entre les champs et le message d'ensemble.
+
 ```tsx
-import { useState } from "react";
-import { Input } from "../components/ui/Input";
+// src/components/common/MonDomaine/MonFormulaire.tsx
+import { Input } from "../../ui/Input";
+import Button from "../../ui/Button/MainButton";
+import ErrorAlert from "../../ui/Alert/ErrorAlert";
+import { useForm, type FormErrors } from "../../../hooks/useForm";
+import { apiFetch } from "../../../lib/api";
+import { toFormErrors } from "../../../lib/apiErrors";
 
 type FormData = {
-  field: string;
+  title: string;
+};
+
+const CHAMPS = ["title"] as const;
+
+// Hors du composant : une fonction pure, testable sans rien rendre.
+const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
+  const newErrors: FormErrors<FormData> = {};
+  if (!formData.title.trim()) {
+    newErrors.title = "Le titre est requis";
+  }
+  return newErrors;
 };
 
 export default function MonFormulaire() {
-  const [formData, setFormData] = useState<FormData>({ field: "" });
-  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
-
-  const validateForm = (): boolean => {
-    const newErrors: typeof errors = {};
-    if (!formData.field.trim()) {
-      newErrors.field = "Ce champ est requis";
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const {
+    formData,
+    errors,
+    setErrors,
+    formError,
+    setFormError,
+    isSubmitting,
+    setIsSubmitting,
+    handleChange,
+    validate,
+  } = useForm<FormData>({ title: "" });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
-    // API call
+    if (!validate(reglesDeSaisie)) return;
+
+    setFormError(null);
+    setIsSubmitting(true);
+    try {
+      await apiFetch("/mon-endpoint/", {
+        method: "POST",
+        body: JSON.stringify(formData),
+      });
+    } catch (err) {
+      const { fieldErrors, formError } = toFormErrors(err, CHAMPS);
+      setErrors(fieldErrors);
+      setFormError(formError);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <ErrorAlert message={formError} />
       <Input
-        label="Mon champ"
-        name="field"
-        value={formData.field}
-        onChange={(e) => setFormData({ ...formData, field: e.target.value })}
-        error={errors.field}
+        label="Titre"
+        name="title"
+        value={formData.title}
+        onChange={handleChange}
+        error={errors.title}
         required
         fullWidth
       />
-      <button type="submit">Envoyer</button>
+      <Button type="submit" variant="primary" disabled={isSubmitting}>
+        {isSubmitting ? "Envoi en cours..." : "Envoyer"}
+      </Button>
     </form>
   );
 }
 ```
+
+Une règle servie à plusieurs formulaires (email, complexité du mot de passe) va dans
+`src/lib/validationRules.ts`. Un message de succès se retire à la frappe suivante par
+l'option `onChange` de `useForm` : voir `FormContact.tsx`.
 
 ## 🔮 Améliorations futures
 
