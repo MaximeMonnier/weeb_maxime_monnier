@@ -409,9 +409,10 @@ hôte que le site imposerait de revenir à une adresse absolue **et** de remplir
 `compose.prod.yaml` déclare les **deux** fichiers sur son backend, dans cet
 ordre — `env_file: [.env, .env.prod]` — et le dernier de la liste l'emporte
 variable par variable. Tout ce que le `.env` apporte reste donc en place — clé
-secrète, identifiants de base, hôtes autorisés — et seules ces quatre lignes
-sont réécrites. L'ordre est écrit dans le fichier, il ne se déduit plus d'une
-règle de fusion.
+secrète, identifiants de base, hôtes autorisés — et seules les surcharges sont
+réécrites : les quatre du tableau, `POSTGRES_SSLMODE`, `DJANGO_BEHIND_PROXY`,
+`CORS_ALLOWED_ORIGINS` et `DJANGO_HSTS_SECONDS`, puis le bloc du relais SMTP.
+L'ordre est écrit dans le fichier, il ne se déduit plus d'une règle de fusion.
 
 > ⚠️ **`env_file` n'alimente que l'intérieur du conteneur.** Ce qu'un fichier
 > Compose interpole lui-même avec `${...}` ne se lit que dans le `.env` de la
@@ -789,7 +790,7 @@ Un seul `Dockerfile`, **deux images**, choisies par `--target` :
 
 | Cible | Ce qu'elle contient | Taille | Usage |
 |---|---|---|---|
-| `dev` | Node, toutes les dépendances, le serveur Vite | ~540 Mo | travailler sans installer Node sur sa machine |
+| `dev` | Node, toutes les dépendances, le serveur Vite | ~650 Mo | travailler sans installer Node sur sa machine |
 | `prod` | le site compilé et nginx, **sans Node** | ~74 Mo | servir le site en ligne |
 
 #### La cible `dev`
@@ -911,7 +912,7 @@ navigateur alors que le conteneur reste `healthy`.
 | `npm run build` | Compile la version de production dans `dist/` |
 | `npm run lint` | Vérifie le code avec ESLint |
 | `npm test` | Lance la suite Vitest |
-| `npm run test:e2e` | Rejoue la connexion dans un navigateur, contre la pile de développement |
+| `npm run test:e2e` | Rejoue la connexion et la déconnexion dans un navigateur, contre la pile de développement |
 | `npm run preview` | Sert localement le résultat de `npm run build` |
 
 Les tests sont écrits à côté du fichier qu'ils couvrent, sous le nom `<source>.test.ts`
@@ -1063,9 +1064,10 @@ Les deux jobs ne se déclarent aucun `needs` : ils partent ensemble et vont au b
 leur côté, donc une seule exécution suffit à connaître l'état des deux suites. Et le nom du job
 nomme la suite : un journal rouge désigne la coupable sans qu'il faille l'ouvrir.
 
-À l'intérieur du job frontend, les trois étapes portent la même règle : un `if: !cancelled()`
-les fait toutes tourner, un style refusé ne cache donc pas l'état des tests ni celui du build.
-Le job reste rouge dès que l'une échoue. Le build n'est pas décoratif à côté des tests : il
+À l'intérieur du job frontend, le lint passe en premier, et les deux étapes suivantes —
+Vitest et le build — portent un `if: !cancelled()` qui les fait tourner même s'il échoue : un
+style refusé ne cache donc pas l'état des tests ni celui du build.
+Le job reste rouge dès que l'une des trois échoue. Le build n'est pas décoratif à côté des tests : il
 enchaîne `tsc -b` sur les **trois** projets TypeScript — `src/`, `vite.config.ts` et `e2e/` —
 et c'est le seul endroit où le parcours Playwright est compilé, faute d'être exécuté.
 
@@ -1346,16 +1348,21 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
 ├── .env.example              # modèle de configuration à copier en .env
 ├── .env.prod.example         # modèle des valeurs propres à la production
 ├── .github/workflows/        # les suites de tests, et la construction des images
+├── AMELIORATIONS.md          # pistes repérées en cours de route, non traitées
 ├── compose.dev.yaml          # pile de développement, autonome
 ├── compose.prod.yaml         # pile de production, autonome
 ├── backend/
 │   ├── config/               # configuration du projet Django
 │   │   ├── settings/         # base, development, test, production
 │   │   ├── urls.py           # routeur principal
-│   │   └── views.py          # route de santé, seule vue hors d'une app métier
+│   │   ├── views.py          # route de santé, seule vue hors d'une app métier
+│   │   └── tests.py          # ce que la sonde /health/ promet au HEALTHCHECK
 │   ├── accounts/             # utilisateurs, authentification JWT
+│   │   └── tests.py
 │   ├── articles/             # articles du blog, et la commande peupler_articles
+│   │   └── tests.py
 │   ├── contact/              # formulaire de contact
+│   │   └── tests.py
 │   ├── locale/               # libellés de simplejwt que son catalogue laisse en anglais
 │   ├── Dockerfile            # image de production de l'API
 │   ├── .dockerignore         # ce que le build n'envoie pas au démon
@@ -1363,9 +1370,14 @@ enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'
 │   ├── healthcheck.py        # sonde de santé du conteneur
 │   └── requirements.txt
 └── frontend/
+    ├── .env.example          # modèle du .env de Vite : des VITE_* seulement, en clair dans le bundle
     ├── Dockerfile            # un fichier, deux images : --target dev ou prod
+    ├── .dockerignore         # ce que le build n'envoie pas au démon
     ├── nginx.conf            # serveur de l'image prod : site React et /static/
-    └── src/
+    ├── vite.config.ts        # Vite et Vitest, une seule source de réglages
+    ├── playwright.config.ts  # le parcours en navigateur, second lanceur
+    ├── e2e/                  # parcours Playwright, contre la pile de développement
+    └── src/                  # chaque test Vitest à côté de sa source : <source>.test.ts(x)
         ├── components/ui/              # composants réutilisables, sans logique métier
         ├── components/common/          # composants liés à un domaine du projet
         ├── pages/                      # une page par route
@@ -1387,7 +1399,7 @@ l'autoriser explicitement.
 
 ## Contribuer
 
-- Une branche par issue, créée depuis `main` : `<numéro>-description-en-kebab-case`, sans accent.
+- Une branche par issue, créée depuis `origin/preprod` : `<numéro>-description-en-kebab-case`, sans accent.
 - Messages de commit en français, à l'impératif, préfixés par leur type :
   `feat`, `fix`, `refactor`, `style`, `docs`, `chore`, `test`. Un seul type par commit.
 - Les pull requests vont vers `preprod`, puis `preprod` est fusionnée dans `main`.
