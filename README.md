@@ -17,7 +17,6 @@ Le projet est séparé en deux applications indépendantes qui se parlent par HT
 - Git
 
 ## Installation
-
 À faire une seule fois après avoir cloné le dépôt.
 
 ### 1. La configuration
