@@ -135,7 +135,8 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       profil. La tâche 5.1 de `correction.md` a tranché pour un simple booléen, l'ajout
       backend devant être proposé à part. Piste : une `RetrieveUpdateAPIView` sur
       `request.user`, réservée au membre, dont le serializer ne rend que le prénom, le nom et
-      l'email — rendre l'email modifiable rouvrirait l'énumération à reprendre avec #65.
+      l'email — rendre l'email modifiable y ajouterait un second point d'énumération, voir
+      « `/api/auth/register/` énumère les comptes » ci-dessus.
 - [ ] **Images de couverture d'article.** `coverImg` a été retiré du type et de `Card.tsx` par
       l'issue #175 (tâche 9.1) : ni le modèle `Article` ni les deux serializers de
       `backend/articles/serializers.py` n'ont de champ image, et la branche d'affichage ne
@@ -158,7 +159,7 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       substitue aussi `fetch` — sept fichiers au total, `api.test.ts` compris.
 - [ ] **Le parcours Playwright ne tourne pas en intégration continue.** `tests.yml` lance
       les suites Django et Vitest, mais `npm run test:e2e` exige la pile de `compose.dev.yaml`
-      et un navigateur, que la machine de GitHub n'a pas. Le `forbidOnly` de
+      démarrée et les navigateurs de Playwright, qu'aucun job ne prépare. Le `forbidOnly` de
       `playwright.config.ts` reste donc une garde qui ne s'arme jamais. Piste : un job qui
       monte la pile par Compose et installe Chromium, avec un compte de test créé avant le
       parcours. Distinct de « Exécution des tests en conteneur isolé », qui vise l'image de
