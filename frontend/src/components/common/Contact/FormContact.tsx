@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Input, Textarea } from "../../ui/Input";
 import Button from "../../ui/Button/Button";
 import { apiFetch } from "../../../lib/api";
-import { toFormErrors } from "../../../lib/apiErrors";
 import { isValidEmail } from "../../../lib/validationRules";
 import { useForm } from "../../../hooks/useForm";
 import type { FormErrors } from "../../../hooks/useForm";
@@ -69,54 +68,37 @@ const FormContact = () => {
     formData,
     setFormData,
     errors,
-    setErrors,
     formError,
-    setFormError,
     isSubmitting,
-    setIsSubmitting,
     handleChange,
-    validate,
+    submit,
   } = useForm<FormData>(VALEURS_INITIALES, {
     // La confirmation parle du message parti : la première frappe du suivant la périme.
     onChange: () => setConfirmation(null),
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validate(reglesDeSaisie)) {
-      return;
-    }
-
-    setFormError(null);
-    setConfirmation(null);
-    // Désactive le bouton : sans cela, un double clic entame un quota de cinq
-    // messages par heure.
-    setIsSubmitting(true);
-
-    try {
-      await apiFetch("/contact/", {
-        method: "POST",
-        body: JSON.stringify({
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          email: formData.email,
-          subject: formData.subject,
-          message: formData.message,
-        }),
-      });
-      setFormData(VALEURS_INITIALES);
-      // Le formulaire se vide au succès : sans ce message, rien ne le distinguerait
-      // d'un échec.
-      setConfirmation("Votre message est parti. Nous vous répondrons par email.");
-    } catch (err) {
-      const { fieldErrors, formError } = toFormErrors(err, CHAMPS);
-      setErrors(fieldErrors);
-      setFormError(formError);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const handleSubmit = (e: React.FormEvent) =>
+    submit(e, {
+      rules: reglesDeSaisie,
+      fields: CHAMPS,
+      send: async (values) => {
+        setConfirmation(null);
+        await apiFetch("/contact/", {
+          method: "POST",
+          body: JSON.stringify({
+            first_name: values.first_name,
+            last_name: values.last_name,
+            email: values.email,
+            subject: values.subject,
+            message: values.message,
+          }),
+        });
+        setFormData(VALEURS_INITIALES);
+        // Le formulaire se vide au succès : sans ce message, rien ne le distinguerait
+        // d'un échec.
+        setConfirmation("Votre message est parti. Nous vous répondrons par email.");
+      },
+    });
 
   return (
     <form
@@ -198,6 +180,7 @@ const FormContact = () => {
             type="submit"
             variant="primary"
             size="lg"
+            // Sans ce verrou, un double clic entame un quota de cinq messages par heure.
             disabled={isSubmitting}
           >
             {isSubmitting ? "Envoi en cours..." : "Envoyer le message"}
