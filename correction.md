@@ -2324,7 +2324,7 @@ Consulte `frontend-react-ts` et `inventaire-avant-dev` : aucun fichier à créer
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 + 2 — documentation |
+| En cours — 13.1 et 13.3 livrés le 2026-10-04 ; restent 13.2 et 13.4, hors dépôt | #261 | — | Bloc 1 + 2 — documentation |
 
 **Origine** : depuis le 2026-09-01, 156 commits `docs` pour 34 `feat`, 6 126 lignes de Markdown
 ajoutées pour environ 3 960 de code. `CLAUDE.md` pèse 39 999 octets pour un budget de 40 000,
@@ -2336,13 +2336,15 @@ hook de pré-push.
 **Grain de ticket** : 13.1 et 13.3 en issues ; 13.2 et 13.4 sans issue ni PR, `CLAUDE.md` et
 `.claude/` n'étant pas versionnés. Cette fois, **le lot ne s'étend pas** : un défaut repéré en
 route va dans `AMELIORATIONS.md`.
+Ouvert ainsi : epic #261, 13.3 → #262, 13.1 → #263 (backend), #264 (Docker et CI), #265
+(exemples d'environnement) et #266 (frontend).
 
 > **Dépendances : lot 12 clos**, qui rend caduques une partie des explications à retirer.
 
 ## 13.1 — Commentaires : aucun bloc de plus de 3 lignes
 
-- [ ] **Fichiers** : en tête `backend/config/settings/*.py`, `compose.dev.yaml`, `compose.prod.yaml`,
-  `backend/healthcheck.py`, puis tout le code
+- [x] **Fichiers** — livré par #263 à #266 (PR #268 à #271) : en tête `backend/config/settings/*.py`,
+  `compose.dev.yaml`, `compose.prod.yaml`, `backend/healthcheck.py`, puis tout le code
 - **Constat** : 31 blocs de plus de 3 lignes, dont 7 dans `base.py` et 7 dans
   `compose.prod.yaml`. `production.py:34-46` consacre 13 lignes à un réglage. Restent aussi des
   paraphrases (`accounts/models.py:17`, `:39`, les fins de ligne de `config/urls.py`), des
@@ -2379,7 +2381,7 @@ Lis la règle « Qui porte quoi » en tête de CLAUDE.md.
 
 ## 13.3 — README à 35 Ko
 
-- [ ] **Fichiers** : `README.md`, `frontend/README.md`
+- [x] **Fichiers** — livré par #262 (PR #267) : `README.md`, `frontend/README.md`
 - **Constat** : 85 Ko pour un site vitrine et un blog. Le README sert à qui installe et lance
   le projet ; il porte aussi le récit de choix que le journal et les PR gardent déjà.
 - **Attendu** : `README.md` ≤ 35 000 octets ; installer, lancer, tester, déployer. Le reste
