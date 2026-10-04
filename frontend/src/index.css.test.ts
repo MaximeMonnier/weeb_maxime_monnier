@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import sourceDuCss from "./index.css?raw";
 
 // `.dark` est la seule classe que ne pose aucun `className` : `useTheme.ts` en écrit
-// le nom en toutes lettres, et le `class` de la page le porte aussi — hors de la glob
+// le nom en toutes lettres, et le script en ligne de la page aussi — hors de la glob
 // ci-dessous, qui ne quitte pas `src/`.
 import sourceDuHtml from "../index.html?raw";
 
@@ -124,13 +124,13 @@ function variantesDe(source: string) {
     );
 }
 
-/** Rend les classes posées par les attributs `class` d'une source HTML. */
-function classesDuHtml(source: string): string[] {
-  // Une expression régulière suffit ici, et `chainesDe` ne conviendrait pas : il
-  // saute tout ce qui suit `//`, qui en HTML ouvre une URL et non un commentaire.
-  return [...source.matchAll(/\sclass\s*=\s*["']([^"']*)["']/g)]
-    .flatMap(([, valeur]) => valeur.split(/\s+/))
-    .filter(Boolean);
+/** Rend les jetons des scripts en ligne d'une source HTML. */
+function jetonsDuHtml(source: string): string[] {
+  // `chainesDe` ne lit que l'intérieur des `<script>` : hors d'eux, `//` ouvre une
+  // URL et non un commentaire, et lui ferait sauter la fin de la ligne.
+  return [...source.matchAll(/<script>([\s\S]*?)<\/script>/g)].flatMap(
+    ([, code]) => jetonsDe(code),
+  );
 }
 
 // Les fichiers de test s'écartent : l'un d'eux peut citer une classe fautive
@@ -148,7 +148,7 @@ const VARIANTES = FICHIERS.flatMap(([chemin, source]) =>
 // ils ne peuvent qu'ajouter un lecteur à un nom qu'aucune règle ne porte.
 const CLASSES_POSEES = new Set([
   ...FICHIERS.flatMap(([, source]) => jetonsDe(source)),
-  ...classesDuHtml(sourceDuHtml),
+  ...jetonsDuHtml(sourceDuHtml),
 ]);
 
 describe("index.css", () => {
@@ -179,9 +179,9 @@ describe("index.css", () => {
     expect(CLASSES_MAISON).toContain("nav-link");
     expect(FICHIERS.length).toBeGreaterThan(40);
     expect(VARIANTES.map(({ jeton }) => jeton)).toContain("hover:underline");
-    // La page est l'autre source de `.dark`, et la seule qui restera le jour où le
-    // hook cessera d'écrire le nom de sa classe en toutes lettres.
-    expect(classesDuHtml(sourceDuHtml)).toContain("dark");
+    // Le script de la page est l'autre lecteur de `.dark` : une expression qui ne
+    // le trouverait plus laisserait le hook seul témoin, sans rien dire.
+    expect(jetonsDuHtml(sourceDuHtml)).toContain("dark");
   });
 });
 

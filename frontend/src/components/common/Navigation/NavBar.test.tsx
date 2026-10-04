@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
@@ -13,11 +13,6 @@ import NavBar from "./NavBar";
 // un chemin à paramètre n'est pas une adresse qu'un lien puisse porter tel quel.
 const ROUTES_DE_L_APP = ROUTES.map(({ path }) => path)
   .filter((chemin) => chemin !== "*" && !chemin.includes(":"));
-
-// jsdom n'implémente pas `matchMedia`, que `useTheme` interroge dès le premier
-// rendu. Le doublon se pose ici faute d'un `setupFiles` où le poser une fois, et
-// se limite au `matches` que le hook lit.
-vi.stubGlobal("matchMedia", () => ({ matches: false }));
 
 function rendreLaBarre() {
   render(
