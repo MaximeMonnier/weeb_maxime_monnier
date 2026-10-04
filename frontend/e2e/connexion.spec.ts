@@ -43,8 +43,6 @@ test.describe("Connexion", () => {
   });
 
   test("refuse un mot de passe faux sans rien stocker", async ({ page }) => {
-    // Huit caractères au moins : plus court, le formulaire refuserait de lui-même
-    // et l'API ne serait jamais appelée.
     await seConnecter(page, "mot-de-passe-faux-42");
 
     // Ce libellé est celui que le front substitue au 401 de simplejwt.
