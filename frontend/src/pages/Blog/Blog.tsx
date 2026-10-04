@@ -73,7 +73,6 @@ const Blog = () => {
     <div className="container-custom mt-32">
       <HeroTitle
         center={false}
-        as="h2"
         line1={<>Nos articles vont vous plaire !</>}
       />
       <div className="w-full flex justify-between items-center mt-6">
