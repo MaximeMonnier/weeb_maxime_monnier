@@ -1,27 +1,17 @@
 #!/bin/sh
-# ============================================
-#  Démarrage du conteneur backend
-# ============================================
-# Prépare la base et les fichiers statiques, puis passe la main à la commande
-# du conteneur (Gunicorn, définie par CMD dans le Dockerfile).
+# Prépare la base et les statiques, puis passe la main à la commande du conteneur.
 
 # -e : la moindre commande en échec arrête le script. Sans ça, un `migrate`
 # raté serait suivi d'un Gunicorn qui démarre sur un schéma incomplet et
 # renvoie des erreurs 500 en apparaissant sain.
 set -e
 
-# La préparation n'a lieu QUE si la commande demandée est le serveur
-# d'application. Sans cette garde, `docker run <image> id -u` — ou n'importe
-# quelle commande d'inspection — déclencherait une migration de base et
-# échouerait faute de base joignable. À l'inverse d'un simple CMD, la garde
-# tient aussi quand la commande est surchargée par un `command:` de Compose :
-# elle voit `gunicorn` et prépare quand même.
+# Ne prépare que devant gunicorn, même lancé par un `command:` de Compose : sans
+# cette garde, `docker run <image> id -u` migrerait, et échouerait faute de base.
 case "$1" in
 gunicorn)
-    # Ces deux commandes passent par manage.py, dont le module de réglages par
-    # défaut est `development`. C'est DJANGO_SETTINGS_MODULE, posé dans le
-    # Dockerfile, qui impose `production` ici — sinon les migrations
-    # tourneraient avec les réglages du poste de développement.
+    # manage.py prend `development` par défaut : c'est le DJANGO_SETTINGS_MODULE
+    # du Dockerfile qui impose `production` à ces deux commandes.
 
     echo "→ Application des migrations"
     # Migrer au démarrage suppose UN SEUL conteneur à la fois. Avec plusieurs

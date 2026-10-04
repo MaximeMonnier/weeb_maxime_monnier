@@ -40,10 +40,8 @@ jobs:
         # du poste et de la production ne prouverait pas grand-chose.
         image: postgres:17-alpine
 
-        # Identifiants en clair et assumés : la base est jetée avec la machine
-        # et n'est joignable que d'elle. Un secret n'y protégerait rien.
-        # Ils sont écrits deux fois, ici et dans `env` plus bas, parce que le
-        # contexte `env` n'est pas lisible depuis un bloc `services`.
+        # En clair : la base est jetée avec la machine. Écrits aussi dans `env`
+        # plus bas, ce contexte n'étant pas lisible depuis un bloc `services`.
         env:
           POSTGRES_DB: weeb
           POSTGRES_USER: weeb
@@ -121,12 +119,9 @@ jobs:
       - name: Contrôle du style
         run: npm run lint
 
-      # `!cancelled()` sur les deux étapes suivantes : sans lui, un style refusé
-      # arrêterait le job et cacherait l'état des tests et du build jusqu'à la
-      # correction. Le job reste rouge dès qu'une des trois échoue.
-      #
-      # `npm test` est Vitest seul. Playwright reste dehors : il exige la pile
-      # Compose debout et l'installation d'un navigateur — voir le README.
+      # `!cancelled()` : un style refusé ne cache pas l'état des tests et du
+      # build, le job restant rouge dès qu'une étape échoue. Playwright reste
+      # dehors, faute de pile Compose et de navigateur.
       - name: Suite Vitest
         if: ${{ !cancelled() }}
         run: npm test

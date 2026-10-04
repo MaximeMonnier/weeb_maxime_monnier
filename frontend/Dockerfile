@@ -1,7 +1,6 @@
 # Deux images dans un fichier, choisies par --target :
 #   docker build --target dev  -t weeb-frontend-dev ./frontend
 #   docker build --target prod -t weeb-frontend --build-arg VITE_API_URL=... ./frontend
-# Étapes, montages et arguments détaillés dans le README.
 
 # ---------- Dépendances, communes aux deux images ----------
 FROM node:22-alpine AS deps
@@ -31,7 +30,7 @@ COPY --chown=node:node . .
 
 EXPOSE 5173
 
-# La sonde dit que Vite répond, pas que l'application marche : voir le README.
+# La sonde dit que Vite répond, pas que l'application marche.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD wget -q -O - http://127.0.0.1:5173/ > /dev/null 2>&1 || exit 1
 

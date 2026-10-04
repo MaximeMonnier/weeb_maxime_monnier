@@ -1,18 +1,9 @@
-# Pile de DÉVELOPPEMENT, autonome : ce fichier se lit de bout en bout et ne
-# fusionne avec rien. La production est dans compose.prod.yaml, tout aussi
-# autonome. Les deux se ressemblent, et c'est le prix assumé de leur lisibilité.
-#
-#   docker compose -f compose.dev.yaml up -d --wait
-#
-# Le `-f` n'est pas facultatif, et vaut pour TOUTES les commandes. Il n'y a plus
-# de `compose.yaml` : une commande qui l'oublie échoue en le disant, au lieu de
-# viser la mauvaise pile en silence. `export COMPOSE_FILE=compose.dev.yaml` le
-# pose une fois pour toutes dans le terminal.
+# Pile de DÉVELOPPEMENT, autonome : la production est dans compose.prod.yaml.
+# Pas de compose.yaml : sans `-f`, une commande échoue au lieu de viser la
+# mauvaise pile. `export COMPOSE_FILE=compose.dev.yaml` le pose une fois.
 
-# Nom de projet figé : sans lui, Compose le déduit du nom du dossier, et les
-# conteneurs comme le volume de données changeraient de nom d'une machine à
-# l'autre. Distinct de `weeb-prod`, donc volume distinct : un `down -v` lancé
-# ici ne touche pas aux données de la production.
+# Nom figé : déduit du dossier, il changerait d'une machine à l'autre. Distinct
+# de `weeb-prod`, donc volume distinct : un `down -v` ici épargne la production.
 name: weeb
 
 services:
@@ -38,8 +29,9 @@ services:
     networks:
       - interne
 
-    # `-h 127.0.0.1` : sans lui, la sonde déclare le service sain avant qu'il
-    # écoute en TCP — voir le README. `$$` diffère la substitution au conteneur.
+    # `-h 127.0.0.1` : sans lui, la sonde passe par la socket Unix et déclare
+    # le service sain avant qu'il écoute en TCP. `$$` diffère la substitution
+    # au conteneur.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -88,12 +80,9 @@ services:
     # Absent, il interrompt le démarrage au lieu de partir sur des valeurs vides.
     env_file: .env
 
-    # L'image pose `production`. En développement on veut l'inverse : page
-    # d'erreur détaillée, pas de redirection HTTPS, CORS ouvert sur Vite.
-    #
-    # POSTGRES_HOST, POSTGRES_PORT, EMAIL_HOST et EMAIL_PORT contredisent
-    # volontairement le .env, qui décrit la base et le serveur de mail vus depuis
-    # la machine. Ce n'est pas de la configuration mais la topologie du réseau.
+    # L'image pose `production`, on veut l'inverse. Hôtes et ports contredisent le
+    # .env, qui décrit base et mail vus depuis la machine : `db:5432` et
+    # `mailpit:1025` sont la topologie du réseau Compose, pas de la configuration.
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.development
       POSTGRES_HOST: db
@@ -169,10 +158,9 @@ services:
       start_period: 30s
 
 networks:
-  # La base et Mailpit ne sont joints que par le backend, qui est sur les deux
-  # réseaux, ce qui lui laisse une sortie. `interne` n'est PAS fermé ici,
-  # contrairement à la production : les deux sont justement publiés sur la
-  # machine, pour le travail en venv.
+  # Base et Mailpit ne sont joints que par le backend, seul sur les deux réseaux.
+  # `interne` n'est pas fermé, contrairement à la production : les deux sont
+  # publiés sur la machine pour le travail en venv.
   interne:
   public:
 
