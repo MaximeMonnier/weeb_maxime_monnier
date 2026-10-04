@@ -48,17 +48,6 @@ et pour les prochaines itérations).
       contre `#0F172A`. Repéré aux issues #220 et #233. Piste : décider entre l'écran actuel,
       dont on réécrit alors les commentaires, et la maquette, dont on recalcule les valeurs —
       puis mesurer les contrastes qui en dépendent avant de choisir.
-- [ ] **Le seuil de 8 caractères du mot de passe est recopié dans quatre formulaires.**
-      `FormSubscribe.tsx`, `ResetPassword.tsx`, `ChangePassword.tsx` et `FormLogin.tsx`
-      écrivent chacun `length < 8` et son message, là où la complexité vit une seule fois
-      dans `lib/validationRules.ts`. Le seuil reprend celui de `MinimumLengthValidator`
-      (`config/settings/base.py`) : s'il change côté API, trois formulaires sur quatre
-      restent en retard sans que rien ne le signale. La confirmation du mot de passe se
-      répète aussi, entre `FormSubscribe.tsx` et `ChangePassword.tsx`. Et la copie de
-      `FormLogin.tsx` applique une règle de création à la connexion : un compte au mot de
-      passe plus court, né d'un `create_user()` au shell, ne pourrait pas se connecter depuis
-      le site. Repéré à l'issue #233. Piste : une constante et une fonction dans
-      `lib/validationRules.ts`, et retirer le contrôle de longueur de la connexion.
 
 ## Docker — mise en ligne
 
