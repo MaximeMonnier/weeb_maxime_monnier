@@ -1,18 +1,7 @@
-"""
-Réglages communs à tous les environnements du projet Weeb.
-
-Ce module ne contient AUCUN secret et AUCUNE valeur propre à une machine :
-tout ce qui change d'un environnement à l'autre est lu depuis l'environnement
-(fichier `.env` à la racine en local, variables injectées par Docker ailleurs).
-
-Les modules `development`, `test` et `production` héritent de ce fichier ;
-celui qui s'applique est choisi par la variable DJANGO_SETTINGS_MODULE.
-
-Documentation : https://docs.djangoproject.com/en/6.0/ref/settings/
-"""
+"""Réglages communs : aucun secret, aucune valeur propre à une machine."""
 
 import os
-from datetime import timedelta  # sert à définir la durée de validité des tokens JWT
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -21,16 +10,10 @@ from dotenv import load_dotenv
 # Ce fichier est backend/config/settings/base.py : trois crans au-dessus = backend/
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Charge le `.env` de la racine du dépôt (un cran au-dessus de backend/).
-# En conteneur ce fichier n'existe pas et l'appel ne fait rien : les variables
-# viennent alors de Docker. `override=False` pour que l'environnement réel
-# l'emporte toujours sur le contenu du fichier.
+# Le `.env` de la racine du dépôt ; absent en conteneur, où Docker fournit les variables.
+# `override=False` : l'environnement réel l'emporte toujours sur le fichier.
 load_dotenv(BASE_DIR.parent / '.env', override=False)
 
-
-# ============================================
-#  Lecture de l'environnement
-# ============================================
 
 def env_required(name):
     """Renvoie la variable d'environnement demandée, ou interrompt le démarrage si elle manque."""
@@ -86,15 +69,8 @@ def env_list(name, default=None):
     return [item.strip() for item in value.split(',') if item.strip()]
 
 
-# ============================================
-#  Sécurité
-# ============================================
-
-# SECRET_KEY n'est PAS définie ici : chaque environnement dit d'où vient la
-# sienne. `development` et `production` l'exigent depuis l'environnement, sans
-# aucune valeur de repli ; `test` pose une clé factice, seuls les identifiants
-# de base lui restant nécessaires.
-# La définir ici la rendrait obligatoire y compris pour lancer les tests.
+# SECRET_KEY n'est PAS définie ici : chaque environnement dit d'où vient la sienne.
+# La poser ici l'exigerait jusque pour lancer les tests.
 
 # Par défaut faux : c'est l'environnement de développement qui l'active,
 # jamais l'oubli d'une variable qui l'allume en production.
@@ -102,8 +78,6 @@ DEBUG = env_bool('DJANGO_DEBUG', False)
 
 ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS')
 
-
-# Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -164,9 +138,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
 def postgres_database():
     """Compose la configuration de la base PostgreSQL à partir de l'environnement."""
     return {
@@ -175,24 +146,16 @@ def postgres_database():
             'NAME': env_required('POSTGRES_DB'),
             'USER': env_required('POSTGRES_USER'),
             'PASSWORD': env_required('POSTGRES_PASSWORD'),
-            # Hôte et port ont un défaut, contrairement aux identifiants : la
-            # base écoute sur le port standard de la machine tant que le backend
-            # tourne hors conteneur. Une fois le backend conteneurisé,
-            # POSTGRES_HOST prendra le nom du service Compose (`db`).
+            # Défauts pour le backend lancé dans le venv ; en conteneur, Compose impose `db:5432`.
             'HOST': env_str('POSTGRES_HOST', 'localhost'),
             'PORT': env_int('POSTGRES_PORT', 5432),
         }
     }
 
 
-# DATABASES n'est PAS défini ici, pour la même raison que SECRET_KEY : les
-# identifiants sont exigés depuis l'environnement, et les exiger dès ce module
-# rendrait impossible le simple import des réglages sans base configurée.
-# Chaque environnement appelle postgres_database() lui-même.
+# DATABASES n'est PAS défini ici : chaque environnement appelle postgres_database(),
+# pour que l'import des réglages reste possible sans base configurée.
 
-
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -215,9 +178,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
-
 # Fixe la langue des messages rendus par Django et DRF — ceux des validateurs de mot
 # de passe compris. Aucun LocaleMiddleware : la langue ne suit pas l'Accept-Language
 # du client, tous les libellés écrits par le projet étant français.
@@ -233,9 +193,6 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
-
 STATIC_URL = 'static/'
 
 # Dossier où `collectstatic` rassemble les fichiers statiques pour qu'un serveur
@@ -243,9 +200,6 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
-# ============================================
-#  Django REST Framework (DRF)
-# ============================================
 REST_FRAMEWORK = {
     # Comment l'API reconnaît un utilisateur : via un token JWT dans l'en-tête "Authorization: Bearer <token>"
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -261,19 +215,13 @@ REST_FRAMEWORK = {
     # 12 remplit sans trou la grille du blog, qu'elle ait deux ou trois colonnes.
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 12,
-    # Quotas d'appels, comptés par IP. ScopedRateThrottle ne compte QUE les vues
-    # qui déclarent un `throttle_scope` : les autres, articles compris, ne sont
-    # pas limitées. Un scope absent des taux ci-dessous fait échouer sa vue.
+    # ScopedRateThrottle ne compte QUE les vues qui déclarent un `throttle_scope` : un membre
+    # connecté par compte, un visiteur par IP. Un scope absent des taux fait échouer sa vue.
     'DEFAULT_THROTTLE_CLASSES': (
         'rest_framework.throttling.ScopedRateThrottle',
     ),
-    # Format "<nombre>/<période>", la période lue à sa première lettre : `min`
-    # comme `minute`. Les défauts sont calés sur l'usage humain — on se trompe
-    # de mot de passe deux ou trois fois d'affilée, pas six.
-    #
-    # Le compteur vit dans le cache de Django, et faute de CACHES déclaré c'est
-    # LocMemCache : les trois workers Gunicorn comptent chacun le leur, donc 5/min
-    # en laisse passer jusqu'à 15. Assumé — borner l'abus suffit, pas de Redis ici.
+    # Défauts calés sur l'usage humain. Le compteur vit dans LocMemCache, un par worker
+    # Gunicorn : le quota réel est multiplié par leur nombre. Assumé, pas de Redis ici.
     'DEFAULT_THROTTLE_RATES': {
         'login': env_str('THROTTLE_LOGIN', '5/min'),
         'register': env_str('THROTTLE_REGISTER', '5/hour'),
@@ -284,9 +232,6 @@ REST_FRAMEWORK = {
     },
 }
 
-# ============================================
-#  JWT (djangorestframework-simplejwt)
-# ============================================
 SIMPLE_JWT = {
     # 15 min et non 60 : le token d'accès vit dans localStorage, donc lisible par
     # tout script de la page, et rien ne le révoque avant son échéance — même un
@@ -299,20 +244,14 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
-# ============================================
-#  CORS — autoriser le front (Vite) à appeler l'API
-# ============================================
-# Sans ça, le navigateur BLOQUE les requêtes du front (:5173) vers l'API (:8000)
-# car ce sont deux "origines" différentes (politique de sécurité Same-Origin).
-# Les origines autorisées changent selon l'environnement : elles sont lues depuis
-# CORS_ALLOWED_ORIGINS, sous forme de liste séparée par des virgules.
+# Front et API sont deux origines en développement (:5173, :8000) : sans liste,
+# le navigateur bloque chaque appel.
 CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS')
 
 
 # --- Emails ---
-# EMAIL_BACKEND n'est PAS défini ici, pour la même raison que SECRET_KEY : le
-# canal d'envoi change du tout au tout d'un environnement à l'autre, et un
-# défaut hérité ferait qu'une suite de tests ouvrirait des connexions réseau.
+# EMAIL_BACKEND n'est PAS défini ici : un canal hérité ferait ouvrir des connexions
+# SMTP à la suite de tests.
 
 # Adresse expéditrice des messages, celle que verra le destinataire. Le défaut
 # ne vaut qu'en développement : un domaine `.local` est refusé par tout relais

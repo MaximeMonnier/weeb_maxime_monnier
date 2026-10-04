@@ -29,9 +29,8 @@ DATABASES = postgres_database()
 
 
 # --- Emails ---
-# Un vrai SMTP, et non le backend `console` : c'est le code d'envoi réel qui
-# doit être exercé ici. En face, Mailpit affiche les messages au lieu de les
-# livrer — http://127.0.0.1:8025.
+# Un vrai SMTP plutôt que `console`, pour exercer l'envoi réel. Mailpit affiche
+# les messages au lieu de les livrer : http://127.0.0.1:8025.
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 # Le défaut vise Mailpit publié sur la machine, pour le backend lancé dans le
