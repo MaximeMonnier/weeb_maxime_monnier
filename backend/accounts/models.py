@@ -12,9 +12,9 @@ class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError("L'email est obligatoire")
-        email = self.normalize_email(email)          # normalise (domaine en minuscules)
+        email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
-        user.set_password(password)                  # HASHE le mot de passe (jamais en clair)
+        user.set_password(password)
         user.save(using=self._db)
         return user
 
@@ -36,7 +36,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)    # accès à l'admin Django ?
     date_joined = models.DateTimeField(auto_now_add=True)
 
-    objects = UserManager()                          # branche notre manager
+    objects = UserManager()
 
     USERNAME_FIELD = "email"                         # on se connecte avec l'email
     REQUIRED_FIELDS = ["first_name", "last_name"]    # demandés en plus par createsuperuser

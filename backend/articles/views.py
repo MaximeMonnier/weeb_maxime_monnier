@@ -28,11 +28,9 @@ class ArticleViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         if self.action == "list":
-            # Les deux vont ensemble : defer laisse content en base, annotate y
-            # taille l'extrait. Sans l'annotation, le serializer rechargerait
-            # content une requête par ligne ; sans le defer, il voyagerait entier.
-            # La coupure se mesure ici aussi : la carte n'a que l'extrait, et
-            # comparer sa longueur côté front recopierait LONGUEUR_EXTRAIT.
+            # defer laisse content en base, annotate y taille l'extrait : sans l'annotation, le
+            # serializer rechargerait content ligne par ligne ; sans le defer, il voyagerait entier.
+            # La coupure se mesure ici : la mesurer au front recopierait LONGUEUR_EXTRAIT.
             return queryset.defer("content").annotate(
                 excerpt=Left("content", LONGUEUR_EXTRAIT),
                 excerpt_truncated=GreaterThan(Length("content"), LONGUEUR_EXTRAIT),
