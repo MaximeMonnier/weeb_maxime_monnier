@@ -48,6 +48,13 @@ et pour les prochaines itérations).
       contre `#0F172A`. Repéré aux issues #220 et #233. Piste : décider entre l'écran actuel,
       dont on réécrit alors les commentaires, et la maquette, dont on recalcule les valeurs —
       puis mesurer les contrastes qui en dépendent avant de choisir.
+- [ ] **Les messages du mot de passe sont recopiés dans trois formulaires.** L'issue #245 a
+      mis en commun les règles dans `lib/validationRules.ts`, pas leurs textes : les refus de
+      longueur, de complexité et de confirmation, et l'aide « Au moins 8 caractères avec
+      majuscule, minuscule et chiffre », sont écrits à la main dans `FormSubscribe.tsx`,
+      `ChangePassword.tsx` et `ResetPassword.tsx`. Chaque test lit son propre formulaire,
+      aucun ne les compare : une règle qui change laisse les trois annoncer l'ancienne.
+      Repéré à l'issue #246. Piste : exporter les messages et l'aide à côté des règles.
 
 ## Docker — mise en ligne
 
