@@ -3,6 +3,9 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import (
     PasswordField, TokenObtainPairSerializer, TokenRefreshSerializer,
 )
+from rest_framework_simplejwt.settings import api_settings
+
+from django.db import transaction
 
 from .models import CustomUser
 from .validators import validate_password_strength
@@ -89,11 +92,18 @@ class RefreshSerializer(TokenRefreshSerializer):
     """Renouvelle les jetons, et refuse en 401 un compte supprimé comme un compte désactivé."""
 
     def validate(self, attrs):
-        # simplejwt relit le titulaire par objects.get() sans intercepter son absence :
-        # le 500 qui en sortait, apiFetch le prend pour une panne et garde les jetons.
-        try:
-            return super().validate(attrs)
-        except CustomUser.DoesNotExist:
-            raise AuthenticationFailed(
-                self.error_messages["no_active_account"], "no_active_account"
-            )
+        user_id = self.token_class(attrs["refresh"]).payload.get(api_settings.USER_ID_CLAIM)
+        with transaction.atomic():
+            # Pris avant que super() relise le jeton et sa liste noire : vérifiée avant le
+            # verrou, elle ignorerait une révocation de set_password_and_revoke en cours.
+            CustomUser.objects.select_for_update().filter(
+                **{api_settings.USER_ID_FIELD: user_id}
+            ).first()
+            # simplejwt relit le titulaire par objects.get() sans intercepter son absence :
+            # le 500 qui en sortait, apiFetch le prend pour une panne et garde les jetons.
+            try:
+                return super().validate(attrs)
+            except CustomUser.DoesNotExist:
+                raise AuthenticationFailed(
+                    self.error_messages["no_active_account"], "no_active_account"
+                )

@@ -70,12 +70,15 @@ def set_password_and_revoke(user, password):
     # D'un bloc : sans quoi une révocation en échec garderait le nouveau mot de passe et
     # les sessions volées. Les jetons d'accès vivent leurs 15 minutes, voir base.py.
     with transaction.atomic():
+        # Le verrou que prend aussi RefreshSerializer : une rotation lancée pendant ce bloc
+        # attend sa fin, celle qui l'a précédé a déjà inscrit son refresh neuf.
+        CustomUser.objects.select_for_update().get(pk=user.pk)
         user.set_password(password)
         user.save()
         BlacklistedToken.objects.bulk_create(
             [BlacklistedToken(token=token) for token in
              OutstandingToken.objects.filter(user=user, blacklistedtoken__isnull=True)],
-            # Une rotation de login/refresh/ peut inscrire l'un d'eux entre lecture et écriture.
+            # Une déconnexion, qui ne prend pas le verrou, peut inscrire l'un d'eux entre-temps.
             ignore_conflicts=True,
         )
 

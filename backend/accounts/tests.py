@@ -4,14 +4,17 @@ jusqu'à quand un refresh reste bon, et à qui la connexion en délivre — l'in
 créant qu'un compte en attente."""
 
 import re
+import threading
+import time
 from datetime import timedelta
 from unittest.mock import patch
 
 from django.conf import settings
+from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from django.core.cache import cache
 from django.db import connection
-from django.test import Client, SimpleTestCase, TestCase
+from django.test import Client, SimpleTestCase, TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import resolve, reverse
 from django.utils.encoding import force_bytes
@@ -757,15 +760,15 @@ class PasswordChangeTests(TestCase):
         self.assertEqual(self.rafraichir(autre_appareil["refresh"]).status_code, 401)
         self.assertEqual(self.rafraichir(self.session["refresh"]).status_code, 401)
 
-    def test_une_rotation_concurrente_n_annule_pas_le_changement(self):
+    def test_une_deconnexion_concurrente_n_annule_pas_le_changement(self):
         inscrire = BlacklistedToken.objects.bulk_create
 
-        def rotation_entre_lecture_et_ecriture(jetons, **options):
+        def deconnexion_entre_lecture_et_ecriture(jetons, **options):
             BlacklistedToken.objects.create(token=jetons[0].token)
             return inscrire(jetons, **options)
 
         with patch.object(
-            BlacklistedToken.objects, "bulk_create", side_effect=rotation_entre_lecture_et_ecriture
+            BlacklistedToken.objects, "bulk_create", side_effect=deconnexion_entre_lecture_et_ecriture
         ) as enveloppe:
             response = self.changer(
                 {"current_password": self.PASSWORD, "new_password": self.NOUVEAU},
@@ -814,3 +817,98 @@ class PasswordChangeTests(TestCase):
             self.assertEqual(self.changer(corps, self.session["access"]).status_code, 400)
 
         self.assertEqual(self.changer(corps, self.session["access"]).status_code, 429)
+
+
+def attendre_verrou_ou_fin(fil):
+    """Rend la main quand `fil` a fini, ou quand une connexion attend un verrou de PostgreSQL."""
+    limite = time.monotonic() + 10
+    while fil.is_alive() and time.monotonic() < limite:
+        with connection.cursor() as curseur:
+            curseur.execute(
+                "SELECT count(*) FROM pg_stat_activity"
+                " WHERE datname = current_database() AND wait_event_type = 'Lock'"
+            )
+            if curseur.fetchone()[0]:
+                return
+        time.sleep(0.01)
+
+
+class RotationConcurrenteTests(TransactionTestCase):
+    """Une rotation de login/refresh/ menée pendant une révocation n'émet pas de refresh qui lui
+    survive. TransactionTestCase : chaque thread a sa connexion, qui doit voir les données."""
+
+    PASSWORD = "MotDePasseValide123"
+    NOUVEAU = "NouveauSecret456"
+
+    def setUp(self):
+        self.membre = CustomUser.objects.create_user(
+            email="membre@example.com", first_name="Martin", last_name="Embre",
+            password=self.PASSWORD,
+        )
+        jetons = RefreshToken.for_user(self.membre)
+        self.refresh, self.access = str(jetons), str(jetons.access_token)
+
+    def rafraichir(self, refresh):
+        return Client().post(
+            reverse("login-refresh"), {"refresh": refresh}, content_type="application/json"
+        )
+
+    def course(self, revoquer):
+        """Suspend une rotation juste avant qu'elle inscrive son refresh neuf, lance `revoquer`,
+        puis relâche la rotation dès que `revoquer` a fini ou attend un verrou."""
+        en_pause, reprendre = threading.Event(), threading.Event()
+        inscrire = RefreshToken.outstand
+        reponses = {}
+
+        def inscrire_apres_pause(jeton):
+            # Seul le premier appel, celui de la rotation, s'arrête : la vue de changement
+            # émet ensuite ses propres jetons.
+            if not en_pause.is_set():
+                en_pause.set()
+                reprendre.wait(timeout=10)
+            return inscrire(jeton)
+
+        def lancer(nom, action):
+            def cible():
+                try:
+                    reponses[nom] = action()
+                finally:
+                    connection.close()
+            fil = threading.Thread(target=cible)
+            fil.start()
+            return fil
+
+        with patch.object(RefreshToken, "outstand", inscrire_apres_pause):
+            rotation = lancer("rotation", lambda: self.rafraichir(self.refresh))
+            self.assertTrue(en_pause.wait(timeout=10))
+            revocation = lancer("revocation", revoquer)
+            attendre_verrou_ou_fin(revocation)
+            reprendre.set()
+            rotation.join()
+            revocation.join()
+
+        self.assertEqual(reponses["revocation"].status_code, 200)
+        self.assertEqual(reponses["rotation"].status_code, 200)
+        return reponses["rotation"].json()["refresh"]
+
+    def test_le_refresh_emis_pendant_un_changement_est_revoque(self):
+        refresh_neuf = self.course(lambda: Client().post(
+            reverse("password-change"),
+            {"current_password": self.PASSWORD, "new_password": self.NOUVEAU},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access}",
+        ))
+
+        self.assertEqual(self.rafraichir(refresh_neuf).status_code, 401)
+
+    def test_le_refresh_emis_pendant_une_reinitialisation_est_revoque(self):
+        uid = urlsafe_base64_encode(force_bytes(self.membre.pk))
+        token = default_token_generator.make_token(self.membre)
+
+        refresh_neuf = self.course(lambda: Client().post(
+            reverse("password-reset-confirm"),
+            {"uid": uid, "token": token, "new_password": self.NOUVEAU},
+            content_type="application/json",
+        ))
+
+        self.assertEqual(self.rafraichir(refresh_neuf).status_code, 401)
