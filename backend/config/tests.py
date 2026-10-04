@@ -1,10 +1,14 @@
-"""Tests de la route de santé : ouverte au visiteur, une seule requête, 503 sans base."""
+"""Tests transversaux : la route de santé, et les droits de chaque profil sur l'API."""
 
 from unittest.mock import patch
 
 from django.db import DatabaseError
 from django.test import TestCase
-from django.urls import reverse
+from django.urls import URLResolver, get_resolver, reverse
+from rest_framework_simplejwt.tokens import AccessToken
+
+from accounts.models import CustomUser
+from articles.models import Article
 
 
 class HealthTests(TestCase):
@@ -26,3 +30,109 @@ class HealthTests(TestCase):
             response = self.client.get(reverse("health"))
 
         self.assertEqual(response.status_code, 503)
+
+
+PUBLIC, CONNECTE, AUTEUR = "public", "connecté", "auteur"
+
+# Le tableau du README, § « L'API ». Une route ajoutée sans sa ligne ici fait tomber
+# test_chaque_route_de_l_api_figure_dans_la_matrice.
+MATRICE = [
+    ("post", "register", PUBLIC),
+    ("post", "login", PUBLIC),
+    ("post", "login-refresh", PUBLIC),
+    ("post", "logout", PUBLIC),
+    ("post", "password-reset", PUBLIC),
+    ("post", "password-reset-confirm", PUBLIC),
+    ("post", "password-change", CONNECTE),
+    ("get", "article-list", PUBLIC),
+    ("post", "article-list", CONNECTE),
+    ("get", "article-detail", PUBLIC),
+    ("put", "article-detail", AUTEUR),
+    ("patch", "article-detail", AUTEUR),
+    ("delete", "article-detail", AUTEUR),
+    ("post", "contact", PUBLIC),
+    ("get", "api-root", CONNECTE),
+]
+
+
+def noms_des_routes_de_l_api(motifs=None, prefixe=""):
+    """Le nom de chaque route montée sous api/, lu dans le routage réel."""
+    for motif in get_resolver().url_patterns if motifs is None else motifs:
+        chemin = prefixe + str(motif.pattern)
+        if isinstance(motif, URLResolver):
+            yield from noms_des_routes_de_l_api(motif.url_patterns, chemin)
+        elif chemin.startswith("api/"):
+            yield motif.name
+
+
+def compte(email):
+    return CustomUser.objects.create_user(
+        email=email, first_name="M", last_name="Embre", password="MotDePasseValide123",
+    )
+
+
+class ControleDAccesTests(TestCase):
+    """Visiteur, inscrit non validé, membre validé et auteur, sur chaque route de l'API."""
+
+    def setUp(self):
+        self.auteur = compte("auteur@example.com")
+        self.membre = compte("membre@example.com")
+        # Un compte en attente n'obtient aucun jeton (LoginTests) : le seul qu'il puisse
+        # présenter date d'avant sa désactivation, le cas d'un compte suspendu par l'admin.
+        non_valide = compte("attente@example.com")
+        self.jeton_non_valide = AccessToken.for_user(non_valide)
+        non_valide.is_active = False
+        non_valide.save()
+
+    def appeler(self, methode, nom, jeton=None):
+        # Un article neuf à chaque appel : un DELETE passé ne change pas le code du suivant.
+        if nom == "article-detail":
+            article = Article.objects.create(title="T", content="C", author=self.auteur)
+            url = reverse(nom, args=[article.pk])
+        else:
+            url = reverse(nom)
+        en_tetes = {"HTTP_AUTHORIZATION": f"Bearer {jeton}"} if jeton else {}
+        # Corps vide exprès : un 400 dit que la permission a laissé passer.
+        return getattr(self.client, methode)(url, {}, content_type="application/json", **en_tetes)
+
+    def verifier(self, jeton, ouvertes, code_refus=None):
+        for methode, nom, acces in MATRICE:
+            with self.subTest(methode=methode, route=nom, acces=acces):
+                code = self.appeler(methode, nom, jeton).status_code
+                if acces in ouvertes:
+                    self.assertNotIn(code, (401, 403))
+                else:
+                    self.assertEqual(code, code_refus)
+
+    def test_chaque_route_de_l_api_figure_dans_la_matrice(self):
+        self.assertEqual(set(noms_des_routes_de_l_api()), {nom for _, nom, _ in MATRICE})
+
+    def test_le_visiteur_n_ouvre_que_les_routes_publiques(self):
+        self.verifier(None, ouvertes={PUBLIC}, code_refus=401)
+
+    def test_l_inscrit_non_valide_n_ouvre_aucune_route_protegee(self):
+        # Sans jeton il est un visiteur : ses routes publiques sont celles du test précédent.
+        for methode, nom, acces in MATRICE:
+            if acces != PUBLIC:
+                with self.subTest(methode=methode, route=nom):
+                    code = self.appeler(methode, nom, self.jeton_non_valide).status_code
+                    self.assertEqual(code, 401)
+
+    def test_le_membre_valide_ouvre_tout_sauf_l_article_d_un_autre(self):
+        jeton = AccessToken.for_user(self.membre)
+
+        self.verifier(jeton, ouvertes={PUBLIC, CONNECTE}, code_refus=403)
+
+    def test_l_auteur_ouvre_toutes_les_routes(self):
+        self.verifier(AccessToken.for_user(self.auteur), ouvertes={PUBLIC, CONNECTE, AUTEUR})
+
+    def test_seul_un_compte_valide_publie_un_article(self):
+        def publier(jeton):
+            return self.client.post(
+                reverse("article-list"), {"title": "Titre", "content": "Contenu"},
+                content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {jeton}",
+            )
+
+        self.assertEqual(publier(self.jeton_non_valide).status_code, 401)
+        self.assertFalse(Article.objects.exists())
+        self.assertEqual(publier(AccessToken.for_user(self.membre)).status_code, 201)

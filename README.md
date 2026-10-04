@@ -431,6 +431,12 @@ jamais dans le `.env`, lu trop tard.
 Base : `http://localhost:8000/api/` en développement, l'adresse du site suivie de `/api/` en
 production.
 
+La colonne « Accès » distingue trois profils : le visiteur, sans jeton ; le membre, connecté
+avec un compte validé ; l'auteur, membre qui a écrit l'article visé. Un compte inscrit mais pas
+encore validé n'obtient aucun jeton : il a les droits du visiteur, et un jeton émis avant sa
+désactivation est refusé (`401`). `backend/config/tests.py` recopie ce tableau, rejoue chaque
+profil sur chaque route, et échoue si une route de l'API n'y figure pas.
+
 | Méthode | Route | Accès | Rôle |
 |---|---|---|---|
 | `POST` | `/api/auth/register/` | public | Inscription. Le compte est créé **inactif** |
@@ -445,6 +451,7 @@ production.
 | `POST` | `/api/articles/` | connecté | Crée un article. `content` : 20 000 caractères au plus |
 | `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression |
 | `POST` | `/api/contact/` | public | Formulaire de contact. `message` : 5 000 caractères au plus |
+| `GET` | `/api/` | connecté | Index navigable des routes du routeur DRF |
 
 L'auteur d'un article est rendu en « Prénom Nom », jamais par son email. Les routes protégées
 attendent l'en-tête `Authorization: Bearer <jeton d'accès>`.
