@@ -1,4 +1,5 @@
-import { useState, type ChangeEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
+import { toFormErrors, type FormApiErrors } from "../lib/apiErrors";
 
 /** Erreurs de saisie, une par champ de l'état du formulaire. */
 export type FormErrors<T> = Partial<Record<keyof T, string>>;
@@ -8,10 +9,25 @@ type UseFormOptions = {
   onChange?: () => void;
 };
 
+type SubmitOptions<T, F extends keyof T & string> = {
+  /** Règles de saisie ; sans elles, la saisie part telle quelle et l'API la juge. */
+  rules?: (values: T) => FormErrors<T>;
+  /** Champs dont l'API peut refuser la valeur : `toFormErrors` range leur refus dessous. */
+  fields: readonly F[];
+  /** L'appel réseau et ce que le succès déclenche. */
+  send: (values: T) => Promise<void>;
+  /** Libellé du `401`, que `toFormErrors` ne sait pas nommer pour chaque formulaire. */
+  unauthorized?: string;
+  /** Traduction propre au formulaire, appliquée au refus déjà réparti. */
+  translate?: (refus: FormApiErrors<F>, err: unknown) => FormApiErrors<F>;
+};
+
+const SANS_REGLE = () => ({});
+
 /**
- * Socle commun aux formulaires : les champs, leurs erreurs, le message d'ensemble
- * et l'état d'envoi. Il ne porte aucune règle de validation, chaque formulaire ayant
- * les siennes.
+ * Socle commun aux formulaires : les champs, leurs erreurs, le message d'ensemble,
+ * l'état d'envoi et le cycle d'envoi lui-même. Il ne porte aucune règle de
+ * validation, chaque formulaire ayant les siennes.
  */
 export function useForm<T extends Record<string, string>>(
   initialValues: T,
@@ -35,11 +51,35 @@ export function useForm<T extends Record<string, string>>(
     onChange?.();
   }
 
-  /** Applique les règles reçues du formulaire et dit si la saisie passe. */
   function validate(rules: (values: T) => FormErrors<T>) {
     const found = rules(formData);
     setErrors(found);
     return Object.keys(found).length === 0;
+  }
+
+  /** Valide, envoie, puis range un refus entre les champs et le message d'ensemble. */
+  async function submit<F extends keyof T & string>(
+    e: FormEvent,
+    { rules = SANS_REGLE, fields, send, unauthorized, translate }: SubmitOptions<T, F>,
+  ) {
+    e.preventDefault();
+    if (!validate(rules)) {
+      return;
+    }
+
+    setFormError(null);
+    setIsSubmitting(true);
+    try {
+      await send(formData);
+    } catch (err) {
+      const refus = toFormErrors(err, fields, { unauthorized });
+      const { fieldErrors, formError } = translate ? translate(refus, err) : refus;
+      // F n'a que des clés de T, mais TypeScript ne le déduit pas d'un générique.
+      setErrors(fieldErrors as FormErrors<T>);
+      setFormError(formError);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return {
@@ -53,5 +93,6 @@ export function useForm<T extends Record<string, string>>(
     setIsSubmitting,
     handleChange,
     validate,
+    submit,
   };
 }
