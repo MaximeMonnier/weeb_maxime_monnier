@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
 import Button from "../../ui/Button/Button";
 import { apiFetch } from "../../../lib/api";
-import { toFormErrors } from "../../../lib/apiErrors";
 import { isComplexPassword, isValidEmail } from "../../../lib/validationRules";
 import { useForm } from "../../../hooks/useForm";
 import type { FormErrors } from "../../../hooks/useForm";
@@ -75,57 +74,45 @@ const FormSubscribe = () => {
     formData,
     setFormData,
     errors,
-    setErrors,
     formError,
-    setFormError,
     isSubmitting,
-    setIsSubmitting,
     handleChange,
-    validate,
+    submit,
   } = useForm<FormData>(VALEURS_INITIALES, {
     // La confirmation parle du compte créé : la première frappe de l'inscription
     // suivante la périme.
     onChange: () => setConfirmation(null),
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validate(reglesDeSaisie)) {
-      return;
-    }
-
-    setFormError(null);
-    setConfirmation(null);
-    setIsSubmitting(true);
-
-    try {
-      await apiFetch("/auth/register/", {
-        method: "POST",
-        body: JSON.stringify({
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
-      setFormData(VALEURS_INITIALES);
-      // Le compte est créé INACTIF : sans ce message, la connexion qui suit
-      // renverrait un refus que rien n'explique.
-      setConfirmation(
-        "Votre compte est créé. Un administrateur doit l'activer avant votre première connexion.",
-      );
-    } catch (err) {
-      const { fieldErrors, formError } = toFormErrors(err, CHAMPS);
+  const handleSubmit = (e: React.FormEvent) =>
+    submit(e, {
+      rules: reglesDeSaisie,
+      fields: CHAMPS,
+      send: async (values) => {
+        setConfirmation(null);
+        await apiFetch("/auth/register/", {
+          method: "POST",
+          body: JSON.stringify({
+            first_name: values.first_name,
+            last_name: values.last_name,
+            email: values.email,
+            password: values.password,
+          }),
+        });
+        setFormData(VALEURS_INITIALES);
+        // Le compte est créé INACTIF : sans ce message, la connexion qui suit
+        // renverrait un refus que rien n'explique.
+        setConfirmation(
+          "Votre compte est créé. Un administrateur doit l'activer avant votre première connexion.",
+        );
+      },
       // Le message part sous le formulaire et non sous le champ : le seul fait de
       // pointer l'adresse dirait déjà qu'elle est prise.
-      const { email, ...autres } = fieldErrors;
-      setErrors(autres);
-      setFormError(email ? REFUS_NEUTRE : formError);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+      translate: ({ fieldErrors: { email, ...autres }, formError }) => ({
+        fieldErrors: autres,
+        formError: email ? REFUS_NEUTRE : formError,
+      }),
+    });
 
   return (
     <form

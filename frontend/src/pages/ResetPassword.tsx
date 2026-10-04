@@ -1,6 +1,5 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
-import { toFormErrors } from "../lib/apiErrors";
 import { useForm } from "../hooks/useForm";
 import type { FormErrors } from "../hooks/useForm";
 import { Input } from "../components/ui/Input";
@@ -30,53 +29,36 @@ const ResetPassword = () => {
   const uid = searchParams.get("uid");
   const token = searchParams.get("token");
 
-  const {
-    formData,
-    errors,
-    setErrors,
-    formError,
-    setFormError,
-    isSubmitting,
-    setIsSubmitting,
-    handleChange,
-    validate,
-  } = useForm<FormData>(VALEURS_INITIALES);
+  const { formData, errors, formError, isSubmitting, handleChange, submit } =
+    useForm<FormData>(VALEURS_INITIALES);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate(reglesDeSaisie)) {
-      return;
-    }
-    setFormError(null);
-    setIsSubmitting(true);
-    try {
-      await apiFetch<{ detail: string }>("/auth/password-reset/confirm/", {
-        method: "POST",
-        body: JSON.stringify({
-          uid,
-          token,
-          new_password: formData.new_password,
-        }),
-      });
-      navigate("/login", { replace: true });
-    } catch (err) {
-      const { fieldErrors, formError } = toFormErrors(err, ["new_password"]);
-      setErrors(fieldErrors);
+  const handleSubmit = (e: React.FormEvent) =>
+    submit(e, {
+      rules: reglesDeSaisie,
+      fields: ["new_password"],
+      send: async (values) => {
+        await apiFetch<{ detail: string }>("/auth/password-reset/confirm/", {
+          method: "POST",
+          body: JSON.stringify({
+            uid,
+            token,
+            new_password: values.new_password,
+          }),
+        });
+        navigate("/login", { replace: true });
+      },
       // Le lien mort est le seul refus que l'API rende sans dire quoi faire — son
       // "detail" tient en trois mots. Une panne ou un serveur injoignable gardent le
       // leur : les ramener au lien invalide ferait redemander un lien encore bon.
-      const lienRefuse =
-        !fieldErrors.new_password &&
-        (err as { status?: number }).status === 400;
-      setFormError(
-        lienRefuse
-          ? "Ce lien est invalide ou a déjà servi. Demandez-en un nouveau."
-          : formError,
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+      translate: (refus, err) =>
+        !refus.fieldErrors.new_password &&
+        (err as { status?: number }).status === 400
+          ? {
+              ...refus,
+              formError: "Ce lien est invalide ou a déjà servi. Demandez-en un nouveau.",
+            }
+          : refus,
+    });
 
   return (
     <div className="container-custom mt-32">

@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
 import Button from "../../ui/Button/Button";
 import { apiFetch } from "../../../lib/api";
-import { toFormErrors } from "../../../lib/apiErrors";
 import { isValidEmail } from "../../../lib/validationRules";
 import { saveTokens } from "../../../lib/tokens";
 import { useForm } from "../../../hooks/useForm";
@@ -43,54 +42,32 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
 const FormLogin = () => {
   const navigate = useNavigate();
 
-  const {
-    formData,
-    errors,
-    setErrors,
-    formError,
-    setFormError,
-    isSubmitting,
-    setIsSubmitting,
-    handleChange,
-    validate,
-  } = useForm<FormData>(VALEURS_INITIALES);
+  const { formData, errors, formError, isSubmitting, handleChange, submit } =
+    useForm<FormData>(VALEURS_INITIALES);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validate(reglesDeSaisie)) {
-      return;
-    }
-
-    setFormError(null);
-    setIsSubmitting(true);
-
-    try {
-      const data = await apiFetch<{ access: string; refresh: string }>(
-        "/auth/login/",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-          }),
-        },
-      );
-      saveTokens(data);
-      navigate("/");
-    } catch (err) {
+  const handleSubmit = (e: React.FormEvent) =>
+    submit(e, {
+      rules: reglesDeSaisie,
+      fields: CHAMPS,
       // Un mot de passe faux et un compte pas encore validé donnent le même 401 : les
       // distinguer dirait à un inconnu quelles adresses sont inscrites.
-      const { fieldErrors, formError } = toFormErrors(err, CHAMPS, {
-        unauthorized:
-          "Connexion impossible. Vérifiez votre email et votre mot de passe ; un compte tout juste créé doit d'abord être validé par un administrateur.",
-      });
-      setErrors(fieldErrors);
-      setFormError(formError);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+      unauthorized:
+        "Connexion impossible. Vérifiez votre email et votre mot de passe ; un compte tout juste créé doit d'abord être validé par un administrateur.",
+      send: async (values) => {
+        const data = await apiFetch<{ access: string; refresh: string }>(
+          "/auth/login/",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              email: values.email,
+              password: values.password,
+            }),
+          },
+        );
+        saveTokens(data);
+        navigate("/");
+      },
+    });
 
   return (
     <form

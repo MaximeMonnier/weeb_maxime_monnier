@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../lib/api";
-import { toFormErrors } from "../lib/apiErrors";
 import { saveTokens } from "../lib/tokens";
 import { isComplexPassword } from "../lib/validationRules";
 import { useForm } from "../hooks/useForm";
@@ -56,51 +55,39 @@ const ChangePassword = () => {
     formData,
     setFormData,
     errors,
-    setErrors,
     formError,
-    setFormError,
     isSubmitting,
-    setIsSubmitting,
     handleChange,
-    validate,
+    submit,
   } = useForm<FormData>(VALEURS_INITIALES, {
     onChange: () => setConfirmation(null),
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate(reglesDeSaisie)) {
-      return;
-    }
-    setFormError(null);
-    setConfirmation(null);
-    setIsSubmitting(true);
-    try {
-      const reponse = await apiFetch<{ access: string; refresh: string }>(
-        "/auth/password-change/",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            current_password: formData.current_password,
-            new_password: formData.new_password,
-          }),
-        },
-      );
-      // L'API a révoqué tous les refresh du compte, celui-ci compris : sans les
-      // jetons neufs, la session s'éteindrait au prochain renouvellement.
-      saveTokens(reponse);
-      setFormData(VALEURS_INITIALES);
-      setConfirmation(
-        "Votre mot de passe est modifié. Vos autres appareils devront se reconnecter.",
-      );
-    } catch (err) {
-      const { fieldErrors, formError } = toFormErrors(err, CHAMPS);
-      setErrors(fieldErrors);
-      setFormError(formError);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const handleSubmit = (e: React.FormEvent) =>
+    submit(e, {
+      rules: reglesDeSaisie,
+      fields: CHAMPS,
+      send: async (values) => {
+        setConfirmation(null);
+        const reponse = await apiFetch<{ access: string; refresh: string }>(
+          "/auth/password-change/",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              current_password: values.current_password,
+              new_password: values.new_password,
+            }),
+          },
+        );
+        // L'API a révoqué tous les refresh du compte, celui-ci compris : sans les
+        // jetons neufs, la session s'éteindrait au prochain renouvellement.
+        saveTokens(reponse);
+        setFormData(VALEURS_INITIALES);
+        setConfirmation(
+          "Votre mot de passe est modifié. Vos autres appareils devront se reconnecter.",
+        );
+      },
+    });
 
   return (
     <div className="container-custom mt-32">

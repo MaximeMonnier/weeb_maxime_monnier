@@ -332,10 +332,11 @@ import MaPage from "./pages/MaPage";
 
 ### Créer un formulaire
 
-Les sept formulaires du site suivent le même patron : `useForm` porte l'état, une fonction
-pure hors du composant porte les règles, `apiFetch` envoie et `toFormErrors` répartit le
-refus de l'API entre les champs et le message d'ensemble. Seul `ForgotPassword.tsx` n'a pas
-de règles : il laisse l'API juger l'adresse.
+Les sept formulaires du site suivent le même patron : `useForm` porte l'état et le cycle
+d'envoi, une fonction pure hors du composant porte les règles. Sa fonction `submit` valide,
+bloque le bouton, appelle l'API et range un refus entre les champs et le message d'ensemble
+par `toFormErrors` : le formulaire n'écrit que son appel et son succès. Seul
+`ForgotPassword.tsx` n'a pas de règles : il laisse l'API juger l'adresse.
 
 ```tsx
 // src/components/common/MonDomaine/MonFormulaire.tsx
@@ -344,7 +345,6 @@ import Button from "../../ui/Button/Button";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
 import { useForm, type FormErrors } from "../../../hooks/useForm";
 import { apiFetch } from "../../../lib/api";
-import { toFormErrors } from "../../../lib/apiErrors";
 
 type FormData = {
   title: string;
@@ -362,37 +362,20 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
 };
 
 export default function MonFormulaire() {
-  const {
-    formData,
-    errors,
-    setErrors,
-    formError,
-    setFormError,
-    isSubmitting,
-    setIsSubmitting,
-    handleChange,
-    validate,
-  } = useForm<FormData>({ title: "" });
+  const { formData, errors, formError, isSubmitting, handleChange, submit } =
+    useForm<FormData>({ title: "" });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate(reglesDeSaisie)) return;
-
-    setFormError(null);
-    setIsSubmitting(true);
-    try {
-      await apiFetch("/mon-endpoint/", {
-        method: "POST",
-        body: JSON.stringify(formData),
-      });
-    } catch (err) {
-      const { fieldErrors, formError } = toFormErrors(err, CHAMPS);
-      setErrors(fieldErrors);
-      setFormError(formError);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const handleSubmit = (e: React.FormEvent) =>
+    submit(e, {
+      rules: reglesDeSaisie,
+      fields: CHAMPS,
+      send: async (values) => {
+        await apiFetch("/mon-endpoint/", {
+          method: "POST",
+          body: JSON.stringify(values),
+        });
+      },
+    });
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -416,7 +399,9 @@ export default function MonFormulaire() {
 
 Une règle servie à plusieurs formulaires (email, complexité du mot de passe) va dans
 `src/lib/validationRules.ts`. Un message de succès se retire à la frappe suivante par
-l'option `onChange` de `useForm` : voir `FormContact.tsx`.
+l'option `onChange` de `useForm` : voir `FormContact.tsx`. Un refus qui demande un libellé
+propre au formulaire passe par les options `unauthorized` (le `401`, voir `FormLogin.tsx`)
+et `translate` (tout autre cas, voir `FormSubscribe.tsx`).
 
 ## 🔮 Améliorations futures
 
