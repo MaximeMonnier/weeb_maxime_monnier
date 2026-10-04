@@ -45,10 +45,8 @@ function messagesOf(value: unknown): string | null {
   return null;
 }
 
-/**
- * Traduit un refus de l'API en messages affichables, les clés connues allant au champ
- * correspondant et le reste au message d'ensemble.
- */
+/** Traduit un refus de l'API : les clés connues vont à leur champ, le reste au
+ *  message d'ensemble. */
 export function toFormErrors<F extends string>(
   err: unknown,
   knownFields: readonly F[],

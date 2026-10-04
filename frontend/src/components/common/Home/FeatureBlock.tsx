@@ -1,5 +1,5 @@
-import SecondTitle from "../../ui/Title/SecondTitle";
-import LinkTitle from "../../ui/Title/LinkTitle";
+import SectionTitle from "../../ui/Title/SectionTitle";
+import TextCtaLink from "../../ui/Title/TextCtaLink";
 import { cx } from "../../../lib/cx";
 
 type FeatureBlockProps = {
@@ -41,7 +41,7 @@ export default function FeatureBlock({
             ) : null}
 
             <div className="mt-3">
-              <SecondTitle
+              <SectionTitle
                 size="lg"
                 align="left"
                 line1={titleLine1}
@@ -50,15 +50,15 @@ export default function FeatureBlock({
             </div>
 
             {description ? (
-              <p className="mt-4 max-w-prose text-secondary text-sm sm:text-base leading-relaxed">
+              <p className="mt-4 max-w-prose text-ink-soft text-sm sm:text-base leading-relaxed">
                 {description}
               </p>
             ) : null}
 
             <div className="mt-6">
-              <LinkTitle href={ctaHref} external={ctaExternal} hoverAccent>
+              <TextCtaLink href={ctaHref} external={ctaExternal} hoverAccent>
                 {ctaLabel}
-              </LinkTitle>
+              </TextCtaLink>
             </div>
           </div>
 

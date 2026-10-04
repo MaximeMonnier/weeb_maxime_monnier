@@ -34,7 +34,7 @@ const LogoItem = ({
         className="h-14 w-auto opacity-70 transition-opacity duration-200 hover:opacity-100"
         loading="lazy"
       />
-      <span className="text-secondary text-sm">{brand.name}</span>
+      <span className="text-ink-soft text-sm">{brand.name}</span>
     </>
   );
 

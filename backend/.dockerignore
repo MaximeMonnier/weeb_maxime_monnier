@@ -1,17 +1,6 @@
-# ============================================
-#  Contexte de build de l'image du backend
-# ============================================
-# Docker N'UTILISE PAS le .gitignore : sans ce fichier-ci, `docker build`
-# enverrait au démon tout le contenu de backend/, venv compris — plusieurs
-# centaines de mégaoctets à transférer avant même la première instruction.
-#
-# Deux enjeux distincts :
-#   - la taille du contexte, donc la durée de chaque build ;
-#   - le contenu de l'image, car un fichier exclu ici ne peut pas y entrer
-#     par accident, même via un `COPY . .`.
-#
-# Les chemins sont relatifs au contexte de build, c'est-à-dire à backend/,
-# et non à la racine du dépôt : on écrit `venv/`, pas `backend/venv/`.
+# Docker ignore le .gitignore : sans ce fichier, le venv partirait au démon à
+# chaque build. Ce qui est exclu ici n'entre pas, même par `COPY . .`. Chemins
+# relatifs à backend/ : `venv/`, pas `backend/venv/`.
 
 # --- Environnement virtuel local ---
 # Compilé pour la machine du développeur (Python 3.12 ici), inutilisable dans
@@ -30,13 +19,8 @@ __pycache__/
 .ruff_cache/
 
 # --- Secrets ---
-# Le .env vit à la racine du dépôt, hors de ce contexte : il ne peut donc pas
-# entrer dans l'image. Cette ligne couvre le cas d'un .env déposé par erreur
-# dans backend/ — la seule façon dont un secret pourrait se retrouver dans un
-# layer, et de là dans `docker history`.
-# Deux motifs, parce qu'aucun ne suffit seul : `*.env` laisse passer un
-# `.env.prod`, qui ne se TERMINE pas par `.env`, et `.env*` laisse passer un
-# `secrets.env`, qui ne COMMENCE pas par. Même paire que dans le .gitignore.
+# Deux motifs : `*.env` laisse passer `.env.prod`, `.env*` laisse passer
+# `secrets.env`. Le .env de la racine, lui, est hors du contexte.
 .env*
 *.env
 
@@ -53,9 +37,8 @@ media/
 *.sqlite3
 
 # --- Fichiers de build eux-mêmes ---
-# Ils n'ont rien à faire DANS l'image : ils la décrivent, ils ne la servent pas.
-# Les exclure n'empêche pas le build — BuildKit reçoit le Dockerfile par un
-# canal distinct du contexte.
+# Ils décrivent l'image sans la servir. BuildKit reçoit le Dockerfile par un
+# canal distinct : l'exclure n'empêche pas le build.
 Dockerfile
 .dockerignore
 

@@ -1,12 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import "@testing-library/jest-dom/vitest";
 
-// La source d'`App.tsx`, et non une liste recopiée : recopier les routes ici
-// laisserait le test vert le jour où l'une d'elles est renommée ou retirée.
-import sourceDeLApp from "../../App.tsx?raw";
+// Le tableau qu'`App.tsx` monte, et non une liste recopiée : recopier les routes
+// ici laisserait le test vert le jour où l'une d'elles est renommée ou retirée.
+import { ROUTES } from "../../routes";
 
 import { saveTokens } from "../../lib/tokens";
 import NavBar from "./Navigation/NavBar";
@@ -14,14 +14,8 @@ import Footer from "./Footer";
 
 // Les seules destinations fixes : le `*` est le fourre-tout de `NotFound`, et
 // un chemin à paramètre n'est pas une adresse qu'un lien puisse porter tel quel.
-const ROUTES_DE_L_APP = [...sourceDeLApp.matchAll(/path="([^"]+)"/g)]
-  .map(([, chemin]) => chemin)
+const ROUTES_DE_L_APP = ROUTES.map(({ path }) => path)
   .filter((chemin) => chemin !== "*" && !chemin.includes(":"));
-
-// jsdom n'implémente pas `matchMedia`, que `useTheme` interroge dès le premier
-// rendu de la barre de navigation. Le doublon se pose ici faute d'un
-// `setupFiles` où le poser une fois, et se limite au `matches` que le hook lit.
-vi.stubGlobal("matchMedia", () => ({ matches: false }));
 
 // Le pied de page est rendu à côté des `Routes`, comme `MainLayout` le rend hors
 // de son `Outlet` : il reste affiché après un clic, et la zone de routes montre

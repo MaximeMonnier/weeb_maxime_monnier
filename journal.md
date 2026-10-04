@@ -837,3 +837,227 @@ Au navigateur, sur la pile de développement :
 - à 375 px, l'accueil fait 375 px de large, mesuré à la livraison de #219 ;
 - en thème clair, le lien actif du menu mobile s'affiche en `rgb(147, 51, 234)`, à 5,4:1 sur
   blanc et 4,9:1 sur le fond secondaire.
+
+## Lot 11 — Couper ce qui pousse à documenter
+
+Clos le 2026-10-03 · Sans epic ni issue · Alimente : Bloc 1 + 2 — documentation
+
+**Constat mesuré** — depuis le 2026-09-01, **156 commits `docs` pour 34 `feat`**. Les consignes
+de travail, hors dépôt, pèsent **39 999 octets** pour un budget de 40 000. Le grep de ces
+consignes a relevé **sept incitations dans cinq fichiers**, toutes chargées de faire écrire à
+chaque ticket : nuances et arbitrages envoyés au README ou à `AMELIORATIONS.md`, mise à jour
+section par section à chaque ticket, passe de budget à chaque clôture de lot, README retouché
+à chaque route ou variable.
+
+**Décision et justification** — une seule règle, posée en tête des consignes, dans les règles
+communes de `correction.md` et dans la procédure de ticket : commenter seulement ce que le code
+ne peut pas dire ; README et consignes seulement pour un changement de stack, de commande ou de
+structure. Un arbitrage reste dans la discussion.
+
+- **Gardé** : retirer une mention qu'un ticket rend fausse. Sans cela, les consignes
+  décriraient de travers les pièges que le lot 12 corrige, jusqu'à la purge du lot 13.
+- **Gardé** : `AMELIORATIONS.md` comme destination d'un défaut hors périmètre. C'est une
+  liste de travail, pas de la documentation.
+- **Retiré** : le budget de 40 Ko, que le lot 13 remplace par un seuil mesuré au pré-push.
+
+**Ce qui a surpris** — **la règle de sobriété était elle-même une incitation.** Le plafond de
+trois lignes par commentaire ne supprimait rien : il déplaçait. « Le détail part au README »,
+« rien ne se perd, le README accueille le détail ». La revue avant push recopiait la consigne,
+et la tâche 13.1 du plan aussi. Le plafond coupe désormais, sans rien déplacer.
+
+Second écart : la ligne de la règle ne tenait pas dans le budget. Pour la poser, il a fallu
+retirer trois mentions purement historiques.
+
+**Preuve de la correction** — rejouée sur `preprod` à `4e91e93`.
+- Le grep des formules d'incitation (« part au README », « accueille le détail », « vont dans
+  le code, le README ») ne rend plus rien, `correction.md` compris.
+- Les consignes passent de 39 999 à **39 983 octets**, règle comprise.
+- Aucun code touché : rien à rejouer côté tests.
+
+## Lot 12 — Corriger les causes dans le code
+
+Clos le 2026-10-04 · Epic #238 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — l'audit du 2026-10-03 n'avait trouvé aucune faille, mais plusieurs pièges
+étaient **expliqués au lieu d'être corrigés** :
+- une rotation de refresh glissée dans un changement de mot de passe faisait rendre `500` et
+  annulait le nouveau mot de passe ;
+- la clé de test, de 23 octets, affichait des `InsecureKeyLengthWarning` à chaque lancement ;
+- chaque couleur du thème s'écrivait deux fois, en clair et en sombre ;
+- cinq fichiers de composant n'exportaient pas leur nom, et deux tests lisaient `App.tsx` comme
+  du texte ;
+- sept formulaires recopiaient le même cycle d'envoi, d'environ 25 lignes ;
+- `/reset-password` ne demandait ni confirmation ni complexité, `/blog` n'avait pas de `<h1>`, et
+  un visiteur en thème clair voyait d'abord la page en sombre.
+
+Filet de départ, à `1b8a9da` : **96 tests back**, **126 tests front**.
+
+**Décision et justification** — retirer la cause, et avec elle l'explication qu'elle imposait.
+- Côté API, un **verrou sur la ligne du compte**, pris par la rotation comme par la révocation.
+  La rotation relit son jeton sous ce verrou : un décodage de plus par renouvellement, contre une
+  révocation qui ne laisse plus rien passer.
+- Une variable de couleur **par rôle** (seize), redéfinie sous `.dark`, avec les valeurs d'avant :
+  80 captures avant/après identiques à l'octet.
+- Le cas d'`index.css.test.ts` sur les variantes d'une classe écrite à la main est **gardé**,
+  contre ce que prévoyait l'issue : `form-*`, `nav-link` et `footer-link` le sont toujours.
+- Les routes vivent dans `routes.tsx` et non dans `App.tsx`, que `only-export-components`
+  empêche d'exporter autre chose qu'un composant.
+- `submit()` de `useForm` prend `unauthorized` et `translate` pour les refus propres à un
+  formulaire. La connexion n'applique plus la longueur minimale, qui est une règle de création.
+- Le thème initial est posé par un script en ligne d'`index.html`, que `useTheme` se contente de
+  lire : la règle n'existe plus qu'une fois.
+
+**Ce qui a surpris** — **le premier correctif de sécurité ne corrigeait que le symptôme.**
+`ignore_conflicts` (#239) remplaçait le `500` par un `200`. Mais la session ouverte avec l'ancien
+mot de passe survivait toujours : la rotation émettait un refresh neuf que la révocation n'avait
+pas lu. Il a fallu une issue hors epic, #250. Deux mesures sur ce correctif :
+- retirer le verrou mais garder la transaction ne revient pas au défaut d'origine : PostgreSQL
+  détecte un **interblocage** entre les deux connexions ;
+- les deux premiers tests ne couvraient qu'un ordre. Une optimisation tentante, lire la liste
+  noire sur le jeton décodé hors verrou, les passait au vert. Seul un troisième test, la
+  révocation d'abord, la fait tomber.
+
+**La règle du lot 11 a tenu.** Le lot compte **10 commits `docs` sur 34**. L'audit en comptait 156
+pour 34 `feat` depuis le 2026-09-01. Le Markdown y perd plus qu'il ne gagne :
+**88 insertions pour 92 suppressions**.
+
+**Un refactoring de couleurs a révélé un défaut masqué.** Le × de la modale de création portait
+un `hover:text-red-800` que la règle `.dark .text-primary` écrasait en sombre. Les règles
+`.dark` retirées, il devenait visible et illisible. Il passe à `hover:text-error`.
+
+Le diff pèse **1 080 insertions pour 905 suppressions** sur 53 fichiers. `frontend/src` et
+`index.html` en portent 830 pour 800, sur 45 fichiers : le lot réécrit plus qu'il n'ajoute.
+
+**Preuve de la correction** — rejouée sur `preprod` à `5bd4d62`.
+- Back, depuis le venv : `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test`
+  rend `Ran 100 tests` puis `OK`, soit **4 de plus**, et aucun `InsecureKeyLengthWarning`.
+- Front, depuis `frontend/` : `npm run lint` ne rend rien.
+- `npm test` rend `Test Files  15 passed (15)` et `Tests  135 passed (135)`, soit **9 de plus**.
+- `npm run build` rend `✓ built in 2.66s`.
+- `grep -rE "var\(--color-(light|dark)-" frontend/src` et `grep -rn "App.tsx?raw" frontend/src`
+  ne rendent rien. `class="dark"` a disparu d'`index.html`. Un `finally` ne reste que dans
+  `Blog.tsx`, pour le chargement de la liste.
+
+## Lot 13 — Régime : purge et contrôle
+
+Clos le 2026-10-04 · Epic #261 · Alimente : Bloc 1 + 2 — documentation
+
+**Constat mesuré** — depuis le 2026-09-01, 156 commits `docs` pour 34 `feat`. À l'ouverture :
+- `README.md` pesait **85 091 octets** ;
+- le code versionné portait **97 blocs** de commentaires de plus de trois lignes et
+  **48 docstrings** sur plusieurs lignes ;
+- les consignes de travail, hors dépôt, pesaient 39 682 octets pour un budget de 40 000 ;
+- des comptes écrits en dur étaient déjà faux : « 72 tests » dans une skill et « 59 tests
+  Django » dans le hook de pré-push, pour 100, et « six formulaires » pour sept.
+
+Filet de départ, à `34d2b19` : **100 tests back**, **135 tests front**. Aucun ne bouge : le lot
+ne touche aucun code exécutable.
+
+**Décision et justification** :
+
+- couper, pas déplacer : ce qui dépassait trois lignes disparaît, et le README n'en reçoit rien ;
+- chaque ticket prouve qu'aucun code ne change. Côté Python, l'arbre syntaxique est identique une
+  fois les docstrings écartées ; côté front, le source est identique une fois les commentaires
+  retirés ;
+- les hexadécimaux de la palette partent avec leurs commentaires : 23 sur 28 ne disaient pas ce
+  que l'écran affiche. Le choix de fond, garder l'écran ou revenir à la maquette, reste dans
+  `AMELIORATIONS.md` ;
+- les consignes passent à **14 113 octets**. Elles ne gardent que les pièges qui demandent de
+  lire plusieurs fichiers ; la description du contenu de chaque fichier de test en sort ;
+- la mesure vit dans le seul hook de pré-push, comme arbitré le 2026-10-03 : pas de second
+  endroit à tenir, ni en CI ni ailleurs.
+
+**Ce qui a surpris** — trois constats.
+
+**Le plan comptait trois fois trop peu.** Il annonçait 31 blocs. L'epic en a mesuré 97, en
+comptant les exemples d'environnement (42 blocs à eux seuls) et tout le code au lieu des seuls
+fichiers de tête.
+
+**Raccourcir a fait trouver des commentaires faux.** Celui des quotas de `base.py` les disait
+« comptés par IP », alors qu'un membre connecté l'est par compte. Deux commentaires du Dockerfile
+backend se trompaient sur le calcul des workers et sur l'entrypoint. Celui de `cx()` disait qu'un
+`false` sèmerait des espaces, alors que `join` écrit le mot « false ». Noyé dans un bloc de six
+lignes, aucun ne se voyait.
+
+**Les hexadécimaux retirés étaient la seule trace de la maquette.** Aucun lien ni aucune capture
+n'est versionné. Qui voudra revenir à la maquette les retrouvera au parent de `48406ef`.
+
+Le lot pèse **695 insertions pour 2 156 suppressions** sur 40 fichiers, en 23 commits, tous
+`docs`. Le Markdown versionné y compte pour 342 insertions et 1 259 suppressions.
+
+**Preuve de la correction** — rejouée sur `preprod` à `0eb258a`.
+- Le hook de pré-push rend `Tout passe` : consignes à 14 113 octets, `README.md` à 26 489, aucun
+  bloc de commentaire de plus de trois lignes.
+- Le même hook, avec un bloc de quatre lignes ajouté à `cx.ts`, refuse le push et nomme
+  `frontend/src/lib/cx.ts:6`. Le bloc retiré, il passe.
+- Back : `Ran 100 tests` puis `OK`. Front : `npm run lint` ne rend rien, `npm test` rend
+  `Tests  135 passed (135)`, et `npm run build` aboutit.
+
+## Lot 14 — Documentation et clôture
+
+Clos le 2026-10-03 · Epic #229 · Alimente : Bloc 1 + 2 — documentation
+
+**Constat mesuré** — l'audit du 2026-10-03, lots 0 à 10 livrés dans `preprod`, relevait trois
+documents en retard sur le dépôt et une branche de production figée :
+- `README.md` : **huit écarts**, dont une règle de branche contraire au flux du projet, partant
+  de `main` au lieu de `origin/preprod`, et une image `dev` annoncée à ~540 Mo qui en pèse ~650 ;
+- `frontend/README.md` : environ **la moitié des sections** périmées. L'exemple de formulaire
+  s'écrivait encore avec des `useState` et un `fetch`, et le fichier renvoyait à un
+  `RAPPORT_TECHNIQUE.md` inexistant ;
+- `AMELIORATIONS.md` : **treize entrées** déjà livrées, toujours dans la liste ;
+- `main` : **238 commits** de retard sur `preprod`, sans remontée depuis la PR #127 du
+  2026-09-21. Il y en avait 256 à la remontée.
+
+Filet de départ, à `5718aee` : **96 tests back**, **126 tests front**. Aucun ne bouge : le lot
+ne touche aucun code.
+
+**Décision et justification** :
+
+- le plan prévoyait un ticket unique, mais le lot est parti en **epic + 4** : une sous-issue par
+  document, chacune vérifiable seule, plus une pour la remontée ;
+- la remontée (#233) **ne suit pas le parcours d'un ticket** : la PR #237 part de `preprod`
+  elle-même, sans branche d'issue. Elle est fusionnée par un commit de fusion, comme #124 et
+  #127, et `preprod` est conservée ;
+- la revue finale porte sur tout l'écart `origin/main...origin/preprod`, soit 87 fichiers. Ses
+  deux points à corriger étaient **déjà sur `main`** : ils vont dans `AMELIORATIONS.md`, pas
+  dans des issues ouvertes avant la PR ;
+- les mentions de l'outillage dans `correction.md` et dans trois messages de commit partent
+  **telles quelles**. `main` en portait déjà, et les retirer des messages aurait obligé à
+  réécrire l'historique de `preprod`, puis à le pousser en force ;
+- l'instance d'`Autoplay` recréée à chaque rendu n'est pas consignée : elle n'a aucun effet
+  visible.
+
+**Ce qui a surpris** — quatre constats.
+
+**Le lot a changé de numéro le jour de sa livraison.** Il a été ouvert comme lot 11. Le même
+matin, l'audit a inséré trois lots avant lui, et il est devenu le lot 14. Il est donc livré
+**avant** les lots 11 à 13 dont il dépend désormais. La fin du lot 13, qui réécrira le README et
+les consignes hors dépôt, appellera un second contrôle des écarts, puis une nouvelle remontée dans `main`.
+
+**L'entrée sur les couleurs sous-estimait le défaut.** Au lot 10, `AMELIORATIONS.md` notait
+deux couleurs dont l'affichage ne suivait pas le commentaire, et en rendait la gamme sRGB
+responsable. La revue finale a recalculé toute la palette. **23 des 28** couleurs annotées
+s'écartent de leur commentaire, et 5 seulement sont hors gamme. Les autres ne sont tout
+simplement pas la conversion de la couleur citée.
+
+**`Closes #233` a fermé l'issue tout seul.** C'est une première pour ce dépôt : la PR visait
+`main`, la branche par défaut. Aucune fermeture à la main n'a été nécessaire, et l'item du
+Project est passé à « Done » de lui-même.
+
+**La séparation des ports ne protège que des deux piles du projet.** La pile de production n'a
+pas pu publier son front sur 8081, le port étant pris par le conteneur d'un autre projet de la
+machine. La vérification a été lancée avec `FRONTEND_PORT_PROD=8082`. Rien à corriger dans le
+dépôt : c'est la variable qui sert à cela.
+
+Le diff du lot pèse **470 insertions pour 198 suppressions**, sur quatre fichiers de
+documentation, `correction.md` compris.
+
+**Preuve de la correction** — rejouée sur `preprod` à `b9da1f3`, puis sur la PR #237.
+- Back : `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` rend `Ran 96 tests`
+  puis `OK`. `check` et `makemigrations --check --dry-run` ne signalent rien.
+- Front : `npm run lint` ne rend rien, `npm test` rend `Tests  126 passed (126)` et
+  `npm run build` aboutit.
+- `check --deploy`, en settings de production : `security.W004` seul, comme sur `main`.
+- Les deux piles démarrent, tous services `healthy`, images reconstruites.
+- `tests.yml` et `docker-images.yml` sont verts sur la PR. Après la fusion,
+  `git log --oneline origin/main..origin/preprod` ne rend rien.

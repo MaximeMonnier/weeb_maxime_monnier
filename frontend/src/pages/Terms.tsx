@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import HeroTitle from "../components/ui/Title/MainTitle";
-import SectionTitle from "../components/ui/Title/SecondTitle";
+import HeroTitle from "../components/ui/Title/HeroTitle";
+import SectionTitle from "../components/ui/Title/SectionTitle";
 
 const Terms = () => {
   return (
@@ -10,22 +10,22 @@ const Terms = () => {
       </div>
 
       <div className="mx-auto max-w-3xl">
-        <div className="bg-secondary border border-primary rounded-lg p-6">
-          <p className="text-secondary">
+        <div className="bg-surface-alt border border-line rounded-lg p-6">
+          <p className="text-ink-soft">
             Weeb est un site de démonstration réalisé dans un cadre de
             formation. Il ne vend rien, ne propose aucun service payant et
             n'exploite commercialement aucune donnée. Les présentes conditions
             décrivent ce que vous pouvez en attendre, et ce que nous attendons
             de vous.
           </p>
-          <p className="text-muted text-sm mt-4">
+          <p className="text-ink-muted text-sm mt-4">
             Dernière mise à jour : 25 septembre 2026.
           </p>
         </div>
 
         <section className="py-8">
           <SectionTitle align="left" line1={<>1. Objet du site</>} />
-          <p className="text-secondary mt-4">
+          <p className="text-ink-soft mt-4">
             Weeb est un blog consacré au développement web. Il permet de lire
             des articles, d'écrire à l'équipe et, pour les personnes inscrites,
             de publier les leurs. L'accès est gratuit et le restera : aucune
@@ -35,7 +35,7 @@ const Terms = () => {
 
         <section className="py-8">
           <SectionTitle align="left" line1={<>2. Compte et accès</>} />
-          <p className="text-secondary mt-4">
+          <p className="text-ink-soft mt-4">
             La création d'un compte demande vos prénom, nom et adresse
             électronique, ainsi qu'un mot de passe. Le compte naît inactif :
             un administrateur doit l'ouvrir avant votre première connexion.
@@ -48,7 +48,7 @@ const Terms = () => {
 
         <section className="py-8">
           <SectionTitle align="left" line1={<>3. Contenus publiés</>} />
-          <p className="text-secondary mt-4">
+          <p className="text-ink-soft mt-4">
             Vous restez propriétaire des textes que vous publiez : aucun autre
             membre ne peut les modifier, et l'équipe du projet peut les retirer
             ou les corriger depuis son interface d'administration. Le site
@@ -64,7 +64,7 @@ const Terms = () => {
 
         <section className="py-8">
           <SectionTitle align="left" line1={<>4. Propriété intellectuelle</>} />
-          <p className="text-secondary mt-4">
+          <p className="text-ink-soft mt-4">
             Le nom, les visuels et le code du site servent un projet
             pédagogique. Les images et les textes d'exemple ne sont pas libres
             de droits par défaut : ne les réutilisez pas sans vous être assuré
@@ -74,7 +74,7 @@ const Terms = () => {
 
         <section className="py-8">
           <SectionTitle align="left" line1={<>5. Disponibilité</>} />
-          <p className="text-secondary mt-4">
+          <p className="text-ink-soft mt-4">
             Le site peut être interrompu, réinitialisé ou fermé à tout moment,
             sans avertissement et sans conservation des données saisies. Il
             n'est assorti d'aucune garantie de fonctionnement et sa
@@ -84,7 +84,7 @@ const Terms = () => {
 
         <section className="py-8">
           <SectionTitle align="left" line1={<>6. Évolution et contact</>} />
-          <p className="text-secondary mt-4">
+          <p className="text-ink-soft mt-4">
             Ces conditions peuvent changer au fil du projet ; la date de mise à
             jour ci-dessus fait foi. Pour toute question, écrivez-nous par le{" "}
             <Link

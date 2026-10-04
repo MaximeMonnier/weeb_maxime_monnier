@@ -1,22 +1,23 @@
-"""Tests des mots de passe et des jetons : ce que la réponse ne doit pas révéler, ce qu'elle
-doit refuser, ce que l'admin doit hasher, à partir de quand l'API refuse de répondre,
-jusqu'à quand un refresh reste bon, et à qui la connexion en délivre — l'inscription ne
-créant qu'un compte en attente."""
+"""Tests des comptes : réinitialisation, mots de passe, jetons, quotas et inscription."""
 
 import re
+import threading
+import time
 from datetime import timedelta
 from unittest.mock import patch
 
 from django.conf import settings
+from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from django.core.cache import cache
 from django.db import connection
-from django.test import Client, SimpleTestCase, TestCase
+from django.test import Client, SimpleTestCase, TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import resolve, reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import CustomUser
@@ -48,7 +49,7 @@ class PasswordResetRequestTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), NEUTRAL_RESPONSE)
-        # Le cœur de l'issue #68 : le client ne doit tenir ni l'uid ni le token.
+        # Le client ne doit tenir ni l'uid ni le token.
         self.assertNotIn("uid", response.json())
         self.assertNotIn("token", response.json())
         self.assertEqual(len(mail.outbox), 1)
@@ -237,7 +238,7 @@ class PasswordValidationTests(TestCase):
         self.assertTrue(self.user.check_password(self.STRONG_PASSWORD))
 
     def test_les_messages_de_refus_sortent_en_francais(self):
-        """LANGUAGE_CODE tient les libellés de Django, que le README publie tels quels."""
+        """LANGUAGE_CODE tient les libellés de Django, validateurs de mot de passe compris."""
         response = self.register(self.WEAK_PASSWORD)
 
         self.assertIn("Ce mot de passe est trop courant.", response.json()["password"])
@@ -264,8 +265,7 @@ class PasswordValidationTests(TestCase):
 
 
 class PasswordLengthTests(TestCase):
-    """128 caractères passent, 129 sont refusés sous la clé du champ : la borne vit dans les
-    serializers seuls, AUTH_PASSWORD_VALIDATORS n'ayant pas de maximum."""
+    """128 caractères passent, 129 non : la borne vit aux serializers, les validateurs n'en ont pas."""
 
     # Une majuscule, une minuscule, un chiffre : seule la longueur peut faire tomber le cas.
     LIMITE = "Aa1" + "x" * 125
@@ -352,7 +352,7 @@ class CustomUserAdminTests(TestCase):
         self.client.force_login(self.admin)
 
     def test_un_compte_cree_depuis_l_admin_peut_se_connecter(self):
-        """Le cœur de l'issue #70 : ModelAdmin enregistrait la saisie sans la hasher."""
+        """La saisie de l'admin est hachée : un ModelAdmin nu l'enregistrerait en clair."""
         response = self.client.post(
             reverse("admin:accounts_customuser_add"),
             {
@@ -520,8 +520,7 @@ class JWTRotationTests(TestCase):
         self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
 
     def test_un_compte_supprime_ne_rafraichit_plus(self):
-        """Monté sur TokenRefreshView, login/refresh/ répondrait 500 : le front y voit une
-        panne passagère et garde des jetons morts jusqu'à l'échéance du refresh."""
+        """Sur TokenRefreshView, ce 401 serait un 500 et le front garderait des jetons morts."""
         CustomUser.objects.get(email="membre@example.com").delete()
 
         self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
@@ -534,16 +533,14 @@ class JWTRotationTests(TestCase):
         self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
 
     def test_la_deconnexion_refuse_un_refresh_deja_revoque(self):
-        """L'app token_blacklist retirée d'INSTALLED_APPS, les deux appels rendraient 200 :
-        simplejwt avale l'AttributeError et la vue révoque dans le vide, sans rien dire."""
+        """Sans l'app token_blacklist, simplejwt avalerait l'erreur et rendrait 200 à vide."""
         self.deconnecter(self.refresh)
 
         self.assertEqual(self.deconnecter(self.refresh).status_code, 401)
 
 
 class JWTMessagesTests(TestCase):
-    """Les refus de simplejwt sortent en français : son catalogue n'est lu que parce que l'app
-    est dans INSTALLED_APPS, et backend/locale/ traduit ce qu'il laisse en anglais."""
+    """Les refus de simplejwt sortent en français : son app installée, et backend/locale/."""
 
     def setUp(self):
         self.user = CustomUser.objects.create_user(
@@ -596,8 +593,7 @@ class JWTMessagesTests(TestCase):
 
 
 class RegisterTests(TestCase):
-    """Ce que l'inscription crée : un compte en attente, écrit inactif du premier coup, dont
-    la réponse tait le mot de passe."""
+    """L'inscription crée un compte inactif dès l'écriture, et tait le mot de passe."""
 
     PASSWORD = "MotDePasseValide123"
 
@@ -622,9 +618,7 @@ class RegisterTests(TestCase):
         self.assertFalse(CustomUser.objects.get(email="nouveau@example.com").is_active)
 
     def test_l_inscription_n_ecrit_la_ligne_qu_une_fois(self):
-        """is_active remis à False après create_user, la ligne existerait ACTIVE entre les
-        deux requêtes : une connexion concurrente y trouverait un compte que personne n'a
-        encore validé. C'est cette fenêtre que l'écriture unique ferme."""
+        """Écrit inactif d'un coup : sinon une connexion concurrente trouverait le compte actif."""
         # \b écarte les tables dérivées, accounts_customuser_groups et sa voisine,
         # dont le nom contient celui du compte sans qu'une écriture y touche.
         table = re.compile(rf"\b{CustomUser._meta.db_table}\b")
@@ -677,8 +671,7 @@ class LoginTests(TestCase):
         self.assertIn("refresh", response.json())
 
     def test_un_compte_en_attente_n_obtient_aucun_jeton(self):
-        """Le compte inactif est refusé par authenticate(), en amont de la vue : rien
-        dans accounts ne porte ce filtre, un backend d'authentification changé l'ôterait."""
+        """Le refus vient d'authenticate() : rien dans accounts ne porte ce filtre."""
         self.membre.is_active = False
         self.membre.save()
 
@@ -690,8 +683,7 @@ class LoginTests(TestCase):
         self.assertNotIn("refresh", response.json())
 
     def test_un_mot_de_passe_trop_long_est_refuse_sans_fermer_la_porte(self):
-        """Le serializer de simplejwt ne borne rien : la limite tient au LoginSerializer
-        que LoginView déclare, et disparaît si la route revient à la vue d'origine."""
+        """La borne tient au LoginSerializer de LoginView : la vue de simplejwt ne borne rien."""
         response = self.client.post(
             self.url, {"email": self.membre.email, "password": "A" * 129},
             content_type="application/json",
@@ -756,6 +748,25 @@ class PasswordChangeTests(TestCase):
         self.assertEqual(self.rafraichir(autre_appareil["refresh"]).status_code, 401)
         self.assertEqual(self.rafraichir(self.session["refresh"]).status_code, 401)
 
+    def test_une_deconnexion_concurrente_n_annule_pas_le_changement(self):
+        inscrire = BlacklistedToken.objects.bulk_create
+
+        def deconnexion_entre_lecture_et_ecriture(jetons, **options):
+            BlacklistedToken.objects.create(token=jetons[0].token)
+            return inscrire(jetons, **options)
+
+        with patch.object(
+            BlacklistedToken.objects, "bulk_create", side_effect=deconnexion_entre_lecture_et_ecriture
+        ) as enveloppe:
+            response = self.changer(
+                {"current_password": self.PASSWORD, "new_password": self.NOUVEAU},
+                self.session["access"],
+            )
+
+        enveloppe.assert_called_once()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.connecter(self.NOUVEAU).status_code, 200)
+
     def test_le_jeton_seul_ne_suffit_pas(self):
         for corps in (
             {"new_password": self.NOUVEAU},
@@ -794,3 +805,114 @@ class PasswordChangeTests(TestCase):
             self.assertEqual(self.changer(corps, self.session["access"]).status_code, 400)
 
         self.assertEqual(self.changer(corps, self.session["access"]).status_code, 429)
+
+
+def attendre_verrou_ou_fin(fil):
+    """Rend la main quand `fil` a fini, ou quand une connexion attend un verrou de PostgreSQL."""
+    limite = time.monotonic() + 10
+    while fil.is_alive() and time.monotonic() < limite:
+        with connection.cursor() as curseur:
+            curseur.execute(
+                "SELECT count(*) FROM pg_stat_activity"
+                " WHERE datname = current_database() AND wait_event_type = 'Lock'"
+            )
+            if curseur.fetchone()[0]:
+                return
+        time.sleep(0.01)
+
+
+class RotationConcurrenteTests(TransactionTestCase):
+    """Une rotation concurrente d'une révocation n'émet pas de refresh qui lui survive."""
+
+    PASSWORD = "MotDePasseValide123"
+    NOUVEAU = "NouveauSecret456"
+
+    def setUp(self):
+        self.membre = CustomUser.objects.create_user(
+            email="membre@example.com", first_name="Martin", last_name="Embre",
+            password=self.PASSWORD,
+        )
+        jetons = RefreshToken.for_user(self.membre)
+        self.refresh, self.access = str(jetons), str(jetons.access_token)
+
+    def rafraichir(self, refresh):
+        return Client().post(
+            reverse("login-refresh"), {"refresh": refresh}, content_type="application/json"
+        )
+
+    def changer(self):
+        return Client().post(
+            reverse("password-change"),
+            {"current_password": self.PASSWORD, "new_password": self.NOUVEAU},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.access}",
+        )
+
+    def reinitialiser(self):
+        return Client().post(
+            reverse("password-reset-confirm"),
+            {
+                "uid": urlsafe_base64_encode(force_bytes(self.membre.pk)),
+                "token": default_token_generator.make_token(self.membre),
+                "new_password": self.NOUVEAU,
+            },
+            content_type="application/json",
+        )
+
+    def course(self, premiere, seconde, cible, methode):
+        """Suspend `premiere` dans `cible.methode` le temps de `seconde` ; rend les deux réponses."""
+        en_pause, reprendre = threading.Event(), threading.Event()
+        originale = getattr(cible, methode)
+        reponses = {}
+
+        def apres_pause(*args, **kwargs):
+            en_pause.set()
+            reprendre.wait(timeout=10)
+            return originale(*args, **kwargs)
+
+        def lancer(nom, action):
+            def executer():
+                try:
+                    reponses[nom] = action()
+                finally:
+                    connection.close()
+            fil = threading.Thread(target=executer)
+            fil.start()
+            return fil
+
+        with patch.object(cible, methode, apres_pause):
+            fil_premiere = lancer("premiere", premiere)
+            self.assertTrue(en_pause.wait(timeout=10))
+            fil_seconde = lancer("seconde", seconde)
+            attendre_verrou_ou_fin(fil_seconde)
+            reprendre.set()
+            fil_premiere.join()
+            fil_seconde.join()
+
+        return reponses["premiere"], reponses["seconde"]
+
+    def rotation_puis(self, revoquer):
+        """La rotation suspendue juste avant d'inscrire son refresh neuf, la révocation lancée."""
+        rotation, revocation = self.course(
+            lambda: self.rafraichir(self.refresh), revoquer, RefreshToken, "outstand",
+        )
+        self.assertEqual(revocation.status_code, 200)
+        self.assertEqual(rotation.status_code, 200)
+        return rotation.json()["refresh"]
+
+    def test_le_refresh_emis_pendant_un_changement_est_revoque(self):
+        self.assertEqual(self.rafraichir(self.rotation_puis(self.changer)).status_code, 401)
+
+    def test_le_refresh_emis_pendant_une_reinitialisation_est_revoque(self):
+        self.assertEqual(self.rafraichir(self.rotation_puis(self.reinitialiser)).status_code, 401)
+
+    def test_une_rotation_arrivee_pendant_le_changement_est_refusee(self):
+        # Tombe si la liste noire est lue avant le verrou de RefreshSerializer : la rotation
+        # passerait son contrôle, puis émettrait après la révocation un refresh qui lui survit.
+        revocation, rotation = self.course(
+            self.changer, lambda: self.rafraichir(self.refresh),
+            BlacklistedToken.objects, "bulk_create",
+        )
+
+        self.assertEqual(revocation.status_code, 200)
+        self.assertEqual(rotation.status_code, 401)

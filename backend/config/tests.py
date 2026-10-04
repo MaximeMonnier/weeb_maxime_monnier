@@ -1,7 +1,4 @@
-"""Tests de la route de santé : ce que le conteneur attend d'elle sans que la vue le dise —
-l'ouverture au visiteur, que le défaut IsAuthenticated fermerait si elle passait par DRF ; le
-coût borné à une requête, seule raison d'avoir quitté /api/articles/ ; et le 503 qui sépare un
-Gunicorn debout d'une base joignable."""
+"""Tests de la route de santé : ouverte au visiteur, une seule requête, 503 sans base."""
 
 from unittest.mock import patch
 

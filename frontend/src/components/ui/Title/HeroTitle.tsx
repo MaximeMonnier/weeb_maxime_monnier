@@ -18,7 +18,7 @@ export default function HeroTitle({
   return (
     <Comp
       className={cx(
-        "text-primary font-bold tracking-tight leading-[1.05]",
+        "text-ink font-bold tracking-tight leading-[1.05]",
         "text-4xl sm:text-5xl md:text-6xl",
         center ? "text-center" : "text-left",
       )}

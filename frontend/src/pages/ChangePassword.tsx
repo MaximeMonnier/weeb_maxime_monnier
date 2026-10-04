@@ -1,15 +1,19 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../lib/api";
-import { toFormErrors } from "../lib/apiErrors";
 import { saveTokens } from "../lib/tokens";
-import { isComplexPassword } from "../lib/validationRules";
+import {
+  PASSWORD_MIN_LENGTH,
+  isComplexPassword,
+  isConfirmedPassword,
+  isLongEnoughPassword,
+} from "../lib/validationRules";
 import { useForm } from "../hooks/useForm";
 import type { FormErrors } from "../hooks/useForm";
 import { useIsAuthenticated } from "../hooks/useIsAuthenticated";
 import { Input } from "../components/ui/Input";
-import MainButton from "../components/ui/Button/MainButton";
-import MainTitle from "../components/ui/Title/MainTitle";
+import Button from "../components/ui/Button/Button";
+import HeroTitle from "../components/ui/Title/HeroTitle";
 import ErrorAlert from "../components/ui/Alert/ErrorAlert";
 
 type FormData = {
@@ -34,14 +38,14 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
     newErrors.current_password = "Le mot de passe actuel est requis";
   }
 
-  if (formData.new_password.length < 8) {
-    newErrors.new_password = "Le mot de passe doit contenir au moins 8 caractères";
+  if (!isLongEnoughPassword(formData.new_password)) {
+    newErrors.new_password = `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères`;
   } else if (!isComplexPassword(formData.new_password)) {
     newErrors.new_password =
       "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre";
   }
 
-  if (formData.new_password !== formData.confirmPassword) {
+  if (!isConfirmedPassword(formData.new_password, formData.confirmPassword)) {
     newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
   }
 
@@ -56,61 +60,49 @@ const ChangePassword = () => {
     formData,
     setFormData,
     errors,
-    setErrors,
     formError,
-    setFormError,
     isSubmitting,
-    setIsSubmitting,
     handleChange,
-    validate,
+    submit,
   } = useForm<FormData>(VALEURS_INITIALES, {
     onChange: () => setConfirmation(null),
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate(reglesDeSaisie)) {
-      return;
-    }
-    setFormError(null);
-    setConfirmation(null);
-    setIsSubmitting(true);
-    try {
-      const reponse = await apiFetch<{ access: string; refresh: string }>(
-        "/auth/password-change/",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            current_password: formData.current_password,
-            new_password: formData.new_password,
-          }),
-        },
-      );
-      // L'API a révoqué tous les refresh du compte, celui-ci compris : sans les
-      // jetons neufs, la session s'éteindrait au prochain renouvellement.
-      saveTokens(reponse);
-      setFormData(VALEURS_INITIALES);
-      setConfirmation(
-        "Votre mot de passe est modifié. Vos autres appareils devront se reconnecter.",
-      );
-    } catch (err) {
-      const { fieldErrors, formError } = toFormErrors(err, CHAMPS);
-      setErrors(fieldErrors);
-      setFormError(formError);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const handleSubmit = (e: React.FormEvent) =>
+    submit(e, {
+      rules: reglesDeSaisie,
+      fields: CHAMPS,
+      send: async (values) => {
+        setConfirmation(null);
+        const reponse = await apiFetch<{ access: string; refresh: string }>(
+          "/auth/password-change/",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              current_password: values.current_password,
+              new_password: values.new_password,
+            }),
+          },
+        );
+        // L'API a révoqué tous les refresh du compte, celui-ci compris : sans les
+        // jetons neufs, la session s'éteindrait au prochain renouvellement.
+        saveTokens(reponse);
+        setFormData(VALEURS_INITIALES);
+        setConfirmation(
+          "Votre mot de passe est modifié. Vos autres appareils devront se reconnecter.",
+        );
+      },
+    });
 
   return (
     <div className="container-custom mt-32">
       <div className="flex flex-col items-center justify-center">
-        <MainTitle
+        <HeroTitle
           line1={<>Changer de mot de passe</>}
           line2="Sans vous déconnecter ni attendre d'email"
         />
 
-        <div className="w-full max-w-md my-8 border border-primary p-6 rounded-lg">
+        <div className="w-full max-w-md my-8 border border-line p-6 rounded-lg">
           {!isAuthenticated ? (
             <p className="text-center">
               Cette page est réservée aux membres.{" "}
@@ -153,7 +145,7 @@ const ChangePassword = () => {
                   placeholder="••••••••"
                   value={formData.new_password}
                   onChange={handleChange}
-                  helperText="Au moins 8 caractères avec majuscule, minuscule et chiffre"
+                  helperText={`Au moins ${PASSWORD_MIN_LENGTH} caractères avec majuscule, minuscule et chiffre`}
                   error={errors.new_password}
                   required
                   fullWidth
@@ -173,7 +165,7 @@ const ChangePassword = () => {
                 />
 
                 <div className="flex justify-center">
-                  <MainButton
+                  <Button
                     type="submit"
                     variant="primary"
                     size="lg"
@@ -181,7 +173,7 @@ const ChangePassword = () => {
                     fullWidth
                   >
                     {isSubmitting ? "Veuillez patienter…" : "Changer le mot de passe"}
-                  </MainButton>
+                  </Button>
                 </div>
               </div>
             </form>

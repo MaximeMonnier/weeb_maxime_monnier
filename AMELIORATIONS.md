@@ -7,9 +7,9 @@ et pour les prochaines itérations).
 - [ ] **Toasts de succès / d'erreur** — la moitié « erreur » est livrée par l'issue #79 :
       `lib/apiErrors.ts` traduit les refus de l'API et chaque formulaire les affiche, en
       place des `console.error`. Ce qui reste est la notification **de succès**, qui n'existe
-      qu'à trois endroits, tous écrits dans la page : le formulaire de contact, la demande de
-      réinitialisation, qui affiche le message de l'API, et l'inscription depuis l'issue #119,
-      qui ne quitte plus la page pour cette raison même. Une publication d'article ne dit rien,
+      qu'à quatre endroits, tous écrits dans la page : le formulaire de contact, la demande de
+      réinitialisation, qui affiche le message de l'API, l'inscription depuis l'issue #119,
+      qui ne quitte plus la page pour cette raison même, et le changement de mot de passe. Une publication d'article ne dit rien,
       elle — `onCreated` ferme la modale et recharge la liste, sans quitter `/blog`. Piste
       inchangée : librairie type
       `react-hot-toast` ou `sonner`, ou un composant Toast maison — c'est le point où ce
@@ -35,30 +35,18 @@ et pour les prochaines itérations).
 
 ## Frontend — code
 
-- [ ] **La palette n'affiche pas les couleurs que ses commentaires annoncent.** Dans le
-      `@theme` d'`index.css`, 23 des 28 couleurs annotées s'écartent de leur hexadécimal ;
-      seuls les blancs et les deux violets clairs, recalculés depuis, tombent juste. Deux
-      causes. Cinq valeurs sont hors de la gamme sRGB et le navigateur les ramène au bord :
-      le fond sombre annoncé `#0F172A` s'affiche `#00112F`, le violet sombre `#A855F7`
-      s'affiche `#C75EFF`, et les deux verts et le rouge clair glissent de même. Les autres
-      sont dans la gamme mais ne sont pas les conversions des couleurs citées : les gris,
-      écrits `oklch(0.3 0.02 250)` pour `#334155`, s'affichent `#262F38`, plus sombres et moins
-      bleus, et deux valeurs différentes se réclament toutes deux de `#1E293B`. Le contraste
-      « 4,5:1 sur le fond principal » du survol sombre vaut contre le fond affiché, et 4,3:1
-      contre `#0F172A`. Repéré aux issues #220 et #233. Piste : décider entre l'écran actuel,
-      dont on réécrit alors les commentaires, et la maquette, dont on recalcule les valeurs —
-      puis mesurer les contrastes qui en dépendent avant de choisir.
-- [ ] **Le seuil de 8 caractères du mot de passe est recopié dans quatre formulaires.**
-      `FormSubscribe.tsx`, `ResetPassword.tsx`, `ChangePassword.tsx` et `FormLogin.tsx`
-      écrivent chacun `length < 8` et son message, là où la complexité vit une seule fois
-      dans `lib/validationRules.ts`. Le seuil reprend celui de `MinimumLengthValidator`
-      (`config/settings/base.py`) : s'il change côté API, trois formulaires sur quatre
-      restent en retard sans que rien ne le signale. La confirmation du mot de passe se
-      répète aussi, entre `FormSubscribe.tsx` et `ChangePassword.tsx`. Et la copie de
-      `FormLogin.tsx` applique une règle de création à la connexion : un compte au mot de
-      passe plus court, né d'un `create_user()` au shell, ne pourrait pas se connecter depuis
-      le site. Repéré à l'issue #233. Piste : une constante et une fonction dans
-      `lib/validationRules.ts`, et retirer le contrôle de longueur de la connexion.
+- [ ] **La palette garde l'écran actuel ou revient à la maquette ?** Hors les blancs et les
+      deux violets clairs, les couleurs du `@theme` d'`index.css` ne rendent pas celles de la
+      maquette : cinq sortent de la gamme sRGB, les gris s'affichent plus sombres et moins
+      bleus. Repéré aux issues #220 et #233. Piste : garder l'écran, ou recalculer les valeurs
+      depuis la maquette — puis mesurer les contrastes qui en dépendent avant de choisir.
+- [ ] **Les messages du mot de passe sont recopiés dans trois formulaires.** L'issue #245 a
+      mis en commun les règles dans `lib/validationRules.ts`, pas leurs textes : les refus de
+      longueur, de complexité et de confirmation, et l'aide « Au moins 8 caractères avec
+      majuscule, minuscule et chiffre », sont écrits à la main dans `FormSubscribe.tsx`,
+      `ChangePassword.tsx` et `ResetPassword.tsx`. Chaque test lit son propre formulaire,
+      aucun ne les compare : une règle qui change laisse les trois annoncer l'ancienne.
+      Repéré à l'issue #246. Piste : exporter les messages et l'aide à côté des règles.
 
 ## Docker — mise en ligne
 
@@ -141,22 +129,38 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       dépôt n'a ni tâche planifiée ni cron dans ses conteneurs. Sans conséquence à l'échelle
       d'un projet pédagogique ; à reprendre le jour où une file de tâches entrera, la même
       qui manque à l'envoi des emails ci-dessus.
-- [ ] **Le commentaire des quotas dans `base.py` dit « comptés par IP ».** C'est faux pour
-      `password_change` : `ScopedRateThrottle` compte par compte dès que le membre est
-      connecté, ce que le README et `.env.example` disent justement. Un lecteur de `base.py`
-      en conclurait qu'un membre derrière la même IP qu'un autre partage son quota. Repéré
-      à la revue de l'issue #214.
+- [ ] **Une connexion à l'ancien mot de passe peut survivre au changement.** L'issue #250 a
+      sérialisé la rotation de `login/refresh/` et `set_password_and_revoke` par un verrou sur
+      la ligne du compte, mais `login/` ne le prend pas : une connexion lancée pendant la
+      transaction du changement lit encore l'ancien hachage, puis inscrit son refresh après la
+      lecture des jetons à révoquer. Même fenêtre de quelques millisecondes, même effet : une
+      session ouverte avec l'ancien mot de passe vit son `REFRESH_TOKEN_LIFETIME`. Piste : le
+      même `select_for_update()` dans `LoginSerializer.validate`, pris avant `authenticate()`.
+- [ ] **`set_password_and_revoke` réécrit tout le compte.** `user.save()` enregistre chaque
+      champ de l'instance lue avant le verrou — `request.user`, ou celle de la confirmation. Un
+      compte désactivé par un administrateur pendant le changement repasse donc `is_active=True`.
+      `user.save(update_fields=["password"])` suffirait. Repéré à la revue de l'issue #250.
+
+## Backend — code
+
+- [ ] **Des fins de ligne redisent encore le code.** L'issue #263 a retiré celles que son
+      ticket nommait, pas les autres : dans `config/settings/base.py`, celles de
+      `rest_framework`, `corsheaders`, de l'authentification JWT et de
+      `REFRESH_TOKEN_LIFETIME` ; dans `production.py`, les cinq des réglages de sécurité ; dans
+      `accounts/models.py`, celles d'`is_active`, `is_staff`, `USERNAME_FIELD` et
+      `REQUIRED_FIELDS`. Repéré à la revue de l'issue #263. Piste : ne garder que celles qui
+      disent un pourquoi, comme « demandés en plus par createsuperuser ».
 
 ## Fonctionnalités écartées
 
 - [ ] **Aucun endpoint profil.** L'API n'expose ni `GET /api/auth/me/` ni équivalent : le
-      front sait qu'un membre est connecté, jamais qui il est, et `App.tsx` n'a pas de page de
+      front sait qu'un membre est connecté, jamais qui il est, et `routes.tsx` n'a pas de page de
       profil. La tâche 5.1 de `correction.md` a tranché pour un simple booléen, l'ajout
       backend devant être proposé à part. Piste : une `RetrieveUpdateAPIView` sur
       `request.user`, réservée au membre, dont le serializer ne rend que le prénom, le nom et
       l'email — rendre l'email modifiable y ajouterait un second point d'énumération, voir
       « `/api/auth/register/` énumère les comptes » ci-dessus.
-- [ ] **Images de couverture d'article.** `coverImg` a été retiré du type et de `Card.tsx` par
+- [ ] **Images de couverture d'article.** `coverImg` a été retiré du type et de `ArticleCard.tsx` par
       l'issue #175 (tâche 9.1) : ni le modèle `Article` ni les deux serializers de
       `backend/articles/serializers.py` n'ont de champ image, et la branche d'affichage ne
       s'exécutait jamais. C'est une fonctionnalité, pas un nettoyage. Piste : un `ImageField`
@@ -175,7 +179,8 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       restant à `false`. Repéré à l'issue #119. Depuis, `useIsAuthenticated.test.ts` et
       `Blog.test.tsx` (#132) substituent `fetch` à leur tour, sans formulaire. Le seuil est franchi depuis l'issue #159 :
       `ChangePassword.test.tsx` est le troisième formulaire testé, et `ArticleDetails.test.tsx`
-      substitue aussi `fetch` — sept fichiers au total, `api.test.ts` compris.
+      substitue aussi `fetch` — huit fichiers au total depuis `ResetPassword.test.tsx` (#246),
+      `api.test.ts` compris.
 - [ ] **Le parcours Playwright ne tourne pas en intégration continue.** `tests.yml` lance
       les suites Django et Vitest, mais `npm run test:e2e` exige la pile de `compose.dev.yaml`
       démarrée et les navigateurs de Playwright, qu'aucun job ne prépare. Le `forbidOnly` de

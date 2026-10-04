@@ -1,30 +1,19 @@
 """Sonde de santé du conteneur : sort 0 si l'API répond 200, 1 sinon."""
 
-# Pourquoi un script Python et non `curl` : l'image python:3.13-slim n'embarque
-# pas curl, et l'installer ajouterait une dizaine de mégaoctets et une surface
-# d'attaque pour une seule requête HTTP. La bibliothèque standard suffit.
-#
-# La sonde vise un endpoint qui LIT LA BASE, et pas seulement le port : un
-# Gunicorn debout devant une base injoignable répondrait au TCP tout en étant
-# incapable de servir la moindre requête utile.
+# Pas curl : absent de python:3.13-slim, et l'installer coûte 10 Mo pour une requête.
+# La route visée LIT LA BASE : un Gunicorn devant une base injoignable répond au TCP.
 
 import sys
 import urllib.request
 
-# 127.0.0.1 et non le nom du conteneur : la sonde s'exécute à l'intérieur de
-# celui-ci. Cet hôte doit figurer dans DJANGO_ALLOWED_HOSTS, sans quoi Django
-# répond 400 et le conteneur est déclaré malade à tort.
-#
-# Une route dédiée plutôt qu'un endpoint de l'API : son SELECT 1 coûte le même prix
-# quel que soit le nombre d'articles, et la santé du conteneur cesse de dépendre de
-# la lecture publique du blog.
+# 127.0.0.1 : la sonde tourne dans le conteneur. L'hôte doit figurer dans
+# DJANGO_ALLOWED_HOSTS, sinon Django répond 400. Route dédiée : son SELECT 1 coûte
+# le même prix quel que soit le nombre d'articles.
 URL = 'http://127.0.0.1:8000/health/'
 TIMEOUT_SECONDS = 5
 
-# La sonde s'adresse à Gunicorn EN DIRECT, sans traverser le nginx du serveur qui
-# termine le TLS : elle teste CE conteneur, pas la chaîne entière. Elle rejoue
-# donc elle-même l'en-tête que ce nginx pose sur chaque requête relayée, sans
-# quoi les réglages de production lui répondraient 301.
+# Gunicorn joint EN DIRECT, sans le nginx du serveur : la sonde rejoue l'en-tête
+# qu'il pose, sans quoi la production lui répondrait 301.
 request = urllib.request.Request(URL, headers={'X-Forwarded-Proto': 'https'})
 
 try:

@@ -1,8 +1,7 @@
 import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
-import MainButton from "../../ui/Button/MainButton";
+import Button from "../../ui/Button/Button";
 import { apiFetch } from "../../../lib/api";
-import { toFormErrors } from "../../../lib/apiErrors";
 import { isValidEmail } from "../../../lib/validationRules";
 import { saveTokens } from "../../../lib/tokens";
 import { useForm } from "../../../hooks/useForm";
@@ -33,8 +32,6 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
 
   if (!formData.password.trim()) {
     newErrors.password = "Le mot de passe est requis";
-  } else if (formData.password.length < 8) {
-    newErrors.password = "Le mot de passe doit contenir au moins 8 caractères";
   }
 
   return newErrors;
@@ -43,59 +40,37 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
 const FormLogin = () => {
   const navigate = useNavigate();
 
-  const {
-    formData,
-    errors,
-    setErrors,
-    formError,
-    setFormError,
-    isSubmitting,
-    setIsSubmitting,
-    handleChange,
-    validate,
-  } = useForm<FormData>(VALEURS_INITIALES);
+  const { formData, errors, formError, isSubmitting, handleChange, submit } =
+    useForm<FormData>(VALEURS_INITIALES);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validate(reglesDeSaisie)) {
-      return;
-    }
-
-    setFormError(null);
-    setIsSubmitting(true);
-
-    try {
-      const data = await apiFetch<{ access: string; refresh: string }>(
-        "/auth/login/",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-          }),
-        },
-      );
-      saveTokens(data);
-      navigate("/");
-    } catch (err) {
+  const handleSubmit = (e: React.FormEvent) =>
+    submit(e, {
+      rules: reglesDeSaisie,
+      fields: CHAMPS,
       // Un mot de passe faux et un compte pas encore validé donnent le même 401 : les
       // distinguer dirait à un inconnu quelles adresses sont inscrites.
-      const { fieldErrors, formError } = toFormErrors(err, CHAMPS, {
-        unauthorized:
-          "Connexion impossible. Vérifiez votre email et votre mot de passe ; un compte tout juste créé doit d'abord être validé par un administrateur.",
-      });
-      setErrors(fieldErrors);
-      setFormError(formError);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+      unauthorized:
+        "Connexion impossible. Vérifiez votre email et votre mot de passe ; un compte tout juste créé doit d'abord être validé par un administrateur.",
+      send: async (values) => {
+        const data = await apiFetch<{ access: string; refresh: string }>(
+          "/auth/login/",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              email: values.email,
+              password: values.password,
+            }),
+          },
+        );
+        saveTokens(data);
+        navigate("/");
+      },
+    });
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-md my-8 border border-primary p-6 rounded-lg"
+      className="w-full max-w-md my-8 border border-line p-6 rounded-lg"
     >
       <ErrorAlert message={formError} />
 
@@ -120,7 +95,6 @@ const FormLogin = () => {
           value={formData.password}
           onChange={handleChange}
           error={errors.password}
-          helperText="Minimum 8 caractères"
           required
           fullWidth
         />
@@ -135,7 +109,7 @@ const FormLogin = () => {
         </div>
 
         <div className="flex justify-center">
-          <MainButton
+          <Button
             type="submit"
             variant="primary"
             size="lg"
@@ -143,10 +117,10 @@ const FormLogin = () => {
             fullWidth
           >
             {isSubmitting ? "Connexion..." : "Se connecter"}
-          </MainButton>
+          </Button>
         </div>
 
-        <div className="text-center text-sm text-secondary">
+        <div className="text-center text-sm text-ink-soft">
           Pas encore de compte ?{" "}
           <Link
             to="/subscribe"

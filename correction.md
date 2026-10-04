@@ -57,10 +57,14 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 - **Aucun `fetch` hors de `lib/api.ts`.** Point d'appel réseau unique.
 - **Toute vue DRF publique déclare explicitement sa permission.** Le défaut global est
   `IsAuthenticated` : une vue qui oublie sa permission est fermée sans que rien ne le signale.
-- **Le nom du fichier ne dit pas le nom de l'export** côté front (`MainButton.tsx` exporte
-  `Button`, `Card.tsx` exporte `ArticleCard`…). Inventorier les exports, pas les noms de fichiers.
+- **Le nom du fichier est celui de son export** côté front, depuis l'issue #242 : un composant
+  s'importe sous un seul nom, que grep retrouve.
 - **Tout est rédigé en français** : code, commentaires, docstrings, commits, tickets.
 - **Commentaires** : le *pourquoi*, jamais le *quoi*, trois lignes maximum (`commentaires-code`).
+- **Documentation** : commenter seulement ce que le code ne peut pas dire. README et
+  `CLAUDE.md` : seulement pour un changement de stack, de commande ou de structure. À partir du
+  lot 12, cette règle l'emporte sur toute fin de prompt qui fait mettre à jour `CLAUDE.md`, le
+  README ou `AMELIORATIONS.md`.
 - **Avant chaque push** : dérouler `revue-avant-push`, qui rend un verdict
   `BLOQUANT / À CORRIGER / OK`.
 - **Outillage** : `/plan-chapitre <lot>` pour créer les tickets du lot, puis `/ticket <n>` pour
@@ -2173,7 +2177,7 @@ Coche l'entrée correspondante de AMELIORATIONS.md (§ « Frontend — code mort
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 + 2 — documentation |
+| Clos le 2026-10-03 — le grep a trouvé l'incitation jusque dans la règle des trois lignes | — | Lot 11 | Bloc 1 + 2 — documentation |
 
 **Origine** : les règles de sobriété existent déjà — 3 lignes au plus par commentaire
 (`commentaires-code`), « sinon n'y touche pas » à l'étape 7 de `/ticket`, budget de 40 Ko pour
@@ -2190,7 +2194,7 @@ AMELIORATIONS.md ». Une règle de plus serait contredite par ces trois-là.
 
 ## 11.1 — Retirer les incitations, poser la règle
 
-- [ ] **Fichiers** : `.claude/commands/ticket.md`, `CLAUDE.md`, ce fichier (§ « Règles communes »)
+- [x] **Fichiers** : `.claude/commands/ticket.md`, `CLAUDE.md`, ce fichier (§ « Règles communes »)
 - **Attendu** :
   - le Style de `/ticket` ne fait plus consigner chaque nuance : un arbitrage reste dans le chat,
     sauf un piège qui ferait tomber le prochain à toucher ce code ;
@@ -2212,7 +2216,7 @@ Rien ne part sur GitHub.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — qualité |
+| Clos le 2026-10-04 — quatre tâches prévues, dix sous-issues livrées, plus une issue hors epic née d'une revue | #238 | Lot 12 | Bloc 1 — qualité |
 
 **Origine** : audit du 2026-10-03 (back 7,5/10, front 7/10, 96 tests back et 126 front au
 vert). Aucune faille. Le défaut de fond : plusieurs pièges sont **documentés au lieu d'être
@@ -2222,13 +2226,17 @@ Ce lot retire les causes ; le lot 13 retire ensuite la documentation devenue inu
 **Grain de ticket** : epic + 4 sous-issues. 12.1 est indépendante. 12.2, 12.3 et 12.4 touchent
 en partie les mêmes composants (`NavBar.tsx`, `HeroBanner.tsx`, les formulaires) : elles passent
 l'une après l'autre, dans cet ordre.
+Ouvert ainsi : 12.1 → #239 et #240, 12.2 → #241, 12.3 → #242 et #243, 12.4 → #244 à #248.
+**Puis #250**, hors epic : la course que l'`ignore_conflicts` de #239 laissait ouverte.
 
 > **Dépendances : lot 11 clos**, sans quoi ces tickets rajoutent la documentation que le lot 13
 > doit retirer.
 
 ## 12.1 — Révocation sans conflit et clé de test valide
 
-- [ ] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/tests.py`, `backend/config/settings/test.py`
+- [x] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/tests.py`, `backend/config/settings/test.py`
+  — livré par #239 (PR #249) et #240 (PR #251), puis #250 (PR #260) : un verrou sur la ligne
+  du compte sérialise la rotation des refresh et leur révocation.
 - **Constat** : `set_password_and_revoke` (`accounts/views.py:76`) fait un `bulk_create` de
   `BlacklistedToken` sans `ignore_conflicts`. Une rotation de refresh pendant un changement de
   mot de passe viole l'unicité : `500`, et la transaction annule le nouveau mot de passe. La clé
@@ -2246,7 +2254,7 @@ Consulte `backend-django-drf`. Aucun fichier à créer.
 
 ## 12.2 — Thème en variables sémantiques
 
-- [ ] **Fichiers** : `frontend/src/index.css`, `frontend/src/components/ui/Button/buttonClasses.ts`,
+- [x] **Fichiers** — livré par #241 (PR #252) : `frontend/src/index.css`, `frontend/src/components/ui/Button/buttonClasses.ts`,
   `frontend/src/components/common/Home/Slider.tsx`, `frontend/src/index.css.test.ts`, les composants
   qui portent des paires `bg-[var(--color-light-…)] dark:bg-[var(--color-dark-…)]`
 - **Constat** : chaque couleur est écrite deux fois — `.X` puis `.dark .X` dans `index.css`, et
@@ -2269,7 +2277,7 @@ Consulte `frontend-react-ts` et `inventaire-avant-dev`.
 
 ## 12.3 — Fichiers nommés comme leur export, routes exportées
 
-- [ ] **Fichiers** : `MainButton.tsx`, `Card.tsx`, `MainTitle.tsx`, `SecondTitle.tsx`,
+- [x] **Fichiers** — livré par #242 (PR #253) et #243 (PR #254) : `MainButton.tsx`, `Card.tsx`, `MainTitle.tsx`, `SecondTitle.tsx`,
   `LinkTitle.tsx` et leurs 19 importeurs ; `frontend/src/App.tsx`, `Footer.test.tsx`, `NavBar.test.tsx`
 - **Constat** : cinq fichiers n'exportent pas leur nom, et le même composant s'importe sous deux
   noms (`Button` dans `Blog.tsx`, `MainButton` dans `FormArticle.tsx`) : grep ne le retrouve
@@ -2290,7 +2298,7 @@ Consulte `frontend-react-ts`. Refactoring PUR : rien ne change à l'écran.
 
 ## 12.4 — `submit()` dans `useForm`, et quatre défauts du front
 
-- [ ] **Fichiers** : `frontend/src/hooks/useForm.ts` et son test, les 7 formulaires,
+- [x] **Fichiers** — livré par #244 à #248 (PR #255 à #259) : `frontend/src/hooks/useForm.ts` et son test, les 7 formulaires,
   `frontend/src/pages/ResetPassword.tsx`, `frontend/src/pages/Blog/Blog.tsx`, `frontend/index.html`
 - **Constat** : les 7 formulaires recopient le même `handleSubmit` d'environ 25 lignes
   (valider, remettre à zéro, `isSubmitting`, `try/catch` vers `toFormErrors`, `finally`).
@@ -2316,7 +2324,7 @@ Consulte `frontend-react-ts` et `inventaire-avant-dev` : aucun fichier à créer
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 + 2 — documentation |
+| Clos le 2026-10-04 — le plan comptait 31 blocs, l'epic en a mesuré 97 ; raccourcir a révélé des commentaires faux | #261 | Lot 13 | Bloc 1 + 2 — documentation |
 
 **Origine** : depuis le 2026-09-01, 156 commits `docs` pour 34 `feat`, 6 126 lignes de Markdown
 ajoutées pour environ 3 960 de code. `CLAUDE.md` pèse 39 999 octets pour un budget de 40 000,
@@ -2328,20 +2336,22 @@ hook de pré-push.
 **Grain de ticket** : 13.1 et 13.3 en issues ; 13.2 et 13.4 sans issue ni PR, `CLAUDE.md` et
 `.claude/` n'étant pas versionnés. Cette fois, **le lot ne s'étend pas** : un défaut repéré en
 route va dans `AMELIORATIONS.md`.
+Ouvert ainsi : epic #261, 13.3 → #262, 13.1 → #263 (backend), #264 (Docker et CI), #265
+(exemples d'environnement) et #266 (frontend).
 
 > **Dépendances : lot 12 clos**, qui rend caduques une partie des explications à retirer.
 
 ## 13.1 — Commentaires : aucun bloc de plus de 3 lignes
 
-- [ ] **Fichiers** : en tête `backend/config/settings/*.py`, `compose.dev.yaml`, `compose.prod.yaml`,
-  `backend/healthcheck.py`, puis tout le code
+- [x] **Fichiers** — livré par #263 à #266 (PR #268 à #271) : en tête `backend/config/settings/*.py`,
+  `compose.dev.yaml`, `compose.prod.yaml`, `backend/healthcheck.py`, puis tout le code
 - **Constat** : 31 blocs de plus de 3 lignes, dont 7 dans `base.py` et 7 dans
   `compose.prod.yaml`. `production.py:34-46` consacre 13 lignes à un réglage. Restent aussi des
   paraphrases (`accounts/models.py:17`, `:39`, les fins de ligne de `config/urls.py`), des
   traces d'historique (`FormField.tsx:67`, « remplace Math.random ») et des nombres qui
   vieilliront (« neuf… trente-six » dans `ArticleCoutDesListesTests`).
 - **Attendu** : 0 bloc de plus de 3 lignes, aucune paraphrase, aucun nombre ni numéro d'issue
-  qui deviendra faux. Le détail utile part au README, en une ligne.
+  qui deviendra faux. Ce qui dépasse trois lignes est coupé, pas déplacé au README.
 
 ```
 Consulte `commentaires-code`. Aucune ligne de code ne change.
@@ -2353,7 +2363,7 @@ Consulte `commentaires-code`. Aucune ligne de code ne change.
 
 ## 13.2 — `CLAUDE.md` à 15 Ko, skills sans chiffres en dur
 
-- [ ] **Fichiers** : `CLAUDE.md`, `.claude/skills/*/SKILL.md`, `.claude/hooks/verifications.sh` — hors dépôt
+- [x] **Fichiers** — fait hors dépôt, sans issue : les consignes de travail passent de 39 682 à 14 113 octets, les skills et le hook perdent leurs comptes
 - **Constat** : `CLAUDE.md` est relu à chaque session et touche son plafond. Une bonne part
   décrit ce que contiennent les fichiers de test, ou des pièges que le lot 12 a retirés. Les
   skills portent des chiffres déjà faux (72 tests, « six formulaires » contre sept).
@@ -2371,7 +2381,7 @@ Lis la règle « Qui porte quoi » en tête de CLAUDE.md.
 
 ## 13.3 — README à 35 Ko
 
-- [ ] **Fichiers** : `README.md`, `frontend/README.md`
+- [x] **Fichiers** — livré par #262 (PR #267) : `README.md`, `frontend/README.md`
 - **Constat** : 85 Ko pour un site vitrine et un blog. Le README sert à qui installe et lance
   le projet ; il porte aussi le récit de choix que le journal et les PR gardent déjà.
 - **Attendu** : `README.md` ≤ 35 000 octets ; installer, lancer, tester, déployer. Le reste
@@ -2386,7 +2396,7 @@ Consulte `style-documentation`.
 
 ## 13.4 — Contrôle au pré-push
 
-- [ ] **Fichiers** : `.claude/hooks/verifications.sh` — hors dépôt
+- [x] **Fichiers** — fait hors dépôt, sans issue, dans le hook de pré-push, validé par mutation
 - **Constat** : les règles écrites ont déjà dérivé sans que rien ne le montre. Seule une mesure
   le voit avant que la dérive s'installe.
 - **Attendu** : le hook refuse le push si `CLAUDE.md` dépasse 15 000 octets, `README.md` 35 000,
@@ -2406,16 +2416,20 @@ retiré il passe.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 + 2 — documentation |
+| Clos le 2026-10-03 — livré sous son ancien numéro, le lot 11, avant les lots 11 à 13 ajoutés le même jour | #229 | Lot 14 | Bloc 1 + 2 — documentation |
 
 **Grain de ticket** : ticket unique — un seul livrable, la documentation à jour.
+Ouvert finalement en epic + 4 sous-issues, une par fichier livré et une pour la remontée :
+14.1 → #230 (`README.md`) et #231 (`frontend/README.md`), 14.2 → #232, 14.3 → #233.
 
 > **Dépendances : tous les lots précédents**, lots 11 à 13 compris. Le lot 13 réécrit
 > `CLAUDE.md` et le README : 14.1 et 14.2 se réduisent alors à un contrôle des écarts restants.
+> Livré à la fin du lot 10 : la fin du lot 13 appellera ce contrôle, puis une nouvelle remontée
+> de `preprod` dans `main`.
 
 ## 14.1 — Consigner le piège `node_modules` et les écarts de `CLAUDE.md`
 
-- [ ] **Fichiers** : `CLAUDE.md`, `README.md`
+- [x] **Fichiers** : `CLAUDE.md`, `README.md` — livré par #230 (PR #234) et #231 (PR #235)
 - **Constat** : `CLAUDE.md` recense « six pièges de la pile » Docker, mais pas celui qui bloque
   effectivement le poste de travail : le volume anonyme `/app/node_modules` de
   `compose.dev.yaml` crée côté hôte un dossier vide appartenant à `root`, ce qui fait
@@ -2455,7 +2469,7 @@ mise à jour ciblée, pas une refonte.
 
 ## 14.2 — Mettre à jour `AMELIORATIONS.md` et le `README`
 
-- [ ] **Fichiers** : `AMELIORATIONS.md`, `README.md`
+- [x] **Fichiers** : `AMELIORATIONS.md`, `README.md` — livré par #232 (PR #236)
 - **Constat** : `AMELIORATIONS.md` ne contient qu'une seule entrée — les toasts — traitée par la
   tâche 4.2. Le README ne mentionne ni la configuration email (tâche 1.1), ni les quotas
   (tâche 1.5), ni la façon de lancer la suite de tests désormais non vide.
@@ -2491,7 +2505,7 @@ Travail demandé :
 
 ## 14.3 — Revue finale et clôture
 
-- [ ] **Fichiers** : l'ensemble du diff
+- [x] **Fichiers** : l'ensemble du diff — livré par #233 (PR #237, `preprod` → `main`)
 - **Attendu** : un verdict `OK` sur les six axes, puis les issues fermées à la main.
 
 ```

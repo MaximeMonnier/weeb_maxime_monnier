@@ -1,8 +1,4 @@
-"""Tests du formulaire de contact : ce qu'un visiteur sans compte peut envoyer, ce que
-l'API refuse d'enregistrer, ce qu'elle ne rend jamais en lecture, la date qu'elle pose
-sur le message et à partir de quel rang elle cesse de répondre — la permission publique,
-les longueurs de champ, l'absence de route de lecture, le tri du modèle et le taux du
-quota se répartissant entre la vue, le modèle, les routes et les settings."""
+"""Tests du contact : envoi public, refus, absence de lecture, tri, date et quota."""
 
 from datetime import timedelta
 from unittest.mock import patch
@@ -35,8 +31,7 @@ def envoyer(client, corps):
 
 
 class ContactEnvoiPublicTests(TestCase):
-    """Envoyer n'exige aucun compte, alors que le défaut du projet est IsAuthenticated :
-    tout tient au AllowAny de la vue, qu'aucun réglage ne rappelle."""
+    """Envoyer n'exige aucun compte : tout tient à l'AllowAny de la vue."""
 
     def test_un_visiteur_sans_compte_est_accepte(self):
         response = envoyer(self.client, MESSAGE)
@@ -54,8 +49,7 @@ class ContactEnvoiPublicTests(TestCase):
 
 
 class ContactValidationTests(TestCase):
-    """Ce que le serializer refuse : le modèle n'ayant ni blank ni null, les cinq champs
-    sont requis sans que ContactSerializer n'en dise un mot."""
+    """Sans blank ni null au modèle, les cinq champs sont requis sans que le serializer le dise."""
 
     def test_chaque_champ_est_obligatoire(self):
         for champ in MESSAGE:
@@ -69,8 +63,7 @@ class ContactValidationTests(TestCase):
         self.assertEqual(Contact.objects.count(), 0)
 
     def test_un_champ_vide_ne_vaut_pas_un_champ_absent(self):
-        """Un formulaire envoie "" plutôt que d'omettre la clé : sans blank=True au modèle,
-        le serializer refuse les deux, mais pour deux raisons différentes."""
+        """Chaîne vide et clé absente sont refusées, pour deux raisons différentes."""
         for champ in MESSAGE:
             with self.subTest(champ=champ):
                 response = envoyer(self.client, {**MESSAGE, champ: ""})
@@ -88,16 +81,14 @@ class ContactValidationTests(TestCase):
         self.assertEqual(Contact.objects.count(), 0)
 
     def test_un_sujet_plus_long_que_le_champ_est_refuse(self):
-        """max_length ne vit qu'au modèle : c'est le ModelSerializer qui en fait un 400,
-        au lieu de laisser PostgreSQL lever une erreur de base sur un endpoint public."""
+        """max_length vit au modèle : le ModelSerializer en fait un 400 avant PostgreSQL."""
         response = envoyer(self.client, {**MESSAGE, "subject": "S" * 151})
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Contact.objects.count(), 0)
 
     def test_un_message_plus_long_que_la_borne_est_refuse(self):
-        """message est un TextField, sans longueur en base : la borne ne vit que dans
-        ContactSerializer, là où celle du sujet vient du modèle."""
+        """message n'a pas de longueur en base : la borne ne vit que dans ContactSerializer."""
         response = envoyer(self.client, {**MESSAGE, "message": "M" * 5001})
 
         self.assertEqual(response.status_code, 400)
@@ -107,10 +98,7 @@ class ContactValidationTests(TestCase):
 
 
 class ContactDateImposeeTests(TestCase):
-    """La date d'arrivée vient du serveur, quoi qu'en dise le corps envoyé.
-
-    auto_now_add suffit déjà à ce que DRF rende le champ read_only : ces cas verrouillent
-    le comportement, pas la ligne read_only_fields, qui ne fait que l'écrire."""
+    """La date d'arrivée vient du serveur, quoi qu'en dise le corps envoyé."""
 
     def test_la_date_envoyee_par_le_client_est_ignoree(self):
         response = envoyer(self.client, {**MESSAGE, "created_at": "2000-01-01T00:00:00Z"})
@@ -135,8 +123,7 @@ class ContactLectureTests(TestCase):
         Contact.objects.create(**MESSAGE)
 
     def test_la_liste_n_existe_pas_pour_un_visiteur(self):
-        """405 et non 403 : CreateAPIView ne monte que POST, il n'y a pas de lecture à
-        protéger — ajouter ListAPIView ouvrirait la boîte à tous, AllowAny étant global à la vue."""
+        """405 et non 403 : CreateAPIView ne monte que POST, il n'y a pas de lecture à protéger."""
         response = self.client.get(reverse("contact"))
 
         self.assertEqual(response.status_code, 405)
@@ -157,8 +144,7 @@ class ContactLectureTests(TestCase):
 
 
 class ContactThrottleTests(TestCase):
-    """Le quota est le seul frein au remplissage de la table : l'endpoint est public,
-    et rien d'autre n'y limite le nombre d'écritures."""
+    """Le quota est le seul frein au remplissage de la table d'un endpoint public."""
 
     def setUp(self):
         # Le compteur vit dans un cache de processus, que rien ne vide entre deux tests.
@@ -176,8 +162,7 @@ class ContactThrottleTests(TestCase):
 
     @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"contact": "5/hour"})
     def test_un_envoi_refuse_consomme_le_quota(self):
-        """DRF compte avant d'entrer dans la vue : cinq corps invalides ferment la porte
-        au sixième, valide — sans quoi le quota se contournerait par des 400."""
+        """DRF compte avant la vue : sinon le quota se contournerait par des 400."""
         for _ in range(5):
             self.assertEqual(envoyer(self.client, {}).status_code, 400)
 
@@ -186,8 +171,7 @@ class ContactThrottleTests(TestCase):
 
 
 class ContactOrdreTests(TestCase):
-    """Les messages sortent du plus récent au plus ancien, et seul Meta.ordering le dit :
-    l'app n'a ni vue de liste ni queryset ordonné où le relire."""
+    """Du plus récent au plus ancien, et seul Meta.ordering le dit."""
 
     def setUp(self):
         # Les trois messages sont créés dans le désordre : sans cela, l'ordre attendu
@@ -207,11 +191,8 @@ class ContactOrdreTests(TestCase):
 
 
 class ContactModeleTests(TestCase):
-    """Le modèle tel qu'il est : cinq champs saisis, une date posée par le serveur, le
-    sujet pour étiquette."""
+    """Cinq champs saisis, une date posée par le serveur, le sujet pour étiquette."""
 
     def test_le_sujet_sert_d_etiquette(self):
-        """Pas dans la liste de l'admin, dont ContactAdmin nomme les colonnes : dans le titre
-        du formulaire, la confirmation de suppression et les actions récentes, où le défaut de
-        Django rendrait « Contact object (1) »."""
+        """Le sujet titre le formulaire de l'admin, au lieu de « Contact object (1) »."""
         self.assertEqual(str(Contact.objects.create(**MESSAGE)), MESSAGE["subject"])

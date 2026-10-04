@@ -1,4 +1,4 @@
-import MainTitle from "../components/ui/Title/MainTitle";
+import HeroTitle from "../components/ui/Title/HeroTitle";
 import Image1 from "../assets/img/img1.png";
 
 const About = () => {
@@ -6,7 +6,7 @@ const About = () => {
     <div className="container-custom mt-32">
       <div className="flex flex-col items-center justify-center">
         <div className="mb-10">
-          <MainTitle line1={<>À propos de nous !</>} />
+          <HeroTitle line1={<>À propos de nous !</>} />
         </div>
         <div className="flex flex-col w-full md:flex-row items-center justify-center gap-10 py-6">
           <div className="w-1/2">

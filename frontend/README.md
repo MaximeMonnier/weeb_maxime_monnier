@@ -2,7 +2,7 @@
 
 Application web React/TypeScript avec système de routing, authentification et design system complet.
 
-## 📋 Table des matières
+## Table des matières
 
 - [Technologies](#technologies)
 - [Installation](#installation)
@@ -11,7 +11,7 @@ Application web React/TypeScript avec système de routing, authentification et d
 - [Documentation](#documentation)
 - [Structure du projet](#structure-du-projet)
 
-## 🚀 Technologies
+## Technologies
 
 - **React 19.2** - Framework UI
 - **TypeScript 5.9** - Typage statique
@@ -23,7 +23,7 @@ Application web React/TypeScript avec système de routing, authentification et d
 - **Vitest 5** et **Testing Library** - Tests unitaires et de composants, sous `jsdom`
 - **Playwright 1.63** - Parcours de bout en bout dans un navigateur
 
-## 📦 Installation
+## Installation
 
 ```bash
 # Installer les dépendances
@@ -45,7 +45,7 @@ npm run preview
 npm run lint
 ```
 
-## 🌐 Pages disponibles
+## Pages disponibles
 
 | Route | Description |
 |-------|-------------|
@@ -63,7 +63,7 @@ npm run lint
 | `/privacy` | Politique de confidentialité |
 | `/*` | Page 404 personnalisée |
 
-## ✨ Features
+## Features
 
 ### Navigation
 - ✅ Menu responsive avec version mobile
@@ -84,20 +84,20 @@ npm run lint
 - ✅ Responsive mobile-first
 - ✅ Animations et transitions fluides
 
-## 📚 Documentation
+## Documentation
 
 Ce fichier ne couvre que le front. Le reste est à la racine du dépôt :
 
 - [`../README.md`](../README.md) - installation complète, API, pile Docker et intégration continue
 - [`../AMELIORATIONS.md`](../AMELIORATIONS.md) - limites connues et améliorations envisagées
 
-## 📁 Structure du projet
+## Structure du projet
 
 ```
 src/
 ├── components/                # Composants réutilisables
 │   ├── common/                # Composants métier, liés à un domaine
-│   │   ├── Blog/              # Card (export ArticleCard), FormArticle
+│   │   ├── Blog/              # ArticleCard, FormArticle
 │   │   ├── Contact/           # FormContact
 │   │   ├── Home/              # HeroBanner, FeatureBlock, BrandBanner, Slider
 │   │   ├── Login/             # FormLogin
@@ -107,11 +107,10 @@ src/
 │   │   └── ThemeToggle.tsx
 │   └── ui/                    # Composants génériques, sans métier
 │       ├── Alert/             # ErrorAlert
-│       ├── Button/            # MainButton (export Button), buttonClasses
+│       ├── Button/            # Button, buttonClasses
 │       ├── Input/             # Input, Textarea, FormField
 │       ├── Logo/              # Logo, LogoBanner
-│       └── Title/             # MainTitle (export HeroTitle), SecondTitle (export SectionTitle),
-│                              # LinkTitle (export TextCtaLink)
+│       └── Title/             # HeroTitle, SectionTitle, TextCtaLink
 ├── pages/                     # Une page par route
 │   ├── Blog/                  # Blog, ArticleDetails
 │   ├── About.tsx
@@ -137,14 +136,15 @@ src/
 │   ├── cx.ts                  # Assemblage de classes conditionnelles
 │   ├── navigation.ts          # Liens servis par l'en-tête et le pied de page
 │   ├── tokens.ts              # Lecture et écriture des jetons JWT
-│   └── validationRules.ts     # Règles partagées : email, complexité du mot de passe
+│   └── validationRules.ts     # Règles partagées : email, longueur, complexité et confirmation du mot de passe
 ├── types/
 │   ├── article.ts             # Article, ArticleListItem
 │   └── navigation.ts          # NavItem
 ├── assets/                    # Images et SVG
 │   ├── img/
 │   └── svg/
-├── App.tsx                    # Routes
+├── App.tsx                    # Routeur, sous MainLayout
+├── routes.tsx                 # Routes : chemin et page
 ├── main.tsx                   # Point d'entrée
 ├── index.css                  # Styles globaux et design system
 └── vite-env.d.ts
@@ -153,7 +153,7 @@ src/
 Les tests Vitest (`*.test.ts`, `*.test.tsx`) vivent à côté de leur source. Le parcours
 Playwright est hors de `src/`, dans `e2e/`.
 
-## 🎨 Composants UI disponibles
+## Composants UI disponibles
 
 ### Input
 ```tsx
@@ -171,7 +171,7 @@ import { Input } from "./components/ui/Input";
 
 ### Button
 ```tsx
-import Button from "./components/ui/Button/MainButton";
+import Button from "./components/ui/Button/Button";
 
 <Button variant="primary" size="lg" fullWidth>
   Créer mon compte
@@ -191,7 +191,7 @@ import { Textarea } from "./components/ui/Input";
 />
 ```
 
-## 🎯 Scripts disponibles
+## Scripts disponibles
 
 | Commande | Description |
 |----------|-------------|
@@ -202,7 +202,7 @@ import { Textarea } from "./components/ui/Input";
 | `npm test` | Lance la suite Vitest, sans base ni conteneur |
 | `npm run test:e2e` | Lance le parcours Playwright contre la pile de développement de Compose ; identifiants dans `E2E_EMAIL` et `E2E_PASSWORD` |
 
-## 🎨 Design System
+## Design System
 
 ### Classes CSS custom
 
@@ -236,12 +236,10 @@ liens-boutons écrits à la main.
 
 **Utilitaires :**
 - `.container-custom` - Container responsive (max-width: 80rem)
-- `.text-primary`, `.text-secondary`, `.text-tertiary`, `.text-muted`, `.text-accent`
-- `.bg-primary`, `.bg-secondary`
-- `.border-primary`
 
-Ces couleurs sont écrites à la main dans `index.css` : aucune variante ne s'y pose, et un
-`hover:bg-secondary` ne produit aucune règle.
+Les couleurs ne passent par aucune classe écrite à la main : ce sont les utilitaires de
+Tailwind (`bg-surface-alt`, `text-ink-soft`, `border-line`…), tirés des variables ci-dessous,
+et toutes les variantes s'y posent.
 
 **Carrousel :** `.embla__viewport`, `.embla__container`, `.embla__slide` - noms repris de la
 documentation d'Embla.
@@ -252,15 +250,23 @@ arrêté quand le système demande moins d'animations.
 ### Variables CSS
 
 ```css
-/* Couleurs Light Mode */
---color-light-bg-primary     /* #FFFFFF */
---color-light-text-primary   /* #0F172A */
---color-light-accent-primary /* #9333EA */
-
-/* Couleurs Dark Mode */
---color-dark-bg-primary      /* #0F172A */
---color-dark-text-primary    /* #FFFFFF */
---color-dark-accent-primary  /* #A855F7 */
+/* Couleurs : valeur claire dans @theme, redéfinie sous .dark */
+--color-surface              /* fond de page */
+--color-surface-alt          /* sections et cartes */
+--color-surface-hover        /* fond au survol */
+--color-field                /* fond de champ */
+--color-field-focus          /* fond de champ actif */
+--color-ink                  /* titres, étiquettes */
+--color-ink-soft             /* descriptions */
+--color-ink-faint            /* indications */
+--color-ink-muted            /* désactivé */
+--color-ink-caption          /* titres de colonne du pied de page, même valeur en sombre */
+--color-line                 /* bordures */
+--color-line-strong          /* bordures appuyées et champs */
+--color-accent               /* violet */
+--color-accent-hover
+--color-success
+--color-error
 
 /* Texte */
 --text-body                  /* 1rem */
@@ -282,7 +288,7 @@ que par la classe `dark:shadow-dark-md`, seule forme sous laquelle son nom s'éc
 Tailwind balaie aussi ce README, et la variable ou l'utilitaire nus lui feraient émettre une
 règle que rien ne lit.
 
-## ✅ Bonnes pratiques implémentées
+## Bonnes pratiques implémentées
 
 - ✅ Architecture modulaire et scalable
 - ✅ TypeScript strict avec JSDoc
@@ -294,7 +300,7 @@ règle que rien ne lit.
 - ✅ Images hors écran chargées à la demande (`loading="lazy"` dans `FeatureBlock.tsx` et `LogoBanner.tsx`)
 - ✅ Tree-shaking automatique
 
-## 📖 Guide de prise en main
+## Guide de prise en main
 
 ### Ajouter une nouvelle page
 
@@ -310,12 +316,12 @@ export default function MaPage() {
 }
 ```
 
-2. Ajouter la route dans `App.tsx`
+2. Ajouter la route dans `routes.tsx`, avant la ligne `*`
 ```tsx
 import MaPage from "./pages/MaPage";
 
-// Dans <Routes>
-<Route path="/ma-page" element={<MaPage />} />
+// Dans ROUTES
+{ path: "/ma-page", element: <MaPage /> },
 ```
 
 3. Optionnel : Ajouter un lien dans `NavBar.tsx`
@@ -326,19 +332,19 @@ import MaPage from "./pages/MaPage";
 
 ### Créer un formulaire
 
-Les sept formulaires du site suivent le même patron : `useForm` porte l'état, une fonction
-pure hors du composant porte les règles, `apiFetch` envoie et `toFormErrors` répartit le
-refus de l'API entre les champs et le message d'ensemble. Seul `ForgotPassword.tsx` n'a pas
-de règles : il laisse l'API juger l'adresse.
+Les sept formulaires du site suivent le même patron : `useForm` porte l'état et le cycle
+d'envoi, une fonction pure hors du composant porte les règles. Sa fonction `submit` valide,
+bloque le bouton, appelle l'API et range un refus entre les champs et le message d'ensemble
+par `toFormErrors` : le formulaire n'écrit que son appel et son succès. Seul
+`ForgotPassword.tsx` n'a pas de règles : il laisse l'API juger l'adresse.
 
 ```tsx
 // src/components/common/MonDomaine/MonFormulaire.tsx
 import { Input } from "../../ui/Input";
-import Button from "../../ui/Button/MainButton";
+import Button from "../../ui/Button/Button";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
 import { useForm, type FormErrors } from "../../../hooks/useForm";
 import { apiFetch } from "../../../lib/api";
-import { toFormErrors } from "../../../lib/apiErrors";
 
 type FormData = {
   title: string;
@@ -356,37 +362,20 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
 };
 
 export default function MonFormulaire() {
-  const {
-    formData,
-    errors,
-    setErrors,
-    formError,
-    setFormError,
-    isSubmitting,
-    setIsSubmitting,
-    handleChange,
-    validate,
-  } = useForm<FormData>({ title: "" });
+  const { formData, errors, formError, isSubmitting, handleChange, submit } =
+    useForm<FormData>({ title: "" });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate(reglesDeSaisie)) return;
-
-    setFormError(null);
-    setIsSubmitting(true);
-    try {
-      await apiFetch("/mon-endpoint/", {
-        method: "POST",
-        body: JSON.stringify(formData),
-      });
-    } catch (err) {
-      const { fieldErrors, formError } = toFormErrors(err, CHAMPS);
-      setErrors(fieldErrors);
-      setFormError(formError);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const handleSubmit = (e: React.FormEvent) =>
+    submit(e, {
+      rules: reglesDeSaisie,
+      fields: CHAMPS,
+      send: async (values) => {
+        await apiFetch("/mon-endpoint/", {
+          method: "POST",
+          body: JSON.stringify(values),
+        });
+      },
+    });
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -408,11 +397,13 @@ export default function MonFormulaire() {
 }
 ```
 
-Une règle servie à plusieurs formulaires (email, complexité du mot de passe) va dans
+Une règle servie à plusieurs formulaires (email, longueur ou complexité du mot de passe) va dans
 `src/lib/validationRules.ts`. Un message de succès se retire à la frappe suivante par
-l'option `onChange` de `useForm` : voir `FormContact.tsx`.
+l'option `onChange` de `useForm` : voir `FormContact.tsx`. Un refus qui demande un libellé
+propre au formulaire passe par les options `unauthorized` (le `401`, voir `FormLogin.tsx`)
+et `translate` (tout autre cas, voir `FormSubscribe.tsx`).
 
-## 🔮 Améliorations futures
+## Améliorations futures
 
 Elles sont consignées pour tout le dépôt dans [`../AMELIORATIONS.md`](../AMELIORATIONS.md).
 

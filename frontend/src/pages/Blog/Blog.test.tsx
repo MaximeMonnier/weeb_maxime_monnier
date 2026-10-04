@@ -247,6 +247,14 @@ describe("Blog — pages suivantes", () => {
   });
 });
 
+describe("Blog — titre de la page", () => {
+  it("pose un seul titre de niveau 1", async () => {
+    await afficherLeBlog();
+
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+});
+
 describe("Blog — premier chargement", () => {
   it("affiche sous le titre l'extrait que l'API a taillé", async () => {
     await afficherLeBlog();

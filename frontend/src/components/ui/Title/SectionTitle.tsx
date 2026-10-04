@@ -29,7 +29,7 @@ export default function SectionTitle({
   return (
     <Comp
       className={cx(
-        "text-primary font-bold tracking-tight leading-[1.1]",
+        "text-ink font-bold tracking-tight leading-[1.1]",
         sizeClasses[size],
         align === "center" ? "text-center" : "text-left",
         className,

@@ -1,17 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, type ApiError } from "../../lib/api";
 import { toFormErrors } from "../../lib/apiErrors";
 import { useIsAuthenticated } from "../../hooks/useIsAuthenticated";
 import type { ArticleListItem } from "../../types/article";
 import ErrorAlert from "../../components/ui/Alert/ErrorAlert";
-import Button from "../../components/ui/Button/MainButton";
+import Button from "../../components/ui/Button/Button";
 import { buttonClasses } from "../../components/ui/Button/buttonClasses";
-import MainTitle from "../../components/ui/Title/MainTitle";
-import Card from "../../components/common/Blog/Card.tsx";
-
-import { useRef } from "react";
-import FormArticle from "../../components/common/Blog/FormArticle.tsx";
+import HeroTitle from "../../components/ui/Title/HeroTitle";
+import ArticleCard from "../../components/common/Blog/ArticleCard";
+import FormArticle from "../../components/common/Blog/FormArticle";
 
 // La forme que DRF donne à toute liste de l'API, découpée en pages.
 type Page<T> = {
@@ -73,13 +71,12 @@ const Blog = () => {
 
   return (
     <div className="container-custom mt-32">
-      <MainTitle
+      <HeroTitle
         center={false}
-        as="h2"
         line1={<>Nos articles vont vous plaire !</>}
       />
       <div className="w-full flex justify-between items-center mt-6">
-        <p className="py-6 text-secondary">
+        <p className="py-6 text-ink-soft">
           Des articles récents pour vous{" "}
           <span className="text-accent font-bold">inspirer !</span>
         </p>
@@ -107,11 +104,11 @@ const Blog = () => {
       </div>
       <div className="mt-6 mb-16">
         {articles?.length === 0 && (
-          <p className="text-secondary">Aucun article n'a encore été publié.</p>
+          <p className="text-ink-soft">Aucun article n'a encore été publié.</p>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {articles?.map((article) => (
-            <Card key={article.id} article={article} />
+            <ArticleCard key={article.id} article={article} />
           ))}
         </div>
         {/* Sous la liste et non au-dessus : l'échec d'une page suivante se lit
@@ -139,12 +136,12 @@ const Blog = () => {
 
       <dialog
         ref={dialogRef}
-        className="m-auto w-full max-w-2xl rounded-lg bg-secondary p-6 text-primary backdrop:bg-black/50"
+        className="m-auto w-full max-w-2xl rounded-lg bg-surface-alt p-6 text-ink backdrop:bg-black/50"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold">Nouvel article</h3>
           <button
-            className="text-primary cursor-pointer text-2xl font-bold hover:text-red-800 transition-colors"
+            className="text-ink cursor-pointer text-2xl font-bold hover:text-error transition-colors"
             onClick={() => dialogRef.current?.close()}
             aria-label="Fermer"
           >

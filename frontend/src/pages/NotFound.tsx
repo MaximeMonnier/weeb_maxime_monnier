@@ -8,10 +8,10 @@ const NotFound = () => {
       <div className="text-center max-w-2xl mx-auto px-4">
         <div className="mb-8">
           <h1 className="text-9xl font-bold text-accent mb-4">404</h1>
-          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-ink mb-4">
             Page introuvable
           </h2>
-          <p className="text-lg text-secondary mb-8">
+          <p className="text-lg text-ink-soft mb-8">
             Désolé, la page que vous recherchez n'existe pas ou a été déplacée.
           </p>
         </div>
@@ -30,11 +30,11 @@ const NotFound = () => {
           </Link>
         </div>
 
-        <div className="mt-12 p-6 bg-secondary rounded-lg border border-primary">
-          <h3 className="text-lg font-semibold text-primary mb-2">
+        <div className="mt-12 p-6 bg-surface-alt rounded-lg border border-line">
+          <h3 className="text-lg font-semibold text-ink mb-2">
             Besoin d'aide ?
           </h3>
-          <p className="text-secondary text-sm">
+          <p className="text-ink-soft text-sm">
             Si vous pensez qu'il s'agit d'une erreur, n'hésitez pas à nous
             contacter pour nous signaler le problème.
           </p>

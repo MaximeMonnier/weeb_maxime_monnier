@@ -1,5 +1,5 @@
 import { Link, NavLink as RRNavLink } from "react-router-dom";
-import Button from "../../ui/Button/MainButton";
+import Button from "../../ui/Button/Button";
 import { buttonClasses } from "../../ui/Button/buttonClasses";
 import { cx } from "../../../lib/cx";
 import { LIEN_CONNEXION, LIEN_INSCRIPTION } from "../../../lib/navigation";
@@ -30,7 +30,7 @@ export default function MobileMenu({
         isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0",
       )}
     >
-      <div className="bg-secondary border-t border-primary">
+      <div className="bg-surface-alt border-t border-line">
         <div className="container-custom py-4">
           <div className="flex flex-col gap-2">
             {navItems.map((item) => (
@@ -40,7 +40,7 @@ export default function MobileMenu({
                 onClick={onClose}
                 className={({ isActive }) =>
                   cx(
-                    "nav-link block py-3 px-4 rounded-lg hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)]",
+                    "nav-link block py-3 px-4 rounded-lg hover:bg-surface-hover",
                     isActive && "active",
                   )
                 }
@@ -64,7 +64,7 @@ export default function MobileMenu({
                 <RRNavLink
                   to={LIEN_CONNEXION.to}
                   onClick={onClose}
-                  className="nav-link block py-3 px-4 rounded-lg hover:bg-[var(--color-light-bg-tertiary)] dark:hover:bg-[var(--color-dark-bg-tertiary)]"
+                  className="nav-link block py-3 px-4 rounded-lg hover:bg-surface-hover"
                 >
                   {LIEN_CONNEXION.label}
                 </RRNavLink>

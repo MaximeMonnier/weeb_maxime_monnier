@@ -1,14 +1,11 @@
 import { useEffect, useState } from "react";
 
 export function useTheme() {
-  // État initial calculé UNE seule fois (lazy initializer) → pas de setState dans un effet
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    const savedTheme = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches;
-    return savedTheme === "dark" || (!savedTheme && prefersDark);
-  });
+  // La règle du thème initial vit dans le script en ligne d'`index.html`, qui
+  // pose la classe avant le premier rendu : le hook n'en lit que le résultat.
+  const [isDark, setIsDark] = useState<boolean>(() =>
+    document.documentElement.classList.contains("dark")
+  );
 
   // À chaque changement de isDark (et au montage) : synchronise <html> + localStorage
   useEffect(() => {

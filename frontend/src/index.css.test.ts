@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import sourceDuCss from "./index.css?raw";
 
 // `.dark` est la seule classe que ne pose aucun `className` : `useTheme.ts` en écrit
-// le nom en toutes lettres, et le `class` de la page le porte aussi — hors de la glob
+// le nom en toutes lettres, et le script en ligne de la page aussi — hors de la glob
 // ci-dessous, qui ne quitte pas `src/`.
 import sourceDuHtml from "../index.html?raw";
 
@@ -87,7 +87,7 @@ function chainesDe(source: string): string[] {
 function jetonsDe(source: string): string[] {
   // Le découpage prend aussi les guillemets, et pas seulement les espaces : une
   // classe posée dans un `${}` de gabarit garderait les siens et échapperait au
-  // test d'identifiant. Ce qui échappe encore est listé au README.
+  // test d'identifiant.
   return chainesDe(source).flatMap((chaine) => chaine.split(/[\s"'`]+/));
 }
 
@@ -124,13 +124,13 @@ function variantesDe(source: string) {
     );
 }
 
-/** Rend les classes posées par les attributs `class` d'une source HTML. */
-function classesDuHtml(source: string): string[] {
-  // Une expression régulière suffit ici, et `chainesDe` ne conviendrait pas : il
-  // saute tout ce qui suit `//`, qui en HTML ouvre une URL et non un commentaire.
-  return [...source.matchAll(/\sclass\s*=\s*["']([^"']*)["']/g)]
-    .flatMap(([, valeur]) => valeur.split(/\s+/))
-    .filter(Boolean);
+/** Rend les jetons des scripts en ligne d'une source HTML. */
+function jetonsDuHtml(source: string): string[] {
+  // `chainesDe` ne lit que l'intérieur des `<script>` : hors d'eux, `//` ouvre une
+  // URL et non un commentaire, et lui ferait sauter la fin de la ligne.
+  return [...source.matchAll(/<script>([\s\S]*?)<\/script>/g)].flatMap(
+    ([, code]) => jetonsDe(code),
+  );
 }
 
 // Les fichiers de test s'écartent : l'un d'eux peut citer une classe fautive
@@ -148,13 +148,13 @@ const VARIANTES = FICHIERS.flatMap(([chemin, source]) =>
 // ils ne peuvent qu'ajouter un lecteur à un nom qu'aucune règle ne porte.
 const CLASSES_POSEES = new Set([
   ...FICHIERS.flatMap(([, source]) => jetonsDe(source)),
-  ...classesDuHtml(sourceDuHtml),
+  ...jetonsDuHtml(sourceDuHtml),
 ]);
 
 describe("index.css", () => {
   // Tailwind v4 ne décline de variante que sur ses propres utilitaires : une classe
   // écrite à la main dans `index.css` n'en est pas un, et la variante posée dessus ne
-  // produit aucune règle. Six ont vécu ainsi jusqu'à #184. Détail au README.
+  // produit aucune règle. Détail au README.
   it("ne laisse aucune variante posée sur une classe écrite à la main", () => {
     const fautifs = VARIANTES.filter(({ utilitaire }) =>
       CLASSES_MAISON.has(utilitaire),
@@ -164,7 +164,7 @@ describe("index.css", () => {
   });
 
   // Une classe qui perd son dernier lecteur ne fait tomber ni le lint, ni le typage,
-  // ni le build : trois ont vécu ainsi de #176 à #183, et rien d'autre ne les voit.
+  // ni le build, et rien d'autre ne la voit.
   it("ne garde aucune classe sans lecteur", () => {
     const orphelines = [...CLASSES_MAISON].filter(
       (nom) => !CLASSES_POSEES.has(nom),
@@ -179,21 +179,36 @@ describe("index.css", () => {
     expect(CLASSES_MAISON).toContain("nav-link");
     expect(FICHIERS.length).toBeGreaterThan(40);
     expect(VARIANTES.map(({ jeton }) => jeton)).toContain("hover:underline");
-    // La page est l'autre source de `.dark`, et la seule qui restera le jour où le
-    // hook cessera d'écrire le nom de sa classe en toutes lettres.
-    expect(classesDuHtml(sourceDuHtml)).toContain("dark");
+    // Le script de la page est l'autre lecteur de `.dark` : une expression qui ne
+    // le trouverait plus laisserait le hook seul témoin, sans rien dire.
+    expect(jetonsDuHtml(sourceDuHtml)).toContain("dark");
   });
 });
 
-/** Rend les trois composantes OKLCH d'une variable de `@theme`. */
-function oklchDe(variable: string): [number, number, number] {
+/** Rend le corps du premier bloc ouvert par `selecteur` dans `index.css`. */
+function blocDe(selecteur: string): string {
+  const debut = sourceDuCss.indexOf(`${selecteur} {`);
+  if (debut === -1) throw new Error(`bloc ${selecteur} introuvable`);
+  return sourceDuCss.slice(debut, sourceDuCss.indexOf("}", debut));
+}
+
+// Le clair est la valeur de `@theme`, le sombre sa redéfinition sous `.dark`.
+const PALETTES = { clair: blocDe("@theme"), sombre: blocDe(".dark") };
+
+/** Rend les trois composantes OKLCH d'une variable de couleur, dans un thème. */
+function oklchDe(
+  theme: keyof typeof PALETTES,
+  variable: string,
+): [number, number, number] {
   // Prettier coupe parfois la valeur sur trois lignes, d'où les `\s*`.
-  const trouve = sourceDuCss.match(
+  const trouve = PALETTES[theme].match(
     new RegExp(
       `--${variable}:\\s*oklch\\(\\s*([\\d.]+) ([\\d.]+) ([\\d.]+)\\s*\\)`,
     ),
   );
-  if (!trouve) throw new Error(`--${variable} introuvable ou hors oklch()`);
+  if (!trouve) {
+    throw new Error(`--${variable} introuvable en ${theme} ou hors oklch()`);
+  }
   return [Number(trouve[1]), Number(trouve[2]), Number(trouve[3])];
 }
 
@@ -212,13 +227,13 @@ function ecartOklab(
 
 describe("palette de index.css", () => {
   // Le menu mobile, les flèches du carrousel et les icônes du pied de page passent
-  // du fond secondaire au tertiaire au survol. Sous 0,02 l'œil ne voit rien, et ni
-  // le build ni le lint ne le disent : le thème clair est resté ainsi jusqu'à #193.
-  it.each(["light", "dark"])(
+  // de `surface-alt` à `surface-hover` au survol. Sous 0,02 l'œil ne voit rien, et ni
+  // le build ni le lint ne le disent.
+  it.each(["clair", "sombre"] as const)(
     "sépare à l'œil le fond de survol du fond secondaire (%s)",
     (theme) => {
-      const repos = oklchDe(`color-${theme}-bg-secondary`);
-      const survol = oklchDe(`color-${theme}-bg-tertiary`);
+      const repos = oklchDe(theme, "color-surface-alt");
+      const survol = oklchDe(theme, "color-surface-hover");
 
       expect(ecartOklab(repos, survol)).toBeGreaterThan(0.02);
     },

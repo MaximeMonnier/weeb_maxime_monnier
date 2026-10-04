@@ -4,63 +4,33 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Couleurs du thème sombre, relevées sur la maquette Weeb (hexadécimal en fin de ligne). */
-  --color-dark-bg-primary: oklch(
-    0.18 0.07 250
-  ); /* #0F172A - Fond principal très sombre */
-  --color-dark-bg-secondary: oklch(0.25 0.033 264);
-  /* #1E293B - Sections et cartes */
-  --color-dark-bg-tertiary: oklch(
-    0.3 0.02 250
-  ); /* #334155 - Survol et interactif */
-  --color-dark-bg-input: oklch(0.22 0.02 250); /* #1E293B - Champs de saisie */
+  /* Valeurs du thème clair. Le thème sombre les redéfinit sous `.dark`, en @layer base. */
+  --color-surface: oklch(1 0 0); /* Fond de page */
+  --color-surface-alt: oklch(0.97 0.014 264); /* Sections et cartes */
+  /* Plus foncé que la maquette, dont la valeur ne se distinguait pas du fond
+     secondaire : le survol posé dessus ne se voyait pas. */
+  --color-surface-hover: oklch(0.94 0.01 250);
+  --color-field: oklch(1 0 0); /* Champs de saisie */
+  --color-field-focus: oklch(1 0 0);
 
-  --color-dark-text-primary: oklch(1 0 0); /* #FFFFFF - Titres, étiquettes */
-  --color-dark-text-secondary: oklch(
-    0.91 0.01 250
-  ); /* #E2E8F0 - Descriptions */
-  --color-dark-text-tertiary: oklch(
-    0.68 0.02 250
-  ); /* #94A3B8 - Indications et textes d'invite */
-  --color-dark-text-muted: oklch(0.52 0.03 250); /* #64748B - Désactivé */
+  --color-ink: oklch(0.15 0.01 250); /* Titres, étiquettes */
+  --color-ink-soft: oklch(0.3 0.02 250); /* Descriptions */
+  --color-ink-faint: oklch(0.52 0.03 250); /* Indications */
+  --color-ink-muted: oklch(0.68 0.02 250); /* Désactivé */
+  /* Titres de colonne du pied de page : la même valeur dans les deux thèmes,
+     donc absente du bloc `.dark`. */
+  --color-ink-caption: oklch(0.68 0.02 250);
 
-  --color-dark-border-primary: oklch(0.3 0.02 250); /* #334155 */
-  --color-dark-border-secondary: oklch(0.38 0.02 250); /* #475569 */
-  --color-dark-border-input: oklch(0.38 0.02 250); /* #475569 */
-
-  --color-dark-accent-primary: oklch(
-    0.7 0.27 305
-  ); /* #A855F7 - Violet principal */
-  /* #B73BFF et non le #9333EA de la maquette : 4,5:1 sur le fond principal au lieu de 3,5:1. */
-  --color-dark-accent-hover: oklch(0.6239 0.272 309.12);
-
-  --color-dark-success: oklch(0.68 0.18 155); /* #10B981 */
-  --color-dark-error: oklch(0.63 0.24 25); /* #EF4444 */
-
-  /* Couleurs du thème clair, en regard des sombres ligne pour ligne. */
-  --color-light-bg-primary: oklch(1 0 0); /* #FFFFFF - Blanc */
-  --color-light-bg-secondary: oklch(0.97 0.014 264); /* #F3F6FF */
-  /* #E6ECF2 et non le #F1F5F9 de la maquette, indiscernable du fond secondaire :
-     le survol posé dessus ne se voyait pas. */
-  --color-light-bg-tertiary: oklch(0.94 0.01 250);
-  --color-light-bg-input: oklch(1 0 0); /* #FFFFFF */
-
-  --color-light-text-primary: oklch(0.15 0.01 250); /* #0F172A - Sombre */
-  --color-light-text-secondary: oklch(0.3 0.02 250); /* #334155 */
-  --color-light-text-tertiary: oklch(0.52 0.03 250); /* #64748B */
-  --color-light-text-muted: oklch(0.68 0.02 250); /* #94A3B8 */
-
-  --color-light-border-primary: oklch(0.91 0.01 250); /* #E2E8F0 */
-  --color-light-border-secondary: oklch(0.85 0.01 250); /* #CBD5E1 */
-  --color-light-border-input: oklch(0.85 0.01 250); /* #CBD5E1 */
+  --color-line: oklch(0.91 0.01 250);
+  --color-line-strong: oklch(0.85 0.01 250); /* Bordures appuyées et champs */
 
   /* Accents et états plus foncés qu'en sombre : il faut plus de contraste sur fond blanc.
-     Quatre décimales : arrondie à trois, la valeur ne retombe plus sur l'hexadécimal. */
-  --color-light-accent-primary: oklch(0.5575 0.2525 302.32); /* #9333EA - Plus foncé */
-  --color-light-accent-hover: oklch(0.496 0.237 301.9); /* #7E22CE */
+     Quatre décimales : arrondie à trois, la valeur s'écarte de la maquette. */
+  --color-accent: oklch(0.5575 0.2525 302.32);
+  --color-accent-hover: oklch(0.496 0.237 301.9);
 
-  --color-light-success: oklch(0.58 0.18 155); /* #059669 */
-  --color-light-error: oklch(0.55 0.24 25); /* #DC2626 */
+  --color-success: oklch(0.58 0.18 155);
+  --color-error: oklch(0.55 0.24 25);
 
   --text-body: 1rem;
   --text-body-sm: 0.875rem;
@@ -78,26 +48,40 @@
 }
 
 @layer base {
+  .dark {
+    --color-surface: oklch(0.18 0.07 250);
+    --color-surface-alt: oklch(0.25 0.033 264);
+    --color-surface-hover: oklch(0.3 0.02 250);
+    --color-field: oklch(0.22 0.02 250);
+    --color-field-focus: oklch(0.3 0.02 250);
+
+    --color-ink: oklch(1 0 0);
+    --color-ink-soft: oklch(0.91 0.01 250);
+    --color-ink-faint: oklch(0.68 0.02 250);
+    --color-ink-muted: oklch(0.52 0.03 250);
+
+    --color-line: oklch(0.3 0.02 250);
+    --color-line-strong: oklch(0.38 0.02 250);
+
+    --color-accent: oklch(0.7 0.27 305);
+    /* Plus clair que la maquette, pour rester lisible sur le fond principal. */
+    --color-accent-hover: oklch(0.6239 0.272 309.12);
+
+    --color-success: oklch(0.68 0.18 155);
+    --color-error: oklch(0.63 0.24 25);
+  }
+
   body {
-    background-color: var(--color-light-bg-primary);
-    color: var(--color-light-text-primary);
+    background-color: var(--color-surface);
+    color: var(--color-ink);
     transition:
       background-color 0.3s,
       color 0.3s;
   }
 
-  .dark body {
-    background-color: var(--color-dark-bg-primary);
-    color: var(--color-dark-text-primary);
-  }
-
   *:focus-visible {
-    outline: 2px solid var(--color-light-accent-primary);
+    outline: 2px solid var(--color-accent);
     outline-offset: 2px;
-  }
-
-  .dark *:focus-visible {
-    outline-color: var(--color-dark-accent-primary);
   }
 }
 
@@ -107,93 +91,54 @@
     margin-bottom: 0.5rem;
     font-size: var(--text-body);
     font-weight: 500;
-    color: var(--color-light-text-primary);
-  }
-
-  .dark .form-label {
-    color: var(--color-dark-text-primary);
+    color: var(--color-ink);
   }
 
   .form-label-required::after {
     content: " *";
-    color: var(--color-light-error);
-  }
-
-  .dark .form-label-required::after {
-    color: var(--color-dark-error);
+    color: var(--color-error);
   }
 
   .form-input {
     width: 100%;
     padding: 0.75rem 1rem;
-    background-color: var(--color-light-bg-input);
-    border: 2px solid var(--color-light-border-input);
+    background-color: var(--color-field);
+    border: 2px solid var(--color-line-strong);
     border-radius: var(--radius-input);
     font-size: var(--text-body);
-    color: var(--color-light-text-primary);
+    color: var(--color-ink);
     transition: all 0.2s;
   }
 
-  .dark .form-input {
-    background-color: var(--color-dark-bg-input);
-    border-color: var(--color-dark-border-input);
-    color: var(--color-dark-text-primary);
-  }
-
   .form-input::placeholder {
-    color: var(--color-light-text-tertiary);
-  }
-
-  .dark .form-input::placeholder {
-    color: var(--color-dark-text-tertiary);
+    color: var(--color-ink-faint);
   }
 
   .form-input:hover {
-    border-color: var(--color-light-border-secondary);
-  }
-
-  .dark .form-input:hover {
-    border-color: var(--color-dark-border-secondary);
+    border-color: var(--color-line-strong);
   }
 
   .form-input:focus {
     outline: none;
-    border-color: var(--color-light-accent-primary);
+    border-color: var(--color-accent);
     box-shadow: var(--shadow-focus-primary);
-    background-color: #fff;
-  }
-
-  .dark .form-input:focus {
-    border-color: var(--color-dark-accent-primary);
-    background-color: var(--color-dark-bg-tertiary);
+    background-color: var(--color-field-focus);
   }
 
   .form-input.error {
-    border-color: var(--color-light-error);
+    border-color: var(--color-error);
     box-shadow: var(--shadow-focus-error);
   }
 
-  .dark .form-input.error {
-    border-color: var(--color-dark-error);
-  }
-
   .form-input.success {
-    border-color: var(--color-light-success);
+    border-color: var(--color-success);
     box-shadow: var(--shadow-focus-success);
-  }
-
-  .dark .form-input.success {
-    border-color: var(--color-dark-success);
   }
 
   .form-input:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    background-color: var(--color-light-bg-tertiary);
-  }
-
-  .dark .form-input:disabled {
-    background-color: var(--color-dark-bg-tertiary);
+    background-color: var(--color-surface-hover);
   }
 
   .form-textarea {
@@ -204,93 +149,55 @@
   .form-error-message {
     margin-top: 0.25rem;
     font-size: var(--text-body-sm);
-    color: var(--color-light-error);
+    color: var(--color-error);
   }
 
-  .dark .form-error-message {
-    color: var(--color-dark-error);
-  }
-
-  /* Vide, le paragraphe ne porte que de la couleur : un bloc sans contenu ni boîte
-     n'occupe aucune hauteur. Le masquer par `display: none` le retirerait de l'arbre
-     d'accessibilité, et sa région live n'existerait qu'à partir du premier message —
-     donc trop tard pour être annoncée. */
+  /* Vide, le paragraphe n'occupe aucune hauteur. Pas de `display: none` : sa région
+     live n'existerait qu'au premier message, trop tard pour être annoncée. */
   .form-alert-error {
     font-size: var(--text-body-sm);
-    color: var(--color-light-error);
-  }
-
-  .dark .form-alert-error {
-    color: var(--color-dark-error);
+    color: var(--color-error);
   }
 
   .form-alert-error:not(:empty) {
     margin-bottom: 1.5rem;
     padding: 0.75rem 1rem;
-    border: 1px solid var(--color-light-error);
+    border: 1px solid var(--color-error);
     border-radius: var(--radius-input);
-  }
-
-  .dark .form-alert-error:not(:empty) {
-    border-color: var(--color-dark-error);
   }
 
   .form-alert-success {
     font-size: var(--text-body-sm);
-    color: var(--color-light-success);
-  }
-
-  .dark .form-alert-success {
-    color: var(--color-dark-success);
+    color: var(--color-success);
   }
 
   .form-alert-success:not(:empty) {
     margin-bottom: 1.5rem;
     padding: 0.75rem 1rem;
-    border: 1px solid var(--color-light-success);
+    border: 1px solid var(--color-success);
     border-radius: var(--radius-input);
-  }
-
-  .dark .form-alert-success:not(:empty) {
-    border-color: var(--color-dark-success);
   }
 
   .form-helper-text {
     margin-top: 0.25rem;
     font-size: var(--text-body-sm);
-    color: var(--color-light-text-tertiary);
-  }
-
-  .dark .form-helper-text {
-    color: var(--color-dark-text-tertiary);
+    color: var(--color-ink-faint);
   }
 
   .nav-link {
     padding: 0.5rem 1rem;
-    color: var(--color-light-text-secondary);
+    color: var(--color-ink-soft);
     text-decoration: none;
     transition: color 0.2s;
   }
 
-  .dark .nav-link {
-    color: var(--color-dark-text-secondary);
-  }
-
   .nav-link:hover {
-    color: var(--color-light-text-primary);
-  }
-
-  .dark .nav-link:hover {
-    color: var(--color-dark-text-primary);
+    color: var(--color-ink);
   }
 
   .nav-link.active {
-    color: var(--color-light-accent-primary);
+    color: var(--color-accent);
     font-weight: 500;
-  }
-
-  .dark .nav-link.active {
-    color: var(--color-dark-accent-primary);
   }
 
   .container-custom {
@@ -316,33 +223,20 @@
   }
 
   .footer {
-    background-color: var(--color-light-bg-secondary);
-    border-top: 1px solid var(--color-light-border-primary);
+    background-color: var(--color-surface-alt);
+    border-top: 1px solid var(--color-line);
     padding-top: 3rem;
     padding-bottom: 3rem;
   }
 
-  .dark .footer {
-    background-color: var(--color-dark-bg-secondary);
-    border-color: var(--color-dark-border-primary);
-  }
-
   .footer-link {
-    color: var(--color-light-text-tertiary);
+    color: var(--color-ink-faint);
     text-decoration: none;
     transition: color 0.2s;
   }
 
-  .dark .footer-link {
-    color: var(--color-dark-text-tertiary);
-  }
-
   .footer-link:hover {
-    color: var(--color-light-accent-primary);
-  }
-
-  .dark .footer-link:hover {
-    color: var(--color-dark-accent-primary);
+    color: var(--color-accent);
   }
 }
 
@@ -354,69 +248,8 @@
   }
 
   .focus-ring-primary:focus {
-    outline: 2px solid var(--color-light-accent-primary);
+    outline: 2px solid var(--color-accent);
     outline-offset: 2px;
-  }
-
-  .dark .focus-ring-primary:focus {
-    outline-color: var(--color-dark-accent-primary);
-  }
-  /* Classes écrites à la main : aucune variante ne s'y pose, un hover: ne produirait aucune règle. */
-
-  .bg-primary {
-    background-color: var(--color-light-bg-primary);
-  }
-  .dark .bg-primary {
-    background-color: var(--color-dark-bg-primary);
-  }
-
-  .bg-secondary {
-    background-color: var(--color-light-bg-secondary);
-  }
-  .dark .bg-secondary {
-    background-color: var(--color-dark-bg-secondary);
-  }
-
-  .text-primary {
-    color: var(--color-light-text-primary);
-  }
-  .dark .text-primary {
-    color: var(--color-dark-text-primary);
-  }
-
-  .text-secondary {
-    color: var(--color-light-text-secondary);
-  }
-  .dark .text-secondary {
-    color: var(--color-dark-text-secondary);
-  }
-
-  .text-tertiary {
-    color: var(--color-light-text-tertiary);
-  }
-  .dark .text-tertiary {
-    color: var(--color-dark-text-tertiary);
-  }
-
-  .text-muted {
-    color: var(--color-light-text-muted);
-  }
-  .dark .text-muted {
-    color: var(--color-dark-text-muted);
-  }
-
-  .border-primary {
-    border-color: var(--color-light-border-primary);
-  }
-  .dark .border-primary {
-    border-color: var(--color-dark-border-primary);
-  }
-
-  .text-accent {
-    color: var(--color-light-accent-primary);
-  }
-  .dark .text-accent {
-    color: var(--color-dark-accent-primary);
   }
 }
 /* Carrousel : noms repris de la documentation d'Embla, hors des conventions du projet. */
