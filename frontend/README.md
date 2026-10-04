@@ -136,7 +136,7 @@ src/
 │   ├── cx.ts                  # Assemblage de classes conditionnelles
 │   ├── navigation.ts          # Liens servis par l'en-tête et le pied de page
 │   ├── tokens.ts              # Lecture et écriture des jetons JWT
-│   └── validationRules.ts     # Règles partagées : email, complexité du mot de passe
+│   └── validationRules.ts     # Règles partagées : email, longueur, complexité et confirmation du mot de passe
 ├── types/
 │   ├── article.ts             # Article, ArticleListItem
 │   └── navigation.ts          # NavItem
@@ -397,7 +397,7 @@ export default function MonFormulaire() {
 }
 ```
 
-Une règle servie à plusieurs formulaires (email, complexité du mot de passe) va dans
+Une règle servie à plusieurs formulaires (email, longueur ou complexité du mot de passe) va dans
 `src/lib/validationRules.ts`. Un message de succès se retire à la frappe suivante par
 l'option `onChange` de `useForm` : voir `FormContact.tsx`. Un refus qui demande un libellé
 propre au formulaire passe par les options `unauthorized` (le `401`, voir `FormLogin.tsx`)
