@@ -142,6 +142,17 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       connecté, ce que le README et `.env.example` disent justement. Un lecteur de `base.py`
       en conclurait qu'un membre derrière la même IP qu'un autre partage son quota. Repéré
       à la revue de l'issue #214.
+- [ ] **Une connexion à l'ancien mot de passe peut survivre au changement.** L'issue #250 a
+      sérialisé la rotation de `login/refresh/` et `set_password_and_revoke` par un verrou sur
+      la ligne du compte, mais `login/` ne le prend pas : une connexion lancée pendant la
+      transaction du changement lit encore l'ancien hachage, puis inscrit son refresh après la
+      lecture des jetons à révoquer. Même fenêtre de quelques millisecondes, même effet : une
+      session ouverte avec l'ancien mot de passe vit son `REFRESH_TOKEN_LIFETIME`. Piste : le
+      même `select_for_update()` dans `LoginSerializer.validate`, pris avant `authenticate()`.
+- [ ] **`set_password_and_revoke` réécrit tout le compte.** `user.save()` enregistre chaque
+      champ de l'instance lue avant le verrou — `request.user`, ou celle de la confirmation. Un
+      compte désactivé par un administrateur pendant le changement repasse donc `is_active=True`.
+      `user.save(update_fields=["password"])` suffirait. Repéré à la revue de l'issue #250.
 
 ## Fonctionnalités écartées
 
