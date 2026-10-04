@@ -4,34 +4,33 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Valeurs du thème clair, relevées sur la maquette Weeb (hexadécimal en fin de ligne).
-     Le thème sombre les redéfinit sous `.dark`, en @layer base. */
-  --color-surface: oklch(1 0 0); /* #FFFFFF - Fond de page */
-  --color-surface-alt: oklch(0.97 0.014 264); /* #F3F6FF - Sections et cartes */
-  /* #E6ECF2 et non le #F1F5F9 de la maquette, indiscernable du fond secondaire :
-     le survol posé dessus ne se voyait pas. */
+  /* Valeurs du thème clair. Le thème sombre les redéfinit sous `.dark`, en @layer base. */
+  --color-surface: oklch(1 0 0); /* Fond de page */
+  --color-surface-alt: oklch(0.97 0.014 264); /* Sections et cartes */
+  /* Plus foncé que la maquette, dont la valeur ne se distinguait pas du fond
+     secondaire : le survol posé dessus ne se voyait pas. */
   --color-surface-hover: oklch(0.94 0.01 250);
-  --color-field: oklch(1 0 0); /* #FFFFFF - Champs de saisie */
-  --color-field-focus: oklch(1 0 0); /* #FFFFFF */
+  --color-field: oklch(1 0 0); /* Champs de saisie */
+  --color-field-focus: oklch(1 0 0);
 
-  --color-ink: oklch(0.15 0.01 250); /* #0F172A - Titres, étiquettes */
-  --color-ink-soft: oklch(0.3 0.02 250); /* #334155 - Descriptions */
-  --color-ink-faint: oklch(0.52 0.03 250); /* #64748B - Indications */
-  --color-ink-muted: oklch(0.68 0.02 250); /* #94A3B8 - Désactivé */
+  --color-ink: oklch(0.15 0.01 250); /* Titres, étiquettes */
+  --color-ink-soft: oklch(0.3 0.02 250); /* Descriptions */
+  --color-ink-faint: oklch(0.52 0.03 250); /* Indications */
+  --color-ink-muted: oklch(0.68 0.02 250); /* Désactivé */
   /* Titres de colonne du pied de page : la même valeur dans les deux thèmes,
      donc absente du bloc `.dark`. */
-  --color-ink-caption: oklch(0.68 0.02 250); /* #94A3B8 */
+  --color-ink-caption: oklch(0.68 0.02 250);
 
-  --color-line: oklch(0.91 0.01 250); /* #E2E8F0 */
-  --color-line-strong: oklch(0.85 0.01 250); /* #CBD5E1 - Bordures appuyées et champs */
+  --color-line: oklch(0.91 0.01 250);
+  --color-line-strong: oklch(0.85 0.01 250); /* Bordures appuyées et champs */
 
   /* Accents et états plus foncés qu'en sombre : il faut plus de contraste sur fond blanc.
-     Quatre décimales : arrondie à trois, la valeur ne retombe plus sur l'hexadécimal. */
-  --color-accent: oklch(0.5575 0.2525 302.32); /* #9333EA */
-  --color-accent-hover: oklch(0.496 0.237 301.9); /* #7E22CE */
+     Quatre décimales : arrondie à trois, la valeur s'écarte de la maquette. */
+  --color-accent: oklch(0.5575 0.2525 302.32);
+  --color-accent-hover: oklch(0.496 0.237 301.9);
 
-  --color-success: oklch(0.58 0.18 155); /* #059669 */
-  --color-error: oklch(0.55 0.24 25); /* #DC2626 */
+  --color-success: oklch(0.58 0.18 155);
+  --color-error: oklch(0.55 0.24 25);
 
   --text-body: 1rem;
   --text-body-sm: 0.875rem;
@@ -50,26 +49,26 @@
 
 @layer base {
   .dark {
-    --color-surface: oklch(0.18 0.07 250); /* #0F172A */
-    --color-surface-alt: oklch(0.25 0.033 264); /* #1E293B */
-    --color-surface-hover: oklch(0.3 0.02 250); /* #334155 */
-    --color-field: oklch(0.22 0.02 250); /* #1E293B */
-    --color-field-focus: oklch(0.3 0.02 250); /* #334155 */
+    --color-surface: oklch(0.18 0.07 250);
+    --color-surface-alt: oklch(0.25 0.033 264);
+    --color-surface-hover: oklch(0.3 0.02 250);
+    --color-field: oklch(0.22 0.02 250);
+    --color-field-focus: oklch(0.3 0.02 250);
 
-    --color-ink: oklch(1 0 0); /* #FFFFFF */
-    --color-ink-soft: oklch(0.91 0.01 250); /* #E2E8F0 */
-    --color-ink-faint: oklch(0.68 0.02 250); /* #94A3B8 */
-    --color-ink-muted: oklch(0.52 0.03 250); /* #64748B */
+    --color-ink: oklch(1 0 0);
+    --color-ink-soft: oklch(0.91 0.01 250);
+    --color-ink-faint: oklch(0.68 0.02 250);
+    --color-ink-muted: oklch(0.52 0.03 250);
 
-    --color-line: oklch(0.3 0.02 250); /* #334155 */
-    --color-line-strong: oklch(0.38 0.02 250); /* #475569 */
+    --color-line: oklch(0.3 0.02 250);
+    --color-line-strong: oklch(0.38 0.02 250);
 
-    --color-accent: oklch(0.7 0.27 305); /* #A855F7 */
-    /* #B73BFF et non le #9333EA de la maquette : 4,5:1 sur le fond principal au lieu de 3,5:1. */
+    --color-accent: oklch(0.7 0.27 305);
+    /* Plus clair que la maquette, pour rester lisible sur le fond principal. */
     --color-accent-hover: oklch(0.6239 0.272 309.12);
 
-    --color-success: oklch(0.68 0.18 155); /* #10B981 */
-    --color-error: oklch(0.63 0.24 25); /* #EF4444 */
+    --color-success: oklch(0.68 0.18 155);
+    --color-error: oklch(0.63 0.24 25);
   }
 
   body {
@@ -153,10 +152,8 @@
     color: var(--color-error);
   }
 
-  /* Vide, le paragraphe ne porte que de la couleur : un bloc sans contenu ni boîte
-     n'occupe aucune hauteur. Le masquer par `display: none` le retirerait de l'arbre
-     d'accessibilité, et sa région live n'existerait qu'à partir du premier message —
-     donc trop tard pour être annoncée. */
+  /* Vide, le paragraphe n'occupe aucune hauteur. Pas de `display: none` : sa région
+     live n'existerait qu'au premier message, trop tard pour être annoncée. */
   .form-alert-error {
     font-size: var(--text-body-sm);
     color: var(--color-error);

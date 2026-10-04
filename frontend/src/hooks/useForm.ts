@@ -24,11 +24,8 @@ type SubmitOptions<T, F extends keyof T & string> = {
 
 const SANS_REGLE = () => ({});
 
-/**
- * Socle commun aux formulaires : les champs, leurs erreurs, le message d'ensemble,
- * l'état d'envoi et le cycle d'envoi lui-même. Il ne porte aucune règle de
- * validation, chaque formulaire ayant les siennes.
- */
+/** Socle des formulaires : champs, erreurs, message d'ensemble et envoi. Aucune règle
+ *  de validation : chaque formulaire garde les siennes. */
 export function useForm<T extends Record<string, string>>(
   initialValues: T,
   { onChange }: UseFormOptions = {},

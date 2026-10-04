@@ -87,7 +87,7 @@ function chainesDe(source: string): string[] {
 function jetonsDe(source: string): string[] {
   // Le découpage prend aussi les guillemets, et pas seulement les espaces : une
   // classe posée dans un `${}` de gabarit garderait les siens et échapperait au
-  // test d'identifiant. Ce qui échappe encore est listé au README.
+  // test d'identifiant.
   return chainesDe(source).flatMap((chaine) => chaine.split(/[\s"'`]+/));
 }
 
@@ -154,7 +154,7 @@ const CLASSES_POSEES = new Set([
 describe("index.css", () => {
   // Tailwind v4 ne décline de variante que sur ses propres utilitaires : une classe
   // écrite à la main dans `index.css` n'en est pas un, et la variante posée dessus ne
-  // produit aucune règle. Six ont vécu ainsi jusqu'à #184. Détail au README.
+  // produit aucune règle. Détail au README.
   it("ne laisse aucune variante posée sur une classe écrite à la main", () => {
     const fautifs = VARIANTES.filter(({ utilitaire }) =>
       CLASSES_MAISON.has(utilitaire),
@@ -164,7 +164,7 @@ describe("index.css", () => {
   });
 
   // Une classe qui perd son dernier lecteur ne fait tomber ni le lint, ni le typage,
-  // ni le build : trois ont vécu ainsi de #176 à #183, et rien d'autre ne les voit.
+  // ni le build, et rien d'autre ne la voit.
   it("ne garde aucune classe sans lecteur", () => {
     const orphelines = [...CLASSES_MAISON].filter(
       (nom) => !CLASSES_POSEES.has(nom),
@@ -228,7 +228,7 @@ function ecartOklab(
 describe("palette de index.css", () => {
   // Le menu mobile, les flèches du carrousel et les icônes du pied de page passent
   // de `surface-alt` à `surface-hover` au survol. Sous 0,02 l'œil ne voit rien, et ni
-  // le build ni le lint ne le disent : le thème clair est resté ainsi jusqu'à #193.
+  // le build ni le lint ne le disent.
   it.each(["clair", "sombre"] as const)(
     "sépare à l'œil le fond de survol du fond secondaire (%s)",
     (theme) => {

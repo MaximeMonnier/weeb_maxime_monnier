@@ -1,7 +1,5 @@
-/**
- * Règles de saisie partagées par plusieurs formulaires. Celles qui n'en servent qu'un
- * restent chez lui.
- */
+/** Règles de saisie partagées par plusieurs formulaires ; celles qui n'en servent
+ *  qu'un restent chez lui. */
 
 // Aucune expression ne valide vraiment une adresse : celle-ci n'écarte que la faute de
 // frappe évidente, et l'API tranche le reste.
