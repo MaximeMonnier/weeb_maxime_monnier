@@ -31,7 +31,7 @@ DATABASES = postgres_database()
 
 # TLS jusqu'à la base : le défaut de libpq, `prefer`, retombe EN CLAIR sans rien dire.
 # `require` chiffre sans VÉRIFIER le certificat : `verify-full` une fois la base en ligne.
-# `setdefault` : une affectation effacerait les autres OPTIONS de postgres_database().
+# `setdefault` : une affectation effacerait les OPTIONS que postgres_database() poserait.
 DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = env_str('POSTGRES_SSLMODE', 'require')
 
 # --- Emails ---

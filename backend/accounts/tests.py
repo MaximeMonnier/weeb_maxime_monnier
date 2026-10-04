@@ -265,7 +265,7 @@ class PasswordValidationTests(TestCase):
 
 
 class PasswordLengthTests(TestCase):
-    """128 caractères passent, 129 non : AUTH_PASSWORD_VALIDATORS n'a pas de maximum."""
+    """128 caractères passent, 129 non : la borne vit aux serializers, les validateurs n'en ont pas."""
 
     # Une majuscule, une minuscule, un chiffre : seule la longueur peut faire tomber le cas.
     LIMITE = "Aa1" + "x" * 125
