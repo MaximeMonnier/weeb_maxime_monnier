@@ -32,8 +32,6 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
 
   if (!formData.password.trim()) {
     newErrors.password = "Le mot de passe est requis";
-  } else if (formData.password.length < 8) {
-    newErrors.password = "Le mot de passe doit contenir au moins 8 caractères";
   }
 
   return newErrors;
@@ -97,7 +95,6 @@ const FormLogin = () => {
           value={formData.password}
           onChange={handleChange}
           error={errors.password}
-          helperText="Minimum 8 caractères"
           required
           fullWidth
         />

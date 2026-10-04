@@ -2,7 +2,12 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../lib/api";
 import { saveTokens } from "../lib/tokens";
-import { isComplexPassword } from "../lib/validationRules";
+import {
+  PASSWORD_MIN_LENGTH,
+  isComplexPassword,
+  isConfirmedPassword,
+  isLongEnoughPassword,
+} from "../lib/validationRules";
 import { useForm } from "../hooks/useForm";
 import type { FormErrors } from "../hooks/useForm";
 import { useIsAuthenticated } from "../hooks/useIsAuthenticated";
@@ -33,14 +38,14 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
     newErrors.current_password = "Le mot de passe actuel est requis";
   }
 
-  if (formData.new_password.length < 8) {
-    newErrors.new_password = "Le mot de passe doit contenir au moins 8 caractères";
+  if (!isLongEnoughPassword(formData.new_password)) {
+    newErrors.new_password = `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères`;
   } else if (!isComplexPassword(formData.new_password)) {
     newErrors.new_password =
       "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre";
   }
 
-  if (formData.new_password !== formData.confirmPassword) {
+  if (!isConfirmedPassword(formData.new_password, formData.confirmPassword)) {
     newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
   }
 
@@ -140,7 +145,7 @@ const ChangePassword = () => {
                   placeholder="••••••••"
                   value={formData.new_password}
                   onChange={handleChange}
-                  helperText="Au moins 8 caractères avec majuscule, minuscule et chiffre"
+                  helperText={`Au moins ${PASSWORD_MIN_LENGTH} caractères avec majuscule, minuscule et chiffre`}
                   error={errors.new_password}
                   required
                   fullWidth
