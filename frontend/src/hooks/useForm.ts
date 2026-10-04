@@ -51,19 +51,15 @@ export function useForm<T extends Record<string, string>>(
     onChange?.();
   }
 
-  function validate(rules: (values: T) => FormErrors<T>) {
-    const found = rules(formData);
-    setErrors(found);
-    return Object.keys(found).length === 0;
-  }
-
   /** Valide, envoie, puis range un refus entre les champs et le message d'ensemble. */
   async function submit<F extends keyof T & string>(
     e: FormEvent,
     { rules = SANS_REGLE, fields, send, unauthorized, translate }: SubmitOptions<T, F>,
   ) {
     e.preventDefault();
-    if (!validate(rules)) {
+    const found = rules(formData);
+    setErrors(found);
+    if (Object.keys(found).length > 0) {
       return;
     }
 
@@ -86,13 +82,9 @@ export function useForm<T extends Record<string, string>>(
     formData,
     setFormData,
     errors,
-    setErrors,
     formError,
-    setFormError,
     isSubmitting,
-    setIsSubmitting,
     handleChange,
-    validate,
     submit,
   };
 }
