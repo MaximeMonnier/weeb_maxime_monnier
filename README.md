@@ -932,12 +932,8 @@ et le `cleanup` entre les cas est **explicite**, Testing Library ne s'inscrivant
 s'il trouve un `afterEach` global. Sans lui, le formulaire du cas précédent reste dans le DOM
 et toute recherche par libellé y devient ambiguë.
 
-Un composant qui appelle `useTheme` demande une pièce de plus : jsdom n'implémente pas
-`window.matchMedia`, que le hook interroge dès le premier rendu, et le test échoue avant sa
-première assertion. `NavBar.test.tsx` et `Footer.test.tsx` en posent chacun le doublon,
-toujours faute d'un `setupFiles` où le poser une fois — le second rend la barre de navigation
-à côté du pied de page pour confronter leurs libellés, cinq destinations étant servies de part
-et d'autre.
+`Footer.test.tsx` rend la barre de navigation à côté du pied de page pour confronter leurs
+libellés, cinq destinations étant servies de part et d'autre.
 
 Un test ne couvre pas de TypeScript du tout : `index.css.test.ts` lit la feuille de style et
 refuse qu'une variante Tailwind — `hover:`, `md:`, `focus-visible:` — soit posée sur une
@@ -955,9 +951,8 @@ qu'un inventaire à la main les trouve. Le cas croise les sélecteurs de classe 
 avec les jetons lus dans `src/`, et nomme celle qui n'a plus personne. Deux choix de lecture
 le délimitent : les fichiers de test sont écartés des lecteurs, l'un d'eux pouvant citer une
 classe pour vérifier qu'elle est refusée ; et `frontend/index.html` est lu en plus des
-sources, `.dark` n'étant posée par aucun `className` — `hooks/useTheme.ts` en écrit
-aujourd'hui le nom en toutes lettres, le `class` de la page le portera encore le jour où le
-hook cessera.
+sources, `.dark` n'étant posée par aucun `className` : le script en ligne de la page la pose
+avant le premier rendu, et `hooks/useTheme.ts` ne fait plus que la basculer.
 
 Il lit les chaînes littérales par un parcours caractère par caractère et non par une expression
 régulière, l'apostrophe droite du français — `alt="Vue d'une interface"` — faisant perdre à
