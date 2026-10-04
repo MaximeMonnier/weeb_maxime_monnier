@@ -72,14 +72,14 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD ["python", "/usr/local/bin/healthcheck.py"]
 
-# Le script s'interpose devant toute commande, `command:` de Compose compris :
-# les migrations ne sautent pas par mégarde. Il ne prépare que devant gunicorn,
-# d'où `docker run <image> id -u` possible sans --entrypoint.
+# Le script s'interpose devant toute commande et ne prépare que devant gunicorn :
+# un `command:` qui relance gunicorn migre encore, `docker run <image> id -u` ne
+# migre pas et se passe de --entrypoint.
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# --workers 3 : 2 × cœurs + 1 sur deux cœurs. --no-control-socket : sans
-# répertoire personnel où ouvrir ce socket, Gunicorn affichait une erreur à
-# chaque démarrage. Journaux sur la sortie standard, où Docker les lit.
+# --workers 3 : point de départ, à porter à 2 × cœurs + 1. --no-control-socket :
+# sans répertoire personnel où ouvrir ce socket, Gunicorn affichait une erreur
+# à chaque démarrage. Journaux sur la sortie standard, où Docker les lit.
 CMD ["gunicorn", "config.wsgi:application", \
      "--bind", "0.0.0.0:8000", \
      "--workers", "3", \
