@@ -35,19 +35,11 @@ et pour les prochaines itérations).
 
 ## Frontend — code
 
-- [ ] **La palette n'affiche pas les couleurs que ses commentaires annoncent.** Dans le
-      `@theme` d'`index.css`, 23 des 28 couleurs annotées s'écartent de leur hexadécimal ;
-      seuls les blancs et les deux violets clairs, recalculés depuis, tombent juste. Deux
-      causes. Cinq valeurs sont hors de la gamme sRGB et le navigateur les ramène au bord :
-      le fond sombre annoncé `#0F172A` s'affiche `#00112F`, le violet sombre `#A855F7`
-      s'affiche `#C75EFF`, et les deux verts et le rouge clair glissent de même. Les autres
-      sont dans la gamme mais ne sont pas les conversions des couleurs citées : les gris,
-      écrits `oklch(0.3 0.02 250)` pour `#334155`, s'affichent `#262F38`, plus sombres et moins
-      bleus, et deux valeurs différentes se réclament toutes deux de `#1E293B`. Le contraste
-      « 4,5:1 sur le fond principal » du survol sombre vaut contre le fond affiché, et 4,3:1
-      contre `#0F172A`. Repéré aux issues #220 et #233. Piste : décider entre l'écran actuel,
-      dont on réécrit alors les commentaires, et la maquette, dont on recalcule les valeurs —
-      puis mesurer les contrastes qui en dépendent avant de choisir.
+- [ ] **La palette garde l'écran actuel ou revient à la maquette ?** Hors les blancs et les
+      deux violets clairs, les couleurs du `@theme` d'`index.css` ne rendent pas celles de la
+      maquette : cinq sortent de la gamme sRGB, les gris s'affichent plus sombres et moins
+      bleus. Repéré aux issues #220 et #233. Piste : garder l'écran, ou recalculer les valeurs
+      depuis la maquette — puis mesurer les contrastes qui en dépendent avant de choisir.
 - [ ] **Les messages du mot de passe sont recopiés dans trois formulaires.** L'issue #245 a
       mis en commun les règles dans `lib/validationRules.ts`, pas leurs textes : les refus de
       longueur, de complexité et de confirmation, et l'aide « Au moins 8 caractères avec
