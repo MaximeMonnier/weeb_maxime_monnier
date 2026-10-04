@@ -105,8 +105,9 @@ démonstration — la commande refuse de tourner quand `DEBUG` vaut faux :
 
 ```bash
 # applications lancées sur la machine
-cd backend && python manage.py createsuperuser
-cd backend && python manage.py peupler_articles
+cd backend
+python manage.py createsuperuser
+python manage.py peupler_articles
 
 # applications lancées par la pile de développement
 docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
