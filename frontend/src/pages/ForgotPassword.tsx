@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { apiFetch } from "../lib/api";
-import { toFormErrors } from "../lib/apiErrors";
 import { useForm } from "../hooks/useForm";
 import { Input } from "../components/ui/Input";
 import Button from "../components/ui/Button/Button";
@@ -17,38 +16,21 @@ const ForgotPassword = () => {
   // L'API répond la même chose que le compte existe ou non : on affiche son message tel quel.
   const [confirmation, setConfirmation] = useState<string | null>(null);
 
-  const {
-    formData,
-    errors,
-    setErrors,
-    formError,
-    setFormError,
-    isSubmitting,
-    setIsSubmitting,
-    handleChange,
-  } = useForm<FormData>(VALEURS_INITIALES);
+  const { formData, errors, formError, isSubmitting, handleChange, submit } =
+    useForm<FormData>(VALEURS_INITIALES);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-    setFormError(null);
-    setIsSubmitting(true);
-    try {
-      const data = await apiFetch<{ detail: string }>("/auth/password-reset/", {
-        method: "POST",
-        body: JSON.stringify({ email: formData.email }),
-      });
-      setConfirmation(data.detail);
-    } catch (err) {
-      // Le quota le plus serré du projet, trois appels par heure : un message unique
-      // annoncerait une adresse invalide à qui n'a fait qu'attendre.
-      const { fieldErrors, formError } = toFormErrors(err, ["email"] as const);
-      setErrors(fieldErrors);
-      setFormError(formError);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  // Pas de règles : l'API juge l'adresse.
+  const handleSubmit = (e: React.FormEvent) =>
+    submit(e, {
+      fields: ["email"],
+      send: async (values) => {
+        const data = await apiFetch<{ detail: string }>("/auth/password-reset/", {
+          method: "POST",
+          body: JSON.stringify({ email: values.email }),
+        });
+        setConfirmation(data.detail);
+      },
+    });
 
   return (
     <div className="container-custom mt-32">
