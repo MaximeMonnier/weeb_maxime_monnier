@@ -1,6 +1,11 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
-import { PASSWORD_MIN_LENGTH, isLongEnoughPassword } from "../lib/validationRules";
+import {
+  PASSWORD_MIN_LENGTH,
+  isComplexPassword,
+  isConfirmedPassword,
+  isLongEnoughPassword,
+} from "../lib/validationRules";
 import { useForm } from "../hooks/useForm";
 import type { FormErrors } from "../hooks/useForm";
 import { Input } from "../components/ui/Input";
@@ -9,15 +14,25 @@ import HeroTitle from "../components/ui/Title/HeroTitle";
 import ErrorAlert from "../components/ui/Alert/ErrorAlert";
 
 // La clé porte le nom du champ côté API : `toFormErrors` range son refus dessous.
-type FormData = { new_password: string };
+type FormData = { new_password: string; confirmPassword: string };
 
-const VALEURS_INITIALES: FormData = { new_password: "" };
+// `confirmPassword` n'est pas envoyé : l'API ne le connaît pas et ne peut rien en dire.
+const CHAMPS = ["new_password"] as const;
+
+const VALEURS_INITIALES: FormData = { new_password: "", confirmPassword: "" };
 
 const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
   const newErrors: FormErrors<FormData> = {};
 
   if (!isLongEnoughPassword(formData.new_password)) {
-    newErrors.new_password = `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères.`;
+    newErrors.new_password = `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères`;
+  } else if (!isComplexPassword(formData.new_password)) {
+    newErrors.new_password =
+      "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre";
+  }
+
+  if (!isConfirmedPassword(formData.new_password, formData.confirmPassword)) {
+    newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
   }
 
   return newErrors;
@@ -36,7 +51,7 @@ const ResetPassword = () => {
   const handleSubmit = (e: React.FormEvent) =>
     submit(e, {
       rules: reglesDeSaisie,
-      fields: ["new_password"],
+      fields: CHAMPS,
       send: async (values) => {
         await apiFetch<{ detail: string }>("/auth/password-reset/confirm/", {
           method: "POST",
@@ -90,11 +105,25 @@ const ResetPassword = () => {
                   label="Nouveau mot de passe"
                   name="new_password"
                   type="password"
+                  autoComplete="new-password"
                   placeholder="••••••••"
                   value={formData.new_password}
                   onChange={handleChange}
                   helperText={`Au moins ${PASSWORD_MIN_LENGTH} caractères avec majuscule, minuscule et chiffre`}
                   error={errors.new_password}
+                  required
+                  fullWidth
+                />
+
+                <Input
+                  label="Confirmer le nouveau mot de passe"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  error={errors.confirmPassword}
                   required
                   fullWidth
                 />
