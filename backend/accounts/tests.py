@@ -853,62 +853,80 @@ class RotationConcurrenteTests(TransactionTestCase):
             reverse("login-refresh"), {"refresh": refresh}, content_type="application/json"
         )
 
-    def course(self, revoquer):
-        """Suspend une rotation juste avant qu'elle inscrive son refresh neuf, lance `revoquer`,
-        puis relâche la rotation dès que `revoquer` a fini ou attend un verrou."""
-        en_pause, reprendre = threading.Event(), threading.Event()
-        inscrire = RefreshToken.outstand
-        reponses = {}
-
-        def inscrire_apres_pause(jeton):
-            # Seul le premier appel, celui de la rotation, s'arrête : la vue de changement
-            # émet ensuite ses propres jetons.
-            if not en_pause.is_set():
-                en_pause.set()
-                reprendre.wait(timeout=10)
-            return inscrire(jeton)
-
-        def lancer(nom, action):
-            def cible():
-                try:
-                    reponses[nom] = action()
-                finally:
-                    connection.close()
-            fil = threading.Thread(target=cible)
-            fil.start()
-            return fil
-
-        with patch.object(RefreshToken, "outstand", inscrire_apres_pause):
-            rotation = lancer("rotation", lambda: self.rafraichir(self.refresh))
-            self.assertTrue(en_pause.wait(timeout=10))
-            revocation = lancer("revocation", revoquer)
-            attendre_verrou_ou_fin(revocation)
-            reprendre.set()
-            rotation.join()
-            revocation.join()
-
-        self.assertEqual(reponses["revocation"].status_code, 200)
-        self.assertEqual(reponses["rotation"].status_code, 200)
-        return reponses["rotation"].json()["refresh"]
-
-    def test_le_refresh_emis_pendant_un_changement_est_revoque(self):
-        refresh_neuf = self.course(lambda: Client().post(
+    def changer(self):
+        return Client().post(
             reverse("password-change"),
             {"current_password": self.PASSWORD, "new_password": self.NOUVEAU},
             content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {self.access}",
-        ))
+        )
 
-        self.assertEqual(self.rafraichir(refresh_neuf).status_code, 401)
+    def reinitialiser(self):
+        return Client().post(
+            reverse("password-reset-confirm"),
+            {
+                "uid": urlsafe_base64_encode(force_bytes(self.membre.pk)),
+                "token": default_token_generator.make_token(self.membre),
+                "new_password": self.NOUVEAU,
+            },
+            content_type="application/json",
+        )
+
+    def course(self, premiere, seconde, cible, methode):
+        """Suspend `premiere` à l'entrée de `cible.methode`, lance `seconde`, puis relâche
+        `premiere` dès que `seconde` a fini ou attend un verrou. Rend les deux réponses."""
+        en_pause, reprendre = threading.Event(), threading.Event()
+        originale = getattr(cible, methode)
+        reponses = {}
+
+        def apres_pause(*args, **kwargs):
+            en_pause.set()
+            reprendre.wait(timeout=10)
+            return originale(*args, **kwargs)
+
+        def lancer(nom, action):
+            def executer():
+                try:
+                    reponses[nom] = action()
+                finally:
+                    connection.close()
+            fil = threading.Thread(target=executer)
+            fil.start()
+            return fil
+
+        with patch.object(cible, methode, apres_pause):
+            fil_premiere = lancer("premiere", premiere)
+            self.assertTrue(en_pause.wait(timeout=10))
+            fil_seconde = lancer("seconde", seconde)
+            attendre_verrou_ou_fin(fil_seconde)
+            reprendre.set()
+            fil_premiere.join()
+            fil_seconde.join()
+
+        return reponses["premiere"], reponses["seconde"]
+
+    def rotation_puis(self, revoquer):
+        """La rotation suspendue juste avant d'inscrire son refresh neuf, la révocation lancée."""
+        rotation, revocation = self.course(
+            lambda: self.rafraichir(self.refresh), revoquer, RefreshToken, "outstand",
+        )
+        self.assertEqual(revocation.status_code, 200)
+        self.assertEqual(rotation.status_code, 200)
+        return rotation.json()["refresh"]
+
+    def test_le_refresh_emis_pendant_un_changement_est_revoque(self):
+        self.assertEqual(self.rafraichir(self.rotation_puis(self.changer)).status_code, 401)
 
     def test_le_refresh_emis_pendant_une_reinitialisation_est_revoque(self):
-        uid = urlsafe_base64_encode(force_bytes(self.membre.pk))
-        token = default_token_generator.make_token(self.membre)
+        self.assertEqual(self.rafraichir(self.rotation_puis(self.reinitialiser)).status_code, 401)
 
-        refresh_neuf = self.course(lambda: Client().post(
-            reverse("password-reset-confirm"),
-            {"uid": uid, "token": token, "new_password": self.NOUVEAU},
-            content_type="application/json",
-        ))
+    def test_une_rotation_arrivee_pendant_le_changement_est_refusee(self):
+        # Tombe si la liste noire est lue avant le verrou de RefreshSerializer : la rotation
+        # passerait son contrôle, puis émettrait après la révocation un refresh qui lui survit.
+        revocation, rotation = self.course(
+            self.changer, lambda: self.rafraichir(self.refresh),
+            BlacklistedToken.objects, "bulk_create",
+        )
 
-        self.assertEqual(self.rafraichir(refresh_neuf).status_code, 401)
+        self.assertEqual(revocation.status_code, 200)
+        self.assertEqual(rotation.status_code, 401)
