@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -16,11 +16,6 @@ import Footer from "./Footer";
 // un chemin à paramètre n'est pas une adresse qu'un lien puisse porter tel quel.
 const ROUTES_DE_L_APP = ROUTES.map(({ path }) => path)
   .filter((chemin) => chemin !== "*" && !chemin.includes(":"));
-
-// jsdom n'implémente pas `matchMedia`, que `useTheme` interroge dès le premier
-// rendu de la barre de navigation. Le doublon se pose ici faute d'un
-// `setupFiles` où le poser une fois, et se limite au `matches` que le hook lit.
-vi.stubGlobal("matchMedia", () => ({ matches: false }));
 
 // Le pied de page est rendu à côté des `Routes`, comme `MainLayout` le rend hors
 // de son `Outlet` : il reste affiché après un clic, et la zone de routes montre
