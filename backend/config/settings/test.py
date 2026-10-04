@@ -6,10 +6,8 @@ from .base import postgres_database, REST_FRAMEWORK
 # Un test ne doit jamais dépendre de la page d'erreur détaillée pour passer.
 DEBUG = False
 
-# Clé volontairement factice et publique : l'environnement de test ne protège
-# aucune donnée réelle, et la suite doit tourner en CI sans clé Django à
-# fournir. Les identifiants de base, eux, restent exigés (voir plus bas).
-# C'est la raison pour laquelle base.py ne définit pas SECRET_KEY lui-même.
+# Clé factice et publique : aucune donnée réelle à protéger, aucune clé à fournir en CI.
+# C'est pourquoi base.py ne définit pas SECRET_KEY.
 SECRET_KEY = 'cle-de-test-non-secrete-de-32-octets-au-moins'
 
 # Le client de test Django utilise l'hôte "testserver".
@@ -19,25 +17,20 @@ ALLOWED_HOSTS = ['testserver', 'localhost', '127.0.0.1']
 CORS_ALLOWED_ORIGINS = []
 
 
-# Les tests tournent sur le même moteur que la production : une requête qui
-# passe ici passera en ligne. Django crée et détruit lui-même une base dédiée
-# `test_<POSTGRES_DB>`, la base de développement n'est jamais touchée.
-# Contrepartie assumée : la suite exige un PostgreSQL joignable et les
-# variables POSTGRES_* renseignées, contrairement à SECRET_KEY.
+# Le moteur de la production : Django crée et détruit `test_<POSTGRES_DB>`, sans toucher
+# à la base de développement. La suite exige donc un PostgreSQL joignable.
 DATABASES = postgres_database()
 
 
 # --- Emails ---
-# Backend mémoire : aucun test n'ouvre de connexion SMTP, et chaque message
-# envoyé reste lisible dans `django.core.mail.outbox`. Le runner de Django
-# l'impose déjà de son côté ; l'écrire ici vaut pour tout ce qui sort du runner.
+# Aucune connexion SMTP, les messages restent dans `django.core.mail.outbox`.
+# Le runner l'impose déjà ; l'écrire ici vaut hors du runner.
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
 
 # --- Quotas de débit ---
-# Un taux à None éteint son scope : DRF laisse tout passer, aucun test ne se voit
-# refuser une requête. C'est le taux qu'on neutralise et non la classe, figée à
-# l'import de DRF : une classe retirée ne se réarmerait plus, un taux si.
+# Un taux à None éteint son scope. Le taux et non la classe, figée à l'import de DRF :
+# une classe retirée ne se réarmerait plus dans un test, un taux si.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
     'DEFAULT_THROTTLE_RATES': {

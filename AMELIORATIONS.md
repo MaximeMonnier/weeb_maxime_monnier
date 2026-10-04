@@ -137,11 +137,6 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       dépôt n'a ni tâche planifiée ni cron dans ses conteneurs. Sans conséquence à l'échelle
       d'un projet pédagogique ; à reprendre le jour où une file de tâches entrera, la même
       qui manque à l'envoi des emails ci-dessus.
-- [ ] **Le commentaire des quotas dans `base.py` dit « comptés par IP ».** C'est faux pour
-      `password_change` : `ScopedRateThrottle` compte par compte dès que le membre est
-      connecté, ce que le README et `.env.example` disent justement. Un lecteur de `base.py`
-      en conclurait qu'un membre derrière la même IP qu'un autre partage son quota. Repéré
-      à la revue de l'issue #214.
 - [ ] **Une connexion à l'ancien mot de passe peut survivre au changement.** L'issue #250 a
       sérialisé la rotation de `login/refresh/` et `set_password_and_revoke` par un verrou sur
       la ligne du compte, mais `login/` ne le prend pas : une connexion lancée pendant la
@@ -153,6 +148,16 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       champ de l'instance lue avant le verrou — `request.user`, ou celle de la confirmation. Un
       compte désactivé par un administrateur pendant le changement repasse donc `is_active=True`.
       `user.save(update_fields=["password"])` suffirait. Repéré à la revue de l'issue #250.
+
+## Backend — code
+
+- [ ] **Des fins de ligne redisent encore le code.** L'issue #263 a retiré celles que son
+      ticket nommait, pas les autres : dans `config/settings/base.py`, celles de
+      `rest_framework`, `corsheaders`, de l'authentification JWT et de
+      `REFRESH_TOKEN_LIFETIME` ; dans `production.py`, les cinq des réglages de sécurité ; dans
+      `accounts/models.py`, celles d'`is_active`, `is_staff`, `USERNAME_FIELD` et
+      `REQUIRED_FIELDS`. Repéré à la revue de l'issue #263. Piste : ne garder que celles qui
+      disent un pourquoi, comme « demandés en plus par createsuperuser ».
 
 ## Fonctionnalités écartées
 
