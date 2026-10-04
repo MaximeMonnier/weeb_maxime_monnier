@@ -2324,7 +2324,7 @@ Consulte `frontend-react-ts` et `inventaire-avant-dev` : aucun fichier à créer
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| En cours — 13.1 et 13.3 livrés le 2026-10-04 ; restent 13.2 et 13.4, hors dépôt | #261 | — | Bloc 1 + 2 — documentation |
+| Clos le 2026-10-04 — le plan comptait 31 blocs, l'epic en a mesuré 97 ; raccourcir a révélé des commentaires faux | #261 | Lot 13 | Bloc 1 + 2 — documentation |
 
 **Origine** : depuis le 2026-09-01, 156 commits `docs` pour 34 `feat`, 6 126 lignes de Markdown
 ajoutées pour environ 3 960 de code. `CLAUDE.md` pèse 39 999 octets pour un budget de 40 000,
@@ -2363,7 +2363,7 @@ Consulte `commentaires-code`. Aucune ligne de code ne change.
 
 ## 13.2 — `CLAUDE.md` à 15 Ko, skills sans chiffres en dur
 
-- [ ] **Fichiers** : `CLAUDE.md`, `.claude/skills/*/SKILL.md`, `.claude/hooks/verifications.sh` — hors dépôt
+- [x] **Fichiers** — fait hors dépôt, sans issue : les consignes de travail passent de 39 682 à 14 113 octets, les skills et le hook perdent leurs comptes
 - **Constat** : `CLAUDE.md` est relu à chaque session et touche son plafond. Une bonne part
   décrit ce que contiennent les fichiers de test, ou des pièges que le lot 12 a retirés. Les
   skills portent des chiffres déjà faux (72 tests, « six formulaires » contre sept).
@@ -2396,7 +2396,7 @@ Consulte `style-documentation`.
 
 ## 13.4 — Contrôle au pré-push
 
-- [ ] **Fichiers** : `.claude/hooks/verifications.sh` — hors dépôt
+- [x] **Fichiers** — fait hors dépôt, sans issue, dans le hook de pré-push, validé par mutation
 - **Constat** : les règles écrites ont déjà dérivé sans que rien ne le montre. Seule une mesure
   le voit avant que la dérive s'installe.
 - **Attendu** : le hook refuse le push si `CLAUDE.md` dépasse 15 000 octets, `README.md` 35 000,

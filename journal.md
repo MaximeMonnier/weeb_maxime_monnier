@@ -938,6 +938,61 @@ Le diff pèse **1 080 insertions pour 905 suppressions** sur 53 fichiers. `front
   ne rendent rien. `class="dark"` a disparu d'`index.html`. Un `finally` ne reste que dans
   `Blog.tsx`, pour le chargement de la liste.
 
+## Lot 13 — Régime : purge et contrôle
+
+Clos le 2026-10-04 · Epic #261 · Alimente : Bloc 1 + 2 — documentation
+
+**Constat mesuré** — depuis le 2026-09-01, 156 commits `docs` pour 34 `feat`. À l'ouverture :
+- `README.md` pesait **85 091 octets** ;
+- le code versionné portait **97 blocs** de commentaires de plus de trois lignes et
+  **48 docstrings** sur plusieurs lignes ;
+- les consignes de travail, hors dépôt, pesaient 39 682 octets pour un budget de 40 000 ;
+- des comptes écrits en dur étaient déjà faux : « 72 tests » dans une skill et « 59 tests
+  Django » dans le hook de pré-push, pour 100, et « six formulaires » pour sept.
+
+Filet de départ, à `34d2b19` : **100 tests back**, **135 tests front**. Aucun ne bouge : le lot
+ne touche aucun code exécutable.
+
+**Décision et justification** :
+
+- couper, pas déplacer : ce qui dépassait trois lignes disparaît, et le README n'en reçoit rien ;
+- chaque ticket prouve qu'aucun code ne change. Côté Python, l'arbre syntaxique est identique une
+  fois les docstrings écartées ; côté front, le source est identique une fois les commentaires
+  retirés ;
+- les hexadécimaux de la palette partent avec leurs commentaires : 23 sur 28 ne disaient pas ce
+  que l'écran affiche. Le choix de fond, garder l'écran ou revenir à la maquette, reste dans
+  `AMELIORATIONS.md` ;
+- les consignes passent à **14 113 octets**. Elles ne gardent que les pièges qui demandent de
+  lire plusieurs fichiers ; la description du contenu de chaque fichier de test en sort ;
+- la mesure vit dans le seul hook de pré-push, comme arbitré le 2026-10-03 : pas de second
+  endroit à tenir, ni en CI ni ailleurs.
+
+**Ce qui a surpris** — trois constats.
+
+**Le plan comptait trois fois trop peu.** Il annonçait 31 blocs. L'epic en a mesuré 97, en
+comptant les exemples d'environnement (42 blocs à eux seuls) et tout le code au lieu des seuls
+fichiers de tête.
+
+**Raccourcir a fait trouver des commentaires faux.** Celui des quotas de `base.py` les disait
+« comptés par IP », alors qu'un membre connecté l'est par compte. Deux commentaires du Dockerfile
+backend se trompaient sur le calcul des workers et sur l'entrypoint. Celui de `cx()` disait qu'un
+`false` sèmerait des espaces, alors que `join` écrit le mot « false ». Noyé dans un bloc de six
+lignes, aucun ne se voyait.
+
+**Les hexadécimaux retirés étaient la seule trace de la maquette.** Aucun lien ni aucune capture
+n'est versionné. Qui voudra revenir à la maquette les retrouvera au parent de `48406ef`.
+
+Le lot pèse **695 insertions pour 2 156 suppressions** sur 40 fichiers, en 23 commits, tous
+`docs`. Le Markdown versionné y compte pour 342 insertions et 1 259 suppressions.
+
+**Preuve de la correction** — rejouée sur `preprod` à `0eb258a`.
+- Le hook de pré-push rend `Tout passe` : consignes à 14 113 octets, `README.md` à 26 489, aucun
+  bloc de commentaire de plus de trois lignes.
+- Le même hook, avec un bloc de quatre lignes ajouté à `cx.ts`, refuse le push et nomme
+  `frontend/src/lib/cx.ts:6`. Le bloc retiré, il passe.
+- Back : `Ran 100 tests` puis `OK`. Front : `npm run lint` ne rend rien, `npm test` rend
+  `Tests  135 passed (135)`, et `npm run build` aboutit.
+
 ## Lot 14 — Documentation et clôture
 
 Clos le 2026-10-03 · Epic #229 · Alimente : Bloc 1 + 2 — documentation
