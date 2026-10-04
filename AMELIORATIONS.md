@@ -153,7 +153,7 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
 
 - [ ] **Des fins de ligne redisent encore le code.** L'issue #263 a retiré celles que son
       ticket nommait, pas les autres : dans `config/settings/base.py`, celles de
-      `rest_framework`, `corsheaders`, du middleware CORS, de l'authentification JWT et de
+      `rest_framework`, `corsheaders`, de l'authentification JWT et de
       `REFRESH_TOKEN_LIFETIME` ; dans `production.py`, les cinq des réglages de sécurité ; dans
       `accounts/models.py`, celles d'`is_active`, `is_staff`, `USERNAME_FIELD` et
       `REQUIRED_FIELDS`. Repéré à la revue de l'issue #263. Piste : ne garder que celles qui
