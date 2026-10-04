@@ -2,18 +2,22 @@
 
 Blog avec espace membre : API REST en Django et interface en React.
 
-Le projet est séparé en deux applications indépendantes qui se parlent par HTTP :
-
 | Dossier | Rôle | Port en développement |
 |---|---|---|
 | `backend/` | API REST — Django 6 + Django REST Framework, authentification par JWT | `8000` |
 | `frontend/` | Interface — React 19 + TypeScript + Vite + Tailwind CSS 4 | `5173` |
 
+**Sommaire** : [Prérequis](#prérequis) · [Installation](#installation) ·
+[Lancer le projet](#lancer-le-projet) · [Tester](#tester) · [Commandes utiles](#commandes-utiles) ·
+[Déployer](#déployer) · [Configuration par environnement](#configuration-par-environnement) ·
+[L'API](#lapi) · [Structure](#structure) · [Contribuer](#contribuer) ·
+[Résolution de problèmes](#résolution-de-problèmes)
+
 ## Prérequis
 
 - Python 3.12 ou plus récent
 - Node.js 22 ou plus récent
-- Docker avec Compose v2 (`docker compose version`) — la base de données tourne dans un conteneur
+- Docker avec Compose v2 (`docker compose version`)
 - Git
 
 ## Installation
@@ -22,27 +26,15 @@ Le projet est séparé en deux applications indépendantes qui se parlent par HT
 
 ### 1. La configuration
 
-Le projet ne démarre pas sans configuration : les valeurs sensibles ne sont pas
-dans le code, elles sont lues depuis des fichiers `.env` que chacun crée chez lui.
-
-Il y en a **deux**, et ils ne sont pas interchangeables :
+Deux fichiers `.env`, jamais versionnés. Vite ne lit que celui de `frontend/`, et tout ce qu'il
+y lit part **en clair** dans le JavaScript servi au navigateur.
 
 ```bash
 cp .env.example .env                    # Django et Docker Compose
 cp frontend/.env.example frontend/.env  # le front, lu par Vite
 ```
 
-Pourquoi deux : Vite ne lit que les `.env` situés à la racine de son propre
-projet, donc `frontend/`. Une variable posée à la racine du dépôt lui resterait
-invisible. Le second ne contient d'ailleurs aucun secret — tout ce que Vite y
-lit part **en clair** dans le JavaScript servi au navigateur.
-
-Un troisième, `.env.prod`, n'est nécessaire que pour lancer la **pile de
-production** : voir « Ce que la production attend de la configuration ». Rien
-de ce qui suit n'en a besoin.
-
-Puis générer une clé secrète et un mot de passe de base de données, et les coller
-dans `.env` à la place des valeurs d'exemple :
+Générer une clé secrète et un mot de passe de base, puis les coller dans `.env` :
 
 ```bash
 # DJANGO_SECRET_KEY
@@ -52,48 +44,21 @@ python3 -c 'import secrets, string; print("".join(secrets.choice(string.ascii_le
 python3 -c 'import secrets, string; a = string.ascii_letters + string.digits; print("".join(secrets.choice(a) for _ in range(32)))'
 ```
 
-> Les apostrophes sont volontairement à l'extérieur de ces commandes : entre
-> guillemets doubles, le `!` du jeu de caractères est pris par zsh et bash pour
-> un rappel d'historique, et la commande échoue sur `event not found`.
->
-> Les caractères `$` et `#` sont volontairement absents de ces jeux de
-> caractères, et c'est pourquoi on n'utilise pas ici le
-> `get_random_secret_key()` de Django, dont l'alphabet les contient.
-> Le `$` est le vrai piège : Docker Compose lit le même `.env` et y voit le
-> début d'une variable à substituer, donc il tronque la valeur là où Django la
-> lit entière — une panne sans cause visible, que doubler le caractère
-> n'arrange pas. Le `#` est écarté par simple précaution : il ouvre un
-> commentaire dès qu'un espace le précède, pour les deux lecteurs à la fois.
+> Ces alphabets excluent `$` et `#` : Compose lit le même `.env` et tronquerait la valeur au
+> `$`. Les apostrophes extérieures évitent que le shell interprète le `!`.
 
-Chaque variable de `.env.example` est commentée : lire ce fichier suffit à comprendre à quoi elle sert.
-
-> Le `.env` ne doit **jamais** être envoyé sur GitHub. Il est déjà exclu par `.gitignore`.
-> Une clé secrète qui a été versionnée est à considérer comme compromise : il faut en générer une autre.
+Chaque variable est commentée dans `.env.example`. Une clé secrète versionnée par erreur est
+compromise : en générer une autre.
 
 ### 2. La base de données
 
-PostgreSQL tourne dans un conteneur, décrit par `compose.dev.yaml`. Depuis la
-racine :
-
 ```bash
 docker compose -f compose.dev.yaml up -d --wait db
-```
-
-`db` à la fin : sans lui, Compose démarre aussi l'API et le front, et construit
-leurs images — utile plus tard, inutile pour les deux étapes qui suivent.
-
-`--wait` rend la main seulement quand la base répond vraiment, et non dès que le
-conteneur est lancé : l'étape suivante peut donc enchaîner sans attendre.
-
-```bash
 docker compose -f compose.dev.yaml ps     # le service `db` doit être `healthy`
 ```
 
-> Le `-f` n'est pas facultatif, et il vaut pour toutes les commandes. Il n'y a
-> **pas** de `compose.yaml` dans ce dépôt : chaque pile a son fichier, et une
-> commande qui oublie le `-f` s'arrête sur `no configuration file provided`
-> plutôt que de viser la mauvaise pile. `export COMPOSE_FILE=compose.dev.yaml`
-> le pose une fois pour toutes dans le terminal.
+Le `-f` est obligatoire pour **toutes** les commandes Compose : il n'y a pas de `compose.yaml`.
+`export COMPOSE_FILE=compose.dev.yaml` le pose pour la durée du terminal.
 
 ### 3. Le backend
 
@@ -102,7 +67,7 @@ cd backend
 python3 -m venv venv
 source venv/bin/activate          # Windows : venv\Scripts\activate
 pip install -r requirements.txt
-python manage.py migrate          # exige que la base soit démarrée
+python manage.py migrate
 ```
 
 ### 4. Le frontend
@@ -114,354 +79,248 @@ npm install
 
 ## Lancer le projet
 
-Deux façons, au choix.
-
-**Tout en conteneur** — une seule commande, sans venv ni `npm install`. Les
-étapes *3. Le backend* et *4. Le frontend* deviennent facultatives ; **pas**
-l'étape *1. La configuration* : le front lit `frontend/.env` par le montage, et
-s'arrête au chargement sans lui.
+**Tout en conteneur**, sans venv ni `npm install` — l'étape 1 reste nécessaire :
 
 ```bash
 docker compose -f compose.dev.yaml up -d --wait
 ```
 
-L'interface répond alors sur http://localhost:5173 et l'API sur
-http://localhost:8000. Le code des deux applications est monté depuis le dépôt :
-modifier un composant React ou un fichier Python recharge le service concerné
-sans reconstruire d'image. Détail dans « La stack complète avec Compose ».
+L'interface répond sur http://localhost:5173, l'API sur http://localhost:8000. Le code est
+monté : une modification recharge le service sans reconstruire d'image.
 
-**Ou les deux applications sur la machine**, avec la seule base en conteneur —
-plus rapide à itérer, et le débogueur reste à portée :
+**Ou les deux applications sur la machine**, avec la base et le serveur de mail en conteneur :
 
 ```bash
-docker compose -f compose.dev.yaml up -d --wait db
-```
+docker compose -f compose.dev.yaml up -d --wait db mailpit
 
-Puis **deux terminaux**, un par application.
-
-```bash
-# terminal 1 — l'API sur http://localhost:8000
+# terminal 1 — l'API
 cd backend && source venv/bin/activate && python manage.py runserver
 
-# terminal 2 — l'interface sur http://localhost:5173
+# terminal 2 — l'interface
 cd frontend && npm run dev
 ```
 
-Pour accéder à l'administration Django (`http://localhost:8000/admin/`), créer d'abord un compte :
+Créer un compte administrateur (`http://localhost:8000/admin/`), puis publier 30 articles de
+démonstration — la commande refuse de tourner quand `DEBUG` vaut faux :
 
 ```bash
 # applications lancées sur la machine
-cd backend && python manage.py createsuperuser
+cd backend
+python manage.py createsuperuser
+python manage.py peupler_articles
 
 # applications lancées par la pile de développement
 docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
-```
-
-Pour remplir `/blog` au-delà d'une page, publier 30 articles de démonstration :
-
-```bash
-# applications lancées sur la machine
-cd backend && python manage.py peupler_articles
-
-# applications lancées par la pile de développement
 docker compose -f compose.dev.yaml exec backend python manage.py peupler_articles
 ```
 
-Relancée, la commande ne crée aucun doublon : elle republie seulement les articles de
-démonstration supprimés depuis. Elle les signe d'un compte `auteur-demo@example.com`, inactif et
-sans mot de passe, et refuse de tourner quand `DEBUG` vaut `False` — la base de production n'est
-jamais peuplée.
+Un compte inscrit par le site est créé **inactif** : l'activer depuis l'administration.
+
+### Le serveur de mail du développement
+
+Mailpit reçoit tous les emails envoyés en développement et les affiche sur
+**http://127.0.0.1:8025** au lieu de les livrer. Sans lui, la réinitialisation de mot de passe
+répond quand même `200` et l'échec ne paraît que dans les journaux. Envoyer un message d'essai :
+
+```bash
+cd backend && python manage.py shell -c \
+  "from django.core.mail import send_mail; print(send_mail('essai', 'corps', None, ['test@site.fr']))"
+```
+
+## Tester
+
+```bash
+# backend, depuis backend/ avec le venv activé et la base démarrée
+DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test
+DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test articles.tests.NomDuTest.test_cas
+
+# frontend, depuis frontend/ — ni base ni API nécessaires
+npm run lint
+npm test
+npm run build
+```
+
+La suite backend crée et détruit une base `test_<POSTGRES_DB>`. Les tests Vitest vivent à côté
+de leur source, sous le nom `<source>.test.ts` (`.test.tsx` pour un composant).
+
+### Le parcours en navigateur
+
+`npm run test:e2e` ouvre un vrai Chromium sur le site et le fait parler à l'API : connexion et
+déconnexion. Le navigateur s'installe une fois par machine (660 Mo) :
+
+```bash
+cd frontend
+npx playwright install chromium   # --with-deps ajoute les bibliothèques système, avec sudo
+```
+
+Il faut la pile de développement debout et un compte **actif** :
+
+```bash
+docker compose -f compose.dev.yaml up -d --wait
+docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
+
+cd frontend
+E2E_EMAIL=... E2E_PASSWORD=... npm run test:e2e
+```
+
+- L'API n'accepte que cinq connexions par minute : relancée dans la minute, la suite reçoit
+  un `429`. Attendre une minute.
+- Sur échec, une trace rejoue le parcours pas à pas. Elle contient le mot de passe en clair :
+  ne pas la transmettre.
+
+```bash
+npx playwright show-trace test-results/<dossier-du-cas>/trace.zip
+```
+
+### Intégration continue
+
+Deux workflows partent à chaque push sur `preprod` ou `main` et sur chaque pull request qui
+vise l'une des deux. Aucun ne publie rien.
+
+| Workflow | Jobs | Ce qu'il lance |
+|---|---|---|
+| `.github/workflows/tests.yml` | `backend`, `frontend` | la suite Django sur PostgreSQL 17 ; `npm run lint`, `npm test`, `npm run build` |
+| `.github/workflows/docker-images.yml` | `backend`, `frontend` | la construction des deux images, le front en cible `prod` |
+
+Le parcours Playwright n'y tourne pas. Reproduire la construction des images à partir du dernier
+commit, sans rien de non versionné :
+
+```bash
+mkdir -p /tmp/weeb-propre && git archive HEAD | tar -x -C /tmp/weeb-propre
+docker build --no-cache -t weeb-backend:ci /tmp/weeb-propre/backend
+docker build --no-cache -t weeb-frontend:ci \
+  --target prod --build-arg VITE_API_URL=/api /tmp/weeb-propre/frontend
+docker image rm weeb-backend:ci weeb-frontend:ci
+```
 
 ## Commandes utiles
 
-### Backend (depuis `backend/`, environnement virtuel activé)
+### Backend (depuis `backend/`, venv activé)
 
 | Commande | Effet |
 |---|---|
 | `python manage.py runserver` | Démarre l'API |
-| `python manage.py migrate` | Applique les migrations à la base |
+| `python manage.py migrate` | Applique les migrations |
 | `python manage.py makemigrations` | Crée une migration après un changement de modèle |
 | `python manage.py createsuperuser` | Crée un compte administrateur |
 | `python manage.py peupler_articles` | Publie 30 articles de démonstration, en développement seulement |
-| `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` | Lance les tests |
-| `python manage.py check --deploy` | Vérifie la configuration de sécurité avant mise en ligne |
-| `python manage.py collectstatic --noinput` | Rassemble les fichiers statiques pour la production |
+| `python manage.py flushexpiredtokens` | Purge les jetons expirés de la liste noire |
+| `python manage.py check --deploy` | Contrôle la configuration de sécurité avant mise en ligne |
+| `python manage.py collectstatic --noinput` | Rassemble les fichiers statiques |
 
-### Base de données (depuis la racine)
+### Frontend (depuis `frontend/`)
 
 | Commande | Effet |
 |---|---|
-| `docker compose -f compose.dev.yaml up -d --wait db` | Démarre la **seule** base et attend qu'elle réponde |
-| `docker compose -f compose.dev.yaml ps` | Affiche l'état du service et sa santé |
-| `docker compose -f compose.dev.yaml logs -f db` | Suit les journaux de PostgreSQL |
-| `docker compose -f compose.dev.yaml exec db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB'` | Ouvre une console SQL sur la base |
+| `npm run dev` | Démarre l'interface avec rechargement à chaud |
+| `npm run build` | Vérifie les types puis compile dans `dist/` |
+| `npm run lint` | Vérifie le code avec ESLint |
+| `npm test` | Lance la suite Vitest |
+| `npm run test:e2e` | Lance le parcours Playwright contre la pile de développement |
+| `npm run preview` | Sert le résultat de `npm run build` |
+
+### Compose (depuis la racine)
+
+| Commande | Effet |
+|---|---|
+| `docker compose -f compose.dev.yaml up -d --wait` | Pile de développement : `db`, `mailpit`, `backend`, `frontend` |
+| `docker compose -f compose.dev.yaml up -d --build --wait` | La même, en reconstruisant les images |
+| `docker compose -f compose.dev.yaml ps` | État et santé des services |
+| `docker compose -f compose.dev.yaml logs -f db` | Suit les journaux d'un service |
+| `docker compose -f compose.dev.yaml exec db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB'` | Console SQL |
 | `docker compose -f compose.dev.yaml stop` | Arrête les services sans rien supprimer |
 | `docker compose -f compose.dev.yaml down` | Supprime les conteneurs, **garde** les données |
 | `docker compose -f compose.dev.yaml down -v` | Supprime aussi le volume : **toutes les données sont perdues** |
 
-Le `-f` se répète à chaque ligne, et c'est voulu — voir l'encadré de l'étape
-*2. La base de données*. `export COMPOSE_FILE=compose.dev.yaml` dispense de le
-taper pour toute la durée du terminal.
-
-### La stack complète avec Compose (depuis la racine)
-
-**Deux fichiers autonomes**, un par pile, et jamais de condition dans un fichier
-unique. Aucune fusion : chacun se lit de bout en bout.
-
-| Fichier | Rôle |
-|---|---|
-| `compose.dev.yaml` | le développement : code monté, ports publiés sur `127.0.0.1`, rechargement à chaud |
-| `compose.prod.yaml` | la production : images figées, redémarrage automatique, base coupée du monde, ports publiés sur `127.0.0.1` seulement |
-
-```bash
-# développement
-docker compose -f compose.dev.yaml up -d --wait
-
-# production
-docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60
-```
-
-Le front répond alors sur **http://127.0.0.1:8081/** et l'API sur
-**http://127.0.0.1:8001/**, sur la boucle locale et nulle part ailleurs. La base,
-elle, ne publie rien du tout.
-
-**Cette pile ne termine pas le TLS et ne s'ouvre pas au réseau** : les deux
-tâches reviennent au nginx **du serveur**, qui tourne hors de Compose et met le
-site et l'API sur la même origine. Sans lui, la pile fonctionne mais n'est
-joignable que depuis la machine — c'est ce qu'on veut sur un poste. Sa
-configuration de référence est plus bas, § « Déployer derrière le nginx du
-serveur » : elle n'est pas facultative, l'API répond `301` à toute requête en
-clair.
-
-Les deux fichiers se ressemblent — une cinquantaine de lignes leur sont
-communes, et c'est le prix assumé de leur lisibilité. Un socle partagé les
-économiserait, mais la fusion qu'il impose coûtait plus cher : trois règles
-n'existaient que par elle et n'ont plus d'objet — l'override chargé d'office et
-les `-f` qu'il rendait obligatoires d'un seul côté, l'entrée héritée qu'on peut
-ajouter mais jamais retirer, et l'ordre de concaténation des `env_file`,
-aujourd'hui écrit dans le fichier. Le piège du **nom des images**, lui, reste
-entier : voir plus bas.
-
-`--wait-timeout` n'est pas un ornement : les services de production repartent en
-`unless-stopped`, donc un backend qui échoue au démarrage reboucle sans fin et
-`--wait` seul attendrait indéfiniment. Soixante secondes, la durée que la pile
-doit tenir de toute façon.
-
-> ⚠️ **Le `-f` vaut pour TOUTES les commandes**, pas seulement `up`. Il n'y a
-> pas de `compose.yaml` dans ce dépôt : une commande qui l'oublie s'arrête sur
-> `no configuration file provided: not found`, et c'est exactement ce qu'on
-> attend d'elle. Tant qu'un socle existait, la même commande visait le projet du
-> développement et échouait **en silence** — `docker compose down` y supprimait
-> les mauvais conteneurs, répondait « done », et laissait la production tourner.
-
-```bash
-docker compose -f compose.prod.yaml ps
-docker compose -f compose.prod.yaml logs -f backend
-docker compose -f compose.prod.yaml exec backend python manage.py createsuperuser
-docker compose -f compose.prod.yaml down
-
-# ou, une fois pour toutes dans le terminal qui pilote la production :
-export COMPOSE_FILE=compose.prod.yaml
-```
+Les deux piles sont deux projets Compose distincts, `weeb` et `weeb-prod` : un `down -v` de
+l'une ne touche pas l'autre, et elles peuvent tourner ensemble.
 
 | | développement | production |
 |---|---|---|
-| fichier | `compose.dev.yaml` | `compose.prod.yaml` |
 | services | `db`, `mailpit`, `backend`, `frontend` | `db`, `backend`, `frontend` |
-| mail | Mailpit, SMTP sur `127.0.0.1:1025`, interface sur `127.0.0.1:8025` | **aucun service** : ce sera un vrai relais |
-| front | Vite sur `5173`, code monté | nginx dans l'image, publié sur `127.0.0.1:8081` |
-| API | `runserver` sur `8000`, code monté | Gunicorn, aucun montage, publié sur `127.0.0.1:8001` |
-| base | publiée sur `127.0.0.1:5432` | **aucun port publié**, réseau `interne` fermé |
-| entrée | cinq ports en clair, tous sur la boucle locale | deux ports en clair, sur la boucle locale, derrière le nginx du serveur |
-| redémarrage | aucun | `unless-stopped` sur les trois services |
-| images | `weeb-backend:dev`, `weeb-frontend:dev` | `weeb-backend:prod`, `weeb-frontend:prod` |
-| projet Compose | `weeb`, volume `weeb_db_data` | `weeb-prod`, volumes `weeb-prod_db_data` et `weeb-prod_static_data` |
+| front | Vite sur `127.0.0.1:5173`, code monté | nginx sur `127.0.0.1:8081` |
+| API | `runserver` sur `127.0.0.1:8000`, code monté | Gunicorn sur `127.0.0.1:8001` |
+| base | publiée sur `127.0.0.1:5432` | non publiée |
+| mail | Mailpit, SMTP `1025`, interface `8025` | un vrai relais |
 
-Les deux piles portent des **noms de projet différents**, posés par le `name:` en
-tête de chaque fichier : sans lui, Compose déduit le nom du répertoire du dépôt,
-le même pour les deux, et elles partageraient tout. Chacune a donc ses conteneurs,
-ses réseaux et ses volumes : un `down -v` lancé en développement ne touche pas
-aux données de la production, et l'inverse est vrai aussi. Les deux jeux de ports
-ne se recouvrent pas non plus, et **les deux piles peuvent tourner en même
-temps** — le développement sur `5173`, `8000`, `5432`, `1025` et `8025`, la
-production sur `8081` et `8001`. C'est la raison d'être de `BACKEND_PORT_PROD`
-et `FRONTEND_PORT_PROD` : réutiliser les variables du développement remettrait
-les deux piles sur le même port, et le `up` de la seconde échouerait en
-`port is already allocated`. La même erreur vient d'un autre projet de la machine
-qui tient déjà le port de l'API ou du front : le déplacer dans le `.env`, et reporter
-les deux lignes que `.env.example` nomme au-dessus de `BACKEND_PORT_DEV`.
+### Images Docker (depuis la racine)
 
-Les services démarrent en file, chacun attendant que le précédent soit
-`healthy` : base et serveur de mail, puis API, puis front. `up --wait` rend donc
-la main quand la pile entière répond.
+| Commande | Effet |
+|---|---|
+| `docker build -t weeb-backend ./backend` | Construit l'image de l'API (Gunicorn, compte non-root) |
+| `docker build --target dev -t weeb-frontend-dev ./frontend` | Image de développement du front : Vite, ~650 Mo |
+| `docker build --target prod -t weeb-frontend --build-arg VITE_API_URL=/api ./frontend` | Image de production du front : nginx sur le port 8080, ~74 Mo |
+| `docker image ls 'weeb-*'` | Taille des images |
+| `docker run --rm weeb-backend id -u` | Doit rendre autre chose que `0` |
+| `docker run --rm weeb-frontend which node` | Doit **échouer** : Node est absent de l'image de production |
+| `docker inspect -f '{{.State.Health.Status}}' <conteneur>` | Résultat de la sonde de santé |
 
-#### Le serveur de mail du développement
-
-Le quatrième service de `compose.dev.yaml` est **Mailpit**, un serveur SMTP
-jetable : Django lui parle comme à un vrai relais, et son interface web affiche
-les messages reçus au lieu de les livrer. C'est ce qui permet d'exercer le vrai
-code d'envoi, qu'un backend `console` court-circuiterait.
-
-`config/settings/development.py` le vise sans qu'aucune variable soit à
-renseigner : ses défauts sont `localhost` et `1025`, l'adresse de Mailpit vue
-depuis la machine. Le backend en conteneur, lui, reçoit `mailpit:1025` de
-l'`environment:` de `compose.dev.yaml`. Vérifier d'un bout à l'autre :
+`VITE_API_URL` est écrite dans le JavaScript à la construction : la changer impose de
+reconstruire, et un build sans elle s'interrompt. L'image `dev` se lance avec un volume anonyme
+sur `node_modules`, sans quoi le montage du code masque celui de l'image :
 
 ```bash
-cd backend
-DJANGO_SETTINGS_MODULE=config.settings.development python manage.py shell -c \
-  "from django.core.mail import send_mail; print(send_mail('essai', 'corps', None, ['test@site.fr']))"
+docker run -d --name weeb-front-dev -p 127.0.0.1:5173:5173 \
+  -v "$PWD/frontend:/app" -v /app/node_modules weeb-frontend-dev
+docker rm -fv weeb-front-dev      # -v supprime aussi le volume anonyme
 ```
 
-`1` s'affiche et le message apparaît dans l'interface. Depuis le conteneur, le
-`cd` n'a plus lieu d'être — le répertoire de travail de l'image est déjà celui
-du projet — et seul le `manage.py shell -c` se reprend :
+## Déployer
 
-```bash
-docker compose -f compose.dev.yaml exec backend python manage.py shell -c \
-  "from django.core.mail import send_mail; print(send_mail('essai', 'corps', None, ['test@site.fr']))"
-```
+La pile de production publie le front et l'API sur `127.0.0.1` seulement. Le TLS, le routage
+et l'ouverture au réseau reviennent au nginx **du serveur**, qui tourne hors de Compose. Ne
+jamais publier ces ports sur `0.0.0.0` : n'importe qui pourrait alors forger `X-Forwarded-Proto`.
 
-> ⚠️ **`up -d --wait db` seul ne suffit plus** pour travailler dans le venv dès
-> qu'un envoi est en jeu : sans Mailpit, la connexion SMTP est refusée. La
-> réinitialisation de mot de passe ne le dira pas — elle répond `200` quoi qu'il
-> arrive, pour ne pas trahir l'existence du compte, et l'échec ne part que dans
-> les journaux du serveur. Lancer `db mailpit`.
-
-`EMAIL_TIMEOUT` borne l'attente à 10 secondes, dans les deux environnements.
-Python n'en pose aucune par défaut : l'envoi étant synchrone et déclenché depuis
-une vue publique, un relais qui ne répond pas immobiliserait le worker. La
-variable se déplace par le `.env` de la racine.
-
-**Interface web : http://127.0.0.1:8025** — les messages y arrivent en direct.
-Ils vivent en mémoire : un `down` les efface, ce qui est très bien pour du
-développement.
-
-Ce service n'existe **que** dans la pile de développement. `compose.prod.yaml`
-ne le connaît pas, la CI non plus : en ligne, Django s'adressera à un vrai
-relais.
-
-Pour le lancer avec la base seule, les deux applications tournant sur la
-machine :
-
-```bash
-docker compose -f compose.dev.yaml up -d --wait db mailpit
-```
-
-Son port SMTP est publié sur `127.0.0.1:1025` pour cette raison précise — ce
-sera la voie du backend lancé dans le venv, exactement comme pour la base. Le
-backend en conteneur, lui, passera par le réseau `interne` et visera
-`mailpit:1025`. Les deux ports côté machine se déplacent par
-`MAILPIT_SMTP_PORT_DEV` et `MAILPIT_UI_PORT_DEV`, du `.env` de la racine.
-
-#### Ce que la production attend de la configuration
-
-Six variables séparent la production du développement. Elles ne vivent pas dans
-le `.env`, où les deux jeux se contrediraient sans que rien ne le signale, mais
-dans un fichier à part que la seule pile de production charge **par-dessus** :
+### La configuration de production
 
 ```bash
 cp .env.prod.example .env.prod
 ```
 
+`compose.prod.yaml` charge `.env` puis `.env.prod`, le second gagnant variable par variable :
+
 | Variable | Valeur | Pourquoi |
 |---|---|---|
-| `POSTGRES_SSLMODE` | `disable` | `postgres:17-alpine` ne sert pas de TLS, alors que les réglages de production exigent `require`. Le lien ne quitte jamais le réseau `interne` |
-| `DJANGO_BEHIND_PROXY` | `1` | sans lui, la redirection HTTPS répond 301 à la sonde et le backend reste `unhealthy`. Cette valeur suppose que le nginx du serveur **écrase** `X-Forwarded-Proto`, et elle est bornée par le fait que la pile ne publie ses ports que sur `127.0.0.1` |
-| `CORS_ALLOWED_ORIGINS` | **vide** | le nginx du serveur sert le front et l'API sur la même origine : il n'y a plus rien à autoriser. La ligne doit rester, vide : elle **remplace** celle du `.env`, et l'omettre ferait hériter la production des origines Vite du développement |
-| `DJANGO_HSTS_SECONDS` | `0` | tant que la pile tourne sur un poste, elle est jointe sur `localhost`, le nom d'hôte de la pile de développement. Un HSTS posé sur `localhost` vaut pour **tous ses ports** : le navigateur refuserait ensuite `http://localhost:5173`. Monter les paliers le jour où il y a un vrai domaine |
-| `EMAIL_HOST` | le relais SMTP | **exigée** : sans elle le backend refuse de démarrer en nommant la variable. Le développement s'en passe, ses réglages ayant `localhost:1025` — Mailpit — pour défaut |
-| `FRONTEND_URL` | l'adresse publique du **front** | **exigée** aussi. C'est la racine des liens écrits DANS les emails, celui de réinitialisation de mot de passe en tête — `FRONTEND_URL` + `/reset-password?uid=…&token=…` : le destinataire clique vers une page React, pas vers un endpoint |
+| `POSTGRES_SSLMODE` | `disable` | la base ne sert pas de TLS et ne quitte pas le réseau `interne` |
+| `DJANGO_BEHIND_PROXY` | `1` | Django croit le `X-Forwarded-Proto` que le nginx du serveur écrase |
+| `CORS_ALLOWED_ORIGINS` | **vide** | site et API sur la même origine. La ligne doit rester : omise, la production hériterait des origines du développement |
+| `DJANGO_HSTS_SECONDS` | `0` | tant que la pile est jointe sur `localhost` ; monter par paliers avec un vrai domaine |
+| `EMAIL_HOST` | le relais SMTP | **exigée** : le backend refuse de démarrer sans |
+| `FRONTEND_URL` | l'adresse publique du front | **exigée** : racine des liens écrits dans les emails |
 
-> ⚠️ **Les deux dernières ne surchargent rien, elles ajoutent.** Les quatre
-> premières corrigent une valeur que le `.env` donne déjà ; `EMAIL_HOST` et
-> `FRONTEND_URL` n'y figurent pas — `.env.example` les laisse commentées
-> exprès. Décommentée là-bas et oubliée ici, `EMAIL_HOST=localhost` serait
-> **héritée** : `env_required` ne verrait rien de vide, la production
-> démarrerait, et croirait envoyer ses messages. Même piège que
-> `CORS_ALLOWED_ORIGINS`, en plus silencieux.
+Les autres lignes de `.env.prod.example` (expéditeur, port, identifiants SMTP) restent toutes
+décommentées : supprimée, une ligne hérite de la valeur du `.env`, réglée pour Mailpit.
+`VITE_API_URL` et les ports restent dans le `.env` : Compose les interpole lui-même.
+`DJANGO_ALLOWED_HOSTS` doit contenir le domaine, et garder `127.0.0.1` pour la sonde.
 
-Le tableau ne porte que les six qui tranchent quelque chose. `.env.prod.example`
-en pose quelques autres autour du relais SMTP — expéditeur, port, délai de garde,
-identifiants, STARTTLS — **toutes décommentées**, y compris celles qui reprennent le défaut du
-code : supprimer une de ces lignes ne fait pas retomber sur ce défaut, elle fait
-hériter du `.env`. Le modèle commente chacune.
+```bash
+docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60
+docker compose -f compose.prod.yaml ps
+docker compose -f compose.prod.yaml logs -f backend
+docker compose -f compose.prod.yaml exec backend python manage.py createsuperuser
+docker compose -f compose.prod.yaml down
+```
 
-> ⚠️ **`DJANGO_BEHIND_PROXY=1` ne se justifie plus tout seul.** Du temps où un
-> service `proxy` était la seule porte de la pile, personne ne pouvait parler au
-> backend sans passer par lui : l'en-tête forgé était impossible. Aujourd'hui le
-> backend publie un port, et **tout processus de la machine** peut y poser un
-> `X-Forwarded-Proto: https` et contourner la redirection HTTPS de Django. Ce
-> qui limite la portée est le `127.0.0.1:` du `ports:`, qui ferme le réseau.
-> C'est une atténuation, pas la garantie d'avant : ne jamais publier ces deux
-> ports sur `0.0.0.0`.
+Sans `--wait-timeout`, `--wait` attend indéfiniment un service qui reboucle. Vérifier la pile
+avant de mettre nginx devant :
 
-`VITE_API_URL` n'est pas dans ce tableau et reste dans le `.env` de la racine,
-d'où Compose la passe en argument de build au front. Elle vaut **`/api`**,
-un chemin relatif : le nginx du serveur met le site et l'API sur la même origine,
-donc le bundle n'a plus d'hôte à connaître. C'est ce qui rend l'image du front
-indépendante de l'adresse publique du site — elle n'était jusqu'ici valable que
-pour une seule cible, l'adresse étant écrite **dans le bundle** à la
-construction, pas lue au démarrage. Une façade qui servirait l'API sur un autre
-hôte que le site imposerait de revenir à une adresse absolue **et** de remplir
-`CORS_ALLOWED_ORIGINS` : les deux lignes tiennent ensemble.
+```bash
+curl -sI http://127.0.0.1:8081/ | head -1                      # 200 — le front
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/api/articles/   # 200 — l'API
+curl -sI http://127.0.0.1:8001/api/articles/ | head -1          # 301 attendu sans nginx
+```
 
-`compose.prod.yaml` déclare les **deux** fichiers sur son backend, dans cet
-ordre — `env_file: [.env, .env.prod]` — et le dernier de la liste l'emporte
-variable par variable. Tout ce que le `.env` apporte reste donc en place — clé
-secrète, identifiants de base, hôtes autorisés — et seules les surcharges sont
-réécrites : les quatre du tableau, `POSTGRES_SSLMODE`, `DJANGO_BEHIND_PROXY`,
-`CORS_ALLOWED_ORIGINS` et `DJANGO_HSTS_SECONDS`, puis le bloc du relais SMTP.
-L'ordre est écrit dans le fichier, il ne se déduit plus d'une règle de fusion.
+### Déployer derrière le nginx du serveur
 
-> ⚠️ **`env_file` n'alimente que l'intérieur du conteneur.** Ce qu'un fichier
-> Compose interpole lui-même avec `${...}` ne se lit que dans le `.env` de la
-> racine, et n'a donc rien à faire dans `.env.prod` :
->
-> | Déplacée par erreur | Ce qui se passe |
-> |---|---|
-> | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `VITE_API_URL` | démarrage refusé, la variable nommée : elles s'écrivent `${VAR:?message}` |
-> | `BACKEND_PORT_PROD`, `FRONTEND_PORT_PROD` | **rien de visible** : le repli `${VAR:-défaut}` s'applique et la production démarre sur un autre port que celui voulu |
-> | `POSTGRES_PORT`, `BACKEND_PORT_DEV`, `FRONTEND_PORT_DEV`, `MAILPIT_SMTP_PORT_DEV`, `MAILPIT_UI_PORT_DEV` | rien en production, qui ne les interpole pas : `compose.dev.yaml` est seul à le faire. C'est le **développement** qu'on déplace alors sur d'autres ports, sans le voir |
->
-> Les trois `POSTGRES_*` sont le piège de ce tableau : elles sont lues **des deux
-> côtés**, par Compose pour créer la base et par Django dans le conteneur. Être
-> lue dans le conteneur ne suffit donc pas à autoriser le déplacement — la règle
-> est qu'**aucun fichier Compose ne doit l'interpoler**.
->
-> Un cas à part, à ne pas confondre avec la troisième ligne : ce que Django lit
-> dans le conteneur pour `POSTGRES_HOST` et `POSTGRES_PORT` ne vient d'aucun
-> `env_file`, l'`environment:` du service imposant `db:5432` par-dessus. Les
-> poser dans `.env.prod` ne changerait donc rien à la connexion à la base.
->
-> `.env.prod` manquant, `up` s'arrête avant de rien démarrer, en nommant le
-> chemin attendu — `ps`, `logs` et `down` continuent de fonctionner, une pile
-> déjà lancée reste donc arrêtable.
-
-#### Déployer derrière le nginx du serveur
-
-La pile publie deux ports en clair sur `127.0.0.1` et **s'arrête là**. Trois
-choses manquent pour qu'un site existe, et elles reviennent toutes au nginx du
-serveur, qui tourne hors de Compose :
-
-| Ce qui manque | Pourquoi c'est lui |
-|---|---|
-| le TLS | il a déjà certbot et un vrai domaine ; empiler un second terminateur ne servirait à rien |
-| le routage `/api/` et `/admin/` vers l'API | la pile ne le fait nulle part : `frontend/nginx.conf` sert le site React et ignore ces chemins |
-| l'ouverture au réseau | rien dans la pile n'écoute ailleurs que sur la boucle locale |
-
-Sans cette configuration, la pile démarre et se déclare saine, mais l'API répond
-`301` à toute requête en clair et le site est injoignable de l'extérieur.
-
-**Le bloc à reprendre**, à adapter sur le domaine et les chemins de certificats :
+Cette configuration n'est pas facultative : sans elle, l'API répond `301` à toute requête en
+clair. À adapter au domaine et aux chemins des certificats :
 
 ```nginx
 # /etc/nginx/sites-available/weeb
 
-# ⚠️ Tout `Host` inconnu : aucune réponse. Sans ce bloc, le serveur suivant
-# devient le `default_server` de ces quatre sockets et répond à N'IMPORTE QUEL
-# `Host` — la redirection réfléchirait alors dans son en-tête `Location` une
-# valeur forgée par le client. 444 ferme la connexion sans rien renvoyer.
+# Tout Host inconnu : connexion fermée. Sans ce bloc, le serveur suivant répondrait
+# à n'importe quel Host et sa redirection réfléchirait une valeur forgée.
 server {
     listen 80  default_server;
     listen [::]:80 default_server;
@@ -470,33 +329,19 @@ server {
 
     server_tokens off;
 
-    # Obligatoires sur un bloc SSL, même pour ne rien servir.
     ssl_certificate     /etc/letsencrypt/live/weeb.example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/weeb.example.com/privkey.pem;
 
-    # ⚠️ `ssl_protocols` VA ICI, et n'a aucun effet ailleurs : la version est
-    # arrêtée AVANT que le SNI ne désigne un serveur, donc c'est le bloc par
-    # défaut de la socket qui la gouverne, pour TOUS les noms qu'elle sert.
-    # Mesuré sur nginx 1.22 : la même ligne posée dans le serveur nommé plus bas
-    # ne change rien, et une requête en TLS 1.0 y est servie 200.
-    #
-    # Et il faut la redéclarer : le nginx.conf de Debian 12 pose
-    # `ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;` en contexte http, dont on
-    # hérite sinon.
+    # La version se négocie avant le SNI : c'est le default_server qui la fixe pour
+    # tous les noms. Posée dans le serveur nommé, elle n'a aucun effet.
     ssl_protocols       TLSv1.2 TLSv1.3;
 
-    # Les deux suivantes, en revanche, se choisissent PAR SERVEUR : la suite est
-    # négociée après le SNI. Elles sont donc répétées dans le serveur nommé, et
-    # les omettre là-bas y laisserait le `HIGH:!aNULL:!MD5` de Debian — mesuré :
-    # un client n'offrant que AES256-SHA, RSA statique et sans confidentialité
-    # persistante, obtient alors un 200.
+    # La suite se négocie après le SNI : elle est donc répétée dans le serveur nommé.
     ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers off;
 
     ssl_session_cache   shared:SSL:10m;
     ssl_session_timeout 1d;
-    # Les tickets de session rejouent une clé sur tous les tampons : sans
-    # rotation, ils affaiblissent la confidentialité persistante.
     ssl_session_tickets off;
 
     return 444;
@@ -509,22 +354,12 @@ server {
 
     server_tokens off;
 
-    # AVANT la redirection : le défi de certbot en mode `--webroot` est servi en
-    # clair. Sans cette `location` il suivrait le 301, tomberait dans le
-    # `location /` du bloc chiffré, et recevrait l'index React à la place du
-    # jeton — le renouvellement échoue. Inutile avec `certbot --nginx`, qui
-    # écrit sa propre configuration.
+    # Le défi de certbot `--webroot` est servi en clair, avant la redirection.
     location /.well-known/acme-challenge/ {
         root /var/www/html;
     }
 
-    # Le port en clair ne relaie RIEN d'autre, il redirige. C'est ce qui rend
-    # inoffensif un X-Forwarded-Proto forgé : il n'atteint jamais Django. Et
-    # `$host` n'est sûr ici que parce que le `server_name` ci-dessus le borne.
-    #
-    # ⚠️ Dans une `location`, et non au niveau du `server` : un `return` posé
-    # là s'exécute AVANT le choix de la location et court-circuiterait le défi
-    # de certbot ci-dessus, qui recevrait le 301 au lieu de son jeton.
+    # Dans une location : au niveau du server, le return passerait avant le défi.
     location / {
         return 301 https://$host$request_uri;
     }
@@ -533,37 +368,25 @@ server {
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-    # nginx 1.25.1 et plus. En dessous — Debian 12 sert 1.22, Ubuntu 24.04 sert
-    # 1.24 — écrire `listen 443 ssl http2;` et supprimer cette ligne, sinon
-    # `nginx -t` s'arrête sur `unknown directive "http2"`.
+    # nginx 1.25.1 et plus. En dessous : `listen 443 ssl http2;` et retirer cette ligne.
     http2 on;
     server_name weeb.example.com;
 
     server_tokens off;
 
-    # Le certificat se choisit par serveur : c'est le SNI qui le désigne.
     ssl_certificate     /etc/letsencrypt/live/weeb.example.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/weeb.example.com/privkey.pem;
-
-    # ⚠️ Répétées depuis le bloc par défaut, et ce n'est pas une redondance :
-    # la suite est négociée APRÈS le SNI, donc ce bloc-ci a la sienne. Seul
-    # `ssl_protocols` reste là-haut, la version étant arrêtée avant.
     ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers off;
 
-    # ⚠️ Ces quatre en-têtes sont hérités par les `location` ci-dessous, mais
-    # seulement parce qu'aucune n'en déclare le sien : proxy_set_header ne
-    # s'hérite QUE dans ce cas. En ajouter un dans une location y ferait
-    # disparaître les quatre.
+    # Hérités par les location tant qu'aucune ne déclare le sien.
     proxy_set_header Host              $host;
     proxy_set_header X-Real-IP         $remote_addr;
-    # $remote_addr et non $proxy_add_x_forwarded_for : ce serveur est en bordure,
-    # donc la chaîne reçue du client est inventée. La relayer rendrait
-    # contournable toute restriction par IP posée en aval.
     proxy_set_header X-Forwarded-For   $remote_addr;
-    # ⚠️ LA ligne. Voir juste en dessous.
+    # $scheme écrase la valeur du client ; $http_x_forwarded_proto la relaierait.
     proxy_set_header X-Forwarded-Proto $scheme;
 
+    # Sans barre oblique finale : avec, le préfixe /api/ serait retiré et Django rendrait 404.
     location /api/ {
         proxy_pass http://127.0.0.1:8001;
     }
@@ -572,944 +395,205 @@ server {
         proxy_pass http://127.0.0.1:8001;
     }
 
-    # Tout le reste au front : le site React, et /static/ qu'il sert lui aussi.
+    # Le site React, et /static/ que le conteneur du front sert aussi.
     location / {
-        # Le jour du vrai domaine : décommenter, avec le MÊME max-age que
-        # DJANGO_HSTS_SECONDS, palier par palier. Ici et pas au niveau du
-        # `server` : Django pose déjà l'en-tête sur /api/ et /admin/, et deux
-        # en-têtes HSTS sur la même réponse ne valent pas mieux qu'un.
+        # Avec un vrai domaine : décommenter, avec le même max-age que DJANGO_HSTS_SECONDS.
         # add_header Strict-Transport-Security "max-age=3600; includeSubDomains" always;
         proxy_pass http://127.0.0.1:8081;
     }
 }
 ```
 
-Les deux ports sont ceux de `BACKEND_PORT_PROD` et `FRONTEND_PORT_PROD` : les
-changer dans le `.env` impose de les changer ici.
-
-**Activer la configuration**, la pile Compose étant **déjà démarrée** — sans elle,
-les trois `location` répondent `502` :
+Les ports `8001` et `8081` sont `BACKEND_PORT_PROD` et `FRONTEND_PORT_PROD` du `.env`. Activer,
+la pile étant déjà démarrée — sinon les trois `location` répondent `502` :
 
 ```bash
-# Le site packagé déclare son propre `default_server` : le garder ferait
-# échouer `nginx -t` sur « a duplicate default server for 0.0.0.0:80 ».
-sudo rm -f /etc/nginx/sites-enabled/default
-
+sudo rm -f /etc/nginx/sites-enabled/default    # son default_server ferait échouer nginx -t
 sudo ln -s /etc/nginx/sites-available/weeb /etc/nginx/sites-enabled/weeb
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-**Les deux serveurs ne répondent qu'à l'hôte qu'ils servent** (`server_name
-weeb.example.com`), et le bloc `default_server` ferme la connexion sur tout autre
-`Host` avec un `444`. Ce n'est pas décoratif : sur un serveur mono-site, d'où le
-`sites-enabled/default` de la distribution a été retiré, le premier bloc déclaré
-devient le `default_server` de chaque socket. La redirection en clair renverrait
-alors un `Location` construit à partir d'un `Host` forgé par le client — une
-redirection ouverte, sur le seul point d'entrée non authentifié de la façade.
-
-Ce n'est **pas** un contrôle d'accès : le site reste joignable par l'adresse IP
-du serveur avec l'en-tête `Host` qui convient. Le bloc ne borne que la valeur
-réfléchie dans `Location`.
-
-**La ligne qui justifie `DJANGO_BEHIND_PROXY=1`** :
-
-```nginx
-proxy_set_header X-Forwarded-Proto $scheme;
-```
-
-`proxy_set_header` **remplace** la valeur reçue du client, et `$scheme` est le
-protocole vu par nginx lui-même. Écrire `$http_x_forwarded_proto` à la place la
-relaierait : n'importe qui se déclarerait en HTTPS, Django le croirait, et la
-redirection serait contournée. Les deux directives se ressemblent, elles n'ont
-pas du tout le même effet.
-
-**Les réglages TLS ne vivent pas tous au même endroit, et c'est le piège de ce
-bloc.** La **version** est arrêtée avant que le SNI ne désigne un serveur : c'est
-le `default_server` de la socket qui la gouverne, pour tous les noms qu'elle
-sert. La **suite de chiffrement**, elle, est négociée après le SNI, donc chaque
-serveur a la sienne. D'où le partage, chacun vérifié par exécution sur nginx 1.22
-avec le `nginx.conf` de Debian 12 :
-
-| Directive | Où elle agit | Mesuré si on se trompe |
-|---|---|---|
-| `ssl_protocols` | le `default_server` seul | posée dans le serveur nommé : une requête en **TLS 1.0** y est servie `200` |
-| `ssl_ciphers`, `ssl_prefer_server_ciphers` | **chaque** serveur | absentes du serveur nommé : un client n'offrant que `AES256-SHA` — RSA statique, sans confidentialité persistante — obtient `200` |
-| `ssl_certificate` | chaque serveur | c'est l'objet même du SNI |
-
-Et il faut les redéclarer, plutôt que de faire confiance à la distribution : le
-`nginx.conf` de Debian 12 pose `ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;` et
-laisse `server_tokens off;` en commentaire. Sans les lignes du bloc ci-dessus, la
-façade accepte TLS 1.0 et annonce sa version de nginx.
-
-**`proxy_pass` sans barre oblique finale, et c'est délibéré.**
-`proxy_pass http://127.0.0.1:8001;` conserve le chemin complet ;
-`proxy_pass http://127.0.0.1:8001/;` remplacerait le préfixe `/api/` de la
-`location` par une barre oblique, et Django répondrait 404 sur toutes les
-routes. Une adresse littérale dispense en revanche du `resolver` et de la
-variable qu'exigeait le routage vers des noms de services Compose : `127.0.0.1`
-ne se résout pas, donc rien à mettre en cache ni à rafraîchir.
-
-> L'ordre d'écriture des trois `location`, lui, n'a **aucune importance** : ce
-> sont des préfixes, et nginx retient toujours le plus long qui correspond,
-> quelle que soit sa place dans le fichier. `/api/` l'emporte donc sur `/` sans
-> qu'on ait à les ranger. L'ordre ne compterait qu'entre expressions régulières,
-> et il n'y en a pas ici.
-
-**`/static/` n'apparaît pas dans cette configuration, et c'est voulu.** Django ne
-sert pas ses fichiers statiques avec `DEBUG = False` et l'image n'embarque pas
-whitenoise : c'est le **conteneur du front** qui les sert, par une `location
-/static/` de `frontend/nginx.conf` et le volume `static_data` que `collectstatic`
-remplit au démarrage du backend. Ils arrivent donc par le `location /`
-ci-dessus, avec le reste du site.
-
-L'alternative aurait été de les servir depuis le nginx du serveur, ce qui
-supposait de lui donner accès au volume : ni son chemin
-(`/var/lib/docker/volumes/…`) ni ses droits (`0710 root:root`) ne s'y prêtent, et
-un bind-mount à la place aurait demandé de préparer le dossier hôte sous l'uid
-`1001` avant chaque premier démarrage, faute de quoi `collectstatic` échoue. Sans
-l'admin ni l'API navigable de DRF, ces fichiers ne servent d'ailleurs personne :
-le front, lui, a ses propres assets empreintés sous `/assets/`.
-
-**Le reste de la configuration du serveur**, qui ne se devine pas :
-
-- **`DJANGO_ALLOWED_HOSTS` doit contenir le domaine.** nginx transmet `Host
-  $host`, donc le domaine réel arrive jusqu'à Django, qui répond `400` sur un
-  hôte non listé. Y laisser `127.0.0.1`, auquel s'adresse la sonde du conteneur.
-- **`CORS_ALLOWED_ORIGINS` vide et `VITE_API_URL=/api` ne sont justes que si le
-  site et l'API sont sur la même origine**, ce que fait la configuration
-  ci-dessus. Les servir sur deux hôtes — `api.weeb.example.com`, typiquement —
-  impose de remplir la première et de reconstruire l'image du front avec une
-  adresse absolue.
-- **`DJANGO_HSTS_SECONDS` reste à `0` tant que le domaine n'est pas réel**, et
-  le monter **ne suffit pas** : `SecurityMiddleware` ne pose l'en-tête que sur
-  les réponses de Django, c'est-à-dire `/api/` et `/admin/`. Les pages du site
-  sortent du conteneur du front et n'en reçoivent aucune. Avec un vrai domaine,
-  monter les paliers — `3600`, `86400`, `31536000` — **et** décommenter
-  l'`add_header Strict-Transport-Security` du `location /` ci-dessus, en lui
-  donnant le **même** `max-age` à chaque palier. Sans lui, les pages du site
-  n'ont jamais d'HSTS ; avec un `max-age` figé, le palier ne sert à rien.
-- **Un port HTTPS non standard vaut des `403 CSRF` sur l'administration.** nginx
-  transmet un `Host` sans port, que Django compare à un `Origin` qui en porte
-  un. Y remédier demande un `CSRF_TRUSTED_ORIGINS`.
-- **Limiter le débit sur `/admin/` et les routes d'authentification** est à faire
-  ici, et n'existe nulle part : voir `AMELIORATIONS.md`.
-
-**Vérifier la pile sans nginx devant**, sur un poste :
-
-```bash
-curl -sI http://127.0.0.1:8081/ | head -1
-# HTTP/1.1 200 OK          — le front
-
-curl -s -o /dev/null -w '%{http_code}\n' \
-  -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/api/articles/
-# 200                      — l'API
-
-curl -sI http://127.0.0.1:8001/api/articles/ | head -1
-# HTTP/1.1 301 Moved Permanently
-```
-
-Le `301` du troisième appel est le comportement **attendu**, pas une panne : les
-réglages de production redirigent tout le trafic en clair, et rien ne pose
-l'en-tête tant qu'aucun nginx n'est devant. `backend/healthcheck.py` le forge
-pour la même raison.
-
-#### Six pièges
-
-- **Le nom des images.** Sans `image:` explicite, Compose déduit
-  `<projet>-<service>` : pour la pile de développement, dont le projet s'appelle
-  `weeb`, cela donne `weeb-backend` et `weeb-frontend` — les noms mêmes des
-  constructions manuelles décrites ci-dessous. Il réutilise alors ces images-là
-  plutôt que de construire les siennes, **sans rien signaler** : la pile de
-  développement s'est retrouvée servie par le nginx de production. D'où les
-  étiquettes `:dev` et `:prod`, posées des deux côtés.
-- **La pile de développement laisse un `frontend/node_modules` vide sur la
-  machine**, appartenant à `root` — Docker crée le point de montage du volume
-  anonyme côté hôte. Il bloque ensuite `npm ci` et `npm run lint` en `EACCES`.
-  Le supprimer avec `rmdir frontend/node_modules` : le dossier est vide, le droit
-  d'écriture sur `frontend/` suffit, `sudo` est inutile.
-- **La sonde de la base vise `pg_isready -h 127.0.0.1`, et le `-h` n'est pas
-  décoratif.** Sans lui, `pg_isready` passe par la socket Unix, à laquelle répond
-  déjà le serveur temporaire que PostgreSQL lance pour initialiser son cluster :
-  le service serait déclaré sain une fraction de seconde avant d'écouter en TCP,
-  et le `migrate` qui suit un `up --wait` échouerait en « Connection refused ».
-  La sonde teste donc le chemin de Django, le seul qui compte. Son `start_period`
-  couvre cette initialisation, pendant laquelle les échecs ne sont pas comptés.
-- **L'entrypoint et la sonde ne sont plus ceux du dépôt.** Ils vivent dans
-  `/usr/local/bin/` depuis que le montage `./backend:/app` recouvrait leurs
-  copies sous `/app` — ce sont donc bien ceux de l'image qui s'exécutent, mais
-  éditer `backend/docker-entrypoint.sh` ou `backend/healthcheck.py` sur la
-  machine n'a plus d'effet sur le conteneur tant que l'image n'est pas
-  reconstruite (`docker compose -f compose.dev.yaml up -d --build`). Le
-  `Dockerfile` les copie **avant** son `COPY . .`, pour que leur layer survive à
-  chaque modification de code, et pose le bit exécutable par un `RUN chmod +x` :
-  en échange, celui du dépôt n'entre plus dans l'équation.
-- **La production ne se joint pas sur les ports du développement.**
-  `BACKEND_PORT_PROD` et `FRONTEND_PORT_PROD` valent `8001` et `8081`, et non
-  `8000` et `5173` : deux jeux de variables, pour que les deux piles tournent
-  ensemble. Les faire coïncider vaut un `port is already allocated` au `up` de
-  la seconde — et, si la première est arrêtée, une pile de production servie à
-  l'adresse où l'on croit trouver le développement.
-- **Les deux conteneurs de développement écrivent sous un uid fixe** : `1001`
-  pour le backend, `1000` pour le front. Une commande qui crée un fichier dans le
-  dépôt à travers le montage — `docker compose -f compose.dev.yaml exec backend
-  python manage.py makemigrations`, par exemple — échoue en `Permission denied`
-  si l'utilisateur
-  de la machine porte un autre uid (`id -u` pour le connaître). La lancer alors
-  depuis le venv, où le fichier appartient d'emblée à la bonne personne.
-
-### Image Docker du backend (depuis la racine)
-
-L'API est empaquetée dans une image de production : Gunicorn, compte non-root,
-migrations et fichiers statiques appliqués au démarrage. Elle ne remplace pas
-`runserver` pour le développement quotidien.
-
-| Commande | Effet |
-|---|---|
-| `docker build -t weeb-backend ./backend` | Construit l'image (contexte : `backend/`) |
-| `docker image ls weeb-backend` | Affiche la taille de l'image |
-| `docker run --rm weeb-backend id -u` | Vérifie que le conteneur ne tourne pas en root |
-| `docker logs -f <conteneur>` | Suit les journaux de Gunicorn |
-| `docker inspect -f '{{.State.Health.Status}}' <conteneur>` | Affiche le résultat de la sonde de santé |
-
-Pour la faire tourner contre la base, ne pas la lancer à la main :
-`compose.prod.yaml` s'en charge, avec les réglages que le `.env` ne décrit pas
-pour un conteneur — voir « La stack complète avec Compose ». Le tableau ci-dessus
-sert à inspecter l'image, pas à la mettre en service.
-
-Le conteneur passe `healthy` quand `GET /health/` renvoie 200. Cette route ne fait
-qu'un `SELECT 1` : son coût ne bouge pas quand la table des articles grandit, là où
-la sonde interrogeait auparavant `/api/articles/`, dont la pagination compte toute
-la table à chaque passage. Elle vit hors du préfixe `/api/` — le nginx du serveur ne
-relaie que `/api/` et `/admin/`, elle reste donc joignable du seul conteneur — et
-elle répond `503` quand la base est injoignable, un Gunicorn debout devant une base
-morte ne valant pas une API en état de servir.
-
-### Image Docker du frontend (depuis la racine)
-
-Un seul `Dockerfile`, **deux images**, choisies par `--target` :
-
-| Cible | Ce qu'elle contient | Taille | Usage |
-|---|---|---|---|
-| `dev` | Node, toutes les dépendances, le serveur Vite | ~650 Mo | travailler sans installer Node sur sa machine |
-| `prod` | le site compilé et nginx, **sans Node** | ~74 Mo | servir le site en ligne |
-
-#### La cible `dev`
-
-```bash
-docker build --target dev -t weeb-frontend-dev ./frontend
-
-docker run -d --name weeb-front-dev \
-  -p 127.0.0.1:5173:5173 \
-  -v "$PWD/frontend:/app" \
-  -v /app/node_modules \
-  weeb-frontend-dev
-```
-
-Les deux montages vont ensemble, et le second n'est pas une coquille :
-
-- `-v "$PWD/frontend:/app"` place le code de la machine dans le conteneur, pour
-  que Vite recharge la page à chaque enregistrement ;
-- `-v /app/node_modules` — un volume anonyme, sans source — **recouvre** le
-  premier à cet endroit précis. Sans lui, le `frontend/` de la machine masquerait
-  le `node_modules` installé dans l'image, et Vite ne trouverait plus rien.
-
-L'adresse de l'API vient alors du `frontend/.env`, apporté par le montage. Sans
-montage, il faut la passer à la main, sinon le front s'arrête au chargement :
-
-```bash
-docker run -d --name weeb-front-dev -p 127.0.0.1:5173:5173 \
-  -e VITE_API_URL=http://localhost:8000/api \
-  weeb-frontend-dev
-```
-
-> ⚠️ **Ne pas lancer `npm run build` dans ce conteneur avec le montage.** Le
-> compte `node` de l'image porte l'uid 1000, alors que les fichiers de la machine
-> appartiennent à l'utilisateur qui a cloné le dépôt : la création de `dist/`
-> échoue en `EACCES`. Construire depuis la machine avec `npm run build`, ou par
-> la cible `prod` ci-dessous, qui compile à l'intérieur de l'image.
-
-> ⚠️ **Deux traces que ce conteneur laisse sur la machine.** Docker crée le point
-> de montage du volume anonyme **côté hôte** : un `frontend/node_modules` vide
-> apparaît, appartenant à `root`, et bloque ensuite `npm ci` et `npm run lint` en
-> `EACCES`. Le supprimer avec `rmdir frontend/node_modules` — le dossier est vide,
-> le droit d'écriture sur `frontend/` suffit, `sudo` est inutile. Et supprimer le
-> conteneur avec **`docker rm -v`** : sans le `-v`, chaque suppression abandonne un
-> volume anonyme d'environ 300 Mo. `docker volume ls -qf dangling=true` les liste.
-
-#### La cible `prod`
-
-```bash
-docker build --target prod -t weeb-frontend \
-  --build-arg VITE_API_URL=https://api.exemple.fr/api ./frontend
-
-docker run -d --name weeb-front -p 127.0.0.1:8080:8080 weeb-frontend
-```
-
-`--build-arg` n'est pas optionnel : l'adresse de l'API est **écrite dans le
-JavaScript** au moment de la compilation, pas lue au démarrage. En changer impose
-donc de reconstruire l'image. Un build lancé sans elle s'interrompt avec un
-message explicite, plutôt que de produire un bundle qui afficherait une page
-blanche dans le navigateur.
-
-L'adresse absolue ci-dessus vaut pour cette construction **à la main**, où
-l'image est lancée seule. La pile de production, elle, passe `/api` : le nginx
-du serveur met le site et l'API sur la même origine, ce qui rend l'image
-indépendante de l'adresse publique du site.
-
-Le port est **8080** et non 80 : le conteneur tourne sous le compte `nginx`,
-qui n'a pas le privilège de lier un port inférieur à 1024.
-
-**`nginx.conf` sert aussi `/static/`, qui n'appartient pas au front** : ce sont
-les fichiers statiques de **Django**, arrivés par le volume `static_data` que la
-pile de production monte en lecture seule. Une image lancée seule, comme
-ci-dessus, n'a pas ce volume : la `location` ne trouve rien et répond 404, sans
-conséquence hors de la pile. Le pourquoi est au § « Déployer derrière le nginx
-du serveur » — il évite à celui-ci d'aller lire les volumes de Docker.
-
-#### Vérifier une image
-
-| Commande | Effet |
-|---|---|
-| `docker image ls weeb-frontend` | Affiche la taille de l'image |
-| `docker run --rm weeb-frontend which node` | Doit **échouer** : Node est absent de l'image de production |
-| `docker run --rm weeb-frontend id -u` | Vérifie que le conteneur ne tourne pas en root |
-| `docker logs -f <conteneur>` | Suit les journaux |
-| `docker inspect -f '{{.State.Health.Status}}' <conteneur>` | Affiche le résultat de la sonde de santé |
-
-Les deux images passent `healthy` quand leur serveur répond sur `/`. Attention à
-ce que cette sonde ne dit pas en `dev` : elle vérifie que Vite répond, pas que
-l'application fonctionne. Une `VITE_API_URL` absente casse le front dans le
-navigateur alors que le conteneur reste `healthy`.
-
-#### Les choix du Dockerfile qui ne se devinent pas
-
-- **Le compte `node` reçoit `/app` avant l'installation.** Vite écrit son cache de
-  dépendances pré-compilées dans `node_modules/.vite` au démarrage. Installer en
-  root puis basculer d'utilisateur laisserait ce dossier en lecture seule pour
-  lui, et le serveur ne démarrerait pas.
-- **`DEV_POLLING=1`, posé par la cible `dev`.** `vite.config.ts` bascule alors la
-  surveillance des fichiers en interrogation périodique. Les événements du système
-  de fichiers ne traversent pas un montage lié : sans cela, le rechargement à
-  chaud reste muet.
-- **Vite est appelé directement, pas par `npm run dev`.** npm resterait le
-  processus n° 1 sans transmettre `SIGTERM` à son enfant, et chaque `docker stop`
-  attendrait les dix secondes du délai de grâce. Son option `--host` est
-  indispensable : sans elle, Vite n'écoute que la boucle locale *du conteneur*,
-  que la publication de port ne peut pas atteindre.
-- **`nginx.conf` remplace la configuration entière**, et non un fragment de
-  `conf.d/`. Celle d'origine pose une directive `user` et son fichier pid dans
-  `/var/run`, deux choses interdites à un compte non privilégié ; tout ce que le
-  serveur écrit a été renvoyé vers `/tmp`.
-- **`try_files $uri $uri/ /index.html`.** Le routage appartient à React : sans ce
-  repli, un rechargement de page sur `/articles/42` chercherait un fichier de ce
-  nom et renverrait 404.
-
-### Frontend (depuis `frontend/`)
-
-| Commande | Effet |
-|---|---|
-| `npm run dev` | Démarre l'interface avec rechargement à chaud |
-| `npm run build` | Compile la version de production dans `dist/` |
-| `npm run lint` | Vérifie le code avec ESLint |
-| `npm test` | Lance la suite Vitest |
-| `npm run test:e2e` | Rejoue la connexion et la déconnexion dans un navigateur, contre la pile de développement |
-| `npm run preview` | Sert localement le résultat de `npm run build` |
-
-Les tests sont écrits à côté du fichier qu'ils couvrent, sous le nom `<source>.test.ts`
-(`.test.tsx` pour un composant), et `npm test` ne demande ni base, ni conteneur, ni API
-démarrée. Vitest se règle dans `vite.config.ts`, avec le reste de la configuration du front.
-
-Un composant se teste **rendu**, avec Testing Library : `FormLogin.test.tsx` monte le
-formulaire dans un `MemoryRouter` — il pose un `Link` et appelle `useNavigate` —, atteint les
-champs par leur libellé et le message d'ensemble par son `role="alert"`, et coupe le réseau à
-`globalThis.fetch` plutôt qu'à `apiFetch` : la chaîne réelle est alors traversée, de l'adresse
-et du corps que reçoit le réseau jusqu'à la traduction du refus par `toFormErrors`.
-
-Deux conséquences de `globals: false`, qu'aucun des deux fichiers ne donne à lire seul : les
-matchers de `jest-dom` s'importent **dans le fichier de test**
-(`import "@testing-library/jest-dom/vitest"`), faute d'un `setupFiles` où les poser une fois ;
-et le `cleanup` entre les cas est **explicite**, Testing Library ne s'inscrivant lui-même que
-s'il trouve un `afterEach` global. Sans lui, le formulaire du cas précédent reste dans le DOM
-et toute recherche par libellé y devient ambiguë.
-
-`Footer.test.tsx` rend la barre de navigation à côté du pied de page pour confronter leurs
-libellés, cinq destinations étant servies de part et d'autre.
-
-Un test ne couvre pas de TypeScript du tout : `index.css.test.ts` lit la feuille de style et
-refuse qu'une variante Tailwind — `hover:`, `md:`, `focus-visible:` — soit posée sur une
-classe écrite à la main dans `index.css`, comme `.nav-link` ou `.form-input`. Tailwind v4 n'en
-décline que sur les utilitaires qu'il connaît : la classe écrite reste alors inerte, sans que
-le build, le lint ni le typage ne le disent. Les couleurs n'y sont plus exposées, étant des
-utilitaires depuis la palette en variables. Sa lecture tient au `css: true` de
-`vite.config.ts`, Vitest remplaçant par du vide tout ce qu'il reconnaît comme du CSS, l'import
-`?raw` compris — d'où le cas du fichier qui vérifie que la lecture a bien eu lieu avant de
-conclure que tout va bien.
-
-Le même fichier refuse l'inverse : une classe de la feuille que plus aucune source ne pose.
-Elle ne fait tomber ni le lint, ni le typage, ni le build, et trois ont vécu ainsi jusqu'à ce
-qu'un inventaire à la main les trouve. Le cas croise les sélecteurs de classe de la feuille
-avec les jetons lus dans `src/`, et nomme celle qui n'a plus personne. Deux choix de lecture
-le délimitent : les fichiers de test sont écartés des lecteurs, l'un d'eux pouvant citer une
-classe pour vérifier qu'elle est refusée ; et `frontend/index.html` est lu en plus des
-sources, `.dark` n'étant posée par aucun `className` : le script en ligne de la page la pose
-avant le premier rendu, et `hooks/useTheme.ts` ne fait plus que la basculer.
-
-Il lit les chaînes littérales par un parcours caractère par caractère et non par une expression
-régulière, l'apostrophe droite du français — `alt="Vue d'une interface"` — faisant perdre à
-celle-ci toutes les classes de la ligne. Trois formes lui échappent encore, faute d'analyser le
-TypeScript, et aucune n'existe dans le dépôt à ce jour : un jeton coupé par une concaténation
-(`"hover:" + "nav-link"`), et un `//` ou un `/*` rencontré hors d'une chaîne — une adresse
-nue au fil du texte JSX, par exemple — qui lui fait sauter la fin de la ligne ou le passage
-jusqu'au `*/`. Une classe écrite après eux sur la même ligne ne serait pas vue.
-
-#### Le parcours en navigateur
-
-`npm test` ne dit rien de la conversation entre le front et l'API : il remplace `fetch` par un
-doublon, et la suite du backend s'arrête au client de test de Django. Un chemin renommé d'un
-côté, une `VITE_API_URL` mal réglée ou une réponse dont la forme a changé laisserait les deux
-vertes. `npm run test:e2e` ouvre un vrai Chromium sur le site rendu et le fait parler à l'API.
-
-Le navigateur ne vient pas avec `npm install` : il se télécharge une fois par machine, et
-laisse **660 Mo** dans `~/.cache/ms-playwright` — mesuré, pas estimé.
-
-```bash
-cd frontend
-npx playwright install chromium
-```
-
-Sur une machine nue, il peut manquer les bibliothèques système que Chromium charge au
-démarrage ; `npx playwright install --with-deps chromium` les pose en même temps, au prix d'un
-`sudo`.
-
-La pile doit tourner, et un compte **actif** exister en base. `createsuperuser` demande le mot
-de passe de façon interactive : il ne passe donc ni par la ligne de commande, ni par
-l'historique du shell, ni par le dépôt.
-
-```bash
-docker compose -f compose.dev.yaml up -d --wait
-
-docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
-# email, prénom, nom, puis le mot de passe deux fois
-```
-
-Les identifiants sont lus dans l'environnement et nulle part ailleurs : du `.env` de la racine,
-Playwright ne tire que `FRONTEND_PORT_DEV`, le port où Compose publie Vite. Absent l'un des
-deux identifiants, la suite s'arrête en le nommant plutôt que d'échouer sur un refus de connexion.
-
-```bash
-E2E_EMAIL=... E2E_PASSWORD=... npm run test:e2e
-```
-
-Le parcours ouvre le site sur `127.0.0.1:5173` — ou le port que `FRONTEND_PORT_DEV` y met —
-quand `npm run dev` se visite d'ordinaire sur `localhost:5173`. Ce sont deux origines
-distinctes pour le navigateur, et si l'appel à l'API
-passe, c'est parce que `CORS_ALLOWED_ORIGINS` liste **les deux écritures** — voir `.env`.
-N'en garder qu'une ferait afficher « Le serveur est injoignable » et accuser la pile.
-
-Quatre points ne se lisent dans aucun de ces fichiers pris seul :
-
-- **l'API n'accepte que cinq connexions par minute** — le scope `login`, § « Le débit ». La
-  suite en consomme trois, une par cas : relancée dans la minute, elle reçoit un 429 et échoue
-  sur un message de quota, pas de connexion. Attendre une minute ;
-- **aucune reprise n'est configurée**, pour cette raison même : rejouer un cas raté ferait
-  répondre 429 à la reprise, et le journal montrerait un quota là où il y avait un vrai défaut ;
-- **Playwright ne démarre pas la pile.** Un bloc `webServer` relancerait Vite sans la base ni
-  l'API derrière, et le parcours cesserait de prouver ce pour quoi il existe. C'est aussi ce qui
-  rend son échec informatif : `docker compose -f compose.dev.yaml stop backend`, et les trois cas
-  tombent — le premier et le troisième faute de redirection, le second parce que le message
-  affiché devient « Le serveur est injoignable » au lieu du refus attendu ;
-- **les champs se cherchent par une part de leur libellé, pas par son texte exact** : la règle
-  `.form-label-required::after` ajoute « * » aux libellés obligatoires, et un vrai navigateur
-  verse ce contenu généré dans le nom accessible. jsdom n'applique aucune feuille de style et
-  ne montre pas ce décalage — c'est le genre d'écart que cette suite existe pour attraper.
-
-Sur échec, la trace est conservée et rejoue le parcours pas à pas, requêtes réseau comprises :
-
-```bash
-npx playwright show-trace test-results/<dossier-du-cas>/trace.zip
-```
-
-Elle porte donc le mot de passe en clair, saisi dans le champ puis envoyé dans le corps de la
-requête. `.gitignore` la retient, mais transmettre une trace revient à transmettre
-l'identifiant du compte de test.
-
-## Intégration continue
-
-**Deux workflows, deux objets** : `.github/workflows/tests.yml` lance les suites,
-`.github/workflows/docker-images.yml` construit les images. Les deux partent sur les mêmes
-déclencheurs — un push sur `preprod` ou sur `main`, et chaque pull request qui vise l'une des
-deux — et aucun ne publie quoi que ce soit. Les séparer donne deux journaux : la liste des
-checks d'une pull request montre « Tests » et « Images Docker » côte à côte, et un rouge se
-lit sans ouvrir l'autre. Chacun se modifie ensuite sans risquer le second.
-
-Les deux branches et pas seulement `preprod` : `main` est celle qui part sur un serveur.
-Constater après coup qu'une image ne se construit plus, ou qu'un test est rouge, ne servirait
-à rien.
-
-### Les suites de tests
-
-| Job | Ce qu'il lance | Ce qu'il lui faut |
-|---|---|---|
-| `backend` | `python manage.py test` sur `config.settings.test` | Python 3.13, un service `postgres:17-alpine` |
-| `frontend` | `npm run lint`, `npm test` et `npm run build` | Node 22 |
-
-Les versions ne sont pas choisies là : ce sont celles des deux Dockerfile, et celle de la base
-est celle de `compose.dev.yaml`. Tester sur un autre Python, un autre Node ou un autre moteur
-que ceux qui partent en ligne prouverait autre chose que ce qui tourne.
-
-Les deux jobs ne se déclarent aucun `needs` : ils partent ensemble et vont au bout chacun de
-leur côté, donc une seule exécution suffit à connaître l'état des deux suites. Et le nom du job
-nomme la suite : un journal rouge désigne la coupable sans qu'il faille l'ouvrir.
-
-À l'intérieur du job frontend, le lint passe en premier, et les deux étapes suivantes —
-Vitest et le build — portent un `if: !cancelled()` qui les fait tourner même s'il échoue : un
-style refusé ne cache donc pas l'état des tests ni celui du build.
-Le job reste rouge dès que l'une des trois échoue. Le build n'est pas décoratif à côté des tests : il
-enchaîne `tsc -b` sur les **trois** projets TypeScript — `src/`, `vite.config.ts` et `e2e/` —
-et c'est le seul endroit où le parcours Playwright est compilé, faute d'être exécuté.
-
-Trois choses ne se lisent pas dans le seul `tests.yml` :
-
-- **les identifiants PostgreSQL y sont en clair, et c'est voulu** : la base est jetée avec la
-  machine et n'est joignable que d'elle — un secret n'y protégerait rien, et le poser rendrait
-  le workflow inexécutable sur un fork. Ils sont écrits **deux fois**, dans le bloc `services`
-  et dans l'`env` du job, parce que le contexte `env` n'est pas lisible depuis `services` ;
-- **`VITE_API_URL` est posée dans le job front, et elle y sert deux fois** : `lib/api.ts` lève
-  à l'import quand elle manque — la plupart des fichiers de test l'atteignent, directement ou
-  par un composant —, et `vite.config.ts` interrompt le build de production sans elle.
-  `frontend/.env` n'étant pas versionné, la machine d'intégration n'en a aucune : sans cette
-  ligne, deux suites sur trois et le build échouent sur l'erreur de configuration, et non sur
-  un défaut ;
-- **Playwright n'y tourne pas** : il exige la pile Compose debout, un compte actif en base et
-  660 Mo de navigateur. C'est aussi pourquoi `playwright.config.ts` pose
-  `forbidOnly: !!process.env.CI` : un `test.only` oublié réduirait la suite en silence. La
-  garde reste muette sur le poste, où isoler un cas le temps de le corriger est légitime, et
-  dort ici jusqu'au jour où la CI lancera le parcours.
-
-Reproduire sur sa machine avant de pousser : les commandes du § « Commandes utiles »,
-`DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test` côté backend, puis
-`npm run lint`, `npm test` et `npm run build` côté frontend.
-
-### Les images Docker
-
-`.github/workflows/docker-images.yml` construit les **deux** images à chaque push sur
-`preprod` ou sur `main`, et sur chaque pull request qui vise l'une des deux. Un job par image,
-nommé comme elle, pour qu'un journal rouge désigne la construction en cause sans qu'il faille
-l'ouvrir. Les deux vont au bout même si l'une casse : une seule exécution suffit à connaître
-l'état des deux.
-
-| Job | Contexte | Particularité |
-|---|---|---|
-| `backend` | `backend/` | — |
-| `frontend` | `frontend/` | cible `prod`, avec `VITE_API_URL=/api` |
-
-L'intérêt n'est pas de disposer des images : elles sont **jetées avec la machine**. Il est que
-cette machine parte de zéro — sans cache, sans `node_modules`, sans `venv`, sans `.env`. C'est
-le seul endroit où se voient un `.dockerignore` mal réglé, un fichier oublié dans `.gitignore`
-ou une dépendance absente de `requirements.txt` ; sur le poste, ces trois défauts sont masqués
-par ce qui y traîne déjà.
-
-Les layers sont mis en cache d'une exécution à l'autre, avec **une portée par image** : sans
-cela les deux écraseraient tour à tour le même cache et chaque passage réinstallerait Django
-et les dépendances du front.
-
-**Aucune publication vers un registre**, et c'est délibéré : pousser des images n'a de valeur
-que si quelqu'un fait `docker pull`, et il n'existe aujourd'hui aucun serveur où déployer. Le
-workflow ne déclare donc ni registre, ni permission `packages: write`. À reprendre le jour où
-une mise en ligne existe. La cible `dev` du front est hors périmètre pour la même raison : elle
-ne sert qu'au poste.
-
-Reproduire la même chose sur sa machine, avant de pousser. `git archive` exporte le **dernier
-commit**, donc sans rien de non versionné — mais sans les modifications pas encore committées
-non plus, exactement comme le checkout de la machine de GitHub :
-
-```bash
-mkdir -p /tmp/weeb-propre && git archive HEAD | tar -x -C /tmp/weeb-propre
-
-docker build --no-cache -t weeb-backend:ci /tmp/weeb-propre/backend
-docker build --no-cache -t weeb-frontend:ci \
-  --target prod --build-arg VITE_API_URL=/api /tmp/weeb-propre/frontend
-
-# les deux images ne servent qu'à la vérification
-docker image rm weeb-backend:ci weeb-frontend:ci
-```
-
-Les nommer n'est pas cosmétique : sans `-t`, chaque construction laisse une image que
-`docker images` affiche `<none>`, à retrouver ensuite parmi les autres. Avec, la suppression
-ci-dessus ne laisse rien — les deux cas ont été mesurés.
-
 ## Configuration par environnement
 
-Les réglages Django sont découpés par environnement dans `backend/config/settings/` :
+| Module de `backend/config/settings/` | Usage |
+|---|---|
+| `base.py` | commun à tous : lit le `.env`, ne définit ni clé secrète, ni base, ni canal d'email |
+| `development.py` | poste de développement : `DEBUG` actif, emails vers Mailpit |
+| `test.py` | tests : clé factice, emails en mémoire, quotas de débit éteints |
+| `production.py` | serveur : `DEBUG` faux, en-têtes HTTPS, TLS exigé vers la base et le relais SMTP |
 
-| Module | Usage | Particularités |
-|---|---|---|
-| `base.py` | commun à tous | lit le `.env`, ne définit aucune clé secrète |
-| `development.py` | poste de développement | `DEBUG` actif, origines `localhost:5173` autorisées, emails vers Mailpit |
-| `test.py` | tests automatisés | clé factice, base `test_weeb` créée et détruite par Django, exige PostgreSQL, emails en mémoire, quotas de débit éteints |
-| `production.py` | serveur en ligne | `DEBUG` forcé à faux, hôtes obligatoires, en-têtes de sécurité HTTPS, TLS exigé jusqu'à la base et jusqu'au relais SMTP |
-
-Trois réglages manquent **volontairement** à `base.py`, et chaque module dit
-d'où vient le sien : `SECRET_KEY`, `DATABASES` et `EMAIL_BACKEND`. Les deux
-premiers pour que l'import des réglages reste possible sans clé ni base ; le
-troisième parce qu'un canal d'envoi hérité ferait qu'une suite de tests
-ouvrirait des connexions SMTP sans le dire. Ce que `base.py` pose, ce sont les
-deux valeurs qui ne dépendent pas du canal : `DEFAULT_FROM_EMAIL` et
-`FRONTEND_URL`, la racine des liens écrits dans les messages.
-
-Le module utilisé est choisi par la variable `DJANGO_SETTINGS_MODULE`, à définir
-dans le terminal ou dans le conteneur — **pas** dans le `.env`, que Django lit trop tard.
-
-```bash
-export DJANGO_SETTINGS_MODULE=config.settings.production
-```
-
-Sans rien préciser : `manage.py` utilise `development`, et un serveur d'application
-(`wsgi.py` / `asgi.py`) utilise `production`. Sur un serveur, poser la variable
-explicitement, sinon une commande comme `migrate` s'exécuterait avec les réglages
-de développement.
+`manage.py` utilise `development` par défaut, `wsgi.py` et `asgi.py` utilisent `production`.
+Un autre module se choisit par `DJANGO_SETTINGS_MODULE`, dans le terminal ou le conteneur et
+jamais dans le `.env`, lu trop tard.
 
 ## L'API
 
-Base : `http://localhost:8000/api/` en développement. En production, l'adresse
-publique est celle du site suivie de `/api/` : le nginx du serveur y sert l'API
-et le site sur la même origine.
+Base : `http://localhost:8000/api/` en développement, l'adresse du site suivie de `/api/` en
+production.
 
 | Méthode | Route | Accès | Rôle |
 |---|---|---|---|
-| `POST` | `/api/auth/register/` | public | Inscription. Le compte est créé **inactif**, un administrateur doit l'activer |
-| `POST` | `/api/auth/login/` | public | Connexion : renvoie un token d'accès et un token de rafraîchissement |
-| `POST` | `/api/auth/login/refresh/` | public | Renouvelle le token d'accès expiré, et **rend un token de rafraîchissement neuf** en révoquant celui qui a servi |
-| `POST` | `/api/auth/logout/` | public | Déconnexion : révoque le token de rafraîchissement envoyé dans le corps |
-| `POST` | `/api/auth/password-reset/` | public | Demande de réinitialisation. Envoie le lien **par email** et répond toujours `200` avec le même corps, que le compte existe ou non — un 404 dirait qui est inscrit |
-| `POST` | `/api/auth/password-reset/confirm/` | public | Confirmation : `uid` et `token` du lien reçu, plus le nouveau mot de passe. Révoque **tous** les tokens de rafraîchissement du compte : il faut se reconnecter partout |
-| `POST` | `/api/auth/password-change/` | connecté | Changement de mot de passe : le mot de passe actuel, plus le nouveau. Révoque **tous** les tokens de rafraîchissement du compte et rend une paire neuve à l'appelant, qui reste connecté |
-| `GET` | `/api/articles/` | public | Liste des articles, du plus récent au plus ancien, par pages de 12 : `{count, next, previous, results}`, la suivante sous `?page=2`. Chaque article y porte `id`, `title`, `excerpt` (100 caractères taillés par la base), `excerpt_truncated` (vrai si le texte dépasse l'extrait), `author` et `created_at` — ni `content` ni `updated_at`, que seul le détail rend |
-| `GET` | `/api/articles/{id}/` | public | Détail d'un article, `content` entier compris |
-| `POST` | `/api/articles/` | connecté | Crée un article, rattaché à son auteur. `content` : 20 000 caractères au plus |
-| `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression réservées à l'auteur, `content` borné comme à la création |
-| `POST` | `/api/contact/` | public | Envoi du formulaire de contact. `message` : 5 000 caractères au plus |
+| `POST` | `/api/auth/register/` | public | Inscription. Le compte est créé **inactif** |
+| `POST` | `/api/auth/login/` | public | Connexion : rend un jeton d'accès et un jeton de rafraîchissement |
+| `POST` | `/api/auth/login/refresh/` | public | Renouvelle le jeton d'accès et rend un jeton de rafraîchissement neuf |
+| `POST` | `/api/auth/logout/` | public | Révoque le jeton de rafraîchissement envoyé |
+| `POST` | `/api/auth/password-reset/` | public | Envoie le lien par email. Répond toujours `200` |
+| `POST` | `/api/auth/password-reset/confirm/` | public | `uid`, `token` et nouveau mot de passe. Révoque tous les jetons du compte |
+| `POST` | `/api/auth/password-change/` | connecté | Mot de passe actuel et nouveau. Révoque les autres sessions, rend une paire neuve |
+| `GET` | `/api/articles/` | public | Liste paginée par 12 : `{count, next, previous, results}`, avec un extrait |
+| `GET` | `/api/articles/{id}/` | public | Détail, contenu entier |
+| `POST` | `/api/articles/` | connecté | Crée un article. `content` : 20 000 caractères au plus |
+| `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression |
+| `POST` | `/api/contact/` | public | Formulaire de contact. `message` : 5 000 caractères au plus |
 
-Dans la liste comme dans le détail, `author` est le **prénom suivi du nom**, jamais l'adresse
-électronique du compte : ces deux lectures sont ouvertes au visiteur, et le `__str__` de
-`CustomUser`, qui rend l'email, ne doit pas les traverser. Un compte dont le prénom et le nom
-sont vides signe « Auteur anonyme ».
+L'auteur d'un article est rendu en « Prénom Nom », jamais par son email. Les routes protégées
+attendent l'en-tête `Authorization: Bearer <jeton d'accès>`.
 
-Les routes protégées attendent le token dans l'en-tête :
-
-```
-Authorization: Bearer <token d'accès>
-```
-
-Le token d'accès est valable 15 minutes, celui de rafraîchissement 1 jour — voir « Les jetons ».
-
-Les messages d'erreur sortent **en français** : `LANGUAGE_CODE` vaut `fr-fr` et aucun
-`LocaleMiddleware` n'est monté, la langue ne suit donc pas l'`Accept-Language` du client.
-Ceux de simplejwt aussi, à deux conditions. L'app `rest_framework_simplejwt` figure dans
-`INSTALLED_APPS`, sans quoi Django ne charge pas son catalogue ; et `backend/locale/` traduit
-les libellés que ce catalogue laisse en anglais, « Token is expired » et « Token is invalid » en
-tête. Le `.mo` y est versionné, l'image n'embarquant pas `gettext`. Après toute modification du
-`.po`, le recompiler — `msgfmt` vient du paquet `gettext` :
+Les messages d'erreur sont en français, ceux de simplejwt compris grâce à `backend/locale/`.
+Après une modification du `.po`, recompiler le `.mo`, versionné :
 
 ```bash
 msgfmt --check -o backend/locale/fr/LC_MESSAGES/django.mo backend/locale/fr/LC_MESSAGES/django.po
-```
 
-Sans `gettext` sur la machine, un conteneur jetable fait l'affaire :
-
-```bash
+# sans gettext sur la machine
 docker run --rm -v "$PWD/backend/locale:/locale" debian:12-slim sh -c \
   "apt-get update -qq && apt-get install -y -qq gettext && \
    msgfmt --check -o /locale/fr/LC_MESSAGES/django.mo /locale/fr/LC_MESSAGES/django.po && \
    chown $(id -u):$(id -g) /locale/fr/LC_MESSAGES/django.mo"
 ```
 
-Un `runserver` relit un `.mo` recompilé, mais pas un `.mo` absent à son lancement puis créé
-— sa toute première compilation, par exemple : le redémarrer.
-
 ### Les jetons
 
-Deux jetons, deux durées et deux rôles. Le **token d'accès** accompagne chaque requête
-protégée et vaut 15 minutes : il vit dans le `localStorage` du navigateur, donc à portée de
-tout script chargé par la page, et rien ne le révoque avant son échéance — pas même un mot
-de passe changé. Sa durée est la seule borne d'un vol, d'où 15 minutes et non l'heure d'avant.
-
-Le **token de rafraîchissement** vaut 1 jour, ne part que vers `login/refresh/` et `logout/`,
-et **tourne** : chaque appel en rend un neuf et met le précédent en liste noire. Le rejeu de
-l'ancien répond alors `401`. Sans cette liste noire, la rotation ne protégerait de rien — les
-deux jetons resteraient valables et un vol tiendrait ses 24 heures. C'est elle aussi qui donne
-son effet à `logout/` : la déconnexion est le même geste, sans jeton neuf en retour.
-
-Deux conséquences pratiques :
-
-- **un client qui rafraîchit doit stocker le `refresh` reçu en réponse**, sinon il se coupe
-  lui-même au prochain appel. Côté front, c'est `apiFetch` (`src/lib/api.ts`) : sur un `401`
-  reçu avec un jeton, il appelle `login/refresh/`, range les deux jetons rendus et rejoue la
-  requête une fois. Les `401` reçus en même temps — `StrictMode` lance deux fois les effets en
-  développement — partagent un seul renouvellement, puisqu'un second appel avec le même
-  `refresh` serait refusé. Un renouvellement refusé efface les deux jetons et rejoue la requête
-  **sans** jeton : l'API seule sait si la route est publique, et `/blog` s'affiche au lieu de
-  répondre `401`. Une panne du renouvellement (réseau, `5xx`) garde les jetons et rend le `401`
-  d'origine. C'est pourquoi `login/refresh/` répond `401`, et non `500`, pour un compte supprimé
-  depuis la connexion : simplejwt laissait l'erreur sortir, d'où `LoginRefreshView`. Chaque
-  `refresh` neuf repartant pour un jour, la session dure jusqu'à un jour sans renouvellement,
-  et non plus 15 minutes ;
-- **la révocation vit en base**, dans les tables de `rest_framework_simplejwt.token_blacklist`.
-  L'app est dans `INSTALLED_APPS` et ses migrations sont livrées avec le paquet : un
-  `python manage.py migrate` suffit, `makemigrations` ne doit rien produire. Ces tables
-  grossissent d'une ligne par connexion et par rafraîchissement, sans que rien ne les purge —
-  `python manage.py flushexpiredtokens`, livré par le paquet, est le ménage prévu pour ça.
+Le jeton d'accès vaut 15 minutes et rien ne le révoque avant. Le jeton de rafraîchissement
+vaut 1 jour et **tourne** : chaque `login/refresh/` en rend un neuf et met l'ancien en liste
+noire. Un client doit donc ranger le `refresh` reçu en réponse ; côté front, `apiFetch` le fait.
 
 ### Le mot de passe
 
-Les trois routes qui en reçoivent un — `register/`, `password-reset/confirm/` et `password-change/` — appliquent
-les mêmes règles, celles de `AUTH_PASSWORD_VALIDATORS` : huit caractères au minimum, ni un
-mot de passe courant, ni entièrement numérique, et au moins une majuscule, une minuscule et
-un chiffre. Cette dernière règle est un validateur du dépôt, `accounts/validators.py` : les
-quatre de Django ignorent la casse et les chiffres, que le formulaire d'inscription exige
-déjà côté navigateur — l'API était donc plus permissive que son propre formulaire.
-
-Le maximum, 128 caractères, vaut pour ces trois routes et pour `login/`. Il est posé par les
-serializers : aucun validateur de Django ne borne la longueur.
-
-Un des quatre validateurs de Django ne joue pas à la confirmation : celui qui refuse un mot
-de passe trop proche de l'email ou du nom. Le serializer n'y connaît pas encore le titulaire —
-son `uid` n'est décodé qu'ensuite, dans la vue. Au changement, il joue : le membre est connecté.
-
-Ces règles valent aussi pour l'administration Django : son formulaire de création hache le
-mot de passe et rejoue les mêmes validateurs, et celui d'édition ne montre plus le hachage,
-mais le lien de changement de Django.
-
-Un refus est un `400` dont le message est rangé **sous la clé du champ** — `password` à
-l'inscription, `new_password` à la confirmation comme au changement — et jamais à la racine, d'où
-aucun champ de formulaire ne pourrait le reprendre. Le changement range de même le refus du
-mot de passe actuel sous `current_password`. Un `12345678` soumis à l'inscription
-donne :
+`register/`, `password-reset/confirm/` et `password-change/` exigent 8 à 128 caractères, ni
+courant ni entièrement numérique, avec une majuscule, une minuscule et un chiffre. Un refus est
+un `400` rangé sous la clé du champ :
 
 ```json
-{"password": [
-  "Ce mot de passe est trop courant.",
-  "Ce mot de passe est entièrement numérique.",
-  "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre."
-]}
+{"password": ["Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre."]}
 ```
 
 ### Le débit
 
-Cinq routes publiques sont limitées **par adresse IP**, et le changement de mot de passe
-**par compte**, la seule des six à exiger un membre connecté. Au-delà du quota, la réponse est
-un `429` portant un en-tête `Retry-After` en secondes :
+Au-delà du quota, l'API répond `429` avec un en-tête `Retry-After`. Les quotas se règlent dans
+le `.env` ; la lecture des articles n'est pas limitée.
 
-```json
-{"detail": "Requête ralentie. Disponible à nouveau dans 40 secondes."}
-```
-
-| Route | Quota par défaut | Variable |
-|---|---|---|
-| `POST /api/auth/login/` | 5 par minute | `THROTTLE_LOGIN` |
-| `POST /api/auth/register/` | 5 par heure | `THROTTLE_REGISTER` |
-| `POST /api/auth/password-reset/` | 3 par heure | `THROTTLE_PASSWORD_RESET` |
-| `POST /api/auth/password-reset/confirm/` | 5 par heure | `THROTTLE_PASSWORD_RESET_CONFIRM` |
-| `POST /api/auth/password-change/` | 5 par heure | `THROTTLE_PASSWORD_CHANGE` |
-| `POST /api/contact/` | 5 par heure | `THROTTLE_CONTACT` |
-
-Le compteur compte les **appels**, pas les échecs : la sixième connexion d'une même minute
-reçoit un `429` même avec le bon mot de passe. La fenêtre du login est courte parce que se
-tromper de mot de passe deux fois de suite est ordinaire et qu'on réessaie aussitôt —
-une fenêtre d'une heure punirait le distrait autant que le robot. Les cinq autres sont des gestes qu'on ne répète
-pas dans l'heure, et la réinitialisation est la plus basse des six : chacun de ses appels
-envoie un vrai email. Sa confirmation a son propre compteur, pour que l'une n'entame pas le
-quota de l'autre : son jeton ne se devine pas, c'est le coût de chaque appel qu'on borne,
-le nouveau mot de passe passant par les validateurs puis par le hachage.
-
-Le front l'affiche tel quel dans le formulaire, sans lui opposer un message à lui : celui-ci
-porte le délai restant, que toute reformulation perdrait. `frontend/src/lib/apiErrors.ts` tient
-cette table de correspondance.
-
-Le reste de l'API n'est pas limité. `ScopedRateThrottle` ne compte que les vues qui déclarent
-un `throttle_scope` : la lecture des articles reste libre, quel qu'en soit le rythme.
-
-Deux limites, assumées. Le compteur vit dans le cache **mémoire du processus** : les trois
-workers Gunicorn de l'image comptent chacun le leur, un quota peut donc laisser passer jusqu'au
-triple, et tout repart à zéro au redémarrage. Un attaquant qui change d'adresse IP repart à
-zéro lui aussi. Le but est de rendre l'abus lent, pas impossible — c'est ce qui dispense la
-pile d'un Redis.
-
-Les tests éteignent ces quotas (`backend/config/settings/test.py`) : sans quoi une suite qui
-enchaîne les requêtes se ferait refuser une réponse, sans rapport avec ce qu'elle vérifie.
+| Route | Quota par défaut | Compté par | Variable |
+|---|---|---|---|
+| `POST /api/auth/login/` | 5 par minute | IP | `THROTTLE_LOGIN` |
+| `POST /api/auth/register/` | 5 par heure | IP | `THROTTLE_REGISTER` |
+| `POST /api/auth/password-reset/` | 3 par heure | IP | `THROTTLE_PASSWORD_RESET` |
+| `POST /api/auth/password-reset/confirm/` | 5 par heure | IP | `THROTTLE_PASSWORD_RESET_CONFIRM` |
+| `POST /api/auth/password-change/` | 5 par heure | compte | `THROTTLE_PASSWORD_CHANGE` |
+| `POST /api/contact/` | 5 par heure | IP | `THROTTLE_CONTACT` |
 
 ## Structure
 
 ```
 .
-├── .env.example              # modèle de configuration à copier en .env
+├── .env.example              # modèle du .env de la racine
 ├── .env.prod.example         # modèle des valeurs propres à la production
-├── .github/workflows/        # les suites de tests, et la construction des images
-├── AMELIORATIONS.md          # pistes repérées en cours de route, non traitées
-├── compose.dev.yaml          # pile de développement, autonome
-├── compose.prod.yaml         # pile de production, autonome
+├── .github/workflows/        # tests et construction des images
+├── AMELIORATIONS.md          # pistes repérées, non traitées
+├── compose.dev.yaml          # pile de développement
+├── compose.prod.yaml         # pile de production
 ├── backend/
-│   ├── config/               # configuration du projet Django
-│   │   ├── settings/         # base, development, test, production
-│   │   ├── urls.py           # routeur principal
-│   │   ├── views.py          # route de santé, seule vue hors d'une app métier
-│   │   └── tests.py          # ce que la sonde /health/ promet au HEALTHCHECK
+│   ├── config/               # settings/, urls.py, views.py (route /health/)
 │   ├── accounts/             # utilisateurs, authentification JWT
-│   │   └── tests.py
-│   ├── articles/             # articles du blog, et la commande peupler_articles
-│   │   └── tests.py
+│   ├── articles/             # blog, et la commande peupler_articles
 │   ├── contact/              # formulaire de contact
-│   │   └── tests.py
-│   ├── locale/               # libellés de simplejwt que son catalogue laisse en anglais
-│   ├── Dockerfile            # image de production de l'API
-│   ├── .dockerignore         # ce que le build n'envoie pas au démon
+│   ├── locale/               # traductions de simplejwt
+│   ├── Dockerfile
 │   ├── docker-entrypoint.sh  # migrations et statiques avant Gunicorn
 │   ├── healthcheck.py        # sonde de santé du conteneur
 │   └── requirements.txt
 └── frontend/
-    ├── .env.example          # modèle du .env de Vite : des VITE_* seulement, en clair dans le bundle
-    ├── Dockerfile            # un fichier, deux images : --target dev ou prod
-    ├── .dockerignore         # ce que le build n'envoie pas au démon
+    ├── .env.example          # VITE_* seulement, en clair dans le bundle
+    ├── Dockerfile            # --target dev ou prod
     ├── nginx.conf            # serveur de l'image prod : site React et /static/
-    ├── vite.config.ts        # Vite et Vitest, une seule source de réglages
-    ├── playwright.config.ts  # le parcours en navigateur, second lanceur
-    ├── e2e/                  # parcours Playwright, contre la pile de développement
-    └── src/                  # chaque test Vitest à côté de sa source : <source>.test.ts(x)
-        ├── components/ui/              # composants réutilisables, sans logique métier
-        ├── components/common/          # composants liés à un domaine du projet
-        ├── pages/                      # une page par route
-        ├── layouts/                    # gabarits partagés
-        ├── hooks/                      # hooks React, dont useForm : le socle des formulaires
-        ├── hooks/useIsAuthenticated.ts # connecté ou non, d'après le jeton de renouvellement
-        ├── lib/api.ts                  # point d'entrée unique des appels à l'API
-        ├── lib/apiErrors.ts            # refus de l'API traduits en messages de formulaire
-        ├── lib/cx.ts                   # seul assembleur des classes CSS conditionnelles
-        ├── lib/navigation.ts           # liens servis par l'en-tête et le pied de page
-        ├── lib/tokens.ts               # seul à lire, écrire et effacer les jetons JWT
-        ├── lib/validationRules.ts      # règles de saisie partagées par plusieurs formulaires
-        └── types/                      # types TypeScript partagés
+    ├── vite.config.ts        # Vite et Vitest
+    ├── playwright.config.ts  # parcours en navigateur
+    ├── e2e/
+    └── src/
+        ├── components/ui/      # composants réutilisables, sans logique métier
+        ├── components/common/  # composants liés à un domaine
+        ├── pages/              # une page par route
+        ├── layouts/
+        ├── hooks/              # dont useForm, socle des formulaires
+        ├── lib/                # api.ts, seul point d'appel réseau ; tokens.ts, seul accès aux jetons
+        └── types/
 ```
 
-Un utilisateur est identifié par son **email**, pas par un nom d'utilisateur.
-Côté API, tout endpoint est protégé par défaut : une route publique doit
-l'autoriser explicitement.
+Le détail du front est dans `frontend/README.md`.
 
 ## Contribuer
 
-- Une branche par issue, créée depuis `origin/preprod` : `<numéro>-description-en-kebab-case`, sans accent.
-- Messages de commit en français, à l'impératif, préfixés par leur type :
-  `feat`, `fix`, `refactor`, `style`, `docs`, `chore`, `test`. Un seul type par commit.
+- Une branche par issue, depuis `origin/preprod` : `<numéro>-description-en-kebab-case`.
+- Commits en français, à l'impératif, préfixés par un type : `feat`, `fix`, `refactor`,
+  `style`, `docs`, `chore`, `test`.
 - Les pull requests vont vers `preprod`, puis `preprod` est fusionnée dans `main`.
-- Ajouter une variable d'environnement implique de l'ajouter au `.env.example`
-  correspondant, avec un commentaire — `.env.prod.example` si elle ne concerne
-  que la production, `frontend/.env.example` si elle est lue par Vite.
+- Toute variable d'environnement lue par le code figure, commentée, dans le `.env.example`
+  correspondant.
 
 ## Résolution de problèmes
 
-**`ImproperlyConfigured: La variable d'environnement DJANGO_SECRET_KEY est absente ou vide`**
-Le `.env` est absent ou la clé n'est pas renseignée. Reprendre l'étape *La configuration*.
-Ce n'est pas un bug : le serveur refuse volontairement de démarrer sans clé, plutôt
-que d'en utiliser une connue de tous.
+**`ImproperlyConfigured: La variable d'environnement DJANGO_SECRET_KEY est absente ou vide`** —
+le `.env` manque ou la clé est vide : reprendre *1. La configuration*.
 
-**Je demande une réinitialisation et je ne reçois rien**
-Trois causes, et la réponse de l'API est volontairement la même dans les trois — elle
-ne dit jamais si un compte existe. D'abord l'adresse peut n'être associée à aucun
-compte. Ensuite le compte peut être **inactif** : un inscrit non encore validé par un
-administrateur ne reçoit pas de lien, sans quoi il choisirait un mot de passe pour se
-heurter ensuite au login. Enfin l'envoi peut avoir échoué — l'erreur part alors dans
-les journaux du serveur, jamais dans la réponse. En développement, tout message part
-sur Mailpit : `http://127.0.0.1:8025`.
+**`required variable POSTGRES_DB is missing a value`** — même cause, côté Compose.
 
-**Je me suis inscrit mais je ne peux pas me connecter**
-C'est le comportement prévu : un compte est créé inactif. L'activer depuis
-`http://localhost:8000/admin/`, ou en ligne de commande :
+**`no configuration file provided: not found`** — la commande Compose a été tapée sans `-f`.
+
+**`Connection refused` vers la base** — la base n'est pas démarrée :
+`docker compose -f compose.dev.yaml up -d --wait db`.
+
+**La connexion échoue après un changement de `POSTGRES_USER` ou `POSTGRES_DB`** — ces valeurs ne
+servent qu'à la création du volume. Repartir de zéro, **en perdant les données** :
+`docker compose -f compose.dev.yaml down -v`, puis `up -d --wait db` et `migrate`.
+
+**Un port est déjà utilisé** (`5432`, `1025`, `8025`, ou `port is already allocated`) — changer
+la variable correspondante dans le `.env` : `POSTGRES_PORT`, `MAILPIT_SMTP_PORT_DEV`,
+`MAILPIT_UI_PORT_DEV`, `BACKEND_PORT_PROD`… En production, reporter le port dans le
+`proxy_pass` du nginx du serveur.
+
+**Je me suis inscrit mais je ne peux pas me connecter** — le compte est créé inactif.
+L'activer depuis l'administration, ou :
 
 ```bash
 cd backend && python manage.py shell -c "from accounts.models import CustomUser; u = CustomUser.objects.get(email='ton@email.fr'); u.is_active = True; u.save()"
 ```
 
-**`connection to server at "localhost" ... failed: Connection refused`**
-La base n'est pas démarrée. Depuis la racine :
-`docker compose -f compose.dev.yaml up -d --wait db`.
+**La réinitialisation n'envoie rien** — l'adresse n'a pas de compte, le compte est inactif, ou
+l'envoi a échoué : l'API répond pareil dans les trois cas. En développement, vérifier que
+Mailpit tourne et regarder http://127.0.0.1:8025.
 
-**`docker compose` répond `no configuration file provided: not found`**
-La commande a été tapée sans `-f`. Il n'y a pas de `compose.yaml` dans ce dépôt :
-chaque pile a son fichier, et c'est ce qui empêche une commande de viser la
-mauvaise. Ajouter `-f compose.dev.yaml` ou `-f compose.prod.yaml`, ou poser
-`export COMPOSE_FILE=compose.dev.yaml` pour la durée du terminal.
+**`env file /chemin/.env.prod not found`** — `cp .env.prod.example .env.prod`.
 
-**`up` répond `required variable POSTGRES_DB is missing a value`**
-Le `.env` est absent ou les variables `POSTGRES_*` n'y sont pas. Reprendre l'étape
-*La configuration*. Compose refuse volontairement de démarrer plutôt que de créer
-une base avec des identifiants improvisés.
+**Le backend reste `unhealthy`** — lire `docker compose -f compose.prod.yaml logs backend`, puis
+interroger la sonde :
+`curl -s -o /dev/null -w '%{http_code}\n' -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/health/`.
+`503` : base injoignable ; `400` : `127.0.0.1` absent de `DJANGO_ALLOWED_HOSTS` ; `301` :
+`DJANGO_BEHIND_PROXY` à `0`.
 
-**J'ai changé `POSTGRES_USER` ou `POSTGRES_DB` et la connexion échoue**
-Ces valeurs ne servent qu'à la **création** de la base, au tout premier démarrage.
-Un volume déjà initialisé les ignore. Pour repartir sur ces nouvelles valeurs :
-`docker compose -f compose.dev.yaml down -v`, puis
-`docker compose -f compose.dev.yaml up -d --wait db` et `python manage.py migrate`.
-Attention, `-v` détruit toutes les données existantes.
+**L'API de production répond `301` à mes `curl`** — attendu sans nginx devant : ajouter
+`-H 'X-Forwarded-Proto: https'`.
 
-**Le port 5432 est déjà utilisé**
-Un PostgreSQL tourne déjà sur la machine. Changer `POSTGRES_PORT` dans le `.env`
-(par exemple `5433`) : Django et Compose lisent tous deux cette variable.
+**L'administration s'affiche sans style en production** — le volume `static_data` n'atteint pas
+le front, qui sert `/static/` : vérifier que `frontend` le monte et que le backend a démarré.
 
-**Le port 1025 ou 8025 est déjà utilisé**
-Un autre serveur de mail de développement occupe la place — ce sont les ports
-habituels de MailHog comme de Mailpit. Changer `MAILPIT_SMTP_PORT_DEV` ou
-`MAILPIT_UI_PORT_DEV` dans le `.env` : seul le côté machine bouge, le service
-continue d'écouter 1025 et 8025 dans son réseau.
+**`npm ci` ou `npm run lint` échoue en `EACCES` sur `frontend/node_modules`** — la pile de
+développement a laissé un dossier vide appartenant à `root` : `rmdir frontend/node_modules`.
 
-**Le conteneur du backend reste `unhealthy`**
-Regarder d'abord `docker logs <conteneur>` : une erreur de connexion à la base
-y apparaît en clair. Si les journaux montrent un démarrage normal de Gunicorn,
-la sonde reçoit autre chose qu'un 200. Interroger la route à la main dit lequel :
-`curl -s -o /dev/null -w '%{http_code}\n' -H 'X-Forwarded-Proto: https'
-http://127.0.0.1:8001/health/`. Les trois causes habituelles : la base
-injoignable, seul cas où la route répond `503` ; `127.0.0.1`
-absent de `DJANGO_ALLOWED_HOSTS`, qui vaut un 400 ; ou `DJANGO_BEHIND_PROXY`
-laissé à 0, auquel cas la redirection HTTPS des réglages de production répond
-301 à la sonde — en production, cette variable-là se règle dans `.env.prod`, où
-le nginx du serveur, qui écrase `X-Forwarded-Proto`, la rend légitime.
+**`Permission denied` en créant un fichier depuis un conteneur** (`makemigrations`…) — les
+conteneurs écrivent sous les uid 1001 et 1000. Lancer la commande depuis le venv.
 
-**`env file /chemin/.env.prod not found`**
-La pile de production réclame son second fichier de configuration :
-`cp .env.prod.example .env.prod`. Voir « Ce que la production attend de la
-configuration ». Compose s'arrête avant de démarrer quoi que ce soit, ce qui
-est voulu — sans ce fichier, le backend partirait avec les valeurs du
-développement et ne démarrerait pas.
+**Une modification de `docker-entrypoint.sh` ou `healthcheck.py` est sans effet** — ils sont
+copiés dans l'image : `docker compose -f compose.dev.yaml up -d --build --wait`.
 
-**`Bind for 127.0.0.1:8001 failed: port is already allocated`**
-Un service occupe déjà le port. Changer `BACKEND_PORT_PROD` ou
-`FRONTEND_PORT_PROD` dans le `.env`, puis reporter la nouvelle valeur dans le
-`proxy_pass` du nginx du serveur, qui la vise en dur.
-
-**L'API de production répond `301` à tous mes `curl`**
-C'est le comportement attendu : les réglages de production redirigent tout le
-trafic en clair vers HTTPS, et la pile ne termine plus le TLS. Le nginx du
-serveur pose `X-Forwarded-Proto: https` ; sans lui, le forger soi-même —
-`curl -H 'X-Forwarded-Proto: https' http://127.0.0.1:8001/api/articles/`. Voir
-« Déployer derrière le nginx du serveur ».
-
-**L'administration Django s'affiche sans style en production**
-Le volume `static_data` n'est pas arrivé jusqu'au front, qui sert `/static/`.
-Vérifier que le service `frontend` le monte bien en lecture seule, et que le
-backend a démarré avant lui : c'est son entrypoint qui remplit le volume avec
-`collectstatic`.
-
-**`npm ci` ou `npm run lint` échoue en `EACCES` sur `frontend/node_modules`**
-La pile de développement a laissé un dossier vide appartenant à `root` : Docker
-crée côté hôte le point de montage du volume anonyme. `rmdir frontend/node_modules`
-suffit, sans `sudo`.
-
-**La pile de développement sert le front par nginx au lieu de Vite**
-Une image `weeb-frontend` construite à la main traîne sur la machine et porte le
-nom que Compose déduirait. Les fichiers Compose nomment désormais les leurs
-`weeb-frontend:dev` et `weeb-frontend:prod` ; si le symptôme revient, forcer la
-construction avec `docker compose -f compose.dev.yaml up -d --build --wait`.
-
-**Le front affiche une erreur CORS dans la console du navigateur**
-L'adresse du front n'est pas dans `CORS_ALLOWED_ORIGINS`. Y ajouter l'origine
-exacte, port compris, puis redémarrer le serveur Django. Attention au fichier :
-c'est le `.env` en développement, mais `.env.prod` pour la pile de production,
-dont la valeur remplace celle du `.env` au lieu de s'y ajouter.
+**Erreur CORS dans la console** — ajouter l'origine exacte, port compris, à
+`CORS_ALLOWED_ORIGINS` (`.env`, ou `.env.prod` en production), puis redémarrer Django.
