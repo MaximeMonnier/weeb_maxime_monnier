@@ -1,5 +1,6 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
+import { PASSWORD_MIN_LENGTH, isLongEnoughPassword } from "../lib/validationRules";
 import { useForm } from "../hooks/useForm";
 import type { FormErrors } from "../hooks/useForm";
 import { Input } from "../components/ui/Input";
@@ -15,8 +16,8 @@ const VALEURS_INITIALES: FormData = { new_password: "" };
 const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
   const newErrors: FormErrors<FormData> = {};
 
-  if (formData.new_password.length < 8) {
-    newErrors.new_password = "Le mot de passe doit contenir au moins 8 caractères.";
+  if (!isLongEnoughPassword(formData.new_password)) {
+    newErrors.new_password = `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères.`;
   }
 
   return newErrors;
@@ -92,7 +93,7 @@ const ResetPassword = () => {
                   placeholder="••••••••"
                   value={formData.new_password}
                   onChange={handleChange}
-                  helperText="Au moins 8 caractères avec majuscule, minuscule et chiffre"
+                  helperText={`Au moins ${PASSWORD_MIN_LENGTH} caractères avec majuscule, minuscule et chiffre`}
                   error={errors.new_password}
                   required
                   fullWidth

@@ -3,7 +3,13 @@ import { Link } from "react-router-dom";
 import { Input } from "../../ui/Input";
 import Button from "../../ui/Button/Button";
 import { apiFetch } from "../../../lib/api";
-import { isComplexPassword, isValidEmail } from "../../../lib/validationRules";
+import {
+  PASSWORD_MIN_LENGTH,
+  isComplexPassword,
+  isConfirmedPassword,
+  isLongEnoughPassword,
+  isValidEmail,
+} from "../../../lib/validationRules";
 import { useForm } from "../../../hooks/useForm";
 import type { FormErrors } from "../../../hooks/useForm";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
@@ -51,8 +57,8 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
 
   if (!formData.password.trim()) {
     newErrors.password = "Le mot de passe est requis";
-  } else if (formData.password.length < 8) {
-    newErrors.password = "Le mot de passe doit contenir au moins 8 caractères";
+  } else if (!isLongEnoughPassword(formData.password)) {
+    newErrors.password = `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères`;
   } else if (!isComplexPassword(formData.password)) {
     newErrors.password =
       "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre";
@@ -60,7 +66,7 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
 
   if (!formData.confirmPassword.trim()) {
     newErrors.confirmPassword = "La confirmation du mot de passe est requise";
-  } else if (formData.password !== formData.confirmPassword) {
+  } else if (!isConfirmedPassword(formData.password, formData.confirmPassword)) {
     newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
   }
 
@@ -173,7 +179,7 @@ const FormSubscribe = () => {
           value={formData.password}
           onChange={handleChange}
           error={errors.password}
-          helperText="Au moins 8 caractères avec majuscule, minuscule et chiffre"
+          helperText={`Au moins ${PASSWORD_MIN_LENGTH} caractères avec majuscule, minuscule et chiffre`}
           required
           fullWidth
         />
