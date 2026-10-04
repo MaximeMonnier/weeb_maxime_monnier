@@ -2,7 +2,7 @@
 
 Application web React/TypeScript avec système de routing, authentification et design system complet.
 
-## 📋 Table des matières
+## Table des matières
 
 - [Technologies](#technologies)
 - [Installation](#installation)
@@ -11,7 +11,7 @@ Application web React/TypeScript avec système de routing, authentification et d
 - [Documentation](#documentation)
 - [Structure du projet](#structure-du-projet)
 
-## 🚀 Technologies
+## Technologies
 
 - **React 19.2** - Framework UI
 - **TypeScript 5.9** - Typage statique
@@ -23,7 +23,7 @@ Application web React/TypeScript avec système de routing, authentification et d
 - **Vitest 5** et **Testing Library** - Tests unitaires et de composants, sous `jsdom`
 - **Playwright 1.63** - Parcours de bout en bout dans un navigateur
 
-## 📦 Installation
+## Installation
 
 ```bash
 # Installer les dépendances
@@ -45,7 +45,7 @@ npm run preview
 npm run lint
 ```
 
-## 🌐 Pages disponibles
+## Pages disponibles
 
 | Route | Description |
 |-------|-------------|
@@ -63,7 +63,7 @@ npm run lint
 | `/privacy` | Politique de confidentialité |
 | `/*` | Page 404 personnalisée |
 
-## ✨ Features
+## Features
 
 ### Navigation
 - ✅ Menu responsive avec version mobile
@@ -84,14 +84,14 @@ npm run lint
 - ✅ Responsive mobile-first
 - ✅ Animations et transitions fluides
 
-## 📚 Documentation
+## Documentation
 
 Ce fichier ne couvre que le front. Le reste est à la racine du dépôt :
 
 - [`../README.md`](../README.md) - installation complète, API, pile Docker et intégration continue
 - [`../AMELIORATIONS.md`](../AMELIORATIONS.md) - limites connues et améliorations envisagées
 
-## 📁 Structure du projet
+## Structure du projet
 
 ```
 src/
@@ -153,7 +153,7 @@ src/
 Les tests Vitest (`*.test.ts`, `*.test.tsx`) vivent à côté de leur source. Le parcours
 Playwright est hors de `src/`, dans `e2e/`.
 
-## 🎨 Composants UI disponibles
+## Composants UI disponibles
 
 ### Input
 ```tsx
@@ -191,7 +191,7 @@ import { Textarea } from "./components/ui/Input";
 />
 ```
 
-## 🎯 Scripts disponibles
+## Scripts disponibles
 
 | Commande | Description |
 |----------|-------------|
@@ -202,7 +202,7 @@ import { Textarea } from "./components/ui/Input";
 | `npm test` | Lance la suite Vitest, sans base ni conteneur |
 | `npm run test:e2e` | Lance le parcours Playwright contre la pile de développement de Compose ; identifiants dans `E2E_EMAIL` et `E2E_PASSWORD` |
 
-## 🎨 Design System
+## Design System
 
 ### Classes CSS custom
 
@@ -288,7 +288,7 @@ que par la classe `dark:shadow-dark-md`, seule forme sous laquelle son nom s'éc
 Tailwind balaie aussi ce README, et la variable ou l'utilitaire nus lui feraient émettre une
 règle que rien ne lit.
 
-## ✅ Bonnes pratiques implémentées
+## Bonnes pratiques implémentées
 
 - ✅ Architecture modulaire et scalable
 - ✅ TypeScript strict avec JSDoc
@@ -300,7 +300,7 @@ règle que rien ne lit.
 - ✅ Images hors écran chargées à la demande (`loading="lazy"` dans `FeatureBlock.tsx` et `LogoBanner.tsx`)
 - ✅ Tree-shaking automatique
 
-## 📖 Guide de prise en main
+## Guide de prise en main
 
 ### Ajouter une nouvelle page
 
@@ -403,7 +403,7 @@ l'option `onChange` de `useForm` : voir `FormContact.tsx`. Un refus qui demande 
 propre au formulaire passe par les options `unauthorized` (le `401`, voir `FormLogin.tsx`)
 et `translate` (tout autre cas, voir `FormSubscribe.tsx`).
 
-## 🔮 Améliorations futures
+## Améliorations futures
 
 Elles sont consignées pour tout le dépôt dans [`../AMELIORATIONS.md`](../AMELIORATIONS.md).
 

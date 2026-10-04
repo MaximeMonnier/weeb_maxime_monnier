@@ -7,9 +7,9 @@ et pour les prochaines itérations).
 - [ ] **Toasts de succès / d'erreur** — la moitié « erreur » est livrée par l'issue #79 :
       `lib/apiErrors.ts` traduit les refus de l'API et chaque formulaire les affiche, en
       place des `console.error`. Ce qui reste est la notification **de succès**, qui n'existe
-      qu'à trois endroits, tous écrits dans la page : le formulaire de contact, la demande de
-      réinitialisation, qui affiche le message de l'API, et l'inscription depuis l'issue #119,
-      qui ne quitte plus la page pour cette raison même. Une publication d'article ne dit rien,
+      qu'à quatre endroits, tous écrits dans la page : le formulaire de contact, la demande de
+      réinitialisation, qui affiche le message de l'API, l'inscription depuis l'issue #119,
+      qui ne quitte plus la page pour cette raison même, et le changement de mot de passe. Une publication d'article ne dit rien,
       elle — `onCreated` ferme la modale et recharge la liste, sans quitter `/blog`. Piste
       inchangée : librairie type
       `react-hot-toast` ou `sonner`, ou un composant Toast maison — c'est le point où ce
@@ -154,7 +154,7 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
 ## Fonctionnalités écartées
 
 - [ ] **Aucun endpoint profil.** L'API n'expose ni `GET /api/auth/me/` ni équivalent : le
-      front sait qu'un membre est connecté, jamais qui il est, et `App.tsx` n'a pas de page de
+      front sait qu'un membre est connecté, jamais qui il est, et `routes.tsx` n'a pas de page de
       profil. La tâche 5.1 de `correction.md` a tranché pour un simple booléen, l'ajout
       backend devant être proposé à part. Piste : une `RetrieveUpdateAPIView` sur
       `request.user`, réservée au membre, dont le serializer ne rend que le prénom, le nom et
