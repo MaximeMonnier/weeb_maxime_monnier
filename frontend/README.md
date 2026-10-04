@@ -143,7 +143,8 @@ src/
 ├── assets/                    # Images et SVG
 │   ├── img/
 │   └── svg/
-├── App.tsx                    # Routes
+├── App.tsx                    # Routeur, sous MainLayout
+├── routes.tsx                 # Routes : chemin et page
 ├── main.tsx                   # Point d'entrée
 ├── index.css                  # Styles globaux et design system
 └── vite-env.d.ts
@@ -315,12 +316,12 @@ export default function MaPage() {
 }
 ```
 
-2. Ajouter la route dans `App.tsx`
+2. Ajouter la route dans `routes.tsx`, avant la ligne `*`
 ```tsx
 import MaPage from "./pages/MaPage";
 
-// Dans <Routes>
-<Route path="/ma-page" element={<MaPage />} />
+// Dans ROUTES
+{ path: "/ma-page", element: <MaPage /> },
 ```
 
 3. Optionnel : Ajouter un lien dans `NavBar.tsx`
