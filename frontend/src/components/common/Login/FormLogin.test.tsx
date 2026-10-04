@@ -92,17 +92,6 @@ describe("FormLogin — refus avant tout appel", () => {
     expect(screen.getByText("L'email n'est pas valide")).toBeInTheDocument();
     expect(appelReseau).not.toHaveBeenCalled();
   });
-
-  it("refuse un mot de passe de moins de huit caractères", async () => {
-    afficherFormulaire();
-
-    await remplirEtEnvoyer("jean.dupont@example.com", "court12");
-
-    expect(
-      screen.getByText("Le mot de passe doit contenir au moins 8 caractères"),
-    ).toBeInTheDocument();
-    expect(appelReseau).not.toHaveBeenCalled();
-  });
 });
 
 describe("FormLogin — réponse de l'API", () => {
@@ -146,6 +135,23 @@ describe("FormLogin — réponse de l'API", () => {
     // est la seule façon d'en obtenir un neuf.
     expect(localStorage.getItem("access")).toBe("jeton-acces");
     expect(localStorage.getItem("refresh")).toBe("jeton-renouvellement");
+  });
+
+  // La longueur minimale est une règle de création : un compte au mot de passe
+  // plus court, né d'un create_user() au shell, doit pouvoir se connecter.
+  it("envoie un mot de passe de moins de huit caractères", async () => {
+    appelReseau.mockResolvedValue(
+      reponse(200, { access: "jeton-acces", refresh: "jeton-renouvellement" }),
+    );
+    afficherFormulaire();
+
+    await remplirEtEnvoyer("jean.dupont@example.com", "court12");
+
+    expect(await screen.findByText("Page d'accueil")).toBeInTheDocument();
+    expect(requeteEnvoyee().corps).toEqual({
+      email: "jean.dupont@example.com",
+      password: "court12",
+    });
   });
 });
 
