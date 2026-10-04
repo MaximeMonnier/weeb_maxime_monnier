@@ -1,7 +1,6 @@
 import { Input, Textarea } from "../../ui/Input";
 import Button from "../../ui/Button/Button";
 import { apiFetch } from "../../../lib/api";
-import { toFormErrors } from "../../../lib/apiErrors";
 import { useForm } from "../../../hooks/useForm";
 import type { FormErrors } from "../../../hooks/useForm";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
@@ -41,50 +40,35 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
     formData,
     setFormData,
     errors,
-    setErrors,
     formError,
-    setFormError,
     isSubmitting,
-    setIsSubmitting,
     handleChange,
-    validate,
+    submit,
   } = useForm<FormData>(VALEURS_INITIALES);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validate(reglesDeSaisie)) {
-      return;
-    }
-
-    setFormError(null);
-    setIsSubmitting(true);
-    try {
-      // Le token (utilisateur connecté) est ajouté automatiquement par apiFetch.
-      // L'auteur est défini côté serveur (perform_create) → on n'envoie que titre + contenu.
-      await apiFetch("/articles/", {
-        method: "POST",
-        body: JSON.stringify({
-          title: formData.title,
-          content: formData.content,
-        }),
-      });
-      setFormData(VALEURS_INITIALES);
-      onCreated?.();
-    } catch (err) {
+  const handleSubmit = (e: React.FormEvent) =>
+    submit(e, {
+      rules: reglesDeSaisie,
+      fields: CHAMPS,
       // apiFetch renouvelle le jeton d'accès : ce 401 ne vient plus de ses quinze
       // minutes, mais d'une session finie ou d'un renouvellement en panne. Le formulaire
       // vit dans une modale de /blog, donc aller se reconnecter emporte le texte saisi.
-      const { fieldErrors, formError } = toFormErrors(err, CHAMPS, {
-        unauthorized:
-          "Vous devez être connecté pour publier, et votre session a peut-être expiré. Copiez votre texte avant de vous reconnecter : il ne sera pas conservé.",
-      });
-      setErrors(fieldErrors);
-      setFormError(formError);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+      unauthorized:
+        "Vous devez être connecté pour publier, et votre session a peut-être expiré. Copiez votre texte avant de vous reconnecter : il ne sera pas conservé.",
+      send: async (values) => {
+        // Le token (utilisateur connecté) est ajouté automatiquement par apiFetch.
+        // L'auteur est défini côté serveur (perform_create) → on n'envoie que titre + contenu.
+        await apiFetch("/articles/", {
+          method: "POST",
+          body: JSON.stringify({
+            title: values.title,
+            content: values.content,
+          }),
+        });
+        setFormData(VALEURS_INITIALES);
+        onCreated?.();
+      },
+    });
 
   return (
     <form
