@@ -1,16 +1,6 @@
-# ============================================
-#  Image du backend Django — projet Weeb
-# ============================================
-# Construction depuis la racine du dépôt :
-#   docker build -t weeb-backend ./backend
-# Le contexte est backend/ : le .env de la racine en est HORS, et ne peut donc
-# entrer dans aucun layer, ni apparaître dans `docker history`.
-#
-# Build en deux temps. Le premier installe les dépendances, le second n'emporte
-# que le venv produit : le cache de roues et tout outil de compilation que
-# l'installation aurait tiré restent dans l'étape de build. pip, lui, fait
-# partie du venv et suit — c'est sans conséquence, il n'est jamais exécuté au
-# démarrage et le conteneur tourne sans privilèges.
+# `docker build -t weeb-backend ./backend` — contexte backend/ : le .env de la
+# racine en est hors et n'entre dans aucun layer. La seconde étape n'emporte
+# que le venv, sans le cache de roues ni les outils de compilation.
 
 # ---------- Étape 1 : construction des dépendances ----------
 FROM python:3.13-slim AS builder
@@ -57,19 +47,13 @@ COPY --from=builder /opt/venv /opt/venv
 
 WORKDIR /app
 
-# Hors de /app, que le développement recouvre avec `./backend:/app` : sous /app,
-# ce sont les fichiers de la machine qui s'exécuteraient, jamais ceux de l'image.
-# Copiés avant le code, pour que leur layer survive à chaque modification de vue.
-# Et le bit exécutable est posé ICI plutôt qu'hérité de l'hôte : une extraction
-# du dépôt par un outil sans droits POSIX le perdrait, et le conteneur casserait
-# sur une erreur qui ne désigne pas sa cause.
+# Hors de /app, que le développement recouvre de `./backend:/app`. Bit
+# exécutable posé ici et non hérité : une extraction sans droits POSIX le perdrait.
 COPY docker-entrypoint.sh healthcheck.py /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Sans --chown : le code reste la propriété de root, donc lisible et exécutable
-# par `weeb`, mais pas modifiable par lui. Une faille permettant l'écriture
-# arbitraire dans le processus ne peut alors pas réécrire une vue ou le script
-# de démarrage pour se rendre persistante.
+# Sans --chown : le code reste à root, lisible mais pas modifiable par `weeb`.
+# Une faille d'écriture ne peut pas réécrire une vue pour s'installer.
 COPY . .
 
 # Seule exception, et seul dossier écrit à l'exécution : collectstatic remplit
@@ -88,22 +72,14 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD ["python", "/usr/local/bin/healthcheck.py"]
 
-# Le script d'entrée s'interpose devant TOUTE commande, y compris une commande
-# passée à `docker run` ou un `command:` de Compose : les migrations ne peuvent
-# pas être sautées par mégarde en surchargeant la commande. C'est le script
-# lui-même qui décide de préparer ou non, selon la commande demandée, de sorte
-# que `docker run <image> id -u` reste possible sans --entrypoint.
+# Le script s'interpose devant toute commande, `command:` de Compose compris :
+# les migrations ne sautent pas par mégarde. Il ne prépare que devant gunicorn,
+# d'où `docker run <image> id -u` possible sans --entrypoint.
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# --workers 3 : point de départ raisonnable pour deux cœurs. À ajuster selon la
-# machine, avec la formule usuelle (2 × cœurs + 1).
-# --access-logfile - : les journaux d'accès vont sur la sortie standard, là où
-# Docker les récupère, au lieu d'un fichier que personne ne lira dans l'image.
-# --no-control-socket : Gunicorn ouvre par défaut un socket d'administration
-# sous ~/.gunicorn. Le compte de service n'a pas de répertoire personnel, ce
-# qui produisait une erreur à chaque démarrage — et ce socket ne sert à rien
-# ici, où l'on pilote le processus par `docker restart`, pas par une commande
-# locale.
+# --workers 3 : 2 × cœurs + 1 sur deux cœurs. --no-control-socket : sans
+# répertoire personnel où ouvrir ce socket, Gunicorn affichait une erreur à
+# chaque démarrage. Journaux sur la sortie standard, où Docker les lit.
 CMD ["gunicorn", "config.wsgi:application", \
      "--bind", "0.0.0.0:8000", \
      "--workers", "3", \
