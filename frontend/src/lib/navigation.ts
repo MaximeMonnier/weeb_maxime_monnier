@@ -1,8 +1,8 @@
 import type { NavItem } from "../types/navigation";
 
 // Les cinq couples servis à la fois par l'en-tête, le menu mobile et le pied de
-// page. Recopiés, ils ont coûté deux défauts : « Nous rejoindre » menant ailleurs
-// en mobile (#148), et des libellés divergents entre le menu et le pied (#155).
+// page. Recopiés, ils divergent : même libellé menant ailleurs, ou même lien
+// nommé autrement d'un bloc à l'autre.
 export const LIEN_BLOG: NavItem = {
   to: "/blog",
   label: "Blog",

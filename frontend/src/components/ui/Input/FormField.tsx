@@ -58,7 +58,7 @@ export default function FormField({
   className,
   children,
 }: FormFieldProps) {
-  const generatedId = useId(); // id stable généré par React (remplace Math.random)
+  const generatedId = useId();
   const fieldId = id || generatedId;
   const hasError = !!error || variant === "error";
   const hasSuccess = variant === "success";

@@ -5,8 +5,8 @@ import "@testing-library/jest-dom/vitest";
 import LogoBanner from "./LogoBanner";
 
 // Ce que le seul LogoBanner.tsx ne dit pas : le bandeau est rendu deux fois pour
-// que l'animation boucle, et chaque logo nommait sa marque dans l'`alt` comme
-// dans le texte — un lecteur d'écran lisait chaque nom quatre fois (issue #204).
+// que l'animation boucle, et un logo nommant sa marque dans l'`alt` comme dans le
+// texte ferait lire chaque nom quatre fois au lecteur d'écran.
 
 const MARQUES = ["SmartFinder", "Zoomerr", "SHELLS", "WAVES", "ArtVenue"];
 

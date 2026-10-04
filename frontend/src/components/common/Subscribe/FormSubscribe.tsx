@@ -25,7 +25,7 @@ type FormData = {
 // `confirmPassword` n'est pas envoyé : l'API ne le connaît pas et ne peut rien en dire.
 const CHAMPS = ["first_name", "last_name", "email", "password"] as const;
 
-// L'API nomme l'adresse déjà inscrite (AMELIORATIONS.md, à reprendre avec #65).
+// L'API nomme l'adresse déjà inscrite (AMELIORATIONS.md).
 // Relayer son message ferait du formulaire un test d'existence de compte.
 const REFUS_NEUTRE =
   "Impossible de créer un compte avec ces informations. Si vous avez déjà un compte, connectez-vous.";

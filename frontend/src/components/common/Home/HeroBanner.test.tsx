@@ -6,9 +6,8 @@ import "@testing-library/jest-dom/vitest";
 import { LIEN_BLOG } from "../../../lib/navigation";
 import HeroBanner from "./HeroBanner";
 
-// Ce que le seul HeroBanner.tsx ne dit pas : ses appels à l'action ont été deux
-// `<button>` sans `onClick` (issue #180). Un bouton inerte ne casse ni le build
-// ni le typage — seul ce test le rattrape.
+// Ce que le seul HeroBanner.tsx ne dit pas : un appel à l'action rendu en `<button>`
+// sans `onClick` ne casse ni le build ni le typage — seul ce test le rattrape.
 
 function rendreLaBanniere() {
   render(
