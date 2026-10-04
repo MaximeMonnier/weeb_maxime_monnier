@@ -874,6 +874,70 @@ retirer trois mentions purement historiques.
 - Les consignes passent de 39 999 à **39 983 octets**, règle comprise.
 - Aucun code touché : rien à rejouer côté tests.
 
+## Lot 12 — Corriger les causes dans le code
+
+Clos le 2026-10-04 · Epic #238 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — l'audit du 2026-10-03 n'avait trouvé aucune faille, mais plusieurs pièges
+étaient **expliqués au lieu d'être corrigés** :
+- une rotation de refresh glissée dans un changement de mot de passe faisait rendre `500` et
+  annulait le nouveau mot de passe ;
+- la clé de test, de 23 octets, affichait des `InsecureKeyLengthWarning` à chaque lancement ;
+- chaque couleur du thème s'écrivait deux fois, en clair et en sombre ;
+- cinq fichiers de composant n'exportaient pas leur nom, et deux tests lisaient `App.tsx` comme
+  du texte ;
+- sept formulaires recopiaient le même cycle d'envoi, d'environ 25 lignes ;
+- `/reset-password` ne demandait ni confirmation ni complexité, `/blog` n'avait pas de `<h1>`, et
+  un visiteur en thème clair voyait d'abord la page en sombre.
+
+Filet de départ, à `1b8a9da` : **96 tests back**, **126 tests front**.
+
+**Décision et justification** — retirer la cause, et avec elle l'explication qu'elle imposait.
+- Côté API, un **verrou sur la ligne du compte**, pris par la rotation comme par la révocation.
+  La rotation relit son jeton sous ce verrou : un décodage de plus par renouvellement, contre une
+  révocation qui ne laisse plus rien passer.
+- Une variable de couleur **par rôle** (seize), redéfinie sous `.dark`, avec les valeurs d'avant :
+  80 captures avant/après identiques à l'octet.
+- Le cas d'`index.css.test.ts` sur les variantes d'une classe écrite à la main est **gardé**,
+  contre ce que prévoyait l'issue : `form-*`, `nav-link` et `footer-link` le sont toujours.
+- Les routes vivent dans `routes.tsx` et non dans `App.tsx`, que `only-export-components`
+  empêche d'exporter autre chose qu'un composant.
+- `submit()` de `useForm` prend `unauthorized` et `translate` pour les refus propres à un
+  formulaire. La connexion n'applique plus la longueur minimale, qui est une règle de création.
+- Le thème initial est posé par un script en ligne d'`index.html`, que `useTheme` se contente de
+  lire : la règle n'existe plus qu'une fois.
+
+**Ce qui a surpris** — **le premier correctif de sécurité ne corrigeait que le symptôme.**
+`ignore_conflicts` (#239) remplaçait le `500` par un `200`. Mais la session ouverte avec l'ancien
+mot de passe survivait toujours : la rotation émettait un refresh neuf que la révocation n'avait
+pas lu. Il a fallu une issue hors epic, #250. Deux mesures sur ce correctif :
+- retirer le verrou mais garder la transaction ne revient pas au défaut d'origine : PostgreSQL
+  détecte un **interblocage** entre les deux connexions ;
+- les deux premiers tests ne couvraient qu'un ordre. Une optimisation tentante, lire la liste
+  noire sur le jeton décodé hors verrou, les passait au vert. Seul un troisième test, la
+  révocation d'abord, la fait tomber.
+
+**La règle du lot 11 a tenu.** Le lot compte **10 commits `docs` sur 34**. L'audit en comptait 156
+pour 34 `feat` depuis le 2026-09-01. Le Markdown y perd plus qu'il ne gagne :
+**88 insertions pour 92 suppressions**.
+
+**Un refactoring de couleurs a révélé un défaut masqué.** Le × de la modale de création portait
+un `hover:text-red-800` que la règle `.dark .text-primary` écrasait en sombre. Les règles
+`.dark` retirées, il devenait visible et illisible. Il passe à `hover:text-error`.
+
+Le diff pèse **1 080 insertions pour 905 suppressions** sur 53 fichiers. `frontend/src` et
+`index.html` en portent 830 pour 800, sur 45 fichiers : le lot réécrit plus qu'il n'ajoute.
+
+**Preuve de la correction** — rejouée sur `preprod` à `5bd4d62`.
+- Back, depuis le venv : `DJANGO_SETTINGS_MODULE=config.settings.test python manage.py test`
+  rend `Ran 100 tests` puis `OK`, soit **4 de plus**, et aucun `InsecureKeyLengthWarning`.
+- Front, depuis `frontend/` : `npm run lint` ne rend rien.
+- `npm test` rend `Test Files  15 passed (15)` et `Tests  135 passed (135)`, soit **9 de plus**.
+- `npm run build` rend `✓ built in 2.66s`.
+- `grep -rE "var\(--color-(light|dark)-" frontend/src` et `grep -rn "App.tsx?raw" frontend/src`
+  ne rendent rien. `class="dark"` a disparu d'`index.html`. Un `finally` ne reste que dans
+  `Blog.tsx`, pour le chargement de la liste.
+
 ## Lot 14 — Documentation et clôture
 
 Clos le 2026-10-03 · Epic #229 · Alimente : Bloc 1 + 2 — documentation

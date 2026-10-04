@@ -57,8 +57,8 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 - **Aucun `fetch` hors de `lib/api.ts`.** Point d'appel réseau unique.
 - **Toute vue DRF publique déclare explicitement sa permission.** Le défaut global est
   `IsAuthenticated` : une vue qui oublie sa permission est fermée sans que rien ne le signale.
-- **Le nom du fichier ne dit pas le nom de l'export** côté front (`MainButton.tsx` exporte
-  `Button`, `Card.tsx` exporte `ArticleCard`…). Inventorier les exports, pas les noms de fichiers.
+- **Le nom du fichier est celui de son export** côté front, depuis l'issue #242 : un composant
+  s'importe sous un seul nom, que grep retrouve.
 - **Tout est rédigé en français** : code, commentaires, docstrings, commits, tickets.
 - **Commentaires** : le *pourquoi*, jamais le *quoi*, trois lignes maximum (`commentaires-code`).
 - **Documentation** : commenter seulement ce que le code ne peut pas dire. README et
@@ -2216,7 +2216,7 @@ Rien ne part sur GitHub.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À faire | — | — | Bloc 1 — qualité |
+| Clos le 2026-10-04 — quatre tâches prévues, dix sous-issues livrées, plus une issue hors epic née d'une revue | #238 | Lot 12 | Bloc 1 — qualité |
 
 **Origine** : audit du 2026-10-03 (back 7,5/10, front 7/10, 96 tests back et 126 front au
 vert). Aucune faille. Le défaut de fond : plusieurs pièges sont **documentés au lieu d'être
@@ -2226,13 +2226,17 @@ Ce lot retire les causes ; le lot 13 retire ensuite la documentation devenue inu
 **Grain de ticket** : epic + 4 sous-issues. 12.1 est indépendante. 12.2, 12.3 et 12.4 touchent
 en partie les mêmes composants (`NavBar.tsx`, `HeroBanner.tsx`, les formulaires) : elles passent
 l'une après l'autre, dans cet ordre.
+Ouvert ainsi : 12.1 → #239 et #240, 12.2 → #241, 12.3 → #242 et #243, 12.4 → #244 à #248.
+**Puis #250**, hors epic : la course que l'`ignore_conflicts` de #239 laissait ouverte.
 
 > **Dépendances : lot 11 clos**, sans quoi ces tickets rajoutent la documentation que le lot 13
 > doit retirer.
 
 ## 12.1 — Révocation sans conflit et clé de test valide
 
-- [ ] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/tests.py`, `backend/config/settings/test.py`
+- [x] **Fichiers** : `backend/accounts/views.py`, `backend/accounts/tests.py`, `backend/config/settings/test.py`
+  — livré par #239 (PR #249) et #240 (PR #251), puis #250 (PR #260) : un verrou sur la ligne
+  du compte sérialise la rotation des refresh et leur révocation.
 - **Constat** : `set_password_and_revoke` (`accounts/views.py:76`) fait un `bulk_create` de
   `BlacklistedToken` sans `ignore_conflicts`. Une rotation de refresh pendant un changement de
   mot de passe viole l'unicité : `500`, et la transaction annule le nouveau mot de passe. La clé
@@ -2250,7 +2254,7 @@ Consulte `backend-django-drf`. Aucun fichier à créer.
 
 ## 12.2 — Thème en variables sémantiques
 
-- [ ] **Fichiers** : `frontend/src/index.css`, `frontend/src/components/ui/Button/buttonClasses.ts`,
+- [x] **Fichiers** — livré par #241 (PR #252) : `frontend/src/index.css`, `frontend/src/components/ui/Button/buttonClasses.ts`,
   `frontend/src/components/common/Home/Slider.tsx`, `frontend/src/index.css.test.ts`, les composants
   qui portent des paires `bg-[var(--color-light-…)] dark:bg-[var(--color-dark-…)]`
 - **Constat** : chaque couleur est écrite deux fois — `.X` puis `.dark .X` dans `index.css`, et
@@ -2273,7 +2277,7 @@ Consulte `frontend-react-ts` et `inventaire-avant-dev`.
 
 ## 12.3 — Fichiers nommés comme leur export, routes exportées
 
-- [ ] **Fichiers** : `MainButton.tsx`, `Card.tsx`, `MainTitle.tsx`, `SecondTitle.tsx`,
+- [x] **Fichiers** — livré par #242 (PR #253) et #243 (PR #254) : `MainButton.tsx`, `Card.tsx`, `MainTitle.tsx`, `SecondTitle.tsx`,
   `LinkTitle.tsx` et leurs 19 importeurs ; `frontend/src/App.tsx`, `Footer.test.tsx`, `NavBar.test.tsx`
 - **Constat** : cinq fichiers n'exportent pas leur nom, et le même composant s'importe sous deux
   noms (`Button` dans `Blog.tsx`, `MainButton` dans `FormArticle.tsx`) : grep ne le retrouve
@@ -2294,7 +2298,7 @@ Consulte `frontend-react-ts`. Refactoring PUR : rien ne change à l'écran.
 
 ## 12.4 — `submit()` dans `useForm`, et quatre défauts du front
 
-- [ ] **Fichiers** : `frontend/src/hooks/useForm.ts` et son test, les 7 formulaires,
+- [x] **Fichiers** — livré par #244 à #248 (PR #255 à #259) : `frontend/src/hooks/useForm.ts` et son test, les 7 formulaires,
   `frontend/src/pages/ResetPassword.tsx`, `frontend/src/pages/Blog/Blog.tsx`, `frontend/index.html`
 - **Constat** : les 7 formulaires recopient le même `handleSubmit` d'environ 25 lignes
   (valider, remettre à zéro, `isSubmitting`, `try/catch` vers `toFormErrors`, `finally`).
