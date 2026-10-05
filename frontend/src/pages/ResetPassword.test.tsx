@@ -1,15 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import "@testing-library/jest-dom/vitest";
 
 import ResetPassword from "./ResetPassword";
-
-const FETCH_ORIGINAL = globalThis.fetch;
-
-// Coupé à `fetch` et non à `apiFetch` : l'adresse et le corps sont ceux de la vraie chaîne.
-const appelReseau = vi.fn();
+import { appelReseau, couperLeReseau, reponse, retablirLeReseau } from "../test/reseau";
 
 function afficherPage() {
   render(
@@ -31,14 +27,11 @@ async function remplirEtEnvoyer(nouveau: string, confirmation = nouveau) {
   await userEvent.click(screen.getByRole("button"));
 }
 
-beforeEach(() => {
-  appelReseau.mockReset();
-  globalThis.fetch = appelReseau as unknown as typeof fetch;
-});
+beforeEach(couperLeReseau);
 
 afterEach(() => {
   cleanup();
-  globalThis.fetch = FETCH_ORIGINAL;
+  retablirLeReseau();
 });
 
 describe("ResetPassword", () => {
@@ -65,11 +58,7 @@ describe("ResetPassword", () => {
   });
 
   it("n'envoie que l'uid, le jeton et le mot de passe, puis renvoie à la connexion", async () => {
-    appelReseau.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: vi.fn(async () => ({ detail: "ok" })),
-    });
+    appelReseau.mockResolvedValue(reponse(200, { detail: "ok" }));
     afficherPage();
 
     await remplirEtEnvoyer("NouveauSecret456");
