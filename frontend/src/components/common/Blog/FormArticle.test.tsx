@@ -27,8 +27,8 @@ const alerte = () => screen.getByRole("alert");
 const TITRE = "Mon premier article";
 const CONTENU = "Un contenu assez long pour passer.";
 
-// Les saisies refusées restent non vides : vides, c'est l'attribut `required`
-// qui bloquerait l'envoi, et le cas ne prouverait rien des règles du formulaire.
+// Les saisies refusées restent non vides : dans un navigateur, `required` arrête
+// le vide avant la règle du formulaire, que jsdom laisse passer.
 async function remplirEtEnvoyer(titre: string, contenu: string) {
   await userEvent.type(champTitre(), titre);
   await userEvent.type(champContenu(), contenu);
