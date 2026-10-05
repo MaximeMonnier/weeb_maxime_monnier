@@ -161,8 +161,6 @@ describe("Footer — membre connecté", () => {
     expect(
       screen.getByRole("link", { name: "Changer mon mot de passe" }),
     ).toHaveAttribute("href", "/change-password");
-    // Seule entrée vers la suppression : sans elle, le membre retomberait sur le
-    // formulaire de contact, que /privacy ne propose plus pour cela.
     expect(
       screen.getByRole("link", { name: "Supprimer mon compte" }),
     ).toHaveAttribute("href", "/delete-account");
