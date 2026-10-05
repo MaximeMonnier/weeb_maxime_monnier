@@ -38,6 +38,7 @@ const VISITOR_LINKS: FooterLink[] = [
 // Le membre connaît son mot de passe : il le change sans passer par un email.
 const MEMBER_LINKS: FooterLink[] = [
   { label: "Changer mon mot de passe", to: "/change-password" },
+  { label: "Supprimer mon compte", to: "/delete-account" },
 ];
 
 const LEGAL_COLUMN: FooterColumn = {

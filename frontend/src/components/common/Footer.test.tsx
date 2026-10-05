@@ -146,7 +146,7 @@ describe("Footer — visiteur", () => {
 });
 
 describe("Footer — membre connecté", () => {
-  it("remplace les entrées du visiteur par le changement de mot de passe", () => {
+  it("remplace les entrées du visiteur par la gestion du compte", () => {
     // Lu dès le premier rendu par `useIsAuthenticated` : la session se pose
     // avant, sans quoi le pied de page s'afficherait en visiteur.
     saveTokens({ access: "jeton-acces", refresh: "jeton-renouvellement" });
@@ -161,6 +161,11 @@ describe("Footer — membre connecté", () => {
     expect(
       screen.getByRole("link", { name: "Changer mon mot de passe" }),
     ).toHaveAttribute("href", "/change-password");
+    // Seule entrée vers la suppression : sans elle, le membre retomberait sur le
+    // formulaire de contact, que /privacy ne propose plus pour cela.
+    expect(
+      screen.getByRole("link", { name: "Supprimer mon compte" }),
+    ).toHaveAttribute("href", "/delete-account");
 
     expect(screen.getByRole("link", { name: "Blog" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Contact" })).toBeInTheDocument();
