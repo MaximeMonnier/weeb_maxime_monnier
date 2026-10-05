@@ -190,6 +190,44 @@ class ArticleSignatureTests(TestCase):
                 self.assertEqual(self.signature(url), "Auteur anonyme")
 
 
+class ArticleEstAuteurTests(TestCase):
+    """Le détail dit au lecteur s'il a écrit l'article ; la liste ne le dit à personne."""
+
+    def setUp(self):
+        self.auteur = membre("auteur@example.com")
+        self.article = Article.objects.create(
+            title="Article de l'auteur", content="Contenu.", author=self.auteur,
+        )
+        self.url = reverse("article-detail", args=[self.article.pk])
+
+    def test_le_visiteur_n_est_pas_l_auteur(self):
+        self.assertIs(self.client.get(self.url).json()["is_author"], False)
+
+    def test_un_autre_membre_n_est_pas_l_auteur(self):
+        response = self.client.get(self.url, headers=porteur(membre("autre@example.com")))
+
+        self.assertIs(response.json()["is_author"], False)
+
+    def test_l_auteur_se_reconnait(self):
+        response = self.client.get(self.url, headers=porteur(self.auteur))
+
+        self.assertIs(response.json()["is_author"], True)
+
+    def test_la_reponse_a_la_modification_de_l_auteur_le_reconnait(self):
+        response = self.client.patch(
+            self.url, {"title": "Titre modifié"},
+            content_type="application/json", headers=porteur(self.auteur),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(response.json()["is_author"], True)
+
+    def test_la_liste_ne_rend_pas_le_champ(self):
+        response = self.client.get(reverse("article-list"), headers=porteur(self.auteur))
+
+        self.assertNotIn("is_author", response.json()["results"][0])
+
+
 class ArticleOrdreTests(TestCase):
     """La liste sort du plus récent au plus ancien, et rien dans la vue ne le dit."""
 
