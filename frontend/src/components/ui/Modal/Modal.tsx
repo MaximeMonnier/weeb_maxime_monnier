@@ -25,8 +25,8 @@ export default function Modal({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
-  // Échap ferme le dialog avant que `open` ne change : sans le test de
-  // `dialog.open`, `close()` viserait une fenêtre déjà fermée.
+  // Échap ferme le dialog sans passer par `open` : l'effet compare donc à
+  // l'état réel de la fenêtre, et `showModal()` lève sur une fenêtre déjà ouverte.
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
