@@ -55,6 +55,7 @@ npm run lint
 | `/forgot-password` | Demande d'un lien de réinitialisation, envoyé par email |
 | `/reset-password` | Saisie du nouveau mot de passe. Atteinte par le lien du mail, qui porte `uid` et `token` en paramètres d'URL |
 | `/change-password` | Changement du mot de passe par le membre connecté, qui reste connecté. Le visiteur y est renvoyé vers la connexion |
+| `/delete-account` | Suppression définitive du compte et de ses articles par le membre connecté, sur son mot de passe redonné. Le visiteur y est renvoyé vers la connexion |
 | `/subscribe` | Page d'inscription |
 | `/about` | Page de présentation |
 | `/blog` | Liste des articles |

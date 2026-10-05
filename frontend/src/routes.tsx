@@ -10,6 +10,7 @@ import ArticleDetails from "./pages/Blog/ArticleDetails";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import ChangePassword from "./pages/ChangePassword";
+import DeleteAccount from "./pages/DeleteAccount";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 
@@ -22,6 +23,7 @@ export const ROUTES: RouteDeLApp[] = [
   { path: "/forgot-password", element: <ForgotPassword /> },
   { path: "/reset-password", element: <ResetPassword /> },
   { path: "/change-password", element: <ChangePassword /> },
+  { path: "/delete-account", element: <DeleteAccount /> },
   { path: "/subscribe", element: <Subscribe /> },
   { path: "/about", element: <About /> },
   { path: "/blog", element: <Blog /> },

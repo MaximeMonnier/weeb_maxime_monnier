@@ -18,7 +18,7 @@ const Privacy = () => {
             faire fonctionner le site.
           </p>
           <p className="text-ink-muted text-sm mt-4">
-            Dernière mise à jour : 25 septembre 2026.
+            Dernière mise à jour : 5 octobre 2026.
           </p>
         </div>
 
@@ -89,8 +89,16 @@ const Privacy = () => {
         <section className="py-8">
           <SectionTitle align="left" line1={<>6. Vos droits</>} />
           <p className="text-ink-soft mt-4">
-            Vous pouvez demander à consulter vos données, à les corriger ou à
-            les faire supprimer, compte compris. Écrivez-nous par le{" "}
+            Membre, vous supprimez vous-même votre compte, articles compris,
+            depuis la page{" "}
+            <Link
+              to="/delete-account"
+              className="text-accent hover:underline focus-ring-primary rounded"
+            >
+              Supprimer mon compte
+            </Link>
+            . Pour consulter ou corriger vos données, et pour toute autre
+            demande, écrivez-nous par le{" "}
             <Link
               to="/contact"
               className="text-accent hover:underline focus-ring-primary rounded"
