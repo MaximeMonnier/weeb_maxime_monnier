@@ -111,6 +111,7 @@ src/
 │       ├── Button/            # Button, buttonClasses
 │       ├── Input/             # Input, Textarea, FormField
 │       ├── Logo/              # Logo, LogoBanner
+│       ├── Modal/             # Modal
 │       └── Title/             # HeroTitle, SectionTitle, TextCtaLink
 ├── pages/                     # Une page par route
 │   ├── Blog/                  # Blog, ArticleDetails

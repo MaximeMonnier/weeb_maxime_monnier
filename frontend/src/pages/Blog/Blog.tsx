@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch, type ApiError } from "../../lib/api";
 import { toFormErrors } from "../../lib/apiErrors";
@@ -8,6 +8,7 @@ import ErrorAlert from "../../components/ui/Alert/ErrorAlert";
 import Button from "../../components/ui/Button/Button";
 import { buttonClasses } from "../../components/ui/Button/buttonClasses";
 import HeroTitle from "../../components/ui/Title/HeroTitle";
+import Modal from "../../components/ui/Modal/Modal";
 import ArticleCard from "../../components/common/Blog/ArticleCard";
 import FormArticle from "../../components/common/Blog/FormArticle";
 
@@ -20,7 +21,7 @@ type Page<T> = {
 };
 
 const Blog = () => {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const isAuthenticated = useIsAuthenticated();
 
   // null tant que la première page n'est pas arrivée : une liste pas encore
@@ -86,7 +87,7 @@ const Blog = () => {
           <Button
             variant="primary"
             className="ml-4"
-            onClick={() => dialogRef.current?.showModal()}
+            onClick={() => setIsModalOpen(true)}
           >
             Créer un article
           </Button>
@@ -134,30 +135,20 @@ const Blog = () => {
         )}
       </div>
 
-      <dialog
-        ref={dialogRef}
-        className="m-auto w-full max-w-2xl rounded-lg bg-surface-alt p-6 text-ink backdrop:bg-black/50"
+      <Modal
+        open={isModalOpen}
+        title="Nouvel article"
+        onClose={() => setIsModalOpen(false)}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold">Nouvel article</h3>
-          <button
-            className="text-ink cursor-pointer text-2xl font-bold hover:text-error transition-colors"
-            onClick={() => dialogRef.current?.close()}
-            aria-label="Fermer"
-          >
-            ✕
-          </button>
-        </div>
-
         <div className="flex flex-col items-center justify-center">
           <FormArticle
             onCreated={() => {
-              dialogRef.current?.close();
+              setIsModalOpen(false);
               loadArticles();
             }}
           />
         </div>
-      </dialog>
+      </Modal>
     </div>
   );
 };
