@@ -1183,3 +1183,55 @@ Le lot pèse **523 insertions pour 12 suppressions** sur 23 fichiers, hors `corr
   annonce 90 jours, la section 6 mène à `/delete-account`.
 - Back : `Ran 114 tests` puis `OK`. Front : `npm run lint` ne rend rien, `npm test` rend
   `Tests  146 passed (146)`, et `npm run build` aboutit.
+
+## Lot 17 — Tests du front : combler les trous
+
+Clos le 2026-10-05 · Epic #293 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — l'audit du 2026-10-05, point 30 : trois formulaires n'avaient aucun test
+de leur envoi.
+- `FormArticle` publiait sans test, alors que le lot 18 va l'étendre à l'édition ;
+- `FormContact.test.tsx` ne vérifiait que le lien vers `/privacy`, posé au lot 16 ;
+- `ForgotPassword` affichait la réponse neutre de l'API sans que rien le vérifie.
+
+Neuf fichiers recopiaient leur propre substitut de `fetch`. Filet de départ : **18 fichiers et
+146 tests front**.
+
+**Décision et justification** :
+
+- le substitut est extrait d'abord (#294), pour que les trois nouveaux tests naissent sur
+  `frontend/src/test/reseau.ts` au lieu d'en ajouter trois copies ;
+- le module est importé par chaque fichier, sans `setupFiles` ni globales : un test qui ne
+  l'importe pas garde le vrai `fetch` ;
+- `requeteEnvoyee()` ne rend pas les en-têtes, parce que `FormLogin` et `FormSubscribe`
+  comparent son objet entier. `dernierAppel()` les donne à qui en a besoin ;
+- 17.2 est coupée en un ticket par formulaire (#295, #296, #297) : chacun a ses cas validés
+  avant d'écrire, et sa propre mutation ;
+- `ForgotPassword` n'a aucune règle de saisie, sa mutation porte donc sur le corps envoyé et sur
+  le `detail` affiché.
+
+**Ce qui a surpris** — trois constats.
+
+**Le plan comptait deux sous-issues, il en a fallu quatre.** Trois formulaires dans un seul
+ticket, c'était trois listes de cas à valider et trois mutations dans une seule revue.
+
+**« Aucun test » n'était plus vrai pour `FormContact`.** Le lot 16 lui avait donné un fichier
+de test, pour le lien vers `/privacy`. Le trou, c'était l'envoi, pas le fichier.
+
+**Le module partagé est vérifié par les tests qu'il sert.** Passer `status < 300` à
+`status < 500` dans `reseau.ts` fait tomber 15 tests dans 7 fichiers. Une dérive du contrat
+d'`apiFetch` ne passe donc plus inaperçue.
+
+Le lot pèse **474 insertions pour 230 suppressions** sur 15 fichiers, hors `correction.md`, en
+16 commits.
+
+**Preuve de la correction** — rejouée sur `preprod` à `a2a65a7`.
+- `grep -rn "globalThis.fetch =" frontend/src` ne rend que `src/test/reseau.ts`, et
+  `AMELIORATIONS.md` ne contient plus l'entrée « Doublon réseau ».
+- Une mutation par formulaire fait tomber au moins un cas, puis est restaurée :
+  - `FormArticle`, `author: 1` ajouté au corps ;
+  - `FormContact`, `subject` renommé `sujet` ;
+  - `ForgotPassword`, un texte fixe à la place de `detail`.
+- Aucun fichier de `backend/` ni aucun composant n'a changé.
+- Front : `npm run lint` ne rend rien, `npm test` rend `Tests  163 passed (163)` sur 20
+  fichiers, et `npm run build` aboutit.

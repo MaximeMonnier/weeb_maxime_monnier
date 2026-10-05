@@ -2756,7 +2756,7 @@ Consulte `inventaire-avant-dev` et `backend-django-drf`.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À planifier | — | — | Bloc 1 — qualité |
+| Clos le 2026-10-05 — 2 sous-issues prévues, 4 livrées (17.2 coupée en un ticket par formulaire) ; neuf copies du substitut, pas huit | #293 | Lot 17 | Bloc 1 — qualité |
 
 **Origine** : audit du 2026-10-05, point 30. 15 fichiers et 135 tests Vitest, mais trois
 formulaires n'ont aucun test rendu : `FormContact`, `FormArticle` et `ForgotPassword`. Le
@@ -2773,8 +2773,8 @@ trois nouveaux tests naissent sur le module partagé.
 
 ## 17.1 — Extraire le substitut réseau partagé des tests
 
-- [ ] **Fichiers** : un module de test partagé, chaque fichier qui substitue
-  `globalThis.fetch` — huit aujourd'hui, un de plus après le test front de 16.2
+- [x] **Fichiers** : `frontend/src/test/reseau.ts`, les neuf fichiers qui substituaient
+  `globalThis.fetch`, `AMELIORATIONS.md`, `frontend/README.md` — livré par #294 (PR #298)
 - **Constat** : `FormLogin.test.tsx`, `FormSubscribe.test.tsx`, `ChangePassword.test.tsx`,
   `ResetPassword.test.tsx`, `Blog.test.tsx`, `ArticleDetails.test.tsx`,
   `useIsAuthenticated.test.ts` et `api.test.ts` recopient chacun leur substitut de `fetch`,
@@ -2794,8 +2794,8 @@ npm run lint, npm test, npm run build : montre la sortie.
 
 ## 17.2 — Tester les formulaires de contact, d'article et de mot de passe oublié
 
-- [ ] **Fichiers** : trois fichiers de test, à côté de `FormContact.tsx`, `FormArticle.tsx` et
-  `ForgotPassword.tsx`
+- [x] **Fichiers** : `FormArticle.test.tsx`, `FormContact.test.tsx`, `ForgotPassword.test.tsx` —
+  livré par #295 (PR #299), #296 (PR #300) et #297 (PR #301)
 - **Constat** : aucun des trois n'a de test. `FormArticle` a pourtant un message de refus
   propre au `401` (l. 56-57), et `ForgotPassword` doit afficher la réponse neutre de l'API
   sans rien en déduire.
