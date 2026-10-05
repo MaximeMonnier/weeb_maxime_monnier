@@ -446,6 +446,7 @@ profil sur chaque route, et échoue si une route de l'API n'y figure pas.
 | `POST` | `/api/auth/password-reset/` | public | Envoie le lien par email. Répond toujours `200` |
 | `POST` | `/api/auth/password-reset/confirm/` | public | `uid`, `token` et nouveau mot de passe. Révoque tous les jetons du compte |
 | `POST` | `/api/auth/password-change/` | connecté | Mot de passe actuel et nouveau. Révoque les autres sessions, rend une paire neuve |
+| `DELETE` | `/api/auth/account/` | connecté | Mot de passe redonné. Supprime le compte et ses articles, répond `204` |
 | `GET` | `/api/articles/` | public | Liste paginée par 12 : `{count, next, previous, results}`, avec un extrait |
 | `GET` | `/api/articles/{id}/` | public | Détail, contenu entier |
 | `POST` | `/api/articles/` | connecté | Crée un article. `content` : 20 000 caractères au plus |
@@ -497,6 +498,7 @@ le `.env` ; la lecture des articles n'est pas limitée.
 | `POST /api/auth/password-reset/` | 3 par heure | IP | `THROTTLE_PASSWORD_RESET` |
 | `POST /api/auth/password-reset/confirm/` | 5 par heure | IP | `THROTTLE_PASSWORD_RESET_CONFIRM` |
 | `POST /api/auth/password-change/` | 5 par heure | compte | `THROTTLE_PASSWORD_CHANGE` |
+| `DELETE /api/auth/account/` | 5 par heure | compte | `THROTTLE_ACCOUNT_DELETE` |
 | `POST /api/contact/` | 5 par heure | IP | `THROTTLE_CONTACT` |
 
 ## Structure
