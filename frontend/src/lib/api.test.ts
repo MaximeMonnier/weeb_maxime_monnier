@@ -99,12 +99,21 @@ describe("apiFetch — jeton d'accès", () => {
     },
   );
 
-  // La seule route /auth/ fermée au visiteur : l'omettre y vaudrait un 401 à tout coup.
+  // Routes /auth/ fermées au visiteur : l'omettre y vaudrait un 401 à tout coup.
   it("le pose sur /auth/password-change/", async () => {
     localStorage.setItem("access", "jeton-de-test");
     appelReseau.mockResolvedValue(reponse(200, {}));
 
     await apiFetch("/auth/password-change/", { method: "POST", body: "{}" });
+
+    expect(dernierAppel().entetes.Authorization).toBe("Bearer jeton-de-test");
+  });
+
+  it("le pose sur /auth/account/", async () => {
+    localStorage.setItem("access", "jeton-de-test");
+    appelReseau.mockResolvedValue(reponse(204));
+
+    await apiFetch("/auth/account/", { method: "DELETE", body: "{}" });
 
     expect(dernierAppel().entetes.Authorization).toBe("Bearer jeton-de-test");
   });
