@@ -204,6 +204,7 @@ docker image rm weeb-backend:ci weeb-frontend:ci
 | `python manage.py makemigrations` | Crée une migration après un changement de modèle |
 | `python manage.py createsuperuser` | Crée un compte administrateur |
 | `python manage.py peupler_articles` | Publie 30 articles de démonstration, en développement seulement |
+| `python manage.py purger_contacts` | Supprime les messages de contact de plus de 90 jours (`--dry-run` : les compte seulement) |
 | `python manage.py flushexpiredtokens` | Purge les jetons expirés de la liste noire |
 | `python manage.py check --deploy` | Contrôle la configuration de sécurité avant mise en ligne |
 | `python manage.py collectstatic --noinput` | Rassemble les fichiers statiques |
@@ -515,7 +516,7 @@ le `.env` ; la lecture des articles n'est pas limitée.
 │   ├── config/               # settings/, urls.py, views.py (route /health/)
 │   ├── accounts/             # utilisateurs, authentification JWT
 │   ├── articles/             # blog, et la commande peupler_articles
-│   ├── contact/              # formulaire de contact
+│   ├── contact/              # formulaire de contact, et la commande purger_contacts
 │   ├── locale/               # traductions de simplejwt
 │   ├── Dockerfile
 │   ├── docker-entrypoint.sh  # migrations et statiques avant Gunicorn

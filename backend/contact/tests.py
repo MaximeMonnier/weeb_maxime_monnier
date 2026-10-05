@@ -1,9 +1,11 @@
-"""Tests du contact : envoi public, refus, absence de lecture, tri, date et quota."""
+"""Tests du contact : envoi public, refus, absence de lecture, tri, date, quota et purge."""
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from io import StringIO
 from unittest.mock import patch
 
 from django.core.cache import cache
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -196,3 +198,48 @@ class ContactModeleTests(TestCase):
     def test_le_sujet_sert_d_etiquette(self):
         """Le sujet titre le formulaire de l'admin, au lieu de « Contact object (1) »."""
         self.assertEqual(str(Contact.objects.create(**MESSAGE)), MESSAGE["subject"])
+
+
+class ContactPurgeTests(TestCase):
+    """La commande purger_contacts tient la durée promise par la section 5 de /privacy."""
+
+    # Heure figée : sans elle, la seconde écoulée entre l'écriture et la commande
+    # ferait basculer le message de 90 jours pile du côté des supprimés.
+    MAINTENANT = datetime(2026, 1, 1, 12, tzinfo=UTC)
+
+    def setUp(self):
+        # auto_now_add écrase toute date passée à create(), d'où l'UPDATE.
+        for sujet, age in (
+            ("Limite", timedelta(days=90)),
+            ("Ancien", timedelta(days=90, seconds=1)),
+            ("Récent", timedelta(days=1)),
+        ):
+            contact = Contact.objects.create(**{**MESSAGE, "subject": sujet})
+            Contact.objects.filter(pk=contact.pk).update(created_at=self.MAINTENANT - age)
+
+    def purger(self, *options):
+        """Lance la commande à l'heure figée et rend ce qu'elle affiche."""
+        sortie = StringIO()
+        with patch("django.utils.timezone.now", return_value=self.MAINTENANT):
+            call_command("purger_contacts", *options, stdout=sortie)
+        return sortie.getvalue()
+
+    def sujets_restants(self):
+        return set(Contact.objects.values_list("subject", flat=True))
+
+    def test_un_message_de_90_jours_pile_est_garde(self):
+        self.purger()
+
+        self.assertIn("Limite", self.sujets_restants())
+
+    def test_un_message_plus_ancien_est_supprime_et_les_autres_gardes(self):
+        sortie = self.purger()
+
+        self.assertEqual(self.sujets_restants(), {"Limite", "Récent"})
+        self.assertIn("1 message(s)", sortie)
+
+    def test_dry_run_compte_sans_rien_supprimer(self):
+        sortie = self.purger("--dry-run")
+
+        self.assertEqual(Contact.objects.count(), 3)
+        self.assertIn("1 message(s)", sortie)

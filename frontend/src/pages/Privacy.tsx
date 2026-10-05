@@ -79,7 +79,7 @@ const Privacy = () => {
           <SectionTitle align="left" line1={<>5. Combien de temps</>} />
           <p className="text-ink-soft mt-4">
             Les comptes et les articles sont conservés tant que le compte
-            existe. Les messages de contact le sont le temps d'y répondre.
+            existe. Les messages de contact le sont 90 jours, puis supprimés.
             S'agissant d'un site de démonstration, la base peut être
             réinitialisée à tout moment : ne comptez pas sur lui pour conserver
             quoi que ce soit.
