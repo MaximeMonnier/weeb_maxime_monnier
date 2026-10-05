@@ -228,6 +228,7 @@ REST_FRAMEWORK = {
         'password_reset': env_str('THROTTLE_PASSWORD_RESET', '3/hour'),
         'password_reset_confirm': env_str('THROTTLE_PASSWORD_RESET_CONFIRM', '5/hour'),
         'password_change': env_str('THROTTLE_PASSWORD_CHANGE', '5/hour'),
+        'account_delete': env_str('THROTTLE_ACCOUNT_DELETE', '5/hour'),
         'contact': env_str('THROTTLE_CONTACT', '5/hour'),
     },
 }

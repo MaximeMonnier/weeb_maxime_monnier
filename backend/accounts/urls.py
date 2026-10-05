@@ -8,6 +8,7 @@ from .views import (
     PasswordResetRequestView,
     PasswordResetConfirmView,
     PasswordChangeView,
+    AccountDeleteView,
 )
 
 urlpatterns = [
@@ -23,6 +24,7 @@ urlpatterns = [
     path("logout/", TokenBlacklistView.as_view(), name="logout"),
     path("password-reset/", PasswordResetRequestView.as_view(), name="password-reset"),
     path("password-reset/confirm/", PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
-    # Seule route d'auth fermée au visiteur : apiFetch doit y joindre le jeton, voir lib/api.ts.
+    # Les deux routes d'auth fermées au visiteur : apiFetch doit y joindre le jeton, voir lib/api.ts.
     path("password-change/", PasswordChangeView.as_view(), name="password-change"),
+    path("account/", AccountDeleteView.as_view(), name="account-delete"),
 ]
