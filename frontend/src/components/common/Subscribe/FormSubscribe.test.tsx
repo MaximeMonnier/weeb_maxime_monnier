@@ -1,25 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import "@testing-library/jest-dom/vitest";
 
 import FormSubscribe from "./FormSubscribe";
-
-const FETCH_ORIGINAL = globalThis.fetch;
-
-// Le réseau est coupé à `fetch` et non à `apiFetch` : le test traverse alors la
-// vraie chaîne, du corps que reçoit le réseau jusqu'à la traduction du refus.
-const appelReseau = vi.fn();
-
-// apiFetch ne lit que ok, status et json() : le doublon s'en tient là.
-function reponse(status: number, corps: unknown = {}) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: vi.fn(async () => corps),
-  };
-}
+import {
+  appelReseau,
+  couperLeReseau,
+  reponse,
+  requeteEnvoyee,
+  retablirLeReseau,
+} from "../../../test/reseau";
 
 // Le formulaire pose des Link : sans routeur, il ne rend pas. La route de
 // connexion porte un repère, l'absence de redirection ne se voyant qu'ainsi.
@@ -32,18 +24,6 @@ function afficherFormulaire() {
       </Routes>
     </MemoryRouter>,
   );
-}
-
-// Ce que le réseau a reçu au dernier appel. Le doublon répond 201 quels que
-// soient ses arguments : sans cette lecture, une route ou un corps changés
-// laisseraient la suite verte.
-function requeteEnvoyee() {
-  const [url, options] = appelReseau.mock.calls.at(-1) as [string, RequestInit];
-  return {
-    url,
-    methode: options.method,
-    corps: JSON.parse(options.body as string) as unknown,
-  };
 }
 
 const champPrenom = () => screen.getByLabelText("Prénom");
@@ -90,16 +70,13 @@ async function remplirEtEnvoyer(saisie: Partial<typeof SAISIE_VALIDE> = {}) {
   await userEvent.click(bouton());
 }
 
-beforeEach(() => {
-  appelReseau.mockReset();
-  globalThis.fetch = appelReseau as unknown as typeof fetch;
-});
+beforeEach(couperLeReseau);
 
 // Le nettoyage du DOM est explicite : Testing Library ne l'inscrit lui-même que
 // s'il trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(() => {
   cleanup();
-  globalThis.fetch = FETCH_ORIGINAL;
+  retablirLeReseau();
 });
 
 describe("FormSubscribe — refus avant tout appel", () => {

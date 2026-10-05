@@ -1,16 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import "@testing-library/jest-dom/vitest";
 
 import ArticleDetails from "./ArticleDetails";
-
-const FETCH_ORIGINAL = globalThis.fetch;
-
-// Coupé à `fetch`, non à `apiFetch` : le refus traverse la chaîne entière
-// jusqu'à `toFormErrors`, qui en tire le message affiché.
-const appelReseau = vi.fn();
+import {
+  appelReseau,
+  couperLeReseau,
+  reponse,
+  retablirLeReseau,
+} from "../../test/reseau";
 
 // Ce que rend le détail, et non la liste : `content` entier, pas d'`excerpt`.
 const ARTICLE = {
@@ -30,11 +30,11 @@ const ARTICLE_SUIVANT = {
 };
 
 function reponseArticle(article: typeof ARTICLE) {
-  return { ok: true, status: 200, json: async () => article };
+  return reponse(200, article);
 }
 
 function reponseRefusee(status: number, corps: unknown = {}) {
-  return { ok: false, status, json: async () => corps };
+  return reponse(status, corps);
 }
 
 const CHARGEMENT = "Chargement…";
@@ -69,16 +69,15 @@ function rendreLeDetail(chemin = "/articles/1") {
 }
 
 beforeEach(() => {
-  appelReseau.mockReset();
+  couperLeReseau();
   appelReseau.mockResolvedValue(reponseArticle(ARTICLE));
-  globalThis.fetch = appelReseau as unknown as typeof fetch;
 });
 
 // Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
 // trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(() => {
   cleanup();
-  globalThis.fetch = FETCH_ORIGINAL;
+  retablirLeReseau();
 });
 
 describe("ArticleDetails — article reçu", () => {

@@ -1,24 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import "@testing-library/jest-dom/vitest";
 
 import ChangePassword from "./ChangePassword";
-
-const FETCH_ORIGINAL = globalThis.fetch;
-
-// Coupé à `fetch` et non à `apiFetch` : le jeton posé, l'adresse et la traduction
-// du refus sont ceux de la vraie chaîne.
-const appelReseau = vi.fn();
-
-function reponse(status: number, corps: unknown = {}) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: vi.fn(async () => corps),
-  };
-}
+import {
+  appelReseau,
+  couperLeReseau,
+  dernierAppel,
+  reponse,
+  requeteEnvoyee,
+  retablirLeReseau,
+} from "../test/reseau";
 
 function afficherPage() {
   render(
@@ -26,15 +20,6 @@ function afficherPage() {
       <ChangePassword />
     </MemoryRouter>,
   );
-}
-
-function requeteEnvoyee() {
-  const [url, options] = appelReseau.mock.calls.at(-1) as [string, RequestInit];
-  return {
-    url,
-    entetes: options.headers as Record<string, string>,
-    corps: JSON.parse(options.body as string) as unknown,
-  };
 }
 
 async function remplirEtEnvoyer(actuel: string, nouveau: string, confirmation = nouveau) {
@@ -47,14 +32,11 @@ async function remplirEtEnvoyer(actuel: string, nouveau: string, confirmation = 
   await userEvent.click(screen.getByRole("button"));
 }
 
-beforeEach(() => {
-  appelReseau.mockReset();
-  globalThis.fetch = appelReseau as unknown as typeof fetch;
-});
+beforeEach(couperLeReseau);
 
 afterEach(() => {
   cleanup();
-  globalThis.fetch = FETCH_ORIGINAL;
+  retablirLeReseau();
   localStorage.clear();
 });
 
@@ -84,7 +66,8 @@ describe("ChangePassword — membre connecté", () => {
 
     await remplirEtEnvoyer("AncienSecret123", "NouveauSecret456");
 
-    const { url, entetes, corps } = requeteEnvoyee();
+    const { url, corps } = requeteEnvoyee();
+    const { entetes } = dernierAppel();
     expect(url).toMatch(/\/auth\/password-change\/$/);
     expect(entetes.Authorization).toBe("Bearer acces-avant");
     expect(corps).toEqual({

@@ -180,18 +180,6 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
 
 ## Tests
 
-- [ ] **Doublon réseau d'un test rendu à l'autre.** `FormLogin.test.tsx` et
-      `FormSubscribe.test.tsx` portent chacun leur `reponse()`, leur `requeteEnvoyee()` et le
-      couple `beforeEach`/`afterEach` qui substitue `globalThis.fetch` — une trentaine de
-      lignes identiques. Elles modélisent le contrat d'`apiFetch` (`ok`, `status`, `json()`) :
-      à deux endroits, elles dériveront séparément le jour où `lib/api.ts` changera. Un
-      troisième formulaire testé impose l'extraction. Piste : un module de test partagé,
-      importé explicitement par chaque fichier — surtout pas un `setupFiles`, `globals`
-      restant à `false`. Repéré à l'issue #119. Depuis, `useIsAuthenticated.test.ts` et
-      `Blog.test.tsx` (#132) substituent `fetch` à leur tour, sans formulaire. Le seuil est franchi depuis l'issue #159 :
-      `ChangePassword.test.tsx` est le troisième formulaire testé, et `ArticleDetails.test.tsx`
-      substitue aussi `fetch` — huit fichiers au total depuis `ResetPassword.test.tsx` (#246),
-      `api.test.ts` compris.
 - [ ] **Le parcours Playwright ne tourne pas en intégration continue.** `tests.yml` lance
       les suites Django et Vitest, mais `npm run test:e2e` exige la pile de `compose.dev.yaml`
       démarrée et les navigateurs de Playwright, qu'aucun job ne prépare. Le `forbidOnly` de

@@ -1,40 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiFetch } from "./api";
+import {
+  appelReseau,
+  couperLeReseau,
+  dernierAppel,
+  reponse,
+  retablirLeReseau,
+} from "../test/reseau";
 
 // Même source que le module testé : une adresse écrite en dur ferait tomber la
 // suite chez qui change son frontend/.env.
 const BASE = import.meta.env.VITE_API_URL;
 
-const FETCH_ORIGINAL = globalThis.fetch;
+beforeEach(couperLeReseau);
 
-// apiFetch ne lit que ok, status et json() : le doublon s'en tient là.
-function reponse(status: number, corps: unknown = {}) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: vi.fn(async () => corps),
-  };
-}
-
-const appelReseau = vi.fn();
-
-// Ce que fetch a reçu au dernier appel du cas : adresse, options relayées et
-// en-têtes posés.
-function dernierAppel() {
-  const [url, options] = appelReseau.mock.calls.at(-1) as [string, RequestInit];
-  return { url, options, entetes: options.headers as Record<string, string> };
-}
-
-beforeEach(() => {
-  appelReseau.mockReset();
-  globalThis.fetch = appelReseau as unknown as typeof fetch;
-});
-
-// Le global est rendu comme on l'a trouvé. Et Vitest isole les fichiers, jamais
-// les cas d'un même fichier : sans ce vidage, le jeton d'un cas vaudrait pour le suivant.
+// Sans vider localStorage, le jeton d'un cas vaudrait pour le suivant.
 afterEach(() => {
-  globalThis.fetch = FETCH_ORIGINAL;
+  retablirLeReseau();
   localStorage.clear();
 });
 

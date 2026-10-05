@@ -141,6 +141,8 @@ src/
 ├── types/
 │   ├── article.ts             # Article, ArticleListItem
 │   └── navigation.ts          # NavItem
+├── test/
+│   └── reseau.ts              # Substitut de fetch partagé par les tests
 ├── assets/                    # Images et SVG
 │   ├── img/
 │   └── svg/
@@ -151,7 +153,8 @@ src/
 └── vite-env.d.ts
 ```
 
-Les tests Vitest (`*.test.ts`, `*.test.tsx`) vivent à côté de leur source. Le parcours
+Les tests Vitest (`*.test.ts`, `*.test.tsx`) vivent à côté de leur source ; ce qu'ils
+partagent est dans `test/`, importé explicitement par chacun. Le parcours
 Playwright est hors de `src/`, dans `e2e/`.
 
 ## Composants UI disponibles
