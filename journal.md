@@ -1123,3 +1123,63 @@ Le lot pèse **101 insertions pour 14 suppressions** sur 8 fichiers, hors `corre
 - Un espace ajouté au script d'`index.html` fait échouer `npm test`.
 - Back : `Ran 106 tests` puis `OK`. Front : `npm run lint` ne rend rien, `npm test` rend
   `Tests  138 passed (138)`, et `npm run build` aboutit.
+
+## Lot 16 — Données personnelles
+
+Clos le 2026-10-05 · Epic #284 · Alimente : Bloc 1 — sécurité
+
+**Constat mesuré** — l'audit du 2026-10-05, points 27 et 28 : `/privacy` promettait plus que le
+code ne tenait.
+- `Privacy.tsx:82` gardait les messages de contact « le temps d'y répondre », mais rien ne les
+  supprimait jamais ;
+- la section 6 promettait d'effacer un compte « sans condition », alors que seul l'admin le
+  pouvait, à la main, sur demande écrite : `accounts/urls.py` n'exposait aucune suppression ;
+- `FormContact.tsx` collectait nom et email sans dire à quoi ils servent, là où l'inscription
+  renvoie à `/privacy` (RGPD, art. 13).
+
+Filet de départ : **106 tests back**, **138 tests front**.
+
+**Décision et justification** :
+
+- la mention du formulaire de contact recopie le bloc de `FormSubscribe.tsx` au lieu de
+  l'extraire : deux usages, quelques lignes ;
+- 16.2 est coupée en deux sous-issues, l'API (#286) puis le front (#287) : chaque moitié a sa
+  propre PR et sa propre revue ;
+- `DELETE /api/auth/account/` refuse un mauvais mot de passe en `400` et non en `401`, sinon
+  `apiFetch` renouvellerait le jeton. Elle a son quota, `account_delete`, à 5 par heure ;
+- les messages de contact envoyés depuis l'adresse du compte ne partent pas avec lui : `Contact`
+  ne référence aucun utilisateur, et ils suivent la durée de 16.3 ;
+- la durée est de 90 jours, en dur et non en variable d'environnement : aucune production ne
+  doit garder plus que ce qu'annonce `/privacy`. La comparaison est stricte, donc un message de
+  90 jours pile est gardé ;
+- la planification de `purger_contacts` reste à 20.4, comme prévu au plan.
+
+**Ce qui a surpris** — trois constats.
+
+**Le plan comptait trois sous-issues, il en a fallu quatre.** 16.2 touchait l'API, `apiFetch`,
+une page, le pied de page et `/privacy`. En une seule PR, la revue aurait couvert deux couches à
+la fois.
+
+**La promesse a changé de nature avant d'être tenue.** `/privacy` annonce 90 jours, et la
+commande sait les appliquer. Mais tant que 20.4 ne la planifie pas, elle ne supprime rien si
+personne ne la lance. Avant, aucun code ne supprimait les messages. Maintenant, le code existe
+mais rien ne le déclenche.
+
+**La mutation de la limite fait tomber les trois tests, pas un seul.** Avec `<=`, le message de
+90 jours pile est supprimé, et tous les tests de la classe le comptent. Le test du cas limite
+reste le seul qui dise pourquoi.
+
+Le lot pèse **523 insertions pour 12 suppressions** sur 23 fichiers, hors `correction.md`, en
+15 commits.
+
+**Preuve de la correction** — rejouée sur `preprod` à `9ec028f`.
+- Sur la pile de développement, un compte actif avec un article : `DELETE /api/auth/account/`
+  rend `401` sans jeton, `400` « Le mot de passe est incorrect. » avec un mauvais mot de passe,
+  puis `204` avec le bon. Le compte et l'article ont disparu, et le refresh émis avant rend `401`.
+- `purger_contacts --dry-run` rend `0 message(s) de plus de 90 jours, rien supprimé.` Pendant
+  le ticket, un message de 100 jours a été supprimé et un de 10 jours gardé, et `--dry-run` a
+  laissé le total inchangé.
+- `FormContact.tsx`, servi par Vite, porte le lien vers `/privacy`. La section 5 de `/privacy`
+  annonce 90 jours, la section 6 mène à `/delete-account`.
+- Back : `Ran 114 tests` puis `OK`. Front : `npm run lint` ne rend rien, `npm test` rend
+  `Tests  146 passed (146)`, et `npm run build` aboutit.

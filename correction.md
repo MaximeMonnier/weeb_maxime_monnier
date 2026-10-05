@@ -2663,7 +2663,7 @@ AMELIORATIONS.md s'il te paraît justifié, sans le faire.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À planifier | — | — | Bloc 1 — sécurité |
+| Clos le 2026-10-05 — 3 sous-issues prévues, 4 livrées (16.2 coupée entre API et front) ; messages gardés 90 jours | #284 | Lot 16 | Bloc 1 — sécurité |
 
 **Origine** : audit du 2026-10-05, points 27 et 28. `/privacy` promet plus que le code ne
 tient : la conservation des messages de contact « le temps d'y répondre » (`Privacy.tsx:82`)
@@ -2680,7 +2680,7 @@ lourde (back, front, tests des deux côtés).
 
 ## 16.1 — Informer au formulaire de contact
 
-- [ ] **Fichiers** : `frontend/src/components/common/Contact/FormContact.tsx`
+- [x] **Fichiers** : `frontend/src/components/common/Contact/FormContact.tsx`, `FormContact.test.tsx` — livré par #285 (PR #289)
 - **Constat** : `FormContact.tsx` collecte prénom, nom, email, sujet et message, et rien
   avant le bouton d'envoi (l. 179) ne dit à quoi ils servent ni ne mène à `/privacy`. C'est
   l'information due au moment de la collecte (RGPD, art. 13).
@@ -2696,10 +2696,11 @@ Applique, regarde le rendu en clair et en sombre, puis npm run lint, npm test, n
 
 ## 16.2 — Supprimer son compte soi-même
 
-- [ ] **Fichiers** : `backend/accounts/views.py`, `serializers.py`, `urls.py`, `tests.py`,
+- [x] **Fichiers** : `backend/accounts/views.py`, `serializers.py`, `urls.py`, `tests.py`,
   `backend/config/settings/base.py`, `backend/config/tests.py`, `.env.example`,
-  `frontend/src/lib/api.ts`, la page de compte du front, `frontend/src/pages/Privacy.tsx`,
-  `README.md` (§ « Le débit »)
+  `frontend/src/lib/api.ts`, `frontend/src/pages/DeleteAccount.tsx`, `Footer.tsx`,
+  `frontend/src/pages/Privacy.tsx`, `README.md` (§ « Le débit ») — livré par #286 (PR #290)
+  pour l'API, puis #287 (PR #291) pour le front
 - **Constat** : `accounts/urls.py` n'expose aucune suppression ; seul l'admin efface un compte,
   avec ses articles en cascade (`articles/models.py:15`). Les jetons survivent sans titulaire
   (`OutstandingToken.user` passe à `NULL`), et `LoginRefreshView` les refuse déjà en `401`.
@@ -2728,8 +2729,8 @@ Consulte `inventaire-avant-dev`, `backend-django-drf` et `frontend-react-ts`.
 
 ## 16.3 — Fixer et appliquer la durée de conservation des messages
 
-- [ ] **Fichiers** : une commande de gestion dans `backend/contact/`, `contact/tests.py`,
-  `frontend/src/pages/Privacy.tsx`
+- [x] **Fichiers** : `backend/contact/management/commands/purger_contacts.py`, `contact/tests.py`,
+  `frontend/src/pages/Privacy.tsx` — livré par #288 (PR #292)
 - **Constat** : `Privacy.tsx:82` promet de garder les messages « le temps d'y répondre ». Le
   modèle `Contact` porte `created_at`, mais rien ne supprime un message, et rien ne marque qu'il
   a reçu sa réponse.
