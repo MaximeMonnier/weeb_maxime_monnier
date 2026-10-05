@@ -140,6 +140,17 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       champ de l'instance lue avant le verrou — `request.user`, ou celle de la confirmation. Un
       compte désactivé par un administrateur pendant le changement repasse donc `is_active=True`.
       `user.save(update_fields=["password"])` suffirait. Repéré à la revue de l'issue #250.
+- [ ] **Les deux jetons restent lisibles par tout script de la page.** `lib/tokens.ts` les
+      range dans `localStorage` : la CSP posée par l'issue #278 ferme les scripts injectés,
+      mais un seul XSS qui la contournerait emporterait encore le refresh, valable un jour.
+      Piste : le refresh en cookie `httpOnly`, `Secure`, `SameSite=Strict`, posé et lu par
+      `login/` et `login/refresh/`, l'accès restant en mémoire. Cela touche `apiFetch`, la
+      déconnexion et le CORS, et ouvre la question du CSRF que le Bearer seul évitait.
+- [ ] **Les pages servies par Django n'ont aucune CSP.** Celle de l'issue #278 vit dans
+      `frontend/nginx.conf` et ne couvre que le front : l'admin et l'API navigable de DRF
+      passent par le nginx du serveur jusqu'à Django, sans en-tête. Piste : `SECURE_CSP` et
+      `ContentSecurityPolicyMiddleware`, livrés par Django 6.0, dans `production.py` —
+      après avoir mesuré ce que l'admin exige en scripts et styles en ligne.
 
 ## Backend — code
 

@@ -6,8 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Weeb</title>
     <script>
-      // Seule source du thème initial : `useTheme` lit la classe posée ici. Une
-      // future CSP doit autoriser ce script, sinon tout le monde est servi en clair.
+      // Seule source du thème initial : `useTheme` lit la classe posée ici. La CSP de
+      // nginx.conf n'autorise ce script que par son hash : changer un caractère, même
+      // de ce commentaire, impose de le recalculer, sinon tout le monde est servi en clair.
       (function () {
         var theme = localStorage.getItem("theme");
         var prefereSombre = matchMedia("(prefers-color-scheme: dark)").matches;
