@@ -1,25 +1,20 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 
 import { logout, useIsAuthenticated } from "./useIsAuthenticated";
 import { clearTokens, saveTokens } from "../lib/tokens";
+import {
+  appelReseau,
+  couperLeReseau,
+  reponse,
+  retablirLeReseau,
+} from "../test/reseau";
 
 const JETONS = { access: "jeton-acces", refresh: "jeton-renouvellement" };
 
 // Même source que `apiFetch` : une adresse écrite en dur ferait tomber la suite
 // chez qui change son frontend/.env.
 const BASE = import.meta.env.VITE_API_URL;
-
-const FETCH_ORIGINAL = globalThis.fetch;
-
-// Coupé à `fetch`, non à `apiFetch` : l'appel traverse le module réel, qui
-// décide seul de l'adresse et de la levée sur un refus.
-const appelReseau = vi.fn();
-
-// `apiFetch` ne lit que ok, status et json() : le doublon s'en tient là.
-function reponse(status: number) {
-  return { ok: status >= 200 && status < 300, status, json: async () => ({}) };
-}
 
 // Chaque valeur rendue, dans l'ordre : `result.current` ne donne que la
 // dernière, et un état corrigé par un effet aurait d'abord rendu l'autre.
@@ -38,8 +33,7 @@ function suivreLesRendus() {
 afterEach(() => {
   cleanup();
   localStorage.clear();
-  appelReseau.mockReset();
-  globalThis.fetch = FETCH_ORIGINAL;
+  retablirLeReseau();
 });
 
 describe("useIsAuthenticated — premier rendu", () => {
@@ -110,7 +104,7 @@ describe("useIsAuthenticated — écritures du module", () => {
 describe("logout", () => {
   beforeEach(() => {
     saveTokens(JETONS);
-    globalThis.fetch = appelReseau as unknown as typeof fetch;
+    couperLeReseau();
   });
 
   it("révoque le jeton de renouvellement auprès de l'API, puis efface les deux", async () => {
