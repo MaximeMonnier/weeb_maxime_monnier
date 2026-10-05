@@ -15,7 +15,7 @@ const BASE = import.meta.env.VITE_API_URL;
 
 beforeEach(couperLeReseau);
 
-// Sans ce vidage, le jeton d'un cas vaudrait pour le suivant.
+// Sans vider localStorage, le jeton d'un cas vaudrait pour le suivant.
 afterEach(() => {
   retablirLeReseau();
   localStorage.clear();

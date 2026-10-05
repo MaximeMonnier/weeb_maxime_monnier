@@ -16,7 +16,7 @@ export function retablirLeReseau() {
   globalThis.fetch = FETCH_ORIGINAL;
 }
 
-// apiFetch ne lit que ok, status et json() : le doublon s'en tient là.
+// apiFetch ne lit que ok, status et json() : le substitut s'en tient là.
 export function reponse(status: number, corps: unknown = {}) {
   return {
     ok: status >= 200 && status < 300,
@@ -25,13 +25,14 @@ export function reponse(status: number, corps: unknown = {}) {
   };
 }
 
-// Ce que fetch a reçu au dernier appel, tel quel.
+// Les en-têtes restent hors de `requeteEnvoyee()` : des tests comparent son
+// objet entier.
 export function dernierAppel() {
   const [url, options] = appelReseau.mock.calls.at(-1) as [string, RequestInit];
   return { url, options, entetes: options.headers as Record<string, string> };
 }
 
-// Le doublon répond quels que soient ses arguments : sans cette lecture, une
+// Le substitut répond quels que soient ses arguments : sans cette lecture, une
 // route ou un corps changés laisseraient la suite verte.
 export function requeteEnvoyee() {
   const { url, options } = dernierAppel();
