@@ -3,6 +3,7 @@ export type Article = {
   title: string;
   content: string;
   author: string;
+  is_author: boolean;
   created_at: string;
   updated_at: string;
 };
