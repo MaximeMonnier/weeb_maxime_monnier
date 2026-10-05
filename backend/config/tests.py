@@ -44,6 +44,7 @@ MATRICE = [
     ("post", "password-reset", PUBLIC),
     ("post", "password-reset-confirm", PUBLIC),
     ("post", "password-change", CONNECTE),
+    ("delete", "account-delete", CONNECTE),
     ("get", "article-list", PUBLIC),
     ("post", "article-list", CONNECTE),
     ("get", "article-detail", PUBLIC),
