@@ -4,7 +4,10 @@ import { apiFetch, type ApiError } from "../../lib/api";
 import { toFormErrors } from "../../lib/apiErrors";
 import type { Article } from "../../types/article";
 import ErrorAlert from "../../components/ui/Alert/ErrorAlert";
+import Button from "../../components/ui/Button/Button";
 import { buttonClasses } from "../../components/ui/Button/buttonClasses";
+import Modal from "../../components/ui/Modal/Modal";
+import FormArticle from "../../components/common/Blog/FormArticle";
 
 // L'identifiant voyage avec ce que l'API a répondu : comparé à celui de l'URL, il
 // dit si l'écran répond encore à l'article demandé, sans qu'aucun effet ait à
@@ -49,6 +52,7 @@ function ArticleIntrouvable() {
 const ArticleDetails = () => {
   const { id } = useParams();
   const [resultat, setResultat] = useState<Resultat | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     // Un `:id` vide ne vient que d'un lien fautif : l'appel partirait vers
@@ -129,6 +133,36 @@ const ArticleDetails = () => {
             </p>
           ))}
         </div>
+        {recu.article.is_author && (
+          <>
+            <Button
+              variant="outline"
+              className="mt-8"
+              onClick={() => setIsEditing(true)}
+            >
+              Modifier
+            </Button>
+            <Modal
+              open={isEditing}
+              title="Modifier l'article"
+              onClose={() => setIsEditing(false)}
+            >
+              {/* Monté à chaque ouverture : les champs repartent de l'article affiché,
+                  et un brouillon abandonné ne revient pas. */}
+              {isEditing && (
+                <div className="flex flex-col items-center justify-center">
+                  <FormArticle
+                    article={recu.article}
+                    onUpdated={(article) => {
+                      setIsEditing(false);
+                      setResultat({ ...recu, article });
+                    }}
+                  />
+                </div>
+              )}
+            </Modal>
+          </>
+        )}
       </>
     );
   }

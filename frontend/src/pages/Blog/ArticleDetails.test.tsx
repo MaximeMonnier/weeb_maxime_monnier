@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import "@testing-library/jest-dom/vitest";
@@ -18,6 +25,7 @@ const ARTICLE = {
   title: "Premier article",
   content: "Le texte entier de l'article.",
   author: "Jean Dupont",
+  is_author: false,
   created_at: "2026-09-01T10:00:00Z",
   updated_at: "2026-09-01T10:00:00Z",
 };
@@ -273,5 +281,67 @@ describe("ArticleDetails — changement d'article en cours de route", () => {
     expect(screen.getByText(ARTICLE_SUIVANT.content)).toBeInTheDocument();
     expect(screen.queryByText(INTROUVABLE)).not.toBeInTheDocument();
     expect(alerte()).toBeEmptyDOMElement();
+  });
+});
+
+describe("ArticleDetails — modification par l'auteur", () => {
+  const ARTICLE_DE_L_AUTEUR = { ...ARTICLE, is_author: true };
+  const BOUTON_MODIFIER = { name: "Modifier" };
+
+  // jsdom n'implémente ni `showModal` ni `close` : ces doublons ne posent que
+  // l'attribut, sans quoi le contenu de la fenêtre resterait hors de l'arbre.
+  beforeEach(() => {
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute("open", "");
+    };
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.removeAttribute("open");
+    };
+  });
+
+  it("ne propose pas la modification à qui n'a pas écrit l'article", async () => {
+    rendreLeDetail();
+
+    expect(await screen.findByText(ARTICLE.title)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", BOUTON_MODIFIER),
+    ).not.toBeInTheDocument();
+  });
+
+  it("affiche l'article enregistré sans le recharger", async () => {
+    const enregistre = {
+      ...ARTICLE_DE_L_AUTEUR,
+      title: "Titre corrigé",
+      content: "Le texte corrigé de l'article.",
+    };
+    appelReseau
+      .mockResolvedValueOnce(reponseArticle(ARTICLE_DE_L_AUTEUR))
+      .mockResolvedValueOnce(reponse(200, enregistre));
+    rendreLeDetail();
+
+    await userEvent.click(await screen.findByRole("button", BOUTON_MODIFIER));
+    const fenetre = within(screen.getByRole("dialog"));
+    const titre = fenetre.getByLabelText("Titre de l'article");
+    expect(titre).toHaveValue(ARTICLE.title);
+
+    await userEvent.clear(titre);
+    await userEvent.type(titre, enregistre.title);
+    const contenu = fenetre.getByLabelText("Description de votre article");
+    await userEvent.clear(contenu);
+    await userEvent.type(contenu, enregistre.content);
+    await userEvent.click(
+      fenetre.getByRole("button", { name: "Enregistrer les modifications" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: enregistre.title }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(enregistre.content)).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Titre de l'article"),
+    ).not.toBeInTheDocument();
+    // Le chargement initial et le PATCH, rien de plus : aucun rechargement.
+    expect(appelReseau).toHaveBeenCalledTimes(2);
   });
 });
