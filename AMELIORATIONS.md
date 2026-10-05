@@ -27,9 +27,9 @@ et pour les prochaines itérations).
       qu'elle produit. Piste : la `CursorPagination` de DRF, qui reprend après le dernier
       article vu, mais ne donne pas le `count` que l'issue exigeait.
 - [ ] **Le refus d'une publication reste affiché à la réouverture de la modale.** Le
-      `<dialog>` de `Blog.tsx` reste monté, fermé ou non : `FormArticle` garde ses erreurs, et
+      `Modal` de `Blog.tsx` reste montée, fermée ou non : `FormArticle` garde ses erreurs, et
       qui ferme la modale après un refus le retrouve en la rouvrant. Écarté au lot 10 comme
-      trop mineur. Piste : vider les seules erreurs sur l'événement `close` du `<dialog>` — une
+      trop mineur. Piste : vider les seules erreurs dans le `onClose` de la `Modal` — une
       `key` changée à l'ouverture remonterait le formulaire, mais perdrait aussi le texte que
       le message du `401` invite à copier.
 
