@@ -116,3 +116,84 @@ describe("FormArticle — réponse de l'API", () => {
     expect(appelReseau).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("FormArticle — modification d'un article", () => {
+  const ARTICLE = {
+    id: 7,
+    title: "Titre actuel",
+    content: "Le texte actuel de l'article.",
+    author: "Jean Dupont",
+    is_author: true,
+    created_at: "2026-09-01T10:00:00Z",
+    updated_at: "2026-09-01T10:00:00Z",
+  };
+
+  function afficherEdition() {
+    const onUpdated = vi.fn();
+    render(<FormArticle article={ARTICLE} onUpdated={onUpdated} />);
+    return onUpdated;
+  }
+
+  async function remplacerEtEnregistrer(titre: string, contenu: string) {
+    await userEvent.clear(champTitre());
+    await userEvent.type(champTitre(), titre);
+    await userEvent.clear(champContenu());
+    await userEvent.type(champContenu(), contenu);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Enregistrer les modifications" }),
+    );
+  }
+
+  it("préremplit les champs avec l'article actuel", () => {
+    afficherEdition();
+
+    expect(champTitre()).toHaveValue(ARTICLE.title);
+    expect(champContenu()).toHaveValue(ARTICLE.content);
+  });
+
+  it("envoie le titre et le contenu seuls en PATCH vers l'article", async () => {
+    const enregistre = { ...ARTICLE, title: TITRE, content: CONTENU };
+    appelReseau.mockResolvedValue(reponse(200, enregistre));
+    const onUpdated = afficherEdition();
+
+    await remplacerEtEnregistrer(TITRE, CONTENU);
+
+    await waitFor(() => expect(onUpdated).toHaveBeenCalledWith(enregistre));
+    expect(requeteEnvoyee()).toEqual({
+      url: expect.stringMatching(/\/articles\/7\/$/),
+      methode: "PATCH",
+      corps: { title: TITRE, content: CONTENU },
+    });
+  });
+
+  it("annonce en français un article supprimé entre-temps", async () => {
+    appelReseau.mockResolvedValue(
+      reponse(404, { detail: "No Article matches the given query." }),
+    );
+    const onUpdated = afficherEdition();
+
+    await remplacerEtEnregistrer(TITRE, CONTENU);
+
+    await waitFor(() =>
+      expect(alerte()).toHaveTextContent(
+        "Cet article n'existe plus : il a été supprimé entre-temps.",
+      ),
+    );
+    expect(onUpdated).not.toHaveBeenCalled();
+  });
+
+  it("garde le message des droits sur un 403", async () => {
+    appelReseau.mockResolvedValue(
+      reponse(403, { detail: "You do not have permission." }),
+    );
+    afficherEdition();
+
+    await remplacerEtEnregistrer(TITRE, CONTENU);
+
+    await waitFor(() =>
+      expect(alerte()).toHaveTextContent(
+        "Vous n'avez pas les droits nécessaires pour cette action.",
+      ),
+    );
+  });
+});

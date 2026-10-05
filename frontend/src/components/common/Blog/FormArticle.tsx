@@ -1,9 +1,11 @@
 import { Input, Textarea } from "../../ui/Input";
 import Button from "../../ui/Button/Button";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, type ApiError } from "../../../lib/api";
+import type { FormApiErrors } from "../../../lib/apiErrors";
 import { useForm } from "../../../hooks/useForm";
 import type { FormErrors } from "../../../hooks/useForm";
 import ErrorAlert from "../../ui/Alert/ErrorAlert";
+import type { Article } from "../../../types/article";
 
 type FormData = {
   title: string;
@@ -33,9 +35,46 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
   return newErrors;
 };
 
-type FormArticleProps = { onCreated?: () => void };
+// apiFetch renouvelle le jeton d'accès : ce 401 ne vient plus de ses quinze minutes,
+// mais d'une session finie ou d'un renouvellement en panne. Le formulaire vit dans une
+// modale, donc aller se reconnecter emporte le texte saisi.
+const LIBELLES = {
+  creation: {
+    bouton: "Publier l'article",
+    envoi: "Publication...",
+    unauthorized:
+      "Vous devez être connecté pour publier, et votre session a peut-être expiré. Copiez votre texte avant de vous reconnecter : il ne sera pas conservé.",
+  },
+  edition: {
+    bouton: "Enregistrer les modifications",
+    envoi: "Enregistrement...",
+    unauthorized:
+      "Vous devez être connecté pour modifier cet article, et votre session a peut-être expiré. Copiez votre texte avant de vous reconnecter : il ne sera pas conservé.",
+  },
+};
 
-const FormArticle = ({ onCreated }: FormArticleProps) => {
+const ARTICLE_SUPPRIME =
+  "Cet article n'existe plus : il a été supprimé entre-temps.";
+
+function traduireRefusEdition(
+  refus: FormApiErrors<(typeof CHAMPS)[number]>,
+  err: unknown,
+) {
+  return (err as Partial<ApiError>).status === 404
+    ? { ...refus, formError: ARTICLE_SUPPRIME }
+    : refus;
+}
+
+type FormArticleProps = {
+  /** Article à modifier ; absent, le formulaire en crée un. */
+  article?: Article;
+  onCreated?: () => void;
+  /** Reçoit l'article tel que l'API l'a enregistré. */
+  onUpdated?: (article: Article) => void;
+};
+
+const FormArticle = ({ article, onCreated, onUpdated }: FormArticleProps) => {
+  const libelles = article ? LIBELLES.edition : LIBELLES.creation;
   const {
     formData,
     setFormData,
@@ -44,27 +83,34 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
     isSubmitting,
     handleChange,
     submit,
-  } = useForm<FormData>(VALEURS_INITIALES);
+  } = useForm<FormData>(
+    article
+      ? { title: article.title, content: article.content }
+      : VALEURS_INITIALES,
+  );
 
   const handleSubmit = (e: React.FormEvent) =>
     submit(e, {
       rules: reglesDeSaisie,
       fields: CHAMPS,
-      // apiFetch renouvelle le jeton d'accès : ce 401 ne vient plus de ses quinze
-      // minutes, mais d'une session finie ou d'un renouvellement en panne. Le formulaire
-      // vit dans une modale de /blog, donc aller se reconnecter emporte le texte saisi.
-      unauthorized:
-        "Vous devez être connecté pour publier, et votre session a peut-être expiré. Copiez votre texte avant de vous reconnecter : il ne sera pas conservé.",
+      unauthorized: libelles.unauthorized,
+      translate: article ? traduireRefusEdition : undefined,
       send: async (values) => {
         // Le token (utilisateur connecté) est ajouté automatiquement par apiFetch.
         // L'auteur est défini côté serveur (perform_create) → on n'envoie que titre + contenu.
-        await apiFetch("/articles/", {
-          method: "POST",
-          body: JSON.stringify({
-            title: values.title,
-            content: values.content,
-          }),
+        const body = JSON.stringify({
+          title: values.title,
+          content: values.content,
         });
+        if (article) {
+          const enregistre = await apiFetch<Article>(`/articles/${article.id}/`, {
+            method: "PATCH",
+            body,
+          });
+          onUpdated?.(enregistre);
+          return;
+        }
+        await apiFetch("/articles/", { method: "POST", body });
         setFormData(VALEURS_INITIALES);
         onCreated?.();
       },
@@ -110,7 +156,7 @@ const FormArticle = ({ onCreated }: FormArticleProps) => {
             size="lg"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Publication..." : "Publier l'article"}
+            {isSubmitting ? libelles.envoi : libelles.bouton}
           </Button>
         </div>
       </div>
