@@ -1061,3 +1061,65 @@ documentation, `correction.md` compris.
 - Les deux piles démarrent, tous services `healthy`, images reconstruites.
 - `tests.yml` et `docker-images.yml` sont verts sur la PR. Après la fusion,
   `git log --oneline origin/main..origin/preprod` ne rend rien.
+
+## Lot 15 — Sécurité : dépendances et navigateur
+
+Clos le 2026-10-05 · Epic #274 · Alimente : Bloc 1 — sécurité
+
+**Constat mesuré** — l'audit du 2026-10-05, sur `preprod` à `841ddbe`, ne trouvait aucune faille
+dans le code, mais :
+- `pip-audit -r backend/requirements.txt` : **25 avis sur 4 paquets** (Django, DRF, PyJWT,
+  sqlparse), dont un critique sur PyJWT ;
+- `npm audit` : **1 vulnérabilité élevée**, `brace-expansion`, dans l'outillage de lint seul ;
+- `tests.yml` : aucune vérification des dépendances, d'où l'accumulation sans alerte ;
+- `frontend/nginx.conf` : **aucune Content-Security-Policy**, alors que les deux jetons vivent
+  dans `localStorage`.
+
+Filet de départ : **106 tests back**, **135 tests front**.
+
+**Décision et justification** :
+
+- les paquets restent sur leur branche de correctifs (Django 6.0.x, DRF 3.17.x), sans montée de
+  version mineure : le lot corrige, il ne migre pas ;
+- `npm audit fix` sans `--force` : seul le verrou bouge, `package.json` reste intact ;
+- en CI, les deux audits tournent sous `if: !cancelled()`, comme les tests : un audit rouge ne
+  cache pas l'état de la suite, et inversement. `npm audit` porte sur tout l'arbre et non sur
+  `--omit=dev` : l'outillage de build et de test s'exécute en CI, sa faille compte autant ;
+- la CSP est définie une fois (`set $csp`) et reprise par les quatre blocs qui posent des
+  en-têtes, plutôt que recopiée quatre fois ;
+- `style-src 'self'`, sans `'unsafe-inline'` : Embla et React n'écrivent les styles que par le
+  DOM, ce que la CSP ne bloque pas. Le navigateur l'a confirmé sur les 13 routes ;
+- le refresh en cookie `httpOnly` et la CSP des pages servies par Django vont dans
+  `AMELIORATIONS.md` : le premier touche le back, `apiFetch` et le CSRF, le second une autre
+  couche que `nginx.conf`.
+
+**Ce qui a surpris** — trois constats.
+
+**Les avis ont augmenté entre l'audit et le premier ticket.** Le plan en comptait 25. Le même
+jour, `pip-audit` en rendait 32. La version corrective prévue pour PyJWT, 2.15.0, en gardait un
+sans correctif annoncé : il a fallu monter en 2.15.1. Un compte d'avis ne vaut que le jour où il
+est pris, et c'est ce qui justifie l'audit en CI.
+
+**La CSP n'a demandé aucune exception.** Le plan prévoyait d'arbitrer ce qu'exigeraient le
+carrousel, les styles de React et les polices. Il n'y avait rien à ouvrir : aucun `style=` dans
+le JSX, aucune ressource externe, et Embla ne passe que par `element.style`.
+
+**Vite rend le script en ligne à l'octet près.** Le hash calculé sur `dist/index.html` est celui
+de la source : le test peut lire `index.html` sans construire. Le hash couvre aussi le
+commentaire du script, si bien qu'une simple retouche de formulation casse le thème sombre en
+production. Le test le dit avant.
+
+Le lot pèse **101 insertions pour 14 suppressions** sur 8 fichiers, hors `correction.md`, en
+6 commits.
+
+**Preuve de la correction** — rejouée sur `preprod` à `2e9383b`.
+- `pip-audit -r backend/requirements.txt` rend `No known vulnerabilities found`, et `npm audit`
+  rend `found 0 vulnerabilities`.
+- PR d'essai #281, fermée sans merge, avec `PyJWT==2.13.0` : l'étape d'audit du job backend
+  échoue sur 13 avis.
+- `curl -sI` sur `/`, `/blog`, `/vite.svg`, un fichier de `/assets/` et `/static/` de la pile de
+  production : même en-tête CSP. Playwright sur les 13 routes, en clair puis en sombre : aucune
+  violation, un script injecté bloqué, `.dark` posé avant le bundle.
+- Un espace ajouté au script d'`index.html` fait échouer `npm test`.
+- Back : `Ran 106 tests` puis `OK`. Front : `npm run lint` ne rend rien, `npm test` rend
+  `Tests  138 passed (138)`, et `npm run build` aboutit.

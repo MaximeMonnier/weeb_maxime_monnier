@@ -2550,7 +2550,7 @@ Cette skill ne pousse jamais rien : elle lit et elle rapporte. Le push reste ma 
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| Planifié le 2026-10-05 | #274 | — | Bloc 1 — sécurité |
+| Clos le 2026-10-05 — 25 avis prévus, 32 mesurés au premier ticket ; la CSP passe sans `'unsafe-inline'` | #274 | Lot 15 | Bloc 1 — sécurité |
 
 **Origine** : audit de conformité du 2026-10-05, sur `preprod` au merge de #273 (`841ddbe`),
 39 points contrôlés. 106 tests back et 135 front au vert, lint sans erreur ni avertissement,
@@ -2568,7 +2568,7 @@ lointain : dépendances et CSP (15), données personnelles (16), tests et éditi
 
 ## 15.1 — Monter les dépendances Python vulnérables
 
-- [ ] **Fichiers** : `backend/requirements.txt`
+- [x] **Fichiers** : `backend/requirements.txt` — livré par #275 (PR #279)
 - **Constat** : `pip-audit -r requirements.txt` remonte **25 avis sur 4 paquets** :
   - PyJWT 2.13.0 : 1 critique, 5 élevés, 7 moyens, corrigés en 2.15.0 ;
   - sqlparse 0.5.5 : 3 élevés, 2 moyens, corrigés en 0.6.0 ;
@@ -2596,7 +2596,7 @@ Commit `chore:` avec requirements.txt seul.
 
 ## 15.2 — Corriger la vulnérabilité npm de l'outillage
 
-- [ ] **Fichiers** : `frontend/package-lock.json`
+- [x] **Fichiers** : `frontend/package-lock.json` — livré par #276 (PR #280)
 - **Constat** : `npm audit` remonte 1 vulnérabilité élevée : `brace-expansion` 1.1.18 (via
   `eslint` → `minimatch` 3.1.5) et 2.1.4 (via `typescript-eslint` → `minimatch` 9.0.9), trois
   avis de déni de service. `npm audit --omit=dev` n'en trouve aucune : rien n'atteint le bundle.
@@ -2611,7 +2611,7 @@ Commit `chore:` séparé, avec package-lock.json seul.
 
 ## 15.3 — Auditer les dépendances en intégration continue
 
-- [ ] **Fichiers** : `.github/workflows/tests.yml`
+- [x] **Fichiers** : `.github/workflows/tests.yml` — livré par #277 (PR #282)
 - **Constat** : `tests.yml` lance tests, lint et build, mais aucune vérification de
   dépendances. Les 25 avis de 15.1 se sont accumulés sans qu'aucune pull request ne le montre.
 - **Attendu** : le job backend lance `pip-audit`, le job frontend `npm audit` ; une version
@@ -2631,7 +2631,7 @@ Consulte `conventions-docker` et `workflow-git`.
 
 ## 15.4 — Poser une Content-Security-Policy sur le front servi par nginx
 
-- [ ] **Fichiers** : `frontend/nginx.conf`, `frontend/index.html`, un test qui garde le hash
+- [x] **Fichiers** : `frontend/nginx.conf`, `frontend/index.html`, `frontend/src/csp.test.ts` — livré par #278 (PR #283)
 - **Constat** : `tokens.ts:24-25` range les deux jetons dans `localStorage`, lisible par tout
   script de la page. Le jeton d'accès vit 15 minutes, le jeton de renouvellement un jour avec
   rotation (`base.py:239-244`) : un seul XSS les emporte tous les deux. `nginx.conf:50-52` pose
