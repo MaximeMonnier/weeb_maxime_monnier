@@ -266,6 +266,12 @@ FRONTEND_URL = env_str('FRONTEND_URL', 'http://localhost:5173').rstrip('/')
 
 
 # --- Rapports d'erreur ---
+# Destinataires du rapport de chaque 500, DEBUG éteint. Vide : aucun envoi.
+ADMINS = env_list('DJANGO_ADMINS')
+
+# Le défaut de Django, `root@localhost`, serait refusé par le relais.
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
 # Ici et non en production : la suite de tests vérifie ce que le rapport laisse sortir.
 DEFAULT_EXCEPTION_REPORTER = 'config.rapport_erreurs.RapportSansUtilisateur'
 DEFAULT_EXCEPTION_REPORTER_FILTER = 'config.rapport_erreurs.FiltreSansDonneesPersonnelles'
