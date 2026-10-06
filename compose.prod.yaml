@@ -44,10 +44,10 @@ services:
       start_period: 10s
 
   backend:
-    # `image:` explicite, et étiquetée : le même Dockerfile produit l'image de
-    # développement, qui n'a ni les mêmes réglages ni la même commande. Sans
-    # elle, Compose déduirait un nom du projet et les deux se confondraient.
-    image: weeb-backend:prod
+    # L'image que la CI publie au push sur main. `build:` reste pour un `build`
+    # explicite, sous ce même nom. ⚠️ Étiquette absente de GHCR : `up` construit
+    # sans prévenir, d'où le `--no-build` du README, § « Déployer ».
+    image: "ghcr.io/maximemonnier/weeb-backend:${IMAGE_TAG:-latest}"
 
     build: ./backend
 
@@ -99,7 +99,7 @@ services:
       start_period: 30s
 
   frontend:
-    image: weeb-frontend:prod
+    image: "ghcr.io/maximemonnier/weeb-frontend:${IMAGE_TAG:-latest}"
 
     # `target: prod` sert par nginx, sans Node ; le développement construit le
     # même Dockerfile en `target: dev`, servi par Vite. Ce ne sont pas deux
