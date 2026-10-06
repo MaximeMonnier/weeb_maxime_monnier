@@ -504,7 +504,10 @@ déploie rien. Deux déploiements ne se chevauchent jamais : le second attend la
 | `VPS_KNOWN_HOSTS` | l'empreinte du VPS, sous le nom écrit dans `VPS_HOST` |
 | `VPS_PORT` | facultatif, `22` par défaut |
 
-Mise en place, une fois. Sur le VPS :
+Mise en place, une fois. Le script arrive sur le VPS par git, jamais par copie : un fichier
+copié à la main, non suivi, ferait refuser l'avance rapide. Sous `apps`, `git pull --ff-only`
+l'amène. Tant que `main` ne l'a pas reçu, le clone reste sur `preprod`, à jour : le premier
+déploiement le porte jusqu'au commit de `main`, puis `git switch main`. Ensuite, sur le VPS :
 
 ```bash
 sudo adduser --disabled-password --gecos '' deploy
@@ -526,7 +529,8 @@ command="sudo -n -H -u apps /home/apps/docker/apps/weeb/scripts/deployer-vps.sh 
 ```
 
 Puis les secrets, depuis le poste. `ssh-keyscan` croit la première réponse venue : son
-empreinte se compare à celle relevée sur le VPS avant de l'enregistrer.
+empreinte se compare à celle relevée sur le VPS avant de l'enregistrer. Avec `VPS_PORT`,
+ajouter `-p <port>` à `ssh-keyscan` et à l'essai : l'empreinte s'enregistre sous `[adresse]:port`.
 
 ```bash
 gh secret set VPS_HOST --body '<adresse>'
@@ -534,7 +538,7 @@ gh secret set VPS_USER --body deploy
 gh secret set VPS_SSH_KEY < ~/.ssh/weeb-deploy
 ssh-keyscan -t ed25519 '<adresse>' > /tmp/vps_known_hosts && ssh-keygen -lf /tmp/vps_known_hosts
 gh secret set VPS_KNOWN_HOSTS < /tmp/vps_known_hosts
-ssh -i ~/.ssh/weeb-deploy deploy@'<adresse>' essai     # « Attendu : le SHA complet… »
+ssh -i ~/.ssh/weeb-deploy -o IdentitiesOnly=yes deploy@'<adresse>' essai   # « Attendu : le SHA complet… »
 ```
 
 Pièges :
