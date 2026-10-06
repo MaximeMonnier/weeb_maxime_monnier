@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Met en ligne sur le VPS le commit de main dont le SHA est passé en argument.
-# Seule commande que la clé de déploiement peut lancer — README, § « Déploiement automatique ».
+# Lancé par le job déploiement de la CI — README, § « Déploiement automatique ».
 
 set -euo pipefail
 
