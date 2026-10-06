@@ -2,12 +2,15 @@
 
 from django.views.debug import ExceptionReporter, SafeExceptionReporterFilter
 
-# Posés par le nginx du serveur ; REMOTE_ADDR est celle du proxy ou du visiteur.
-EN_TETES_D_IP = frozenset({'REMOTE_ADDR', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR'})
+# Les IP, posées par le nginx du serveur, et le Referer : sur la page de réinitialisation,
+# il porte l'uid et le jeton encore valables, le front et l'API partageant l'origine.
+EN_TETES_MASQUES = frozenset(
+    {'REMOTE_ADDR', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_REFERER'}
+)
 
 
 class FiltreSansDonneesPersonnelles(SafeExceptionReporterFilter):
-    """Masque toutes les valeurs du corps POST et les adresses IP du visiteur."""
+    """Masque toutes les valeurs du corps POST, les adresses IP du visiteur et le Referer."""
 
     def get_post_parameters(self, request):
         # Toutes les clés, pas une liste par vue : contact et réinitialisation portent
@@ -21,7 +24,7 @@ class FiltreSansDonneesPersonnelles(SafeExceptionReporterFilter):
 
     def get_safe_request_meta(self, request):
         meta = super().get_safe_request_meta(request)
-        for cle in EN_TETES_D_IP & meta.keys():
+        for cle in EN_TETES_MASQUES & meta.keys():
             meta[cle] = self.cleansed_substitute
         return meta
 

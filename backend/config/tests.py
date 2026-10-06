@@ -86,16 +86,17 @@ class JournauxTests(SimpleTestCase):
 
 @override_settings(ADMINS=["equipe@weeb.local"])
 class RapportDErreurTests(TestCase):
-    """Le rapport d'une 500 part aux ADMINS sans mot de passe, jeton, email du compte ni IP."""
+    """Le rapport d'une 500 part aux ADMINS sans mot de passe, jeton, email du compte, IP ni Referer."""
 
     def test_une_500_envoie_un_seul_rapport_sans_donnee_personnelle(self):
         membre = compte("membre@weeb.local")
         jeton = str(AccessToken.for_user(membre))
         mots_de_passe = {"old_password": "MotDePasseValide123", "new_password": "NouveauSecret456"}
-        adresses = {
+        en_tetes = {
             "REMOTE_ADDR": "198.51.100.9",
             "HTTP_X_REAL_IP": "203.0.113.8",
             "HTTP_X_FORWARDED_FOR": "203.0.113.7",
+            "HTTP_REFERER": "https://weeb.example/reset-password?uid=MQ&token=jeton-encore-valable",
         }
         # Sinon le client relance l'exception au test, avant tout envoi.
         client = Client(raise_request_exception=False)
@@ -106,7 +107,7 @@ class RapportDErreurTests(TestCase):
                 urlencode(mots_de_passe),
                 content_type="application/x-www-form-urlencoded",
                 HTTP_AUTHORIZATION=f"Bearer {jeton}",
-                **adresses,
+                **en_tetes,
             )
 
         self.assertEqual(response.status_code, 500)
@@ -115,9 +116,9 @@ class RapportDErreurTests(TestCase):
         self.assertEqual(rapport.to, ["equipe@weeb.local"])
         self.assertEqual(rapport.alternatives, [])
         # Les clés restent : le rapport a bien lu le corps et les en-têtes qu'il masque.
-        for cle in [*mots_de_passe, *adresses]:
+        for cle in [*mots_de_passe, *en_tetes]:
             self.assertIn(cle, rapport.body)
-        for fuite in [*mots_de_passe.values(), *adresses.values(), jeton, membre.email]:
+        for fuite in [*mots_de_passe.values(), *en_tetes.values(), jeton, membre.email]:
             self.assertNotIn(fuite, rapport.body)
 
 
