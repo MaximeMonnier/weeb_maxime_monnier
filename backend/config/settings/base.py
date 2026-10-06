@@ -265,6 +265,12 @@ DEFAULT_FROM_EMAIL = env_str('DEFAULT_FROM_EMAIL', 'no-reply@weeb.local')
 FRONTEND_URL = env_str('FRONTEND_URL', 'http://localhost:5173').rstrip('/')
 
 
+# --- Rapports d'erreur ---
+# Ici et non en production : la suite de tests vérifie ce que le rapport laisse sortir.
+DEFAULT_EXCEPTION_REPORTER = 'config.rapport_erreurs.RapportSansUtilisateur'
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'config.rapport_erreurs.FiltreSansDonneesPersonnelles'
+
+
 # --- Journaux ---
 def _hors_console_de_django(record):
     """Écarte une ligne que le handler console de Django affiche déjà, DEBUG actif."""
