@@ -8,13 +8,23 @@ class ArticleSerializer(serializers.ModelSerializer):
     # Le prénom et le nom, jamais fournis par le client — et surtout jamais le
     # __str__ du compte, qui rend l'email : le blog se lit sans authentification.
     author = serializers.CharField(source="author.public_name", read_only=True)
+    # Un booléen plutôt que l'identifiant de l'auteur, que le front comparerait au
+    # sien : il ne connaît pas le lecteur, et rien d'autre ne sort sur l'auteur.
+    is_author = serializers.SerializerMethodField()
 
     class Meta:
         model = Article
-        fields = ("id", "title", "content", "author", "created_at", "updated_at")
+        fields = ("id", "title", "content", "author", "is_author", "created_at", "updated_at")
         read_only_fields = ("author", "created_at", "updated_at")
         # Ici et pas au modèle : un TextField n'a pas de longueur en base, rien à migrer.
         extra_kwargs = {"content": {"max_length": 20000}}
+
+    def get_is_author(self, article):
+        """Vrai seulement si le lecteur connecté a écrit l'article."""
+        request = self.context.get("request")
+        return bool(
+            request and request.user.is_authenticated and article.author_id == request.user.pk
+        )
 
 
 class ArticleListSerializer(serializers.ModelSerializer):

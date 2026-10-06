@@ -1,4 +1,4 @@
-"""Tests des comptes : réinitialisation, mots de passe, jetons, quotas et inscription."""
+"""Tests des comptes : réinitialisation, mots de passe, jetons, quotas, inscription et suppression."""
 
 import re
 import threading
@@ -19,6 +19,8 @@ from django.utils.http import urlsafe_base64_encode
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from articles.models import Article
 
 from .models import CustomUser
 from .validators import PasswordComplexityValidator
@@ -426,6 +428,7 @@ class ThrottleScopeTests(SimpleTestCase):
             "password-reset": "password_reset",
             "password-reset-confirm": "password_reset_confirm",
             "password-change": "password_change",
+            "account-delete": "account_delete",
             "contact": "contact",
         }.items():
             with self.subTest(route=nom_de_route):
@@ -805,6 +808,75 @@ class PasswordChangeTests(TestCase):
             self.assertEqual(self.changer(corps, self.session["access"]).status_code, 400)
 
         self.assertEqual(self.changer(corps, self.session["access"]).status_code, 429)
+
+
+class AccountDeleteTests(TestCase):
+    """La suppression exige le mot de passe, emporte les articles et coupe les sessions."""
+
+    PASSWORD = "MotDePasseValide123"
+
+    def setUp(self):
+        self.url = reverse("account-delete")
+        self.membre = CustomUser.objects.create_user(
+            email="membre@example.com", first_name="Martin", last_name="Embre",
+            password=self.PASSWORD,
+        )
+        Article.objects.create(title="T", content="C", author=self.membre)
+        self.session = self.client.post(
+            reverse("login"),
+            {"email": self.membre.email, "password": self.PASSWORD},
+            content_type="application/json",
+        ).json()
+        cache.clear()
+
+    def supprimer(self, corps, access=None):
+        en_tetes = {"HTTP_AUTHORIZATION": f"Bearer {access}"} if access else {}
+        return self.client.delete(self.url, corps, content_type="application/json", **en_tetes)
+
+    def test_le_membre_supprime_son_compte_et_ses_articles(self):
+        response = self.supprimer({"password": self.PASSWORD}, self.session["access"])
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(CustomUser.objects.filter(pk=self.membre.pk).exists())
+        self.assertFalse(Article.objects.exists())
+
+    def test_le_refresh_emis_avant_ne_se_renouvelle_plus(self):
+        self.supprimer({"password": self.PASSWORD}, self.session["access"])
+
+        response = self.client.post(
+            reverse("login-refresh"), {"refresh": self.session["refresh"]},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_le_jeton_seul_ne_suffit_pas(self):
+        for corps in ({}, {"password": "MauvaisSecret789"}):
+            with self.subTest(corps=corps):
+                response = self.supprimer(corps, self.session["access"])
+
+                # 400 et jamais 401 : le front renouvellerait un jeton qui n'y est pour rien.
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("password", response.json())
+        self.assertTrue(CustomUser.objects.filter(pk=self.membre.pk).exists())
+        self.assertTrue(Article.objects.exists())
+
+    def test_un_visiteur_est_refuse(self):
+        response = self.supprimer({"password": self.PASSWORD})
+
+        self.assertEqual(response.status_code, 401)
+        self.assertTrue(CustomUser.objects.filter(pk=self.membre.pk).exists())
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"account_delete": "5/hour"})
+    def test_la_sixieme_tentative_est_refusee(self):
+        corps = {"password": "MauvaisSecret789"}
+        for _ in range(5):
+            self.assertEqual(self.supprimer(corps, self.session["access"]).status_code, 400)
+
+        response = self.supprimer(corps, self.session["access"])
+
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("Retry-After", response.headers)
 
 
 def attendre_verrou_ou_fin(fil):

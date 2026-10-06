@@ -1,16 +1,24 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
 import "@testing-library/jest-dom/vitest";
 
 import ArticleDetails from "./ArticleDetails";
-
-const FETCH_ORIGINAL = globalThis.fetch;
-
-// Coupé à `fetch`, non à `apiFetch` : le refus traverse la chaîne entière
-// jusqu'à `toFormErrors`, qui en tire le message affiché.
-const appelReseau = vi.fn();
+import {
+  appelReseau,
+  couperLeReseau,
+  dernierAppel,
+  reponse,
+  retablirLeReseau,
+} from "../../test/reseau";
 
 // Ce que rend le détail, et non la liste : `content` entier, pas d'`excerpt`.
 const ARTICLE = {
@@ -18,6 +26,7 @@ const ARTICLE = {
   title: "Premier article",
   content: "Le texte entier de l'article.",
   author: "Jean Dupont",
+  is_author: false,
   created_at: "2026-09-01T10:00:00Z",
   updated_at: "2026-09-01T10:00:00Z",
 };
@@ -30,11 +39,11 @@ const ARTICLE_SUIVANT = {
 };
 
 function reponseArticle(article: typeof ARTICLE) {
-  return { ok: true, status: 200, json: async () => article };
+  return reponse(200, article);
 }
 
 function reponseRefusee(status: number, corps: unknown = {}) {
-  return { ok: false, status, json: async () => corps };
+  return reponse(status, corps);
 }
 
 const CHARGEMENT = "Chargement…";
@@ -69,16 +78,23 @@ function rendreLeDetail(chemin = "/articles/1") {
 }
 
 beforeEach(() => {
-  appelReseau.mockReset();
+  // jsdom n'implémente ni `showModal` ni `close` : ces doublons ne posent que
+  // l'attribut, sans quoi le contenu de la fenêtre resterait hors de l'arbre.
+  HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  };
+  couperLeReseau();
   appelReseau.mockResolvedValue(reponseArticle(ARTICLE));
-  globalThis.fetch = appelReseau as unknown as typeof fetch;
 });
 
 // Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
 // trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(() => {
   cleanup();
-  globalThis.fetch = FETCH_ORIGINAL;
+  retablirLeReseau();
 });
 
 describe("ArticleDetails — article reçu", () => {
@@ -274,5 +290,137 @@ describe("ArticleDetails — changement d'article en cours de route", () => {
     expect(screen.getByText(ARTICLE_SUIVANT.content)).toBeInTheDocument();
     expect(screen.queryByText(INTROUVABLE)).not.toBeInTheDocument();
     expect(alerte()).toBeEmptyDOMElement();
+  });
+});
+
+describe("ArticleDetails — modification par l'auteur", () => {
+  const ARTICLE_DE_L_AUTEUR = { ...ARTICLE, is_author: true };
+  const BOUTON_MODIFIER = { name: "Modifier" };
+
+  it("ne propose ni modification ni suppression à qui n'a pas écrit l'article", async () => {
+    rendreLeDetail();
+
+    expect(await screen.findByText(ARTICLE.title)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", BOUTON_MODIFIER),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Supprimer" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("affiche l'article enregistré sans le recharger", async () => {
+    const enregistre = {
+      ...ARTICLE_DE_L_AUTEUR,
+      title: "Titre corrigé",
+      content: "Le texte corrigé de l'article.",
+    };
+    appelReseau
+      .mockResolvedValueOnce(reponseArticle(ARTICLE_DE_L_AUTEUR))
+      .mockResolvedValueOnce(reponse(200, enregistre));
+    rendreLeDetail();
+
+    await userEvent.click(await screen.findByRole("button", BOUTON_MODIFIER));
+    const fenetre = within(screen.getByRole("dialog"));
+    const titre = fenetre.getByLabelText("Titre de l'article");
+    expect(titre).toHaveValue(ARTICLE.title);
+
+    await userEvent.clear(titre);
+    await userEvent.type(titre, enregistre.title);
+    const contenu = fenetre.getByLabelText("Description de votre article");
+    await userEvent.clear(contenu);
+    await userEvent.type(contenu, enregistre.content);
+    await userEvent.click(
+      fenetre.getByRole("button", { name: "Enregistrer les modifications" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: enregistre.title }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(enregistre.content)).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Titre de l'article"),
+    ).not.toBeInTheDocument();
+    // Le chargement initial et le PATCH, rien de plus : aucun rechargement.
+    expect(appelReseau).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("ArticleDetails — suppression par l'auteur", () => {
+  const ARTICLE_DE_L_AUTEUR = { ...ARTICLE, is_author: true };
+  const SUPPRIMER = { name: "Supprimer" };
+
+  // Le bouton de la page et celui de la fenêtre portent le même nom : la
+  // confirmation se cherche dans la fenêtre seule.
+  async function ouvrirLaConfirmation() {
+    appelReseau.mockResolvedValueOnce(reponseArticle(ARTICLE_DE_L_AUTEUR));
+    rendreLeDetail();
+    await userEvent.click(await screen.findByRole("button", SUPPRIMER));
+    return within(screen.getByRole("dialog", { name: "Supprimer l'article" }));
+  }
+
+  it("ferme la confirmation sans rien envoyer à l'annulation", async () => {
+    const fenetre = await ouvrirLaConfirmation();
+
+    await userEvent.click(fenetre.getByRole("button", { name: "Annuler" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // Le seul chargement de l'article.
+    expect(appelReseau).toHaveBeenCalledTimes(1);
+  });
+
+  it("supprime l'article puis mène au blog", async () => {
+    const fenetre = await ouvrirLaConfirmation();
+    appelReseau.mockResolvedValueOnce(reponse(204));
+
+    await userEvent.click(fenetre.getByRole("button", SUPPRIMER));
+
+    expect(await screen.findByText("Liste des articles")).toBeInTheDocument();
+    const { url, options } = dernierAppel();
+    expect(url).toBe(`${import.meta.env.VITE_API_URL}/articles/1/`);
+    expect(options.method).toBe("DELETE");
+  });
+
+  it("verrouille la confirmation tant que la suppression est en cours", async () => {
+    const fenetre = await ouvrirLaConfirmation();
+    let livrer: (reponse: unknown) => void = () => {};
+    appelReseau.mockReturnValueOnce(
+      new Promise((resolve) => {
+        livrer = resolve;
+      }),
+    );
+
+    await userEvent.click(fenetre.getByRole("button", SUPPRIMER));
+
+    expect(fenetre.getByRole("button", SUPPRIMER)).toBeDisabled();
+    expect(fenetre.getByRole("button", { name: "Annuler" })).toBeDisabled();
+    // Échap n'atteint le dialog que par cet événement : refusé, il ne ferme rien.
+    const echap = new Event("cancel", { cancelable: true });
+    screen.getByRole("dialog").dispatchEvent(echap);
+    expect(echap.defaultPrevented).toBe(true);
+
+    livrer(reponse(204));
+
+    expect(await screen.findByText("Liste des articles")).toBeInTheDocument();
+  });
+
+  it.each([
+    [403, "Vous n'avez pas les droits nécessaires pour cette action."],
+    [404, "Cet article n'existe plus : il a déjà été supprimé."],
+  ])("traduit un refus %i dans la fenêtre", async (status, message) => {
+    const fenetre = await ouvrirLaConfirmation();
+    appelReseau.mockResolvedValueOnce(
+      reponseRefusee(status, { detail: "Refus en anglais." }),
+    );
+
+    await userEvent.click(fenetre.getByRole("button", SUPPRIMER));
+
+    await waitFor(() =>
+      expect(fenetre.getByRole("alert")).toHaveTextContent(message),
+    );
+    // La fenêtre reste ouverte, prête pour un nouvel essai.
+    expect(fenetre.getByRole("button", SUPPRIMER)).toBeEnabled();
+    expect(screen.queryByText("Liste des articles")).not.toBeInTheDocument();
   });
 });

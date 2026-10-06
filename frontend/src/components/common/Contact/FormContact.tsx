@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Input, Textarea } from "../../ui/Input";
 import Button from "../../ui/Button/Button";
 import { apiFetch } from "../../../lib/api";
@@ -174,6 +175,18 @@ const FormContact = () => {
           required
           fullWidth
         />
+
+        <div className="text-sm text-ink-soft">
+          Vos données servent uniquement à répondre à votre message. En savoir
+          plus dans notre{" "}
+          <Link
+            to="/privacy"
+            className="text-accent hover:underline focus-ring-primary rounded"
+          >
+            politique de confidentialité
+          </Link>
+          .
+        </div>
 
         <div className="flex justify-center">
           <Button

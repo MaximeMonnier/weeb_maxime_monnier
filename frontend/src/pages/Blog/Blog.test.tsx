@@ -6,12 +6,12 @@ import "@testing-library/jest-dom/vitest";
 
 import Blog from "./Blog";
 import { saveTokens } from "../../lib/tokens";
-
-const FETCH_ORIGINAL = globalThis.fetch;
-
-// Coupé à `fetch`, non à `apiFetch` : la liste arrive par le module réel, avec
-// ou sans jeton selon l'état de la session.
-const appelReseau = vi.fn();
+import {
+  appelReseau,
+  couperLeReseau,
+  reponse,
+  retablirLeReseau,
+} from "../../test/reseau";
 
 // Ce que la liste rend, et rien de plus : l'API y coupe le texte en `excerpt`
 // et garde `content` pour le détail.
@@ -29,11 +29,7 @@ const ARTICLE_PLUS_ANCIEN = { ...ARTICLE, id: 2, title: "Article plus ancien" };
 // Une page de la liste telle que l'API la rend. Le blog ne lit de `next` que
 // sa présence, et jamais `count` ni `previous`.
 function reponsePage(results: (typeof ARTICLE)[], next: string | null = null) {
-  return {
-    ok: true,
-    status: 200,
-    json: async () => ({ count: results.length, next, previous: null, results }),
-  };
+  return reponse(200, { count: results.length, next, previous: null, results });
 }
 
 const PAGE_2 = "http://localhost:8000/api/articles/?page=2";
@@ -63,7 +59,7 @@ async function afficherLeBlog() {
 
 // Une erreur de l'API telle que `fetch` la livre, corps compris.
 function reponseRefusee(status: number, corps: unknown = {}) {
-  return { ok: false, status, json: async () => corps };
+  return reponse(status, corps);
 }
 
 const BOUTON_DE_CREATION = { name: "Créer un article" };
@@ -81,9 +77,8 @@ const SERVICE_INDISPONIBLE =
 const alerte = () => screen.getByRole("alert");
 
 beforeEach(() => {
-  appelReseau.mockReset();
+  couperLeReseau();
   appelReseau.mockResolvedValue(reponsePage([ARTICLE]));
-  globalThis.fetch = appelReseau as unknown as typeof fetch;
   ouvrirFenetre.mockReset();
   HTMLDialogElement.prototype.showModal = ouvrirFenetre;
 });
@@ -92,7 +87,7 @@ beforeEach(() => {
 // trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(() => {
   cleanup();
-  globalThis.fetch = FETCH_ORIGINAL;
+  retablirLeReseau();
   localStorage.clear();
 });
 

@@ -1061,3 +1061,177 @@ documentation, `correction.md` compris.
 - Les deux piles démarrent, tous services `healthy`, images reconstruites.
 - `tests.yml` et `docker-images.yml` sont verts sur la PR. Après la fusion,
   `git log --oneline origin/main..origin/preprod` ne rend rien.
+
+## Lot 15 — Sécurité : dépendances et navigateur
+
+Clos le 2026-10-05 · Epic #274 · Alimente : Bloc 1 — sécurité
+
+**Constat mesuré** — l'audit du 2026-10-05, sur `preprod` à `841ddbe`, ne trouvait aucune faille
+dans le code, mais :
+- `pip-audit -r backend/requirements.txt` : **25 avis sur 4 paquets** (Django, DRF, PyJWT,
+  sqlparse), dont un critique sur PyJWT ;
+- `npm audit` : **1 vulnérabilité élevée**, `brace-expansion`, dans l'outillage de lint seul ;
+- `tests.yml` : aucune vérification des dépendances, d'où l'accumulation sans alerte ;
+- `frontend/nginx.conf` : **aucune Content-Security-Policy**, alors que les deux jetons vivent
+  dans `localStorage`.
+
+Filet de départ : **106 tests back**, **135 tests front**.
+
+**Décision et justification** :
+
+- les paquets restent sur leur branche de correctifs (Django 6.0.x, DRF 3.17.x), sans montée de
+  version mineure : le lot corrige, il ne migre pas ;
+- `npm audit fix` sans `--force` : seul le verrou bouge, `package.json` reste intact ;
+- en CI, les deux audits tournent sous `if: !cancelled()`, comme les tests : un audit rouge ne
+  cache pas l'état de la suite, et inversement. `npm audit` porte sur tout l'arbre et non sur
+  `--omit=dev` : l'outillage de build et de test s'exécute en CI, sa faille compte autant ;
+- la CSP est définie une fois (`set $csp`) et reprise par les quatre blocs qui posent des
+  en-têtes, plutôt que recopiée quatre fois ;
+- `style-src 'self'`, sans `'unsafe-inline'` : Embla et React n'écrivent les styles que par le
+  DOM, ce que la CSP ne bloque pas. Le navigateur l'a confirmé sur les 13 routes ;
+- le refresh en cookie `httpOnly` et la CSP des pages servies par Django vont dans
+  `AMELIORATIONS.md` : le premier touche le back, `apiFetch` et le CSRF, le second une autre
+  couche que `nginx.conf`.
+
+**Ce qui a surpris** — trois constats.
+
+**Les avis ont augmenté entre l'audit et le premier ticket.** Le plan en comptait 25. Le même
+jour, `pip-audit` en rendait 32. La version corrective prévue pour PyJWT, 2.15.0, en gardait un
+sans correctif annoncé : il a fallu monter en 2.15.1. Un compte d'avis ne vaut que le jour où il
+est pris, et c'est ce qui justifie l'audit en CI.
+
+**La CSP n'a demandé aucune exception.** Le plan prévoyait d'arbitrer ce qu'exigeraient le
+carrousel, les styles de React et les polices. Il n'y avait rien à ouvrir : aucun `style=` dans
+le JSX, aucune ressource externe, et Embla ne passe que par `element.style`.
+
+**Vite rend le script en ligne à l'octet près.** Le hash calculé sur `dist/index.html` est celui
+de la source : le test peut lire `index.html` sans construire. Le hash couvre aussi le
+commentaire du script, si bien qu'une simple retouche de formulation casse le thème sombre en
+production. Le test le dit avant.
+
+Le lot pèse **101 insertions pour 14 suppressions** sur 8 fichiers, hors `correction.md`, en
+6 commits.
+
+**Preuve de la correction** — rejouée sur `preprod` à `2e9383b`.
+- `pip-audit -r backend/requirements.txt` rend `No known vulnerabilities found`, et `npm audit`
+  rend `found 0 vulnerabilities`.
+- PR d'essai #281, fermée sans merge, avec `PyJWT==2.13.0` : l'étape d'audit du job backend
+  échoue sur 13 avis.
+- `curl -sI` sur `/`, `/blog`, `/vite.svg`, un fichier de `/assets/` et `/static/` de la pile de
+  production : même en-tête CSP. Playwright sur les 13 routes, en clair puis en sombre : aucune
+  violation, un script injecté bloqué, `.dark` posé avant le bundle.
+- Un espace ajouté au script d'`index.html` fait échouer `npm test`.
+- Back : `Ran 106 tests` puis `OK`. Front : `npm run lint` ne rend rien, `npm test` rend
+  `Tests  138 passed (138)`, et `npm run build` aboutit.
+
+## Lot 16 — Données personnelles
+
+Clos le 2026-10-05 · Epic #284 · Alimente : Bloc 1 — sécurité
+
+**Constat mesuré** — l'audit du 2026-10-05, points 27 et 28 : `/privacy` promettait plus que le
+code ne tenait.
+- `Privacy.tsx:82` gardait les messages de contact « le temps d'y répondre », mais rien ne les
+  supprimait jamais ;
+- la section 6 promettait d'effacer un compte « sans condition », alors que seul l'admin le
+  pouvait, à la main, sur demande écrite : `accounts/urls.py` n'exposait aucune suppression ;
+- `FormContact.tsx` collectait nom et email sans dire à quoi ils servent, là où l'inscription
+  renvoie à `/privacy` (RGPD, art. 13).
+
+Filet de départ : **106 tests back**, **138 tests front**.
+
+**Décision et justification** :
+
+- la mention du formulaire de contact recopie le bloc de `FormSubscribe.tsx` au lieu de
+  l'extraire : deux usages, quelques lignes ;
+- 16.2 est coupée en deux sous-issues, l'API (#286) puis le front (#287) : chaque moitié a sa
+  propre PR et sa propre revue ;
+- `DELETE /api/auth/account/` refuse un mauvais mot de passe en `400` et non en `401`, sinon
+  `apiFetch` renouvellerait le jeton. Elle a son quota, `account_delete`, à 5 par heure ;
+- les messages de contact envoyés depuis l'adresse du compte ne partent pas avec lui : `Contact`
+  ne référence aucun utilisateur, et ils suivent la durée de 16.3 ;
+- la durée est de 90 jours, en dur et non en variable d'environnement : aucune production ne
+  doit garder plus que ce qu'annonce `/privacy`. La comparaison est stricte, donc un message de
+  90 jours pile est gardé ;
+- la planification de `purger_contacts` reste à 20.4, comme prévu au plan.
+
+**Ce qui a surpris** — trois constats.
+
+**Le plan comptait trois sous-issues, il en a fallu quatre.** 16.2 touchait l'API, `apiFetch`,
+une page, le pied de page et `/privacy`. En une seule PR, la revue aurait couvert deux couches à
+la fois.
+
+**La promesse a changé de nature avant d'être tenue.** `/privacy` annonce 90 jours, et la
+commande sait les appliquer. Mais tant que 20.4 ne la planifie pas, elle ne supprime rien si
+personne ne la lance. Avant, aucun code ne supprimait les messages. Maintenant, le code existe
+mais rien ne le déclenche.
+
+**La mutation de la limite fait tomber les trois tests, pas un seul.** Avec `<=`, le message de
+90 jours pile est supprimé, et tous les tests de la classe le comptent. Le test du cas limite
+reste le seul qui dise pourquoi.
+
+Le lot pèse **523 insertions pour 12 suppressions** sur 23 fichiers, hors `correction.md`, en
+15 commits.
+
+**Preuve de la correction** — rejouée sur `preprod` à `9ec028f`.
+- Sur la pile de développement, un compte actif avec un article : `DELETE /api/auth/account/`
+  rend `401` sans jeton, `400` « Le mot de passe est incorrect. » avec un mauvais mot de passe,
+  puis `204` avec le bon. Le compte et l'article ont disparu, et le refresh émis avant rend `401`.
+- `purger_contacts --dry-run` rend `0 message(s) de plus de 90 jours, rien supprimé.` Pendant
+  le ticket, un message de 100 jours a été supprimé et un de 10 jours gardé, et `--dry-run` a
+  laissé le total inchangé.
+- `FormContact.tsx`, servi par Vite, porte le lien vers `/privacy`. La section 5 de `/privacy`
+  annonce 90 jours, la section 6 mène à `/delete-account`.
+- Back : `Ran 114 tests` puis `OK`. Front : `npm run lint` ne rend rien, `npm test` rend
+  `Tests  146 passed (146)`, et `npm run build` aboutit.
+
+## Lot 17 — Tests du front : combler les trous
+
+Clos le 2026-10-05 · Epic #293 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — l'audit du 2026-10-05, point 30 : trois formulaires n'avaient aucun test
+de leur envoi.
+- `FormArticle` publiait sans test, alors que le lot 18 va l'étendre à l'édition ;
+- `FormContact.test.tsx` ne vérifiait que le lien vers `/privacy`, posé au lot 16 ;
+- `ForgotPassword` affichait la réponse neutre de l'API sans que rien le vérifie.
+
+Neuf fichiers recopiaient leur propre substitut de `fetch`. Filet de départ : **18 fichiers et
+146 tests front**.
+
+**Décision et justification** :
+
+- le substitut est extrait d'abord (#294), pour que les trois nouveaux tests naissent sur
+  `frontend/src/test/reseau.ts` au lieu d'en ajouter trois copies ;
+- le module est importé par chaque fichier, sans `setupFiles` ni globales : un test qui ne
+  l'importe pas garde le vrai `fetch` ;
+- `requeteEnvoyee()` ne rend pas les en-têtes, parce que `FormLogin` et `FormSubscribe`
+  comparent son objet entier. `dernierAppel()` les donne à qui en a besoin ;
+- 17.2 est coupée en un ticket par formulaire (#295, #296, #297) : chacun a ses cas validés
+  avant d'écrire, et sa propre mutation ;
+- `ForgotPassword` n'a aucune règle de saisie, sa mutation porte donc sur le corps envoyé et sur
+  le `detail` affiché.
+
+**Ce qui a surpris** — trois constats.
+
+**Le plan comptait deux sous-issues, il en a fallu quatre.** Trois formulaires dans un seul
+ticket, c'était trois listes de cas à valider et trois mutations dans une seule revue.
+
+**« Aucun test » n'était plus vrai pour `FormContact`.** Le lot 16 lui avait donné un fichier
+de test, pour le lien vers `/privacy`. Le trou, c'était l'envoi, pas le fichier.
+
+**Le module partagé est vérifié par les tests qu'il sert.** Passer `status < 300` à
+`status < 500` dans `reseau.ts` fait tomber 15 tests dans 7 fichiers. Une dérive du contrat
+d'`apiFetch` ne passe donc plus inaperçue.
+
+Le lot pèse **474 insertions pour 230 suppressions** sur 15 fichiers, hors `correction.md`, en
+16 commits.
+
+**Preuve de la correction** — rejouée sur `preprod` à `a2a65a7`.
+- `grep -rn "globalThis.fetch =" frontend/src` ne rend que `src/test/reseau.ts`, et
+  `AMELIORATIONS.md` ne contient plus l'entrée « Doublon réseau ».
+- Une mutation par formulaire fait tomber au moins un cas, puis est restaurée :
+  - `FormArticle`, `author: 1` ajouté au corps ;
+  - `FormContact`, `subject` renommé `sujet` ;
+  - `ForgotPassword`, un texte fixe à la place de `detail`.
+- Aucun fichier de `backend/` ni aucun composant n'a changé.
+- Front : `npm run lint` ne rend rien, `npm test` rend `Tests  163 passed (163)` sur 20
+  fichiers, et `npm run build` aboutit.

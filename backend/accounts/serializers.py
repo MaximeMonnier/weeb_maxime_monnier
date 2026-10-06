@@ -78,6 +78,17 @@ class PasswordChangeSerializer(serializers.Serializer):
         return attrs
 
 
+class AccountDeleteSerializer(serializers.Serializer):
+    """Valide la suppression du compte : le mot de passe redonné, et rien d'autre."""
+    password = serializers.CharField(write_only=True, max_length=MAX_PASSWORD_LENGTH)
+
+    def validate_password(self, value):
+        # 400 et non 401, comme au changement de mot de passe : apiFetch renouvellerait le jeton.
+        if not self.context["request"].user.check_password(value):
+            raise serializers.ValidationError("Le mot de passe est incorrect.")
+        return value
+
+
 class LoginSerializer(TokenObtainPairSerializer):
     """Délivre les jetons, le mot de passe borné comme partout ailleurs."""
 

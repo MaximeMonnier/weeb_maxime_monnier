@@ -92,6 +92,13 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 | 12 | Corriger les causes dans le code | 4 | Chaque cause retirée supprime un piège à documenter |
 | 13 | Régime : purge et contrôle | 4 | Purge sur l'état propre, puis une mesure pour qu'il le reste |
 | 14 | Documentation et clôture | 3 | Consigne ce qui a été appris |
+| 15 | Sécurité : dépendances et navigateur | 4 | Seul écart de sécurité de l'audit du 2026-10-05, et le moins cher à fermer |
+| 16 | Données personnelles | 3 | `/privacy` promet ce que le code ne tient pas encore |
+| 17 | Tests du front : combler les trous | 2 | Le filet avant de toucher aux formulaires d'article |
+| 18 | Modifier et supprimer un article depuis le front | 2 | L'API le permet depuis le lot 2, le front ne l'offre pas |
+| 19 | Livraison continue et mise en ligne | 4 | Rien n'est en ligne : condition des lots 20 et 21 |
+| 20 | Surveillance et exploitation | 4 | N'a de sens qu'une fois le site en ligne |
+| 21 | Finitions et clôture de l'audit | 2 | Vérifie que chaque écart de l'audit est fermé ou consigné |
 
 ---
 
@@ -2539,6 +2546,591 @@ Cette skill ne pousse jamais rien : elle lit et elle rapporte. Le push reste ma 
 
 ---
 
+# Lot 15 — Sécurité : dépendances et navigateur
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| Clos le 2026-10-05 — 25 avis prévus, 32 mesurés au premier ticket ; la CSP passe sans `'unsafe-inline'` | #274 | Lot 15 | Bloc 1 — sécurité |
+
+**Origine** : audit de conformité du 2026-10-05, sur `preprod` au merge de #273 (`841ddbe`),
+39 points contrôlés. 106 tests back et 135 front au vert, lint sans erreur ni avertissement,
+build réussi, `check` sans problème. **Aucune faille dans le code** : le jeton de
+réinitialisation part par email, les permissions sont fermées par défaut, le contenu des
+articles est échappé. Les lots 15 à 21 reprennent les écarts restants, du plus urgent au plus
+lointain : dépendances et CSP (15), données personnelles (16), tests et édition d'article
+(17, 18), mise en ligne et surveillance (19, 20), clôture (21).
+
+**Grain de ticket** : epic + 4 sous-issues, une par tâche. 15.1 et 15.2 sont indépendantes ;
+15.3 vient après elles, sinon la CI rougit dès son ajout. 15.4 est indépendante du reste.
+
+> **Dépendances : lots 0 à 14 clos.** 15.1 touche tout le backend par ses dépendances : à livrer
+> avant les lots 16 à 18, pour qu'ils testent sur les versions corrigées.
+
+## 15.1 — Monter les dépendances Python vulnérables
+
+- [x] **Fichiers** : `backend/requirements.txt` — livré par #275 (PR #279)
+- **Constat** : `pip-audit -r requirements.txt` remonte **25 avis sur 4 paquets** :
+  - PyJWT 2.13.0 : 1 critique, 5 élevés, 7 moyens, corrigés en 2.15.0 ;
+  - sqlparse 0.5.5 : 3 élevés, 2 moyens, corrigés en 0.6.0 ;
+  - Django 6.0.6 : 1 élevé, 3 moyens, 1 faible, corrigés en 6.0.8 ;
+  - DRF 3.17.1 : 2 moyens, corrigés en 3.17.2.
+
+  Le risque réel est faible : les avis PyJWT visent les clés asymétriques et JWKS, alors que
+  le projet signe en HS256 avec `SECRET_KEY` (défaut de simplejwt) ; l'avis élevé de Django vise
+  GeoDjango, absent. Mais c'est l'écart que montre le premier `pip-audit` d'un correcteur
+  (OWASP A06, composants vulnérables).
+- **Attendu** : `pip-audit` sans avis, les 106 tests verts, l'image backend reconstruite et
+  `healthy`.
+
+```
+Consulte `backend-django-drf` et `conventions-docker`. Aucun fichier à créer.
+1. Lance pip-audit -r backend/requirements.txt (dans un venv jetable, pas celui du projet) et
+   montre la sortie réelle.
+2. Monte les quatre paquets à leur version corrigée. Vérifie la compatibilité de simplejwt
+   5.5.1 avec PyJWT 2.15 et lis les notes de version de Django 6.0.7-6.0.8 et DRF 3.17.2 :
+   dis ce qui pourrait changer pour le projet.
+3. Suite Django complète, puis docker compose -f compose.dev.yaml up -d --wait --build :
+   montre les deux sorties, et pip-audit rejoué à la fin.
+Commit `chore:` avec requirements.txt seul.
+```
+
+## 15.2 — Corriger la vulnérabilité npm de l'outillage
+
+- [x] **Fichiers** : `frontend/package-lock.json` — livré par #276 (PR #280)
+- **Constat** : `npm audit` remonte 1 vulnérabilité élevée : `brace-expansion` 1.1.18 (via
+  `eslint` → `minimatch` 3.1.5) et 2.1.4 (via `typescript-eslint` → `minimatch` 9.0.9), trois
+  avis de déni de service. `npm audit --omit=dev` n'en trouve aucune : rien n'atteint le bundle.
+- **Attendu** : `npm audit` à 0, lint, tests et build verts, le verrou commité.
+
+```
+Consulte `frontend-react-ts` et `conventions-docker` (l'étape deps de l'image lit ce verrou).
+1. Montre npm audit, puis dis si npm audit fix suffit sans version majeure.
+2. Applique. npm run lint, npm test, npm run build : montre la sortie.
+Commit `chore:` séparé, avec package-lock.json seul.
+```
+
+## 15.3 — Auditer les dépendances en intégration continue
+
+- [x] **Fichiers** : `.github/workflows/tests.yml` — livré par #277 (PR #282)
+- **Constat** : `tests.yml` lance tests, lint et build, mais aucune vérification de
+  dépendances. Les 25 avis de 15.1 se sont accumulés sans qu'aucune pull request ne le montre.
+- **Attendu** : le job backend lance `pip-audit`, le job frontend `npm audit` ; une version
+  vulnérable réintroduite fait échouer la CI.
+- **Dépend de** : 15.1, 15.2
+
+```
+Consulte `conventions-docker` et `workflow-git`.
+1. Tranche, et recommande : l'audit doit-il bloquer la pull request, sachant qu'un avis publié
+   un mardi rougirait des PR sans rapport avec lui ? Options : étape bloquante, étape sous
+   `if: !cancelled()` comme les tests, ou workflow planifié à part.
+2. npm : `--omit=dev` ou tout l'arbre ? Recommande, en une ligne de justification.
+3. Valide par mutation dans une PR brouillon vers preprod, fermée ensuite sans merge (une
+   branche poussée seule ne déclenche pas tests.yml) : une version vulnérable remise dans
+   requirements.txt fait échouer le job. Montre le lien du run.
+```
+
+## 15.4 — Poser une Content-Security-Policy sur le front servi par nginx
+
+- [x] **Fichiers** : `frontend/nginx.conf`, `frontend/index.html`, `frontend/src/csp.test.ts` — livré par #278 (PR #283)
+- **Constat** : `tokens.ts:24-25` range les deux jetons dans `localStorage`, lisible par tout
+  script de la page. Le jeton d'accès vit 15 minutes, le jeton de renouvellement un jour avec
+  rotation (`base.py:239-244`) : un seul XSS les emporte tous les deux. `nginx.conf:50-52` pose
+  `nosniff`, `X-Frame-Options` et `Referrer-Policy`, répétés dans chaque `location` (l. 66-94),
+  mais **aucune CSP**. `index.html:8-18` porte un script en ligne, celui qui pose `.dark`, et
+  son commentaire (l. 10) annonce déjà qu'une CSP devra l'autoriser.
+- **Attendu** : une CSP stricte dans chaque `location` qui répète les en-têtes (`'self'` pour
+  scripts et connexions, le script en ligne autorisé par son hash, `object-src 'none'`,
+  `frame-ancestors 'none'`). Aucune violation dans la console sur toutes les pages, en thème
+  clair et sombre. Un test fait échouer la suite si le script change sans que le hash suive.
+
+```
+Consulte `conventions-docker` et `frontend-react-ts`, puis `inventaire-avant-dev` : un test
+existant (index.css.test.ts lit déjà index.html) peut-il porter le contrôle du hash ?
+1. Propose la politique directive par directive, avec ce qui casserait sans chacune (carrousel
+   Embla, styles posés par React, polices, images). Attends mon accord.
+2. Applique dans nginx.conf, sans oublier le piège de la ligne 60 : add_header ne s'hérite pas.
+3. Pile de production : docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60,
+   puis chaque route parcourue dans le navigateur, console ouverte. Montre l'en-tête reçu
+   (curl -I) et l'absence de violation.
+4. Mutation : un caractère changé dans le script de index.html fait tomber le test.
+Le passage du jeton de renouvellement en cookie httpOnly est hors périmètre : propose-le à
+AMELIORATIONS.md s'il te paraît justifié, sans le faire.
+```
+
+---
+
+# Lot 16 — Données personnelles
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| Clos le 2026-10-05 — 3 sous-issues prévues, 4 livrées (16.2 coupée entre API et front) ; messages gardés 90 jours | #284 | Lot 16 | Bloc 1 — sécurité |
+
+**Origine** : audit du 2026-10-05, points 27 et 28. `/privacy` promet plus que le code ne
+tient : la conservation des messages de contact « le temps d'y répondre » (`Privacy.tsx:82`)
+sans rien qui les supprime ; l'effacement d'un compte « sans condition » (l. 90-100), mais
+seulement à la main, depuis l'admin, sur demande écrite. Enfin le formulaire de contact collecte
+nom et email sans un mot d'information, là où l'inscription renvoie à `/privacy`
+(`FormSubscribe.tsx:199-214`).
+
+**Grain de ticket** : epic + 3 sous-issues. Les trois sont indépendantes ; 16.2 est la plus
+lourde (back, front, tests des deux côtés).
+
+> **Dépendances : lot 15** (15.1 au moins : les tests de 16.2 tournent sur les versions
+> corrigées).
+
+## 16.1 — Informer au formulaire de contact
+
+- [x] **Fichiers** : `frontend/src/components/common/Contact/FormContact.tsx`, `FormContact.test.tsx` — livré par #285 (PR #289)
+- **Constat** : `FormContact.tsx` collecte prénom, nom, email, sujet et message, et rien
+  avant le bouton d'envoi (l. 179) ne dit à quoi ils servent ni ne mène à `/privacy`. C'est
+  l'information due au moment de la collecte (RGPD, art. 13).
+- **Attendu** : une phrase sous le formulaire, sur le modèle de celle de l'inscription : la
+  finalité (vous répondre) et le lien vers `/privacy`, mêmes classes, même focus.
+
+```
+Consulte `frontend-react-ts` et `inventaire-avant-dev` : le bloc de FormSubscribe.tsx:199-214
+se réutilise-t-il tel quel, ou faut-il l'extraire ? Recommande ; n'extrais pas pour deux usages
+si la copie tient en quelques lignes.
+Applique, regarde le rendu en clair et en sombre, puis npm run lint, npm test, npm run build.
+```
+
+## 16.2 — Supprimer son compte soi-même
+
+- [x] **Fichiers** : `backend/accounts/views.py`, `serializers.py`, `urls.py`, `tests.py`,
+  `backend/config/settings/base.py`, `backend/config/tests.py`, `.env.example`,
+  `frontend/src/lib/api.ts`, `frontend/src/pages/DeleteAccount.tsx`, `Footer.tsx`,
+  `frontend/src/pages/Privacy.tsx`, `README.md` (§ « Le débit ») — livré par #286 (PR #290)
+  pour l'API, puis #287 (PR #291) pour le front
+- **Constat** : `accounts/urls.py` n'expose aucune suppression ; seul l'admin efface un compte,
+  avec ses articles en cascade (`articles/models.py:15`). Les jetons survivent sans titulaire
+  (`OutstandingToken.user` passe à `NULL`), et `LoginRefreshView` les refuse déjà en `401`.
+- **Attendu** : le membre connecté supprime son compte en redonnant son mot de passe. L'API
+  répond `204`, le front efface les jetons et revient à l'accueil. `/privacy` le dit, et la
+  matrice des droits de `config/tests.py` couvre la nouvelle route.
+
+```
+Consulte `inventaire-avant-dev`, `backend-django-drf` et `frontend-react-ts`.
+1. Inventaire : PasswordChangeSerializer.validate_current_password se réutilise-t-il ? La page
+   /change-password peut-elle accueillir la suppression, ou faut-il une page « Mon compte » ?
+   Tableau de verdict avant tout fichier créé.
+2. Plan à valider : méthode et route ; mot de passe vérifié en 400 et non en 401 (apiFetch
+   renouvellerait le jeton) ; un throttle_scope et sa variable THROTTLE_* ; les messages de
+   contact envoyés depuis la même adresse — supprimés ou non, recommande.
+3. Pièges à traiter : la route va dans ROUTES_AUTH_PROTEGEES de lib/api.ts, sinon le jeton
+   n'est pas envoyé ; et dans la matrice de config/tests.py, que
+   test_chaque_route_de_l_api_figure_dans_la_matrice exige.
+4. Tests back : mauvais mot de passe refusé, visiteur refusé, compte et articles supprimés,
+   refresh refusé en 401 après. Test front : confirmation, jetons effacés, redirection.
+   Mutation sur le contrôle du mot de passe.
+5. Mets à jour la section 6 de Privacy.tsx et sa date de mise à jour (l. 21). Le tableau du
+   README, § « Le débit », reçoit le nouveau quota ; CLAUDE.md (non versionné) dit encore
+   « hors password-change/ » à deux endroits, que la nouvelle route rend faux.
+```
+
+## 16.3 — Fixer et appliquer la durée de conservation des messages
+
+- [x] **Fichiers** : `backend/contact/management/commands/purger_contacts.py`, `contact/tests.py`,
+  `frontend/src/pages/Privacy.tsx` — livré par #288 (PR #292)
+- **Constat** : `Privacy.tsx:82` promet de garder les messages « le temps d'y répondre ». Le
+  modèle `Contact` porte `created_at`, mais rien ne supprime un message, et rien ne marque qu'il
+  a reçu sa réponse.
+- **Attendu** : une durée chiffrée écrite dans `/privacy`, et une commande qui supprime les
+  messages plus anciens, sur le modèle de `peupler_articles`. Son déclenchement planifié
+  revient à 20.4.
+
+```
+Consulte `inventaire-avant-dev` et `backend-django-drf`.
+1. Propose une durée et justifie-la (le temps raisonnable d'une réponse, pas un archivage).
+   Dois-je la rendre réglable par variable ? Recommande. Attends mon accord.
+2. Écris la commande, sur la structure de articles/management/commands/peupler_articles.py,
+   avec un mode --dry-run qui compte sans supprimer.
+3. Tests : un message à la limite est gardé, un message au-delà est supprimé, --dry-run ne
+   supprime rien. Mutation sur la comparaison de dates.
+4. Remplace « le temps d'y répondre » par la durée retenue dans Privacy.tsx, et mets à jour
+   sa date (l. 21).
+```
+
+---
+
+# Lot 17 — Tests du front : combler les trous
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| Clos le 2026-10-05 — 2 sous-issues prévues, 4 livrées (17.2 coupée en un ticket par formulaire) ; neuf copies du substitut, pas huit | #293 | Lot 17 | Bloc 1 — qualité |
+
+**Origine** : audit du 2026-10-05, point 30. 15 fichiers et 135 tests Vitest, mais trois
+formulaires n'ont aucun test rendu : `FormContact`, `FormArticle` et `ForgotPassword`. Le
+backend couvre leurs endpoints ; rien ne vérifie ce que le front envoie ni ce qu'il affiche du
+refus. Le référentiel demande des scénarios sur les fonctionnalités critiques, et publier un
+article en est une. `AMELIORATIONS.md` note par ailleurs, § « Tests », que huit fichiers
+recopient leur substitut de `fetch`.
+
+**Grain de ticket** : epic + 2 sous-issues, dans l'ordre : l'extraction d'abord, pour que les
+trois nouveaux tests naissent sur le module partagé.
+
+> **Dépendances : lot 16** (16.1 change `FormContact`, que 17.2 teste). Doit précéder le
+> lot 18, qui étend `FormArticle`.
+
+## 17.1 — Extraire le substitut réseau partagé des tests
+
+- [x] **Fichiers** : `frontend/src/test/reseau.ts`, les neuf fichiers qui substituaient
+  `globalThis.fetch`, `AMELIORATIONS.md`, `frontend/README.md` — livré par #294 (PR #298)
+- **Constat** : `FormLogin.test.tsx`, `FormSubscribe.test.tsx`, `ChangePassword.test.tsx`,
+  `ResetPassword.test.tsx`, `Blog.test.tsx`, `ArticleDetails.test.tsx`,
+  `useIsAuthenticated.test.ts` et `api.test.ts` recopient chacun leur substitut de `fetch`,
+  avec sa fonction `reponse()` dans sept d'entre eux. Ils modélisent le même contrat d'`apiFetch` (`ok`, `status`,
+  `json()`) et dériveront séparément.
+- **Attendu** : un module importé explicitement par chaque fichier (`globals` reste à
+  `false`, pas de `setupFiles`). Tous les tests passent sans qu'aucune assertion ne change.
+
+```
+Consulte `inventaire-avant-dev` et `frontend-react-ts`.
+1. Compare les huit copies et montre ce qui diffère réellement. Propose l'API du module.
+   Attends mon accord.
+2. Migre fichier par fichier ; npm test après chacun.
+3. Retire d'AMELIORATIONS.md l'entrée « Doublon réseau d'un test rendu à l'autre », livrée.
+npm run lint, npm test, npm run build : montre la sortie.
+```
+
+## 17.2 — Tester les formulaires de contact, d'article et de mot de passe oublié
+
+- [x] **Fichiers** : `FormArticle.test.tsx`, `FormContact.test.tsx`, `ForgotPassword.test.tsx` —
+  livré par #295 (PR #299), #296 (PR #300) et #297 (PR #301)
+- **Constat** : aucun des trois n'a de test. `FormArticle` a pourtant un message de refus
+  propre au `401` (l. 56-57), et `ForgotPassword` doit afficher la réponse neutre de l'API
+  sans rien en déduire.
+- **Attendu** : pour chacun, une saisie invalide n'envoie rien, le corps envoyé est exact
+  (`FormArticle` : titre et contenu, jamais l'auteur), le succès s'affiche, et un refus de
+  l'API est traduit : `400` sous le champ, et `429` repris tel quel là où l'endpoint a un
+  quota (contact, mot de passe oublié ; les articles n'en ont pas). Une mutation par fichier.
+- **Dépend de** : 17.1
+
+```
+Consulte `frontend-react-ts`. Pas de globales : chaque test importe describe/it/expect et
+inscrit afterEach(cleanup). Le réseau est coupé à fetch par le module de 17.1, jamais à
+apiFetch.
+1. Liste les cas par formulaire avant d'écrire. Attends mon accord.
+2. Écris, puis une mutation par fichier (une règle de validation retirée, ou le corps changé) :
+   le test doit tomber. Restaure par l'édition inverse.
+```
+
+---
+
+# Lot 18 — Modifier et supprimer un article depuis le front
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| À planifier | — | — | Bloc 1 — qualité |
+
+**Origine** : audit du 2026-10-05, point 8. L'API offre le CRUD complet au propriétaire
+(`ModelViewSet`, `IsOwnerOrReadOnly`, `permissions.py:12`, six tests `ArticleProprieteTests`),
+mais le front ne fait que créer. Un auteur ne peut ni corriger une coquille ni retirer son
+article sans passer par l'admin.
+
+**Grain de ticket** : epic + 2 sous-issues, dans l'ordre : le front ne peut rien afficher tant
+que l'API ne lui dit pas qui est l'auteur.
+
+> **Dépendances : lot 17** (le test de `FormArticle` protège son extension).
+
+## 18.1 — Dire au front si le lecteur est l'auteur
+
+- [ ] **Fichiers** : `backend/articles/serializers.py`, `backend/articles/tests.py`,
+  `frontend/src/types/article.ts`
+- **Constat** : `ArticleSerializer` (`serializers.py:5-14`) ne rend de l'auteur que son
+  `public_name`. C'est voulu : aucun email ni identifiant ne sort sur le blog public. Mais le
+  front ne peut donc pas savoir si le lecteur est l'auteur, et ne sait pas qui il est
+  (`AMELIORATIONS.md`, « Aucun endpoint profil »).
+- **Attendu** : le détail d'un article dit au lecteur connecté s'il en est l'auteur, et
+  toujours non au visiteur, sans exposer d'identifiant. La liste ne change pas.
+
+```
+Consulte `backend-django-drf` et `inventaire-avant-dev`.
+1. Compare un booléen calculé sur request.user dans ArticleSerializer et l'endpoint profil
+   d'AMELIORATIONS.md. Recommande ; je pars d'un booléen, l'endpoint profil reste hors
+   périmètre.
+2. Le champ sur le détail seulement : vérifie que ArticleListSerializer et son defer("content")
+   n'en sont pas touchés.
+3. Tests : visiteur → faux, autre membre → faux, auteur → vrai. Mutation : comparaison inversée.
+```
+
+## 18.2 — Modifier et supprimer depuis la page de l'article
+
+- [ ] **Fichiers** : `frontend/src/pages/Blog/ArticleDetails.tsx`,
+  `frontend/src/components/common/Blog/FormArticle.tsx`, leurs tests
+- **Constat** : `ArticleDetails.tsx:119-131` affiche titre, signature et paragraphes, sans
+  aucune action. `FormArticle` ne sait que créer : valeurs initiales vides, `POST` en dur.
+- **Attendu** : l'auteur, et lui seul, voit « Modifier » et « Supprimer ». « Modifier » ouvre
+  `FormArticle` prérempli dans une modale, envoie un `PATCH` et met la page à jour.
+  « Supprimer » demande confirmation, envoie un `DELETE`, puis ramène à `/blog`. Un `403` ou un
+  `404` reçu entre-temps est traduit.
+- **Dépend de** : 18.1
+
+```
+Consulte `inventaire-avant-dev` et `frontend-react-ts`.
+1. Plan à valider : comment FormArticle s'étend à l'édition sans dupliquer (valeurs initiales,
+   méthode, URL) ; la modale de Blog.tsx:137-160 se réutilise-t-elle ; la confirmation de
+   suppression dans un <dialog> plutôt que window.confirm — recommande.
+2. Tests rendus : boutons absents pour un non-auteur, PATCH puis affichage mis à jour, DELETE
+   puis redirection, refus traduit. Mutation sur la condition d'affichage.
+3. Parcours manuel dans le navigateur avec deux comptes, en clair et en sombre.
+```
+
+---
+
+# Lot 19 — Livraison continue et mise en ligne
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| À planifier | — | — | Bloc 2 — déploiement |
+
+**Origine** : audit du 2026-10-05, points 36 et 38. L'intégration continue existe :
+- `tests.yml` lance la suite Django sur un service PostgreSQL, puis lint, Vitest et build ;
+- `docker-images.yml` construit les deux images, sans les publier (`push: false`, l. 64).
+
+Rien n'est en ligne. `compose.prod.yaml` se lance à la main derrière le nginx du serveur
+(README, § « Déployer »), aucun registre ne reçoit les images, et HSTS reste à 0
+(`.env.prod:70`), seule alerte de `check --deploy`. `AMELIORATIONS.md` porte déjà trois de ces
+écarts : images non publiées, Playwright hors CI, façade du serveur à durcir.
+
+**Grain de ticket** : epic + 4 sous-issues, dans l'ordre. 19.1 est indépendante ; 19.2 à 19.4
+dépendent d'une décision hors code : un serveur ou un compte d'hébergement.
+
+> **Dépendances : lots 15 à 18 clos**, pour mettre en ligne la version corrigée.
+
+## 19.1 — Lancer le parcours Playwright en intégration continue
+
+- [ ] **Fichiers** : `.github/workflows/tests.yml`, selon le plan `frontend/playwright.config.ts`
+- **Constat** : `npm run test:e2e` exige la pile de `compose.dev.yaml` et Chromium, qu'aucun
+  job ne prépare. Le `forbidOnly` de `playwright.config.ts` ne s'arme donc jamais.
+- **Attendu** : un job monte la pile, crée le compte de test, installe Chromium et lance
+  `connexion.spec.ts`. Un `test.only` oublié fait échouer la CI.
+
+```
+Consulte `conventions-docker`. Rappels : Compose lit le .env racine, absent en CI ;
+E2E_EMAIL/E2E_PASSWORD viennent de process.env ; retries reste à 0 (quota login 5/min).
+1. Plan à valider : génération du .env du job, création du compte (actif), déclencheur (toute
+   PR ou seulement vers main ? recommande selon la durée mesurée du job).
+2. Mutation dans une PR brouillon vers preprod, fermée ensuite sans merge : un test.only
+   ajouté fait échouer le job. Montre le lien du run.
+3. Retire d'AMELIORATIONS.md l'entrée « Le parcours Playwright ne tourne pas en intégration
+   continue », livrée.
+```
+
+## 19.2 — Choisir la cible et publier les images
+
+- [ ] **Fichiers** : `.github/workflows/docker-images.yml`, `compose.prod.yaml`
+- **Constat** : `docker-images.yml:64` construit sans pousser, écarté le 2026-09-03 faute de
+  serveur (`AMELIORATIONS.md`, « Les images ne sont publiées vers aucun registre »).
+  `compose.prod.yaml` nomme ses images mais les construit sur place.
+- **Attendu** : la cible d'hébergement est choisie et écrite dans le ticket. Sur push `main`
+  seulement, les deux images partent vers un registre (le front construit avec
+  `VITE_API_URL=/api`), et `compose.prod.yaml` sait les tirer.
+
+```
+Consulte `conventions-docker`.
+1. Compare un serveur où tourne compose.prod.yaml derrière son nginx, tel que le README le
+   décrit déjà, et une plateforme (Render ou équivalent) : ce qui se réutilise, ce qui se
+   réécrit, le coût. Recommande. Attends ma décision : elle conditionne 19.3 et 19.4.
+2. Publication vers GHCR sur push main seulement, jamais sur une PR. Étiquettes : sha et
+   latest — recommande.
+3. compose.prod.yaml tire les images publiées sans perdre la construction locale. Vérifie
+   l'ancien piège : chaque fichier nomme ses images.
+```
+
+## 19.3 — Déployer automatiquement sur `main`
+
+- [ ] **Fichiers** : un job de déploiement dans `.github/workflows/`, le README (§ « Déployer »)
+- **Constat** : la mise en production se fait à la main, commande par commande, depuis le
+  README. Rien ne garantit que `main` est ce qui tourne.
+- **Attendu** : après la publication de 19.2, un job déploie la nouvelle version et attend
+  `healthy` (`--wait --wait-timeout 60`). Sinon il échoue en le disant. Les secrets vivent dans
+  un environnement GitHub, jamais dans le dépôt.
+- **Dépend de** : 19.2
+
+```
+Consulte `conventions-docker` et `workflow-git`.
+1. Plan selon la cible retenue en 19.2 : accès au serveur, secrets, migrations (l'entrypoint
+   les lance-t-il déjà ?), et retour en arrière si la nouvelle version ne devient pas healthy.
+   Attends mon accord.
+2. Un premier déploiement réel, puis un second sans changement : montre les deux runs.
+3. README : seulement la commande ou l'étape qui change.
+```
+
+## 19.4 — Domaine, TLS et HSTS
+
+- [ ] **Fichiers** : `.env.prod` (non versionné), `.env.prod.example`, la configuration du nginx du serveur
+  (hors dépôt), le README si une étape change
+- **Constat** : `DJANGO_HSTS_SECONDS=0` (`.env.prod:70`) tant que la pile est jointe sur
+  `localhost`, ce qui laisse l'avertissement W004 de `check --deploy`. `AMELIORATIONS.md`
+  (« Durcir la façade du serveur ») attend Let's Encrypt et un HSTS monté par paliers.
+- **Attendu** : le site répond sur son domaine en HTTPS, `FRONTEND_URL` le vise, HSTS monte
+  par paliers (3600, puis 86400, puis 31536000), et `check --deploy` ne remonte plus rien.
+- **Dépend de** : 19.3
+
+```
+Consulte `conventions-docker`.
+1. Liste ce qui change avec un vrai domaine : FRONTEND_URL, DJANGO_ALLOWED_HOSTS,
+   CORS_ALLOWED_ORIGINS (vide, même origine), certificat, X-Forwarded-Proto $scheme.
+2. Lien de réinitialisation reçu par email : il doit viser le domaine. Montre-le.
+3. check --deploy avec .env et .env.prod chargés : montre la sortie. Ne monte HSTS au palier
+   suivant que sur mon accord, l'engagement ne se révoque pas.
+```
+
+---
+
+# Lot 20 — Surveillance et exploitation
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| À planifier | — | — | Bloc 2 — déploiement |
+
+**Origine** : audit du 2026-10-05, point 39. Les healthchecks (`backend/Dockerfile:72`,
+`frontend/Dockerfile:76`) et `restart: unless-stopped` (`compose.prod.yaml:34`, `:91`, `:135`)
+relancent un conteneur tombé, mais **personne n'est prévenu**. `/health/` reste interne
+(`config/urls.py:12`). `AMELIORATIONS.md` note aussi qu'il n'y a aucun `LOGGING` et aucune tâche
+planifiée : les tables de `token_blacklist` ne font que croître, et la purge de 16.3 n'aura
+personne pour la lancer.
+
+**Grain de ticket** : epic + 4 sous-issues. 20.1 d'abord : sans journaux lisibles, une alerte
+ne mène nulle part. 20.2 attend un site en ligne (19.3). 20.4 attend 16.3.
+
+> **Dépendances : lot 19** pour 20.2 et 20.4 ; 20.1 et 20.3 peuvent commencer avant.
+
+## 20.1 — Configurer les journaux du backend
+
+- [ ] **Fichiers** : `backend/config/settings/base.py`, `.env.example`
+- **Constat** : aucun `LOGGING` dans `config/settings/`. Le `logger.exception` de
+  `send_password_reset_link`, seule trace d'une panne SMTP, sort par le handler de dernier
+  recours de Python, sans horodatage ni niveau.
+- **Attendu** : un handler console explicite, horodaté, au niveau réglable par variable, que
+  `docker compose logs` rend lisible.
+
+```
+Consulte `backend-django-drf`. Lis l'environnement par les helpers env_*, jamais os.environ.
+1. Propose la configuration minimale. Dis ce que deviennent les logs de Django et de Gunicorn.
+2. Test : la configuration chargée donne au journal racine un handler console dont le format
+   porte l'heure et le niveau. Pas assertLogs : il pose son propre handler et passerait sans
+   LOGGING. Mutation : LOGGING retiré, le test tombe.
+3. Retire d'AMELIORATIONS.md l'entrée « Aucun LOGGING », livrée.
+```
+
+## 20.2 — Être prévenu quand le site tombe
+
+- [ ] **Fichiers** : selon le plan, la configuration du nginx du serveur ; un service de
+  surveillance externe (hors dépôt)
+- **Constat** : `/health/` vérifie la base en un `SELECT 1`, mais le nginx du serveur ne relaie
+  vers le backend que `/api/` et `/admin/` : aucune sonde extérieure ne peut l'interroger. Une panne se découvre
+  en visitant le site.
+- **Attendu** : une sonde externe interroge le site à intervalle régulier et envoie un email à
+  la première panne et au retour.
+- **Dépend de** : 19.3
+
+```
+Consulte `conventions-docker`.
+1. Que doit interroger la sonde : la page d'accueil, /health/ relayé par le nginx du serveur,
+   ou une route de l'API ? Rappel : la tâche 6.2 a sorti /health/ de l'API, pour ne plus
+   compter la table des articles à chaque passage. Recommande.
+2. Choisis le service (UptimeRobot, Uptime Kuma auto-hébergé…) selon la cible de 19.2.
+3. Preuve : arrête le backend, montre l'alerte reçue, puis celle du retour.
+```
+
+## 20.3 — Recevoir les erreurs du serveur
+
+- [ ] **Fichiers** : `backend/config/settings/production.py`, `.env.prod.example`
+- **Constat** : avec `DEBUG = False`, une erreur `500` laisse au mieux une trace dans les
+  journaux, que personne ne lit. Le relais SMTP de production existe déjà
+  (`production.py:40-52`).
+- **Attendu** : toute erreur `500` en production arrive à l'équipe, sans aucune donnée
+  personnelle en clair dans le message.
+- **Dépend de** : 20.1
+
+```
+Consulte `backend-django-drf`.
+1. Compare ADMINS + mail_admins (aucune dépendance, le SMTP est là) et un service comme Sentry.
+   Recommande pour un projet de cette taille ; je pars de mail_admins. Pièges : SERVER_EMAIL
+   n'est posé nulle part, et son défaut root@localhost serait refusé par le relais ; le LOGGING
+   de 20.1 ne doit pas couper le handler mail_admins que Django pose par défaut.
+2. Données personnelles : dis ce que le rapport d'erreur contient par défaut (corps POST, mots
+   de passe, le jeton Bearer de l'en-tête Authorization) et comment Django le filtre. Les vues qui reçoivent un mot de passe
+   doivent-elles se déclarer sensibles ? Recommande.
+3. Preuve : un test (mail.outbox, DEBUG=False, client à raise_request_exception=False, sinon
+   l'exception remonte au test avant tout envoi) montre qu'une 500 envoie un rapport sans mot
+   de passe ni jeton ; puis python manage.py sendtestemail --admins en production.
+```
+
+## 20.4 — Planifier les tâches d'entretien
+
+- [ ] **Fichiers** : selon le plan, un service dans `compose.prod.yaml` ou la crontab du serveur
+  (hors dépôt), le README (§ « Déployer »)
+- **Constat** : rien ne lance `flushexpiredtokens` (`AMELIORATIONS.md`, « Rien ne purge les
+  tables de `token_blacklist` »), ni la purge des messages de 16.3. Les conteneurs n'ont ni
+  cron ni planificateur.
+- **Attendu** : les deux commandes tournent chaque nuit en production, et un échec se voit
+  dans les journaux de 20.1.
+- **Dépend de** : 16.3, 19.3, 20.1
+
+```
+Consulte `conventions-docker`.
+1. Compare la crontab du serveur (docker compose exec) et un conteneur planificateur dans
+   compose.prod.yaml. Recommande ; la pile doit démarrer sans lui.
+2. Preuve : les deux commandes lancées par le planificateur, avec leur sortie dans les journaux.
+3. Retire d'AMELIORATIONS.md l'entrée « Rien ne purge les tables de token_blacklist », livrée.
+```
+
+---
+
+# Lot 21 — Finitions et clôture de l'audit
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| À planifier | — | — | Bloc 1 + 2 — documentation |
+
+**Origine** : les écarts mineurs de l'audit du 2026-10-05 qu'aucun lot n'a pris, puis le
+contrôle que les 39 points sont fermés ou consignés.
+
+**Grain de ticket** : epic + 2 sous-issues ; 21.2 en dernier.
+
+> **Dépendances : lots 15 à 20 clos.**
+
+## 21.1 — Écarts mineurs de l'audit
+
+- [ ] **Fichiers** : `README.md` (§ « Prérequis »), `.gitignore` selon la décision
+- **Constat** :
+  - le README demande « Python 3.12 ou plus récent » (`README.md:18`), alors que la CI
+    (`tests.yml:81`) et l'image (`backend/Dockerfile:6`) tournent en 3.13 ; le venv local est
+    en 3.12 ;
+  - ce fichier est versionné, alors que sa section « Journal » le présente comme un plan de
+    travail, à l'opposé de `journal.md` ;
+  - l'issue #38 (« Documenter le code et compléter le rapport technique ») est la seule encore
+    ouverte.
+- **Attendu** : une seule version de Python partout, le statut de `correction.md` tranché,
+  #38 fermée ou rattachée à un lot.
+
+```
+1. Aligne le prérequis du README sur 3.13 ; dis-moi la commande pour recréer mon venv, sans
+   la lancer.
+2. correction.md : versionné ou ignoré ? Recommande, en pensant à qui lira le dépôt.
+3. #38 : montre son contenu ; dis si elle est faite, ou ce qui reste.
+```
+
+## 21.2 — Rejouer l'audit et remonter dans `main`
+
+- [ ] **Fichiers** : l'ensemble du dépôt, puis une PR `preprod` → `main`
+- **Attendu** : les 39 points de l'audit du 2026-10-05 rejoués avec la même méthode. Chaque
+  point est ✅, ou renvoyé à `AMELIORATIONS.md` avec sa raison en une ligne. Puis un verdict
+  `OK` de `revue-avant-push` et la remontée dans `main`.
+
+```
+Rejoue l'audit du 2026-10-05 point par point, en lecture seule : mêmes commandes (tests,
+lint, build, check --deploy avec .env puis .env.prod chargés par python-dotenv (pas par source : la clé
+secrète contient des caractères que le shell interprète), npm audit, pip-audit dans un venv jetable,
+gh pr list --json). Rends le même tableau, avec une colonne « avant / après ».
+Ensuite seulement, déroule `revue-avant-push`, puis `workflow-git` pour la PR vers main.
+Ferme les issues à la main : Closes #N ne les ferme pas au merge dans preprod.
+```
+
+---
+
 ## Récapitulatif des tâches
 
 | # | Tâche | Gravité | Dépend de | Alimente |
@@ -2606,6 +3198,27 @@ Cette skill ne pousse jamais rien : elle lit et elle rapporte. Le push reste ma 
 | 14.1 | `CLAUDE.md` et README en retard sur le code | Documentation | 0-13 | Bloc 1 + 2 — documentation |
 | 14.2 | `AMELIORATIONS.md` et README | Documentation | 0-13 | Bloc 1 + 2 — documentation |
 | 14.3 | Revue finale et fermeture des issues | Clôture | tout | Bloc 1 + 2 — documentation |
+| 15.1 | **25 avis `pip-audit`, dont 1 critique** | Élevé (sécurité) | 13 | Bloc 1 — sécurité |
+| 15.2 | `brace-expansion` vulnérable dans l'outillage | Faible | — | Bloc 1 — sécurité |
+| 15.3 | Aucun audit de dépendances en CI | Moyen | 15.1, 15.2 | Bloc 1 — sécurité |
+| 15.4 | Jetons en `localStorage` sans CSP | Élevé (sécurité) | — | Bloc 1 — sécurité |
+| 16.1 | Contact sans information sur les données | Moyen (RGPD) | 15 | Bloc 1 — sécurité |
+| 16.2 | Aucune suppression de compte par le membre | Moyen (RGPD) | 15.1 | Bloc 1 — sécurité |
+| 16.3 | Conservation des messages promise, jamais appliquée | Moyen (RGPD) | 15 | Bloc 1 — sécurité |
+| 17.1 | Substitut de `fetch` recopié dans huit tests | Duplication | 16 | Bloc 1 — qualité |
+| 17.2 | Trois formulaires sans test rendu | Structurant | 17.1 | Bloc 1 — qualité |
+| 18.1 | Le front ignore qui est l'auteur | Structurant | 17 | Bloc 1 — qualité |
+| 18.2 | Ni modification ni suppression côté front | Moyen (fonctionnel) | 18.1 | Bloc 1 — qualité |
+| 19.1 | Playwright hors intégration continue | Moyen | 15-18 | Bloc 2 — déploiement |
+| 19.2 | Aucune cible, images non publiées | Élevé (livraison) | 15-18 | Bloc 2 — déploiement |
+| 19.3 | Mise en production manuelle | Élevé (livraison) | 19.2 | Bloc 2 — déploiement |
+| 19.4 | Ni domaine ni HSTS | Moyen (sécurité) | 19.3 | Bloc 2 — déploiement |
+| 20.1 | Aucun `LOGGING` | Moyen | — | Bloc 2 — déploiement |
+| 20.2 | Panne découverte en visitant le site | Élevé (exploitation) | 19.3 | Bloc 2 — déploiement |
+| 20.3 | Erreurs `500` lues par personne | Moyen | 20.1 | Bloc 2 — déploiement |
+| 20.4 | Aucune tâche d'entretien planifiée | Faible | 16.3, 19.3, 20.1 | Bloc 2 — déploiement |
+| 21.1 | Version de Python, statut de ce fichier, issue #38 | Faible | 15-20 | Bloc 1 + 2 — documentation |
+| 21.2 | Audit rejoué et remontée dans `main` | Clôture | tout | Bloc 1 + 2 — documentation |
 
 Cinq tâches ne portent pas le bloc de leur lot : **0.2** est une remédiation de vulnérabilités
 avec preuve avant/après ; **3.3** et **3.4** relèvent de la qualité dans un lot classé
@@ -2622,7 +3235,8 @@ de mal que de bien.
 - **Toute la couche Docker** (Dockerfiles, `nginx.conf`, les deux fichiers Compose) : c'est la
   partie la plus solide du dépôt — multi-stage, non-root des deux côtés, sonde qui lit la base,
   entrypoint avec garde, `.dockerignore` qui met le `.env` hors contexte. Seules deux tâches y
-  touchent, et par la marge (0.1 et 6.2).
+  touchent, et par la marge (0.1 et 6.2). Les lots 15 à 20 y ajoutent sans rien refondre : la
+  CSP de `nginx.conf` (15.4), la publication des images et le déploiement (19).
 - **Le découpage des settings Django** et les helpers `env_*` : l'absence volontaire de
   `SECRET_KEY` et de `DATABASES` dans `base.py` est un choix juste, documenté, à ne pas
   « corriger ».

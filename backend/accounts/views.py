@@ -22,6 +22,7 @@ from .serializers import (
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
     PasswordChangeSerializer,
+    AccountDeleteSerializer,
     LoginSerializer,
     RefreshSerializer,
 )
@@ -187,3 +188,16 @@ class PasswordChangeView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class AccountDeleteView(APIView):
+    """Supprime le compte du membre connecté, ses articles avec, sur son mot de passe redonné."""
+    # Le mot de passe se teste ici : sans quota, un jeton d'accès volé suffirait à le deviner.
+    throttle_scope = "account_delete"
+
+    def delete(self, request):
+        serializer = AccountDeleteSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        request.user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

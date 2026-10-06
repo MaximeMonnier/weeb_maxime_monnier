@@ -89,6 +89,14 @@ jobs:
       - name: Suite Django
         run: python manage.py test
 
+      # `-r` plutôt que l'environnement du job : celui-ci contient aussi
+      # pip-audit et ses dépendances, qui ne partent pas en ligne.
+      - name: Audit des dépendances
+        if: ${{ !cancelled() }}
+        run: |
+          pip install pip-audit==2.10.1
+          pip-audit -r requirements.txt
+
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -131,3 +139,9 @@ jobs:
       - name: Build de production
         if: ${{ !cancelled() }}
         run: npm run build
+
+      # Sans `--omit=dev` : l'outillage de build et de test s'exécute ici, une
+      # faille dans ses dépendances compte autant qu'une faille du bundle.
+      - name: Audit des dépendances
+        if: ${{ !cancelled() }}
+        run: npm audit

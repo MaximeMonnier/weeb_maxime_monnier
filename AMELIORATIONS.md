@@ -27,9 +27,9 @@ et pour les prochaines itérations).
       qu'elle produit. Piste : la `CursorPagination` de DRF, qui reprend après le dernier
       article vu, mais ne donne pas le `count` que l'issue exigeait.
 - [ ] **Le refus d'une publication reste affiché à la réouverture de la modale.** Le
-      `<dialog>` de `Blog.tsx` reste monté, fermé ou non : `FormArticle` garde ses erreurs, et
+      `Modal` de `Blog.tsx` reste montée, fermée ou non : `FormArticle` garde ses erreurs, et
       qui ferme la modale après un refus le retrouve en la rouvrant. Écarté au lot 10 comme
-      trop mineur. Piste : vider les seules erreurs sur l'événement `close` du `<dialog>` — une
+      trop mineur. Piste : vider les seules erreurs dans le `onClose` de la `Modal` — une
       `key` changée à l'ouverture remonterait le formulaire, mais perdrait aussi le texte que
       le message du `401` invite à copier.
 
@@ -140,6 +140,17 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       champ de l'instance lue avant le verrou — `request.user`, ou celle de la confirmation. Un
       compte désactivé par un administrateur pendant le changement repasse donc `is_active=True`.
       `user.save(update_fields=["password"])` suffirait. Repéré à la revue de l'issue #250.
+- [ ] **Les deux jetons restent lisibles par tout script de la page.** `lib/tokens.ts` les
+      range dans `localStorage` : la CSP posée par l'issue #278 ferme les scripts injectés,
+      mais un seul XSS qui la contournerait emporterait encore le refresh, valable un jour.
+      Piste : le refresh en cookie `httpOnly`, `Secure`, `SameSite=Strict`, posé et lu par
+      `login/` et `login/refresh/`, l'accès restant en mémoire. Cela touche `apiFetch`, la
+      déconnexion et le CORS, et ouvre la question du CSRF que le Bearer seul évitait.
+- [ ] **Les pages servies par Django n'ont aucune CSP.** Celle de l'issue #278 vit dans
+      `frontend/nginx.conf` et ne couvre que le front : l'admin et l'API navigable de DRF
+      passent par le nginx du serveur jusqu'à Django, sans en-tête. Piste : `SECURE_CSP` et
+      `ContentSecurityPolicyMiddleware`, livrés par Django 6.0, dans `production.py` —
+      après avoir mesuré ce que l'admin exige en scripts et styles en ligne.
 
 ## Backend — code
 
@@ -169,18 +180,6 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
 
 ## Tests
 
-- [ ] **Doublon réseau d'un test rendu à l'autre.** `FormLogin.test.tsx` et
-      `FormSubscribe.test.tsx` portent chacun leur `reponse()`, leur `requeteEnvoyee()` et le
-      couple `beforeEach`/`afterEach` qui substitue `globalThis.fetch` — une trentaine de
-      lignes identiques. Elles modélisent le contrat d'`apiFetch` (`ok`, `status`, `json()`) :
-      à deux endroits, elles dériveront séparément le jour où `lib/api.ts` changera. Un
-      troisième formulaire testé impose l'extraction. Piste : un module de test partagé,
-      importé explicitement par chaque fichier — surtout pas un `setupFiles`, `globals`
-      restant à `false`. Repéré à l'issue #119. Depuis, `useIsAuthenticated.test.ts` et
-      `Blog.test.tsx` (#132) substituent `fetch` à leur tour, sans formulaire. Le seuil est franchi depuis l'issue #159 :
-      `ChangePassword.test.tsx` est le troisième formulaire testé, et `ArticleDetails.test.tsx`
-      substitue aussi `fetch` — huit fichiers au total depuis `ResetPassword.test.tsx` (#246),
-      `api.test.ts` compris.
 - [ ] **Le parcours Playwright ne tourne pas en intégration continue.** `tests.yml` lance
       les suites Django et Vitest, mais `npm run test:e2e` exige la pile de `compose.dev.yaml`
       démarrée et les navigateurs de Playwright, qu'aucun job ne prépare. Le `forbidOnly` de

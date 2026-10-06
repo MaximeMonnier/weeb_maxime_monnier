@@ -178,7 +178,7 @@ vise l'une des deux. Aucun ne publie rien.
 
 | Workflow | Jobs | Ce qu'il lance |
 |---|---|---|
-| `.github/workflows/tests.yml` | `backend`, `frontend` | la suite Django sur PostgreSQL 17 ; `npm run lint`, `npm test`, `npm run build` |
+| `.github/workflows/tests.yml` | `backend`, `frontend` | la suite Django sur PostgreSQL 17 et `pip-audit` ; `npm run lint`, `npm test`, `npm run build` et `npm audit` |
 | `.github/workflows/docker-images.yml` | `backend`, `frontend` | la construction des deux images, le front en cible `prod` |
 
 Le parcours Playwright n'y tourne pas. Reproduire la construction des images à partir du dernier
@@ -203,6 +203,7 @@ docker image rm weeb-backend:ci weeb-frontend:ci
 | `python manage.py makemigrations` | Crée une migration après un changement de modèle |
 | `python manage.py createsuperuser` | Crée un compte administrateur |
 | `python manage.py peupler_articles` | Publie 30 articles de démonstration, en développement seulement |
+| `python manage.py purger_contacts` | Supprime les messages de contact de plus de 90 jours (`--dry-run` : les compte seulement) |
 | `python manage.py flushexpiredtokens` | Purge les jetons expirés de la liste noire |
 | `python manage.py check --deploy` | Contrôle la configuration de sécurité avant mise en ligne |
 | `python manage.py collectstatic --noinput` | Rassemble les fichiers statiques |
@@ -430,6 +431,12 @@ jamais dans le `.env`, lu trop tard.
 Base : `http://localhost:8000/api/` en développement, l'adresse du site suivie de `/api/` en
 production.
 
+La colonne « Accès » distingue trois profils : le visiteur, sans jeton ; le membre, connecté
+avec un compte validé ; l'auteur, membre qui a écrit l'article visé. Un compte inscrit mais pas
+encore validé n'obtient aucun jeton : il a les droits du visiteur, et un jeton émis avant sa
+désactivation est refusé (`401`). `backend/config/tests.py` recopie ce tableau, rejoue chaque
+profil sur chaque route, et échoue si une route de l'API n'y figure pas.
+
 | Méthode | Route | Accès | Rôle |
 |---|---|---|---|
 | `POST` | `/api/auth/register/` | public | Inscription. Le compte est créé **inactif** |
@@ -439,11 +446,13 @@ production.
 | `POST` | `/api/auth/password-reset/` | public | Envoie le lien par email. Répond toujours `200` |
 | `POST` | `/api/auth/password-reset/confirm/` | public | `uid`, `token` et nouveau mot de passe. Révoque tous les jetons du compte |
 | `POST` | `/api/auth/password-change/` | connecté | Mot de passe actuel et nouveau. Révoque les autres sessions, rend une paire neuve |
+| `DELETE` | `/api/auth/account/` | connecté | Mot de passe redonné. Supprime le compte et ses articles, répond `204` |
 | `GET` | `/api/articles/` | public | Liste paginée par 12 : `{count, next, previous, results}`, avec un extrait |
 | `GET` | `/api/articles/{id}/` | public | Détail, contenu entier |
 | `POST` | `/api/articles/` | connecté | Crée un article. `content` : 20 000 caractères au plus |
 | `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression |
 | `POST` | `/api/contact/` | public | Formulaire de contact. `message` : 5 000 caractères au plus |
+| `GET` | `/api/` | connecté | Index navigable des routes du routeur DRF |
 
 L'auteur d'un article est rendu en « Prénom Nom », jamais par son email. Les routes protégées
 attendent l'en-tête `Authorization: Bearer <jeton d'accès>`.
@@ -489,6 +498,7 @@ le `.env` ; la lecture des articles n'est pas limitée.
 | `POST /api/auth/password-reset/` | 3 par heure | IP | `THROTTLE_PASSWORD_RESET` |
 | `POST /api/auth/password-reset/confirm/` | 5 par heure | IP | `THROTTLE_PASSWORD_RESET_CONFIRM` |
 | `POST /api/auth/password-change/` | 5 par heure | compte | `THROTTLE_PASSWORD_CHANGE` |
+| `DELETE /api/auth/account/` | 5 par heure | compte | `THROTTLE_ACCOUNT_DELETE` |
 | `POST /api/contact/` | 5 par heure | IP | `THROTTLE_CONTACT` |
 
 ## Structure
@@ -505,7 +515,7 @@ le `.env` ; la lecture des articles n'est pas limitée.
 │   ├── config/               # settings/, urls.py, views.py (route /health/)
 │   ├── accounts/             # utilisateurs, authentification JWT
 │   ├── articles/             # blog, et la commande peupler_articles
-│   ├── contact/              # formulaire de contact
+│   ├── contact/              # formulaire de contact, et la commande purger_contacts
 │   ├── locale/               # traductions de simplejwt
 │   ├── Dockerfile
 │   ├── docker-entrypoint.sh  # migrations et statiques avant Gunicorn
