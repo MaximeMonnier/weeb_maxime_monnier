@@ -1,0 +1,20 @@
+# Surcouche du VPS, chargée APRÈS compose.prod.yaml : son nginx tourne en conteneur sur le
+# réseau externe `web` et n'atteint pas le 127.0.0.1 de l'hôte. Aucun port publié, donc ;
+# les alias restent uniques sur ce réseau partagé — README, § « Déployer sur le VPS ».
+
+services:
+  backend:
+    ports: !reset []
+    networks:
+      web:
+        aliases: [weeb-backend]
+
+  frontend:
+    ports: !reset []
+    networks:
+      web:
+        aliases: [weeb-frontend]
+
+networks:
+  web:
+    external: true

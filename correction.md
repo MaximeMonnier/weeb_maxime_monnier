@@ -2883,7 +2883,7 @@ Consulte `inventaire-avant-dev` et `frontend-react-ts`.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| En cours — fusionné avec le lot 20 le 2026-10-06 ; 19.1 et la publication de 19.2 livrées ; restent 20.1 et 20.3, sans serveur, puis le tirage par `compose.prod.yaml`, 19.3, 19.4, 20.2 et 20.4, qui attendent le VPS | #312 | — | Bloc 2 — déploiement |
+| En cours — fusionné avec le lot 20 le 2026-10-06 ; 19.1 et 19.2 livrées, mise en ligne manuelle sur `weeb.kickster.fr` par #324 (19.4 en partie) ; restent 19.3, la fin de 19.4, 20.1 à 20.4 | #312 | — | Bloc 2 — déploiement |
 
 **Origine** : audit du 2026-10-05, points 36 et 38. L'intégration continue existe :
 - `tests.yml` lance la suite Django sur un service PostgreSQL, puis lint, Vitest et build ;
@@ -2927,8 +2927,8 @@ E2E_EMAIL/E2E_PASSWORD viennent de process.env ; retries reste à 0 (quota login
 
 ## 19.2 — Choisir la cible et publier les images
 
-- [ ] **Fichiers** : `.github/workflows/docker-images.yml`, `compose.prod.yaml` — publication
-  livrée par #314 (PR #317) ; reste à faire tirer les images par `compose.prod.yaml`
+- [x] **Fichiers** : `.github/workflows/docker-images.yml`, `compose.prod.yaml` — publication
+  livrée par #314 (PR #317), tirage par `compose.prod.yaml` par #323 (PR #329)
 - **Constat** : `docker-images.yml:64` construit sans pousser, écarté le 2026-09-03 faute de
   serveur (`AMELIORATIONS.md`, « Les images ne sont publiées vers aucun registre »).
   `compose.prod.yaml` nomme ses images mais les construit sur place.
@@ -2969,7 +2969,10 @@ Consulte `conventions-docker` et `workflow-git`.
 ## 19.4 — Domaine, TLS et HSTS
 
 - [ ] **Fichiers** : `.env.prod` (non versionné), `.env.prod.example`, la configuration du nginx du serveur
-  (hors dépôt), le README si une étape change
+  (hors dépôt), le README si une étape change — domaine, TLS et HSTS à 3600 livrés par #324,
+  avec `compose.vps.yaml`. Restent le lien de réinitialisation reçu par email (le VPS bloque
+  tout SMTP sortant, 25, 465, 587 et 2525) et les paliers HSTS ; `check --deploy` garde W021
+  (préchargement) jusqu'au palier 31536000
 - **Constat** : `DJANGO_HSTS_SECONDS=0` (`.env.prod:70`) tant que la pile est jointe sur
   `localhost`, ce qui laisse l'avertissement W004 de `check --deploy`. `AMELIORATIONS.md`
   (« Durcir la façade du serveur ») attend Let's Encrypt et un HSTS monté par paliers.
