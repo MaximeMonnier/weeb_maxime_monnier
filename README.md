@@ -437,6 +437,40 @@ sudo ln -s /etc/nginx/sites-available/weeb /etc/nginx/sites-enabled/weeb
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
+### Déployer sur le VPS
+
+Le site tourne sur `https://weeb.kickster.fr`. Le nginx de ce serveur est lui-même un
+conteneur, sur le réseau Docker externe `web` : il n'atteint pas le `127.0.0.1` de l'hôte.
+`compose.vps.yaml`, chargé après `compose.prod.yaml`, retire donc les `ports:` et branche le
+front et l'API sur `web`, sous les alias `weeb-frontend` et `weeb-backend`. La base reste sur
+`interne`.
+
+Le dépôt est cloné dans `/home/apps/docker/apps/weeb`, sous le compte `apps`. Son `.env` ajoute
+une ligne aux variables habituelles, pour que `docker compose` sans `-f` charge les deux fichiers :
+
+```bash
+COMPOSE_FILE=compose.prod.yaml:compose.vps.yaml
+```
+
+Sur ce serveur, les commandes de la section « Déployer » s'écrivent donc **sans** `-f`. Un
+`-f compose.prod.yaml` seul recréerait les conteneurs hors de `web`, et nginx répondrait `502`.
+
+Côté nginx (`/home/apps/nginx`, hors dépôt) :
+
+| Fichier | Rôle |
+|---|---|
+| `conf.d/weeb.conf` | `/api/` et `/admin/` vers `weeb-backend:8000`, le reste vers `weeb-frontend:8080` |
+| `snippets/ssl-app.conf` | `ssl.conf` sans ses `add_header` : le front et Django posent leurs propres en-têtes de sécurité |
+
+`weeb.conf` pose le seul HSTS du site et masque celui de Django : son `max-age` suit
+`DJANGO_HSTS_SECONDS`. La redirection de `http` vers `https` et le certificat `*.kickster.fr`
+sont communs à tous les sites du serveur. Tout autre conteneur de `web` joint l'API
+directement, et pourrait y forger `X-Forwarded-Proto`.
+
+```bash
+docker exec nginx nginx -t && docker exec nginx nginx -s reload
+```
+
 ## Configuration par environnement
 
 | Module de `backend/config/settings/` | Usage |
@@ -535,6 +569,7 @@ le `.env` ; la lecture des articles n'est pas limitée.
 ├── AMELIORATIONS.md          # pistes repérées, non traitées
 ├── compose.dev.yaml          # pile de développement
 ├── compose.prod.yaml         # pile de production
+├── compose.vps.yaml          # surcouche du VPS : réseau web, aucun port publié
 ├── backend/
 │   ├── config/               # settings/, urls.py, views.py (route /health/)
 │   ├── accounts/             # utilisateurs, authentification JWT
