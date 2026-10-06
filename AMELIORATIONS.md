@@ -149,9 +149,9 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       `ContentSecurityPolicyMiddleware`, livrés par Django 6.0, dans `production.py` —
       après avoir mesuré ce que l'admin exige en scripts et styles en ligne.
 - [ ] **Le rapport des 500 reprend le message de l'exception et les paramètres d'URL.**
-      L'issue #319 y masque le corps POST, les IP et la ligne `USER`, pas le reste : le
-      message d'une `IntegrityError` PostgreSQL cite la valeur en cause, un email par
-      exemple, et les paramètres `GET` sortent en clair, dans l'URL comme dans leur section.
+      L'issue #319 y masque le corps POST, les IP, le Referer et la ligne `USER`, pas le
+      reste : le message d'une `IntegrityError` PostgreSQL cite la valeur en cause, un email
+      par exemple, et les paramètres `GET` sortent en clair, dans l'URL comme dans leur section.
       Piste : étendre `RapportSansUtilisateur` (`config/rapport_erreurs.py`) pour masquer
       les valeurs `GET` et ne garder que le type des erreurs de base de données.
 
