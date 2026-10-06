@@ -382,7 +382,7 @@ describe("ArticleDetails — suppression par l'auteur", () => {
     expect(options.method).toBe("DELETE");
   });
 
-  it("désactive la confirmation tant que la suppression est en cours", async () => {
+  it("verrouille la confirmation tant que la suppression est en cours", async () => {
     const fenetre = await ouvrirLaConfirmation();
     let livrer: (reponse: unknown) => void = () => {};
     appelReseau.mockReturnValueOnce(
@@ -394,6 +394,11 @@ describe("ArticleDetails — suppression par l'auteur", () => {
     await userEvent.click(fenetre.getByRole("button", SUPPRIMER));
 
     expect(fenetre.getByRole("button", SUPPRIMER)).toBeDisabled();
+    expect(fenetre.getByRole("button", { name: "Annuler" })).toBeDisabled();
+    // Échap n'atteint le dialog que par cet événement : refusé, il ne ferme rien.
+    const echap = new Event("cancel", { cancelable: true });
+    screen.getByRole("dialog").dispatchEvent(echap);
+    expect(echap.defaultPrevented).toBe(true);
 
     livrer(reponse(204));
 

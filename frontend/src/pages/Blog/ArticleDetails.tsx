@@ -198,6 +198,11 @@ const ArticleDetails = () => {
               open={isConfirmingDelete}
               title="Supprimer l'article"
               onClose={fermerLaConfirmation}
+              // Le DELETE parti ne se rappelle pas : Échap et « Annuler » se taisent
+              // jusqu'à la réponse. « Fermer » reste, qui masque sans rien promettre.
+              onCancel={(e) => {
+                if (isDeleting) e.preventDefault();
+              }}
             >
               <ErrorAlert message={deleteError} />
               <p className="mb-6">
@@ -205,7 +210,11 @@ const ArticleDetails = () => {
                 récupéré.
               </p>
               <div className="flex justify-end gap-4">
-                <Button variant="outline" onClick={fermerLaConfirmation}>
+                <Button
+                  variant="outline"
+                  disabled={isDeleting}
+                  onClick={fermerLaConfirmation}
+                >
                   Annuler
                 </Button>
                 <Button
