@@ -473,6 +473,12 @@ directement, et pourrait y forger `X-Forwarded-Proto`.
 docker exec nginx nginx -t && docker exec nginx nginx -s reload
 ```
 
+Les emails partent par le relais SMTP de Brevo, authentifié sur `kickster.fr` : ses
+enregistrements DKIM et DMARC sont dans la zone Cloudflare, en « DNS only ». Le VPS bloque la
+sortie vers les ports 587 et 465, d'où `EMAIL_PORT=2525` dans son `.env.prod`, où Brevo garde
+STARTTLS. `DEFAULT_FROM_EMAIL` reste sur `kickster.fr` : Brevo accepte le message d'un autre
+domaine, puis le rejette dans ses journaux, sans aucune erreur côté Django.
+
 ## Configuration par environnement
 
 | Module de `backend/config/settings/` | Usage |
