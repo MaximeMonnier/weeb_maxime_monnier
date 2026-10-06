@@ -1,11 +1,9 @@
-# Construit les deux images à chaque intégration. L'intérêt n'est pas d'en
-# disposer — elles sont jetées avec la machine — mais de partir d'une machine
-# vierge : voir « Intégration continue » dans le README.
+# Construit les deux images à chaque intégration, depuis une machine vierge, et
+# ne les publie sur GHCR qu'au push sur main : voir « Intégration continue »
+# dans le README.
 
 name: Images Docker
 
-# main autant que preprod : c'est elle qui partira sur un serveur, donc elle
-# que la publication d'images visera le jour où elle existera.
 on:
   push:
     branches: [preprod, main]
@@ -18,7 +16,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Lecture seule : rien n'est publié, donc rien n'a besoin d'être écrit.
 permissions:
   contents: read
 
@@ -29,6 +26,17 @@ jobs:
     name: ${{ matrix.image }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Accordé aussi aux PR, faute de permissions conditionnelles : c'est la
+    # condition `publier` qui les empêche de pousser.
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      # Push sur main seulement, sinon chaque PR écraserait `latest`.
+      publier: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      # GHCR refuse les majuscules du propriétaire.
+      depot: ghcr.io/maximemonnier/weeb-${{ matrix.image }}
 
     strategy:
       # Les deux vont au bout même si l'une casse : une seule exécution suffit
@@ -54,14 +62,24 @@ jobs:
       # jetable à la suivante.
       - uses: docker/setup-buildx-action@v4
 
+      - if: env.publier == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.contexte }}
           target: ${{ matrix.cible }}
           build-args: ${{ matrix.arguments }}
-          # Ni push, ni load : construire est le but, l'image ne sert à
-          # personne ensuite.
-          push: false
+          push: ${{ env.publier == 'true' }}
+          tags: |
+            ${{ env.depot }}:${{ github.sha }}
+            ${{ env.depot }}:latest
+          # Rattache le paquet au dépôt, dont il hérite les droits d'accès.
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           # Une portée par image, sinon les deux écrasent tour à tour la même
           # et le passage suivant repart de zéro.
           cache-from: type=gha,scope=${{ matrix.image }}
