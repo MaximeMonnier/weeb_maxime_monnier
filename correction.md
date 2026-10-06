@@ -96,8 +96,8 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 | 16 | Données personnelles | 3 | `/privacy` promet ce que le code ne tient pas encore |
 | 17 | Tests du front : combler les trous | 2 | Le filet avant de toucher aux formulaires d'article |
 | 18 | Modifier et supprimer un article depuis le front | 2 | L'API le permet depuis le lot 2, le front ne l'offre pas |
-| 19 | Livraison continue et mise en ligne | 4 | Rien n'est en ligne : condition des lots 20 et 21 |
-| 20 | Surveillance et exploitation | 4 | N'a de sens qu'une fois le site en ligne |
+| 19 | Déploiement : mise en ligne et surveillance | 8 | Rien n'est en ligne, et une panne ne préviendrait personne : condition du lot 21 |
+| 20 | — | — | Fusionné dans le lot 19 le 2026-10-06 ; ses tâches gardent leur numéro |
 | 21 | Finitions et clôture de l'audit | 2 | Vérifie que chaque écart de l'audit est fermé ou consigné |
 
 ---
@@ -2879,11 +2879,11 @@ Consulte `inventaire-avant-dev` et `frontend-react-ts`.
 
 ---
 
-# Lot 19 — Livraison continue et mise en ligne
+# Lot 19 — Déploiement : mise en ligne et surveillance
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À planifier | — | — | Bloc 2 — déploiement |
+| En cours — fusionné avec le lot 20 le 2026-10-06 ; 19.1 et la publication de 19.2 livrées ; restent 20.1 et 20.3, sans serveur, puis le tirage par `compose.prod.yaml`, 19.3, 19.4, 20.2 et 20.4, qui attendent le VPS | #312 | — | Bloc 2 — déploiement |
 
 **Origine** : audit du 2026-10-05, points 36 et 38. L'intégration continue existe :
 - `tests.yml` lance la suite Django sur un service PostgreSQL, puis lint, Vitest et build ;
@@ -2894,14 +2894,21 @@ Rien n'est en ligne. `compose.prod.yaml` se lance à la main derrière le nginx 
 (`.env.prod:70`), seule alerte de `check --deploy`. `AMELIORATIONS.md` porte déjà trois de ces
 écarts : images non publiées, Playwright hors CI, façade du serveur à durcir.
 
-**Grain de ticket** : epic + 4 sous-issues, dans l'ordre. 19.1 est indépendante ; 19.2 à 19.4
+**Grain de ticket** : epic + une sous-issue par tâche, dans l'ordre. 19.1 est indépendante ; 19.2 à 19.4
 dépendent d'une décision hors code : un serveur ou un compte d'hébergement.
+Ouvert ainsi : epic #312, 19.1 → #313, 19.2 (publication seule) → #314. La cible retenue est un
+VPS, pas encore préparé : les tickets de 19.3 et 19.4 s'ouvriront quand il le sera.
+
+**Fusion avec le lot 20**, le 2026-10-06 : la surveillance se règle sur le même serveur, au même
+moment. Ses tâches gardent leur numéro, que le journal du lot 16 cite. Ordre : 20.1 et 20.3,
+seules à ne pas attendre le VPS, puis le reste de 19.2, 19.3, 19.4, 20.2 et 20.4.
 
 > **Dépendances : lots 15 à 18 clos**, pour mettre en ligne la version corrigée.
 
 ## 19.1 — Lancer le parcours Playwright en intégration continue
 
-- [ ] **Fichiers** : `.github/workflows/tests.yml`, selon le plan `frontend/playwright.config.ts`
+- [x] **Fichiers** : `.github/workflows/tests.yml`, selon le plan `frontend/playwright.config.ts`
+  — livré par #313 (PR #315)
 - **Constat** : `npm run test:e2e` exige la pile de `compose.dev.yaml` et Chromium, qu'aucun
   job ne prépare. Le `forbidOnly` de `playwright.config.ts` ne s'arme donc jamais.
 - **Attendu** : un job monte la pile, crée le compte de test, installe Chromium et lance
@@ -2920,7 +2927,8 @@ E2E_EMAIL/E2E_PASSWORD viennent de process.env ; retries reste à 0 (quota login
 
 ## 19.2 — Choisir la cible et publier les images
 
-- [ ] **Fichiers** : `.github/workflows/docker-images.yml`, `compose.prod.yaml`
+- [ ] **Fichiers** : `.github/workflows/docker-images.yml`, `compose.prod.yaml` — publication
+  livrée par #314 (PR #317) ; reste à faire tirer les images par `compose.prod.yaml`
 - **Constat** : `docker-images.yml:64` construit sans pousser, écarté le 2026-09-03 faute de
   serveur (`AMELIORATIONS.md`, « Les images ne sont publiées vers aucun registre »).
   `compose.prod.yaml` nomme ses images mais les construit sur place.
@@ -2978,25 +2986,15 @@ Consulte `conventions-docker`.
    suivant que sur mon accord, l'engagement ne se révoque pas.
 ```
 
----
-
-# Lot 20 — Surveillance et exploitation
-
-| État | Epic | Journal | Alimente |
-|---|---|---|---|
-| À planifier | — | — | Bloc 2 — déploiement |
-
-**Origine** : audit du 2026-10-05, point 39. Les healthchecks (`backend/Dockerfile:72`,
-`frontend/Dockerfile:76`) et `restart: unless-stopped` (`compose.prod.yaml:34`, `:91`, `:135`)
+**Volet surveillance (ancien lot 20)** — audit du 2026-10-05, point 39. Les healthchecks
+(`backend/Dockerfile:72`, `frontend/Dockerfile:76`) et `restart: unless-stopped` (`compose.prod.yaml:34`, `:91`, `:135`)
 relancent un conteneur tombé, mais **personne n'est prévenu**. `/health/` reste interne
 (`config/urls.py:12`). `AMELIORATIONS.md` note aussi qu'il n'y a aucun `LOGGING` et aucune tâche
 planifiée : les tables de `token_blacklist` ne font que croître, et la purge de 16.3 n'aura
 personne pour la lancer.
 
-**Grain de ticket** : epic + 4 sous-issues. 20.1 d'abord : sans journaux lisibles, une alerte
-ne mène nulle part. 20.2 attend un site en ligne (19.3). 20.4 attend 16.3.
-
-> **Dépendances : lot 19** pour 20.2 et 20.4 ; 20.1 et 20.3 peuvent commencer avant.
+20.1 d'abord : sans journaux lisibles, une alerte ne mène nulle part. 20.2 et 20.4 attendent
+un site en ligne (19.3).
 
 ## 20.1 — Configurer les journaux du backend
 
@@ -3092,7 +3090,7 @@ contrôle que les 39 points sont fermés ou consignés.
 
 **Grain de ticket** : epic + 2 sous-issues ; 21.2 en dernier.
 
-> **Dépendances : lots 15 à 20 clos.**
+> **Dépendances : lots 15 à 19 clos.**
 
 ## 21.1 — Écarts mineurs de l'audit
 
@@ -3237,7 +3235,7 @@ de mal que de bien.
 - **Toute la couche Docker** (Dockerfiles, `nginx.conf`, les deux fichiers Compose) : c'est la
   partie la plus solide du dépôt — multi-stage, non-root des deux côtés, sonde qui lit la base,
   entrypoint avec garde, `.dockerignore` qui met le `.env` hors contexte. Seules deux tâches y
-  touchent, et par la marge (0.1 et 6.2). Les lots 15 à 20 y ajoutent sans rien refondre : la
+  touchent, et par la marge (0.1 et 6.2). Les lots 15 à 19 y ajoutent sans rien refondre : la
   CSP de `nginx.conf` (15.4), la publication des images et le déploiement (19).
 - **Le découpage des settings Django** et les helpers `env_*` : l'absence volontaire de
   `SECRET_KEY` et de `DATABASES` dans `base.py` est un choix juste, documenté, à ne pas
