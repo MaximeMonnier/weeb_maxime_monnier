@@ -1,6 +1,9 @@
 """Tests transversaux : la route de santé, les journaux, et les droits de chaque profil sur l'API."""
 
 import logging
+import os
+import runpy
+from pathlib import Path
 from unittest.mock import patch
 
 from django.db import DatabaseError
@@ -52,6 +55,14 @@ class JournauxTests(SimpleTestCase):
         self.assertTrue(console.formatter.usesTime())
         self.assertIn(ligne.asctime, sortie)
         self.assertIn("ERROR accounts.views panne", sortie)
+
+    def test_le_niveau_lu_vaut_pour_la_racine_et_le_handler(self):
+        # base.py relu à part : test.py surcharge le niveau du handler de la suite.
+        with patch.dict(os.environ, {"DJANGO_LOG_LEVEL": "error"}):
+            journaux = runpy.run_path(Path(__file__).parent / "settings" / "base.py")["LOGGING"]
+
+        self.assertEqual(journaux["root"]["level"], "ERROR")
+        self.assertEqual(journaux["handlers"]["console"]["level"], "ERROR")
 
     def test_le_logger_django_garde_mail_admins(self):
         classes = [type(h).__name__ for h in logging.getLogger("django").handlers]
