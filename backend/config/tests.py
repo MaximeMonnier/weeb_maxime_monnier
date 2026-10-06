@@ -1,17 +1,20 @@
-"""Tests transversaux : la route de santé, les journaux, et les droits de chaque profil sur l'API."""
+"""Tests transversaux : la route de santé, les journaux, le rapport des 500, et les droits de chaque profil sur l'API."""
 
 import logging
 import os
 import runpy
 from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import urlencode
 
+from django.core import mail
 from django.db import DatabaseError
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import URLResolver, get_resolver, reverse
 from rest_framework_simplejwt.tokens import AccessToken
 
 from accounts.models import CustomUser
+from accounts.views import PasswordChangeView
 from articles.models import Article
 
 
@@ -79,6 +82,43 @@ class JournauxTests(SimpleTestCase):
             self.assertTrue(console.filter(du_projet))
         with override_settings(DEBUG=False):
             self.assertTrue(console.filter(de_django))
+
+
+@override_settings(ADMINS=["equipe@weeb.local"])
+class RapportDErreurTests(TestCase):
+    """Le rapport d'une 500 part aux ADMINS sans mot de passe, jeton, email du compte ni IP."""
+
+    def test_une_500_envoie_un_seul_rapport_sans_donnee_personnelle(self):
+        membre = compte("membre@weeb.local")
+        jeton = str(AccessToken.for_user(membre))
+        mots_de_passe = {"old_password": "MotDePasseValide123", "new_password": "NouveauSecret456"}
+        adresses = {
+            "REMOTE_ADDR": "198.51.100.9",
+            "HTTP_X_REAL_IP": "203.0.113.8",
+            "HTTP_X_FORWARDED_FOR": "203.0.113.7",
+        }
+        # Sinon le client relance l'exception au test, avant tout envoi.
+        client = Client(raise_request_exception=False)
+
+        with patch.object(PasswordChangeView, "post", side_effect=RuntimeError("panne simulée")):
+            response = client.post(
+                reverse("password-change"),
+                urlencode(mots_de_passe),
+                content_type="application/x-www-form-urlencoded",
+                HTTP_AUTHORIZATION=f"Bearer {jeton}",
+                **adresses,
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(len(mail.outbox), 1)
+        rapport = mail.outbox[0]
+        self.assertEqual(rapport.to, ["equipe@weeb.local"])
+        self.assertEqual(rapport.alternatives, [])
+        # Les clés restent : le rapport a bien lu le corps et les en-têtes qu'il masque.
+        for cle in [*mots_de_passe, *adresses]:
+            self.assertIn(cle, rapport.body)
+        for fuite in [*mots_de_passe.values(), *adresses.values(), jeton, membre.email]:
+            self.assertNotIn(fuite, rapport.body)
 
 
 PUBLIC, CONNECTE, AUTEUR = "public", "connecté", "auteur"
