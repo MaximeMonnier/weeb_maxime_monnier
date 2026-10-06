@@ -73,7 +73,7 @@ export default function FeatureBlock({
                 src={imageSrc}
                 alt={imageAlt}
                 loading="lazy"
-                className="w-full rounded-lg h-100"
+                className="w-full rounded-lg h-100 object-cover"
               />
             </div>
           </div>

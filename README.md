@@ -174,12 +174,13 @@ npx playwright show-trace test-results/<dossier-du-cas>/trace.zip
 ### Intégration continue
 
 Deux workflows partent à chaque push sur `preprod` ou `main` et sur chaque pull request qui
-vise l'une des deux. Seul un push sur `main` publie quelque chose : les deux images, sur GHCR.
+vise l'une des deux. Seul un push sur `main` publie quelque chose : les deux images, sur GHCR,
+puis la nouvelle version sur le VPS (§ « Déploiement automatique »).
 
 | Workflow | Jobs | Ce qu'il lance |
 |---|---|---|
 | `.github/workflows/tests.yml` | `backend`, `frontend`, `e2e` | la suite Django sur PostgreSQL 17 et `pip-audit` ; `npm run lint`, `npm test`, `npm run build` et `npm audit` ; le parcours Playwright sur la pile de `compose.dev.yaml`, avec un compte créé pour lui |
-| `.github/workflows/docker-images.yml` | `backend`, `frontend` | la construction des deux images, le front en cible `prod` |
+| `.github/workflows/docker-images.yml` | `backend`, `frontend`, `déploiement` | la construction des deux images, le front en cible `prod` ; sur push `main`, leur mise en ligne |
 
 Sur push `main`, `docker-images.yml` pousse `ghcr.io/maximemonnier/weeb-backend` et
 `ghcr.io/maximemonnier/weeb-frontend`, étiquetées par le SHA du commit et `latest`. Publiques,
@@ -296,17 +297,30 @@ cp .env.prod.example .env.prod
 
 Les autres lignes de `.env.prod.example` (expéditeur, port, identifiants SMTP) restent toutes
 décommentées : supprimée, une ligne hérite de la valeur du `.env`, réglée pour Mailpit.
-`VITE_API_URL` et les ports restent dans le `.env` : Compose les interpole lui-même.
+`VITE_API_URL`, `IMAGE_TAG` et les ports restent dans le `.env` : Compose les interpole lui-même.
 `DJANGO_ALLOWED_HOSTS` doit contenir le domaine, et garder `127.0.0.1` pour la sonde.
 
+Le serveur ne construit rien : il tire de GHCR les images que `docker-images.yml` publie au
+push sur `main`, celles que la CI a testées. `IMAGE_TAG`, dans le `.env`, choisit l'étiquette :
+le SHA complet d'un commit de `main` dit ce qui tourne ; vide, `latest`. Revenir à un SHA plus
+ancien ne défait pas les migrations que l'entrypoint a déjà appliquées.
+
 ```bash
-docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60
+docker compose -f compose.prod.yaml pull
+docker compose -f compose.prod.yaml up -d --no-build --wait --wait-timeout 60
+docker compose -f compose.prod.yaml images        # l'étiquette en place
 docker compose -f compose.prod.yaml ps
 docker compose -f compose.prod.yaml logs -f backend
 docker compose -f compose.prod.yaml exec backend python manage.py createsuperuser
 docker compose -f compose.prod.yaml exec backend python manage.py sendtestemail --admins
 docker compose -f compose.prod.yaml down
 ```
+
+`--no-build` n'est pas facultatif : face à une étiquette absente de GHCR, `up` construirait
+l'image depuis le code local, sous le nom de GHCR, sans prévenir. Avec lui, il s'arrête sur
+`No such image`. `docker compose -f compose.prod.yaml build` construit les deux images en
+local, sous ce même nom, pour essayer une modification avant de la publier ; un `pull` remet
+ensuite celles de GHCR.
 
 `sendtestemail --admins` vérifie la chaîne d'envoi des rapports d'erreur : relais, expéditeur
 et `DJANGO_ADMINS`.
@@ -423,6 +437,111 @@ sudo ln -s /etc/nginx/sites-available/weeb /etc/nginx/sites-enabled/weeb
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
+### Déployer sur le VPS
+
+Le site tourne sur `https://weeb.kickster.fr`. Le nginx de ce serveur est lui-même un
+conteneur, sur le réseau Docker externe `web` : il n'atteint pas le `127.0.0.1` de l'hôte.
+`compose.vps.yaml`, chargé après `compose.prod.yaml`, retire donc les `ports:` et branche le
+front et l'API sur `web`, sous les alias `weeb-frontend` et `weeb-backend`. La base reste sur
+`interne`.
+
+Le dépôt est cloné dans `/home/apps/docker/apps/weeb`, sous le compte `apps`. Son `.env` ajoute
+une ligne aux variables habituelles, pour que `docker compose` sans `-f` charge les deux fichiers :
+
+```bash
+COMPOSE_FILE=compose.prod.yaml:compose.vps.yaml
+```
+
+Sur ce serveur, les commandes de la section « Déployer » s'écrivent donc **sans** `-f`. Un
+`-f compose.prod.yaml` seul recréerait les conteneurs hors de `web`, et nginx répondrait `502`.
+Les `curl` sur `127.0.0.1` n'y répondent pas, aucun port n'étant publié : `docker compose ps`
+(trois `healthy`) en tient lieu, puis `curl -sI https://weeb.kickster.fr/api/articles/`.
+
+Côté nginx (`/home/apps/nginx`, hors dépôt) :
+
+| Fichier | Rôle |
+|---|---|
+| `conf.d/weeb.conf` | `/api/` et `/admin/` vers `weeb-backend:8000`, le reste vers `weeb-frontend:8080` |
+| `snippets/ssl-app.conf` | `ssl.conf` sans ses `add_header` : le front et Django posent leurs propres en-têtes de sécurité |
+
+`weeb.conf` pose le seul HSTS du site et masque celui de Django : son `max-age` suit
+`DJANGO_HSTS_SECONDS`. La redirection de `http` vers `https` et le certificat `*.kickster.fr`
+sont communs à tous les sites du serveur. Tout autre conteneur de `web` joint l'API
+directement, et pourrait y forger `X-Forwarded-Proto`.
+
+```bash
+docker exec nginx nginx -t && docker exec nginx nginx -s reload
+```
+
+Les emails partent par le relais SMTP de Brevo, authentifié sur `kickster.fr` : ses
+enregistrements DKIM et DMARC sont dans la zone Cloudflare, en « DNS only ». Le VPS bloque la
+sortie vers les ports 587 et 465, d'où `EMAIL_PORT=2525` dans son `.env.prod`, où Brevo garde
+STARTTLS. `DEFAULT_FROM_EMAIL` reste sur `kickster.fr` : Brevo accepte le message d'un autre
+domaine, puis le rejette dans ses journaux, sans aucune erreur côté Django.
+
+### Déploiement automatique
+
+Une fois publiées les deux images d'un push sur `main`, le job `déploiement` de
+`docker-images.yml` passe en SSH le SHA du commit au compte `deploy` du VPS. Sa clé ne peut
+lancer que `scripts/deployer-vps.sh`, sous le compte `apps`. Le script :
+
+1. avance le clone jusqu'à ce commit, en avance rapide seulement ;
+2. écrit `IMAGE_TAG=<sha>` dans le `.env`, pour qu'un `up` manuel garde cette version ;
+3. lance `pull`, puis `up -d --no-build --wait --wait-timeout 60` ;
+4. en cas d'échec, affiche `ps` et les 80 dernières lignes du backend, et fait échouer le job.
+
+`docker compose images` dit ensuite quel SHA tourne. Une PR ou `preprod` ne déploient rien, et
+deux déploiements ne se chevauchent pas.
+
+| Secret du dépôt | Valeur |
+|---|---|
+| `VPS_HOST` | l'adresse du VPS, hors proxy Cloudflare : il ne relaie pas SSH |
+| `VPS_USER` | `deploy` |
+| `VPS_SSH_KEY` | la clé privée, sans phrase de passe |
+| `VPS_KNOWN_HOSTS` | l'empreinte du VPS, sous le nom écrit dans `VPS_HOST` |
+| `VPS_PORT` | facultatif, `22` par défaut |
+
+Mise en place, une fois. Le script arrive par git (`git pull --ff-only` sous `apps`), jamais
+par copie : non suivi, il bloquerait l'avance rapide. Le clone reste sur `preprod` tant que
+`main` ne l'a pas ; le premier déploiement le porte sur `main`, puis `git switch main`. Sur le VPS :
+
+```bash
+sudo adduser --disabled-password --gecos '' deploy
+echo 'deploy ALL=(apps) NOPASSWD: /home/apps/docker/apps/weeb/scripts/deployer-vps.sh' \
+  | sudo tee /etc/sudoers.d/weeb-deploy
+sudo chmod 440 /etc/sudoers.d/weeb-deploy && sudo visudo -c
+sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub     # empreinte à comparer plus bas
+```
+
+La clé, faite sur le poste par `ssh-keygen -t ed25519 -N '' -C weeb-deploy -f ~/.ssh/weeb-deploy`,
+va dans `/home/deploy/.ssh/authorized_keys` (`600`, à `deploy`), précédée de sa restriction :
+
+```
+command="sudo -n -H -u apps /home/apps/docker/apps/weeb/scripts/deployer-vps.sh \"$SSH_ORIGINAL_COMMAND\"",restrict ssh-ed25519 AAAA… weeb-deploy
+```
+
+Puis les secrets, depuis le poste. `ssh-keyscan` croit la première réponse : comparer son
+empreinte à celle relevée sur le VPS. Avec `VPS_PORT`, ajouter `-p <port>` à `ssh-keyscan` et
+à l'essai : l'empreinte s'enregistre sous `[adresse]:port`.
+
+```bash
+gh secret set VPS_HOST --body '<adresse>'
+gh secret set VPS_USER --body deploy
+gh secret set VPS_SSH_KEY < ~/.ssh/weeb-deploy
+ssh-keyscan -t ed25519 '<adresse>' > /tmp/vps_known_hosts && ssh-keygen -lf /tmp/vps_known_hosts
+gh secret set VPS_KNOWN_HOSTS < /tmp/vps_known_hosts
+ssh -i ~/.ssh/weeb-deploy -o IdentitiesOnly=yes deploy@'<adresse>' essai   # « Attendu : le SHA complet… »
+```
+
+Pièges :
+- `deploy` garde un shell, sans quoi sshd ne lance pas la commande forcée, et un `AllowUsers`
+  de sshd doit le nommer ;
+- un commit fait à la main sur le VPS bloque l'avance rapide, donc tout déploiement ;
+- une empreinte modifiée (VPS réinstallé) fait échouer le job avant toute connexion :
+  enregistrer la nouvelle dans `VPS_KNOWN_HOSTS` ;
+- relancer le job d'un ancien commit remet ses images, mais pas ses fichiers Compose : le
+  clone n'avance pas en arrière.
+
 ## Configuration par environnement
 
 | Module de `backend/config/settings/` | Usage |
@@ -521,6 +640,8 @@ le `.env` ; la lecture des articles n'est pas limitée.
 ├── AMELIORATIONS.md          # pistes repérées, non traitées
 ├── compose.dev.yaml          # pile de développement
 ├── compose.prod.yaml         # pile de production
+├── compose.vps.yaml          # surcouche du VPS : réseau web, aucun port publié
+├── scripts/deployer-vps.sh   # déploiement sur le VPS, seule commande de la clé de la CI
 ├── backend/
 │   ├── config/               # settings/, urls.py, views.py (route /health/)
 │   ├── accounts/             # utilisateurs, authentification JWT
