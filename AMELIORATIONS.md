@@ -50,7 +50,7 @@ et pour les prochaines itérations).
 
 ## Docker — mise en ligne
 
-Trois critères de l'epic de dockerisation #47 qu'aucune sous-issue n'a livrés, plus une dette
+Deux critères de l'epic de dockerisation #47 qu'aucune sous-issue n'a livrés, plus une dette
 née de la façade. Rien de ce qui reste ne bloque le développement.
 
 - [ ] **Durcir la façade du serveur.** Le nginx du serveur ne fait aujourd'hui que router :

@@ -33,7 +33,7 @@ jobs:
       packages: write
 
     env:
-      # Push sur main seulement, sinon chaque PR écraserait `latest`.
+      # Push sur main seulement, sinon preprod et les PR écraseraient `latest`.
       publier: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       # GHCR refuse les majuscules du propriétaire.
       depot: ghcr.io/maximemonnier/weeb-${{ matrix.image }}
@@ -78,7 +78,7 @@ jobs:
           tags: |
             ${{ env.depot }}:${{ github.sha }}
             ${{ env.depot }}:latest
-          # Rattache le paquet au dépôt, dont il hérite les droits d'accès.
+          # Rattache le paquet au dépôt : il en hérite les droits, pas la visibilité.
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           # Une portée par image, sinon les deux écrasent tour à tour la même
           # et le passage suivant repart de zéro.
