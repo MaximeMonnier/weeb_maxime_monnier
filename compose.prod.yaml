@@ -52,8 +52,8 @@ services:
     build: ./backend
 
     # Le dernier l'emporte : .env.prod réécrit ce qui diffère et ajoute
-    # EMAIL_HOST et FRONTEND_URL. ⚠️ Pour le conteneur seul : les `${...}` d'ici
-    # se lisent dans le .env — README, § « La configuration de production ».
+    # EMAIL_HOST, FRONTEND_URL et DJANGO_ADMINS. ⚠️ Pour le conteneur seul : les
+    # `${...}` d'ici se lisent dans le .env — README, § « La configuration de production ».
     env_file:
       - .env
       - .env.prod
