@@ -293,6 +293,7 @@ cp .env.prod.example .env.prod
 | `DJANGO_LOG_LEVEL` | `INFO` | la ligne doit rester : omise, la production hériterait d'un `DEBUG` posé dans le `.env` |
 | `EMAIL_HOST` | le relais SMTP | **exigée** : le backend refuse de démarrer sans |
 | `FRONTEND_URL` | l'adresse publique du front | **exigée** : racine des liens écrits dans les emails |
+| `DJANGO_ADMINS` | les adresses qui suivent le site | **exigée** : destinataires du rapport de chaque erreur 500 |
 
 Les autres lignes de `.env.prod.example` (expéditeur, port, identifiants SMTP) restent toutes
 décommentées : supprimée, une ligne hérite de la valeur du `.env`, réglée pour Mailpit.
@@ -304,8 +305,12 @@ docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60
 docker compose -f compose.prod.yaml ps
 docker compose -f compose.prod.yaml logs -f backend
 docker compose -f compose.prod.yaml exec backend python manage.py createsuperuser
+docker compose -f compose.prod.yaml exec backend python manage.py sendtestemail --admins
 docker compose -f compose.prod.yaml down
 ```
+
+`sendtestemail --admins` vérifie la chaîne d'envoi des rapports d'erreur : relais, expéditeur
+et `DJANGO_ADMINS`.
 
 Sans `--wait-timeout`, `--wait` attend indéfiniment un service qui reboucle. Vérifier la pile
 avant de mettre nginx devant :

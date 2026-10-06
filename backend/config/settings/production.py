@@ -56,6 +56,14 @@ EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
 # sur `localhost` sans que rien n'échoue côté serveur.
 FRONTEND_URL = env_required('FRONTEND_URL').rstrip('/')
 
+# Sans destinataire, une 500 ne laisse qu'une ligne dans des journaux que personne ne lit.
+ADMINS = env_list('DJANGO_ADMINS')
+if not ADMINS:
+    raise ImproperlyConfigured(
+        "La variable d'environnement DJANGO_ADMINS est absente ou vide. "
+        "Renseigne les adresses qui reçoivent le rapport des erreurs 500, séparées par des virgules."
+    )
+
 # --- En-têtes et cookies de sécurité ---
 # Ces réglages n'ont de sens que derrière HTTPS, donc uniquement ici.
 SECURE_SSL_REDIRECT = True                  # redirige tout le trafic HTTP vers HTTPS
