@@ -302,7 +302,8 @@ décommentées : supprimée, une ligne hérite de la valeur du `.env`, réglée 
 
 Le serveur ne construit rien : il tire de GHCR les images que `docker-images.yml` publie au
 push sur `main`, celles que la CI a testées. `IMAGE_TAG`, dans le `.env`, choisit l'étiquette :
-le SHA complet d'un commit de `main` dit ce qui tourne et permet d'y revenir ; vide, `latest`.
+le SHA complet d'un commit de `main` dit ce qui tourne ; vide, `latest`. Revenir à un SHA plus
+ancien ne défait pas les migrations que l'entrypoint a déjà appliquées.
 
 ```bash
 docker compose -f compose.prod.yaml pull
