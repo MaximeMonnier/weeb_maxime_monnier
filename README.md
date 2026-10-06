@@ -179,11 +179,10 @@ vise l'une des deux. Aucun ne publie rien.
 
 | Workflow | Jobs | Ce qu'il lance |
 |---|---|---|
-| `.github/workflows/tests.yml` | `backend`, `frontend` | la suite Django sur PostgreSQL 17 et `pip-audit` ; `npm run lint`, `npm test`, `npm run build` et `npm audit` |
+| `.github/workflows/tests.yml` | `backend`, `frontend`, `e2e` | la suite Django sur PostgreSQL 17 et `pip-audit` ; `npm run lint`, `npm test`, `npm run build` et `npm audit` ; le parcours Playwright sur la pile de `compose.dev.yaml`, avec un compte créé pour lui |
 | `.github/workflows/docker-images.yml` | `backend`, `frontend` | la construction des deux images, le front en cible `prod` |
 
-Le parcours Playwright n'y tourne pas. Reproduire la construction des images à partir du dernier
-commit, sans rien de non versionné :
+Reproduire la construction des images à partir du dernier commit, sans rien de non versionné :
 
 ```bash
 mkdir -p /tmp/weeb-propre && git archive HEAD | tar -x -C /tmp/weeb-propre

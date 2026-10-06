@@ -178,14 +178,4 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       (donc Pillow), des médias servis par le conteneur du front comme `/static/`, et le champ
       ajouté aux types `Article` et `ArticleListItem` en même temps qu'aux serializers.
 
-## Tests
-
-- [ ] **Le parcours Playwright ne tourne pas en intégration continue.** `tests.yml` lance
-      les suites Django et Vitest, mais `npm run test:e2e` exige la pile de `compose.dev.yaml`
-      démarrée et les navigateurs de Playwright, qu'aucun job ne prépare. Le `forbidOnly` de
-      `playwright.config.ts` reste donc une garde qui ne s'arme jamais. Piste : un job qui
-      monte la pile par Compose et installe Chromium, avec un compte de test créé avant le
-      parcours. Distinct de « Exécution des tests en conteneur isolé », qui vise l'image de
-      production.
-
 ## (à compléter au fil de l'eau)
