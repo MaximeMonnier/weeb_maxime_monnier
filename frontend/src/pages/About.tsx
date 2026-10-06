@@ -1,5 +1,5 @@
 import HeroTitle from "../components/ui/Title/HeroTitle";
-import Image1 from "../assets/img/img1.png";
+import Image1 from "../assets/img/img1.jpg";
 
 const About = () => {
   return (
@@ -12,7 +12,7 @@ const About = () => {
           <div className="w-1/2">
             <img
               src={Image1}
-              alt="Maquette d'une interface de blog : menu latéral, blocs de texte et cartes illustrées"
+              alt="Équipe échangeant autour d'une table dans un espace de travail partagé"
             />
           </div>
           <div className="w-1/2">

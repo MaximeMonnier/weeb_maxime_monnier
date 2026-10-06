@@ -1,7 +1,7 @@
 import HeroBanner from "../components/common/Home/HeroBanner";
 import BrandBanner from "../components/common/Home/BrandBanner";
 import FeatureBlock from "../components/common/Home/FeatureBlock";
-import Image1 from "../assets/img/img1.png";
+import Image4 from "../assets/img/img4.jpg";
 import Image2 from "../assets/img/img2.png";
 import Slider from "../components/common/Home/Slider";
 
@@ -28,8 +28,8 @@ const Home = () => {
             description="Que vous débutiez en développement web ou que vous soyez un expert cherchant à approfondir vos connaissances, nous vous proposons des tutoriels, guides et bonnes pratiques pour apprendre efficacement."
             ctaLabel="Explorer les ressources"
             ctaHref="/blog"
-            imageSrc={Image1}
-            imageAlt="Maquette d'une interface de blog : menu latéral, blocs de texte et cartes illustrées"
+            imageSrc={Image4}
+            imageAlt="Vagues abstraites aux teintes violettes, bleues et orangées"
             reverse={false}
           />
 
