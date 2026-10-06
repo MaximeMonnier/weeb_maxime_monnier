@@ -274,6 +274,8 @@ def _hors_console_de_django(record):
     return not (settings.DEBUG and (record.name == 'django' or record.name.startswith('django.')))
 
 
+_NIVEAU_DES_JOURNAUX = env_str('DJANGO_LOG_LEVEL', 'INFO').upper()
+
 # S'ajoute à la configuration que Django pose d'abord. Ne pas redéfinir le logger
 # `django` : la redéfinition lui retirerait son handler `mail_admins`.
 LOGGING = {
@@ -293,10 +295,13 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'horodate',
             'filters': ['hors_console_de_django'],
+            # Sur le handler aussi : le niveau de la racine ne filtre pas ce que lui
+            # transmettent ses enfants, et Django règle `django` sur INFO.
+            'level': _NIVEAU_DES_JOURNAUX,
         },
     },
     'root': {
         'handlers': ['console'],
-        'level': env_str('DJANGO_LOG_LEVEL', 'INFO').upper(),
+        'level': _NIVEAU_DES_JOURNAUX,
     },
 }

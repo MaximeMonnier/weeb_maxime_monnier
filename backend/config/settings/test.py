@@ -31,7 +31,10 @@ EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 # --- Journaux ---
 # Chaque refus 4xx de la suite écrirait sa ligne : le niveau seul monte, le handler
 # reste celui de base.py, que vérifie config/tests.py.
-LOGGING = {**LOGGING, 'root': {**LOGGING['root'], 'level': 'CRITICAL'}}
+LOGGING = {
+    **LOGGING,
+    'handlers': {'console': {**LOGGING['handlers']['console'], 'level': 'CRITICAL'}},
+}
 
 
 # --- Quotas de débit ---
