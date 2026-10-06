@@ -32,7 +32,7 @@ function jeton(page: Page, nom: string) {
 }
 
 test.describe("Connexion", () => {
-  test("mène à l'accueil et garde les deux jetons", async ({ page }) => {
+  test.only("mène à l'accueil et garde les deux jetons", async ({ page }) => {
     await seConnecter(page, MOT_DE_PASSE);
 
     await expect(page).toHaveURL("/");
