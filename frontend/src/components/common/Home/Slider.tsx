@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import Image1 from "../../../assets/img/img1.png";
+import Image1 from "../../../assets/img/img1.jpg";
 import Image2 from "../../../assets/img/img2.png";
+import Image3 from "../../../assets/img/img3.jpg";
+import Image4 from "../../../assets/img/img4.jpg";
 
-// Les deux images n'ont pas le même format : le cadre prend celui d'img1 et
-// img2 y est centrée entière, sur le fond du thème plutôt qu'un vide.
-const CADRE_SLIDE =
+const CADRE_SLIDE = "aspect-[1100/661] w-full rounded-lg object-cover";
+// img2 est carrée : rognée par le cadre, elle perdrait ses bords ; elle y est
+// centrée entière, sur le fond du thème plutôt qu'un vide.
+const CADRE_SLIDE_CARRE =
   "aspect-[1100/661] w-full rounded-lg object-contain bg-surface-alt";
 
 const Slider = () => {
@@ -49,7 +52,7 @@ const Slider = () => {
           <div className="embla__slide">
             <img
               src={Image1}
-              alt="Maquette d'une interface de blog : menu latéral, blocs de texte et cartes illustrées"
+              alt="Équipe échangeant autour d'une table dans un espace de travail partagé"
               className={CADRE_SLIDE}
             />
           </div>
@@ -57,6 +60,20 @@ const Slider = () => {
             <img
               src={Image2}
               alt="Composition graphique de carrés violets superposés autour d'un carré rose"
+              className={CADRE_SLIDE_CARRE}
+            />
+          </div>
+          <div className="embla__slide">
+            <img
+              src={Image3}
+              alt="Ordinateur portable affichant du code sur un bureau lumineux"
+              className={CADRE_SLIDE}
+            />
+          </div>
+          <div className="embla__slide">
+            <img
+              src={Image4}
+              alt="Vagues abstraites aux teintes violettes, bleues et orangées"
               className={CADRE_SLIDE}
             />
           </div>
