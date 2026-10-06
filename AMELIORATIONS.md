@@ -70,11 +70,6 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
 - [ ] **Exécution des tests en conteneur isolé** : sur l'image de production, avec un
       service `db` éphémère, jamais sur l'image de développement. À reprendre avec le
       chantier des tests, qui dépasse Docker.
-- [ ] **Les images ne sont publiées vers aucun registre.** `docker-images.yml` les construit
-      sans les pousser, écarté volontairement le 2026-09-03 alors que l'epic #47 le
-      demandait : sans serveur où faire `docker pull`, une image publiée ne sert à personne.
-      Piste : ajouter le `push` au workflow existant le jour où une mise en ligne existe,
-      conditionné à un push sur `main`, sinon chaque pull request pousserait une image.
 
 ## Backend — sécurité
 
