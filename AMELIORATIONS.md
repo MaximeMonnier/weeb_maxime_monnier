@@ -71,6 +71,13 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       service `db` éphémère, jamais sur l'image de développement. À reprendre avec le
       chantier des tests, qui dépasse Docker.
 
+## Intégration continue
+
+- [ ] **Épingler les actions des workflows par SHA.** `tests.yml` et `docker-images.yml`
+      les visent par étiquette (`@v7`, `@v4`), qu'un éditeur compromis peut déplacer.
+      Depuis l'issue #314, `docker-images.yml` tient un jeton `packages: write` : une action
+      détournée pourrait publier sur GHCR. Viser le SHA complet, l'étiquette en commentaire.
+
 ## Backend — sécurité
 
 - [ ] **Envoyer les emails hors du cycle de la requête.** `PasswordResetRequestView` rend
