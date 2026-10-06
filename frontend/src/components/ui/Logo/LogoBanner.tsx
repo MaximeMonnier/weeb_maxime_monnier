@@ -64,12 +64,16 @@ export default function LogoBanner() {
         <div className="marquee-track">
           {/* La copie n'existe que pour boucler l'animation : masquée aux lecteurs
               d'écran, et son lien éventuel retiré du parcours au clavier. */}
-          {[...brands, ...brands].map((brand, index) => (
-            <LogoItem
-              key={`${brand.name}-${index}`}
-              brand={brand}
-              isLoopCopy={index >= brands.length}
-            />
+          {[false, true].map((isLoopCopy) => (
+            <div key={String(isLoopCopy)} className="marquee-group">
+              {brands.map((brand) => (
+                <LogoItem
+                  key={brand.name}
+                  brand={brand}
+                  isLoopCopy={isLoopCopy}
+                />
+              ))}
+            </div>
           ))}
         </div>
       </div>
