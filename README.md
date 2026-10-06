@@ -506,8 +506,9 @@ Mise en place, une fois. Le script arrive par git (`git pull --ff-only` sous `ap
 par copie : non suivi, il bloquerait l'avance rapide. Le clone reste sur `preprod` tant que
 `main` ne l'a pas ; le premier déploiement le porte sur `main`, puis `git switch main`.
 
-Sur le poste, une clé dédiée, dont la partie publique s'ajoute à
-`/home/apps/.ssh/authorized_keys` du VPS, puis les secrets. `ssh-keyscan` croit la première
+Sur le poste, une clé dédiée, puis les secrets. Sa partie publique s'ajoute sur le VPS :
+`echo '<clé publique>' | sudo -u apps tee -a /home/apps/.ssh/authorized_keys`, suivi de
+`sudo restorecon -R /home/apps/.ssh`, sans quoi SELinux la refuse en silence. `ssh-keyscan` croit la première
 réponse : comparer son empreinte à celle que donne, sur le VPS,
 `sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`. Avec `VPS_PORT`, ajouter `-p <port>`
 à `ssh-keyscan` et à l'essai : l'empreinte s'enregistre sous `[adresse]:port`.
@@ -524,6 +525,7 @@ ssh -i ~/.ssh/weeb-deploy -o IdentitiesOnly=yes apps@'<adresse>' \
 ```
 
 Pièges :
+- un `AllowUsers` de sshd doit nommer `apps` ;
 - un commit fait à la main sur le VPS bloque l'avance rapide, donc tout déploiement ;
 - une empreinte modifiée (VPS réinstallé) fait échouer le job avant toute connexion :
   enregistrer la nouvelle dans `VPS_KNOWN_HOSTS` ;
