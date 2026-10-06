@@ -1,7 +1,7 @@
 """Réglages des tests automatisés : aucun secret Django réel, mais une vraie base PostgreSQL."""
 
 from .base import *  # noqa: F403 — on repart de tous les réglages communs
-from .base import postgres_database, REST_FRAMEWORK
+from .base import LOGGING, postgres_database, REST_FRAMEWORK
 
 # Un test ne doit jamais dépendre de la page d'erreur détaillée pour passer.
 DEBUG = False
@@ -26,6 +26,15 @@ DATABASES = postgres_database()
 # Aucune connexion SMTP, les messages restent dans `django.core.mail.outbox`.
 # Le runner l'impose déjà ; l'écrire ici vaut hors du runner.
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+
+
+# --- Journaux ---
+# Chaque refus 4xx de la suite écrirait sa ligne : le niveau seul monte, le handler
+# reste celui de base.py, que vérifie config/tests.py.
+LOGGING = {
+    **LOGGING,
+    'handlers': {'console': {**LOGGING['handlers']['console'], 'level': 'CRITICAL'}},
+}
 
 
 # --- Quotas de débit ---

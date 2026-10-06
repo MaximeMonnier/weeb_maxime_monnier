@@ -290,6 +290,7 @@ cp .env.prod.example .env.prod
 | `DJANGO_BEHIND_PROXY` | `1` | Django croit le `X-Forwarded-Proto` que le nginx du serveur écrase |
 | `CORS_ALLOWED_ORIGINS` | **vide** | site et API sur la même origine. La ligne doit rester : omise, la production hériterait des origines du développement |
 | `DJANGO_HSTS_SECONDS` | `0` | tant que la pile est jointe sur `localhost` ; monter par paliers avec un vrai domaine |
+| `DJANGO_LOG_LEVEL` | `INFO` | la ligne doit rester : omise, la production hériterait d'un `DEBUG` posé dans le `.env` |
 | `EMAIL_HOST` | le relais SMTP | **exigée** : le backend refuse de démarrer sans |
 | `FRONTEND_URL` | l'adresse publique du front | **exigée** : racine des liens écrits dans les emails |
 
