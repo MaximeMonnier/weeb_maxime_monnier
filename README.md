@@ -482,8 +482,8 @@ domaine, puis le rejette dans ses journaux, sans aucune erreur côté Django.
 ### Déploiement automatique
 
 Une fois publiées les deux images d'un push sur `main`, le job `déploiement` de
-`docker-images.yml` passe en SSH le SHA du commit au compte `deploy` du VPS. Sa clé ne peut
-lancer que `scripts/deployer-vps.sh`, sous le compte `apps`. Le script :
+`docker-images.yml` se connecte en SSH au compte `apps` du VPS et y lance
+`scripts/deployer-vps.sh` avec le SHA du commit. Le script :
 
 1. avance le clone jusqu'à ce commit, en avance rapide seulement ;
 2. écrit `IMAGE_TAG=<sha>` dans le `.env`, pour qu'un `up` manuel garde cette version ;
@@ -496,46 +496,35 @@ deux déploiements ne se chevauchent pas.
 | Secret du dépôt | Valeur |
 |---|---|
 | `VPS_HOST` | l'adresse du VPS, hors proxy Cloudflare : il ne relaie pas SSH |
-| `VPS_USER` | `deploy` |
+| `VPS_USER` | `apps` |
 | `VPS_SSH_KEY` | la clé privée, sans phrase de passe |
 | `VPS_KNOWN_HOSTS` | l'empreinte du VPS, sous le nom écrit dans `VPS_HOST` |
 | `VPS_PORT` | facultatif, `22` par défaut |
 
 Mise en place, une fois. Le script arrive par git (`git pull --ff-only` sous `apps`), jamais
 par copie : non suivi, il bloquerait l'avance rapide. Le clone reste sur `preprod` tant que
-`main` ne l'a pas ; le premier déploiement le porte sur `main`, puis `git switch main`. Sur le VPS :
+`main` ne l'a pas ; le premier déploiement le porte sur `main`, puis `git switch main`.
+
+Sur le poste, une clé dédiée, puis les secrets. Sa partie publique s'ajoute sur le VPS :
+`echo '<clé publique>' | sudo -u apps tee -a /home/apps/.ssh/authorized_keys`, suivi de
+`sudo restorecon -R /home/apps/.ssh`, sans quoi SELinux la refuse en silence. `ssh-keyscan` croit la première
+réponse : comparer son empreinte à celle que donne, sur le VPS,
+`sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`. Avec `VPS_PORT`, ajouter `-p <port>`
+à `ssh-keyscan` et à l'essai : l'empreinte s'enregistre sous `[adresse]:port`.
 
 ```bash
-sudo adduser --disabled-password --gecos '' deploy
-echo 'deploy ALL=(apps) NOPASSWD: /home/apps/docker/apps/weeb/scripts/deployer-vps.sh' \
-  | sudo tee /etc/sudoers.d/weeb-deploy
-sudo chmod 440 /etc/sudoers.d/weeb-deploy && sudo visudo -c
-sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub     # empreinte à comparer plus bas
-```
-
-La clé, faite sur le poste par `ssh-keygen -t ed25519 -N '' -C weeb-deploy -f ~/.ssh/weeb-deploy`,
-va dans `/home/deploy/.ssh/authorized_keys` (`600`, à `deploy`), précédée de sa restriction :
-
-```
-command="sudo -n -H -u apps /home/apps/docker/apps/weeb/scripts/deployer-vps.sh \"$SSH_ORIGINAL_COMMAND\"",restrict ssh-ed25519 AAAA… weeb-deploy
-```
-
-Puis les secrets, depuis le poste. `ssh-keyscan` croit la première réponse : comparer son
-empreinte à celle relevée sur le VPS. Avec `VPS_PORT`, ajouter `-p <port>` à `ssh-keyscan` et
-à l'essai : l'empreinte s'enregistre sous `[adresse]:port`.
-
-```bash
+ssh-keygen -t ed25519 -N '' -C weeb-deploy -f ~/.ssh/weeb-deploy
 gh secret set VPS_HOST --body '<adresse>'
-gh secret set VPS_USER --body deploy
+gh secret set VPS_USER --body apps
 gh secret set VPS_SSH_KEY < ~/.ssh/weeb-deploy
 ssh-keyscan -t ed25519 '<adresse>' > /tmp/vps_known_hosts && ssh-keygen -lf /tmp/vps_known_hosts
 gh secret set VPS_KNOWN_HOSTS < /tmp/vps_known_hosts
-ssh -i ~/.ssh/weeb-deploy -o IdentitiesOnly=yes deploy@'<adresse>' essai   # « Attendu : le SHA complet… »
+ssh -i ~/.ssh/weeb-deploy -o IdentitiesOnly=yes apps@'<adresse>' \
+  /home/apps/docker/apps/weeb/scripts/deployer-vps.sh essai   # « Attendu : le SHA complet… »
 ```
 
 Pièges :
-- `deploy` garde un shell, sans quoi sshd ne lance pas la commande forcée, et un `AllowUsers`
-  de sshd doit le nommer ;
+- un `AllowUsers` de sshd doit nommer `apps` ;
 - un commit fait à la main sur le VPS bloque l'avance rapide, donc tout déploiement ;
 - une empreinte modifiée (VPS réinstallé) fait échouer le job avant toute connexion :
   enregistrer la nouvelle dans `VPS_KNOWN_HOSTS` ;
@@ -641,7 +630,7 @@ le `.env` ; la lecture des articles n'est pas limitée.
 ├── compose.dev.yaml          # pile de développement
 ├── compose.prod.yaml         # pile de production
 ├── compose.vps.yaml          # surcouche du VPS : réseau web, aucun port publié
-├── scripts/deployer-vps.sh   # déploiement sur le VPS, seule commande de la clé de la CI
+├── scripts/deployer-vps.sh   # déploiement sur le VPS, lancé par la CI
 ├── backend/
 │   ├── config/               # settings/, urls.py, views.py (route /health/)
 │   ├── accounts/             # utilisateurs, authentification JWT

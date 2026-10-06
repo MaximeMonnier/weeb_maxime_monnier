@@ -108,8 +108,7 @@ jobs:
           printf '%s\n' "$CLE" > ~/.ssh/deploiement
           printf '%s\n' "$EMPREINTE" > ~/.ssh/known_hosts
 
-      # La clé ne lance que scripts/deployer-vps.sh : la commande envoyée n'est
-      # que son argument. StrictHostKeyChecking=yes refuse une empreinte modifiée.
+      # StrictHostKeyChecking=yes : une empreinte modifiée coupe la connexion.
       - name: Déploiement de ${{ github.sha }}
         env:
           HOTE: ${{ secrets.VPS_HOST }}
@@ -118,4 +117,4 @@ jobs:
         run: >-
           ssh -i ~/.ssh/deploiement -p "${PORT:-22}"
           -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes
-          "$COMPTE@$HOTE" "$GITHUB_SHA"
+          "$COMPTE@$HOTE" "/home/apps/docker/apps/weeb/scripts/deployer-vps.sh $GITHUB_SHA"
