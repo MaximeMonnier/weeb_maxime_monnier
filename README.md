@@ -297,17 +297,30 @@ cp .env.prod.example .env.prod
 
 Les autres lignes de `.env.prod.example` (expéditeur, port, identifiants SMTP) restent toutes
 décommentées : supprimée, une ligne hérite de la valeur du `.env`, réglée pour Mailpit.
-`VITE_API_URL` et les ports restent dans le `.env` : Compose les interpole lui-même.
+`VITE_API_URL`, `IMAGE_TAG` et les ports restent dans le `.env` : Compose les interpole lui-même.
 `DJANGO_ALLOWED_HOSTS` doit contenir le domaine, et garder `127.0.0.1` pour la sonde.
 
+Le serveur ne construit rien : il tire de GHCR les images que `docker-images.yml` publie au
+push sur `main`, celles que la CI a testées. `IMAGE_TAG`, dans le `.env`, choisit l'étiquette :
+le SHA complet d'un commit de `main` dit ce qui tourne ; vide, `latest`. Revenir à un SHA plus
+ancien ne défait pas les migrations que l'entrypoint a déjà appliquées.
+
 ```bash
-docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60
+docker compose -f compose.prod.yaml pull
+docker compose -f compose.prod.yaml up -d --no-build --wait --wait-timeout 60
+docker compose -f compose.prod.yaml images        # l'étiquette en place
 docker compose -f compose.prod.yaml ps
 docker compose -f compose.prod.yaml logs -f backend
 docker compose -f compose.prod.yaml exec backend python manage.py createsuperuser
 docker compose -f compose.prod.yaml exec backend python manage.py sendtestemail --admins
 docker compose -f compose.prod.yaml down
 ```
+
+`--no-build` n'est pas facultatif : face à une étiquette absente de GHCR, `up` construirait
+l'image depuis le code local, sous le nom de GHCR, sans prévenir. Avec lui, il s'arrête sur
+`No such image`. `docker compose -f compose.prod.yaml build` construit les deux images en
+local, sous ce même nom, pour essayer une modification avant de la publier ; un `pull` remet
+ensuite celles de GHCR.
 
 `sendtestemail --admins` vérifie la chaîne d'envoi des rapports d'erreur : relais, expéditeur
 et `DJANGO_ADMINS`.
