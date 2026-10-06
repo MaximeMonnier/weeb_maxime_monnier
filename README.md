@@ -175,12 +175,13 @@ npx playwright show-trace test-results/<dossier-du-cas>/trace.zip
 ### Intégration continue
 
 Deux workflows partent à chaque push sur `preprod` ou `main` et sur chaque pull request qui
-vise l'une des deux. Seul un push sur `main` publie quelque chose : les deux images, sur GHCR.
+vise l'une des deux. Seul un push sur `main` publie quelque chose : les deux images, sur GHCR,
+puis la nouvelle version sur le VPS (§ « Déploiement automatique »).
 
 | Workflow | Jobs | Ce qu'il lance |
 |---|---|---|
 | `.github/workflows/tests.yml` | `backend`, `frontend`, `e2e` | la suite Django sur PostgreSQL 17 et `pip-audit` ; `npm run lint`, `npm test`, `npm run build` et `npm audit` ; le parcours Playwright sur la pile de `compose.dev.yaml`, avec un compte créé pour lui |
-| `.github/workflows/docker-images.yml` | `backend`, `frontend` | la construction des deux images, le front en cible `prod` |
+| `.github/workflows/docker-images.yml` | `backend`, `frontend`, `déploiement` | la construction des deux images, le front en cible `prod` ; sur push `main`, leur mise en ligne |
 
 Sur push `main`, `docker-images.yml` pousse `ghcr.io/maximemonnier/weeb-backend` et
 `ghcr.io/maximemonnier/weeb-frontend`, étiquetées par le SHA du commit et `latest`. Publiques,
@@ -479,6 +480,73 @@ sortie vers les ports 587 et 465, d'où `EMAIL_PORT=2525` dans son `.env.prod`, 
 STARTTLS. `DEFAULT_FROM_EMAIL` reste sur `kickster.fr` : Brevo accepte le message d'un autre
 domaine, puis le rejette dans ses journaux, sans aucune erreur côté Django.
 
+### Déploiement automatique
+
+Chaque push sur `main` part en ligne tout seul. Une fois les deux images publiées, le job
+`déploiement` de `docker-images.yml` se connecte en SSH au compte `deploy` du VPS et lui passe
+le SHA du commit. La clé ne peut rien lancer d'autre que `scripts/deployer-vps.sh`, sous le
+compte `apps`. Le script :
+
+1. avance le clone jusqu'à ce commit, en avance rapide seulement ;
+2. écrit `IMAGE_TAG=<sha>` dans le `.env`, pour qu'un `docker compose up` lancé plus tard à la
+   main garde cette version ;
+3. lance `pull`, puis `up -d --no-build --wait --wait-timeout 60` ;
+4. en cas d'échec, affiche `ps` et les 80 dernières lignes du backend, et fait échouer le job.
+
+`docker compose images` dit ensuite quel SHA tourne. Une PR ou un push sur `preprod` ne
+déploie rien. Deux déploiements ne se chevauchent jamais : le second attend la fin du premier.
+
+| Secret du dépôt | Valeur |
+|---|---|
+| `VPS_HOST` | l'adresse du VPS, pas un nom proxifié par Cloudflare, qui ne relaie pas SSH |
+| `VPS_USER` | `deploy` |
+| `VPS_SSH_KEY` | la clé privée de déploiement, sans phrase de passe |
+| `VPS_KNOWN_HOSTS` | l'empreinte du VPS, sous le nom écrit dans `VPS_HOST` |
+| `VPS_PORT` | facultatif, `22` par défaut |
+
+Mise en place, une fois. Sur le VPS :
+
+```bash
+sudo adduser --disabled-password --gecos '' deploy
+echo 'deploy ALL=(apps) NOPASSWD: /home/apps/docker/apps/weeb/scripts/deployer-vps.sh' \
+  | sudo tee /etc/sudoers.d/weeb-deploy
+sudo chmod 440 /etc/sudoers.d/weeb-deploy && sudo visudo -c
+sudo ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub     # empreinte à comparer plus bas
+```
+
+Sur le poste, puis dans `/home/deploy/.ssh/authorized_keys` du VPS (droits `600`, dossier
+`700`, propriétaire `deploy`), la clé publique précédée de sa restriction :
+
+```bash
+ssh-keygen -t ed25519 -N '' -C weeb-deploy -f ~/.ssh/weeb-deploy
+```
+
+```
+command="sudo -n -H -u apps /home/apps/docker/apps/weeb/scripts/deployer-vps.sh \"$SSH_ORIGINAL_COMMAND\"",restrict ssh-ed25519 AAAA… weeb-deploy
+```
+
+Puis les secrets, depuis le poste. `ssh-keyscan` croit la première réponse venue : son
+empreinte se compare à celle relevée sur le VPS avant de l'enregistrer.
+
+```bash
+gh secret set VPS_HOST --body '<adresse>'
+gh secret set VPS_USER --body deploy
+gh secret set VPS_SSH_KEY < ~/.ssh/weeb-deploy
+ssh-keyscan -t ed25519 '<adresse>' > /tmp/vps_known_hosts && ssh-keygen -lf /tmp/vps_known_hosts
+gh secret set VPS_KNOWN_HOSTS < /tmp/vps_known_hosts
+ssh -i ~/.ssh/weeb-deploy deploy@'<adresse>' essai     # « Attendu : le SHA complet… »
+```
+
+Pièges :
+- le compte `deploy` garde un shell : avec `nologin`, sshd ne lance pas la commande forcée.
+  Un `AllowUsers` dans la configuration de sshd doit le nommer ;
+- le clone n'accepte que l'avance rapide : un commit fait à la main sur le VPS bloque tous les
+  déploiements suivants ;
+- une empreinte modifiée (VPS réinstallé) fait échouer le job avant toute connexion :
+  enregistrer la nouvelle dans `VPS_KNOWN_HOSTS` ;
+- relancer le job d'un ancien commit remet ses images, mais pas ses fichiers Compose : le
+  clone n'avance pas en arrière.
+
 ## Configuration par environnement
 
 | Module de `backend/config/settings/` | Usage |
@@ -578,6 +646,7 @@ le `.env` ; la lecture des articles n'est pas limitée.
 ├── compose.dev.yaml          # pile de développement
 ├── compose.prod.yaml         # pile de production
 ├── compose.vps.yaml          # surcouche du VPS : réseau web, aucun port publié
+├── scripts/deployer-vps.sh   # déploiement sur le VPS, seule commande de la clé de la CI
 ├── backend/
 │   ├── config/               # settings/, urls.py, views.py (route /health/)
 │   ├── accounts/             # utilisateurs, authentification JWT
