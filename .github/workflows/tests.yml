@@ -146,7 +146,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     # Jetables, comme la base qui les reçoit. `E2E_*` et `DJANGO_SUPERUSER_*`
     # désignent le même compte : celui que le parcours connecte est celui créé.
@@ -181,8 +181,10 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
 
+      # Ne borne que l'attente des sondes, pas la construction : ~20 s mesurées
+      # sur le runner. 180 laisse sa marge, un service jamais sain échoue ici.
       - name: Pile de développement
-        run: docker compose up -d --wait --wait-timeout 300
+        run: docker compose up -d --wait --wait-timeout 180
 
       # --noinput lit chaque champ de REQUIRED_FIELDS dans DJANGO_SUPERUSER_<CHAMP>.
       # `exec` ne transmet que les `-e` nommés ; `-T`, faute de terminal ici.
