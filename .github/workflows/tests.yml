@@ -1,4 +1,4 @@
-# Lance les deux suites à chaque intégration. Fichier distinct de
+# Lance les suites à chaque intégration. Fichier distinct de
 # docker-images.yml, dont l'objet est la construction d'images : deux workflows
 # donnent deux journaux, et l'un se modifie sans risquer l'autre.
 
@@ -127,8 +127,7 @@ jobs:
         run: npm run lint
 
       # `!cancelled()` : un style refusé ne cache pas l'état des tests et du
-      # build, le job restant rouge dès qu'une étape échoue. Playwright a son
-      # propre job, `e2e`, qui monte la pile Compose dont il a besoin.
+      # build, le job restant rouge dès qu'une étape échoue.
       - name: Suite Vitest
         if: ${{ !cancelled() }}
         run: npm test
@@ -166,6 +165,22 @@ jobs:
           cp .env.example .env
           cp frontend/.env.example frontend/.env
 
+      # Avant la pile : le volume anonyme du conteneur créerait sinon
+      # frontend/node_modules au nom de root, et npm ci y échouerait.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # La version de Chromium suit celle de @playwright/test : l'installer
+      # après npm ci, jamais avant.
+      - name: Playwright et Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
       - name: Pile de développement
         run: docker compose up -d --wait --wait-timeout 300
 
@@ -184,20 +199,6 @@ jobs:
           -e DJANGO_SUPERUSER_FIRST_NAME
           -e DJANGO_SUPERUSER_LAST_NAME
           backend python manage.py createsuperuser --noinput
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      # La version de Chromium suit celle de @playwright/test : l'installer
-      # après npm ci, jamais avant.
-      - name: Playwright et Chromium
-        working-directory: frontend
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
 
       # `CI`, posée par GitHub, arme le `forbidOnly` de playwright.config.ts.
       - name: Parcours en navigateur
