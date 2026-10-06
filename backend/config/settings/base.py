@@ -263,3 +263,57 @@ DEFAULT_FROM_EMAIL = env_str('DEFAULT_FROM_EMAIL', 'no-reply@weeb.local')
 # passe en tête. C'est l'adresse du front, pas celle de l'API : le destinataire
 # clique vers une page React. Sans barre oblique finale, un chemin s'y ajoute.
 FRONTEND_URL = env_str('FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+
+
+# --- Rapports d'erreur ---
+# Destinataires du rapport de chaque 500, DEBUG éteint. Vide : aucun envoi.
+ADMINS = env_list('DJANGO_ADMINS')
+
+# Le défaut de Django, `root@localhost`, serait refusé par le relais.
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+
+# Ici et non en production : la suite de tests vérifie ce que le rapport laisse sortir.
+DEFAULT_EXCEPTION_REPORTER = 'config.rapport_erreurs.RapportSansUtilisateur'
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'config.rapport_erreurs.FiltreSansDonneesPersonnelles'
+
+
+# --- Journaux ---
+def _hors_console_de_django(record):
+    """Écarte une ligne que le handler console de Django affiche déjà, DEBUG actif."""
+    # Lu à l'écriture et non ici : development.py redéfinit DEBUG après ce fichier.
+    from django.conf import settings
+
+    return not (settings.DEBUG and (record.name == 'django' or record.name.startswith('django.')))
+
+
+_NIVEAU_DES_JOURNAUX = env_str('DJANGO_LOG_LEVEL', 'INFO').upper()
+
+# S'ajoute à la configuration que Django pose d'abord. Ne pas redéfinir le logger
+# `django` : la redéfinition lui retirerait son handler `mail_admins`.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'horodate': {'format': '{asctime} {levelname} {name} {message}', 'style': '{'},
+    },
+    'filters': {
+        'hors_console_de_django': {
+            '()': 'django.utils.log.CallbackFilter',
+            'callback': _hors_console_de_django,
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'horodate',
+            'filters': ['hors_console_de_django'],
+            # Sur le handler aussi : le niveau de la racine ne filtre pas ce que lui
+            # transmettent ses enfants, et Django règle `django` sur INFO.
+            'level': _NIVEAU_DES_JOURNAUX,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': _NIVEAU_DES_JOURNAUX,
+    },
+}

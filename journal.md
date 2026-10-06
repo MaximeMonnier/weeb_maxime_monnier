@@ -1235,3 +1235,56 @@ Le lot pèse **474 insertions pour 230 suppressions** sur 15 fichiers, hors `cor
 - Aucun fichier de `backend/` ni aucun composant n'a changé.
 - Front : `npm run lint` ne rend rien, `npm test` rend `Tests  163 passed (163)` sur 20
   fichiers, et `npm run build` aboutit.
+
+## Lot 18 — Modifier et supprimer un article depuis le front
+
+Clos le 2026-10-06 · Epic #302 · Alimente : Bloc 1 — qualité
+
+**Constat mesuré** — l'audit du 2026-10-05, point 8 : l'API offrait le CRUD complet au
+propriétaire (`IsOwnerOrReadOnly`), mais le front ne savait que créer. Pour corriger une
+coquille ou retirer son article, l'auteur devait passer par l'admin. Le front ignorait
+d'ailleurs qui lisait : le détail ne rendait de l'auteur que son `public_name`. Filet de
+départ : **163 tests front et 29 tests `articles`**.
+
+**Décision et justification** :
+
+- le détail rend un booléen `is_author` (#303), calculé sur `request.user`, plutôt que
+  l'identifiant de l'auteur à comparer côté front : rien de plus ne sort sur l'auteur, et
+  l'endpoint profil d'`AMELIORATIONS.md` reste hors périmètre. La liste et son
+  `defer("content")` ne changent pas ;
+- la modale de `Blog.tsx` est extraite d'abord dans `ui/Modal` (#304) : modifier et supprimer
+  en ajoutaient deux sur la page d'un article, soit trois copies du même assemblage. Échap
+  repasse par `onClose`, qui garde l'état de la page aligné sur la fenêtre ;
+- `FormArticle` s'étend à l'édition au lieu d'être dupliqué (#305) : prérempli par l'article,
+  il envoie un `PATCH` portant `title` et `content` seuls, et n'est monté qu'à l'ouverture
+  pour toujours repartir de l'article affiché ;
+- la suppression (#306) se confirme dans la `Modal`, jamais par `window.confirm`. Elle mène à
+  `/blog` en remplaçant l'entrée d'historique : le retour arrière ne rouvre pas la page d'un
+  article effacé. Son état tient en trois `useState`, sans `useForm`, faute de champ à saisir.
+
+**Ce qui a surpris** — trois constats.
+
+**Le plan comptait deux sous-issues, il en a fallu quatre.** La question du plan, « la modale
+de `Blog.tsx` se réutilise-t-elle », est devenue un ticket à part. 18.2 a été coupée en
+modifier et supprimer, chacun avec sa revue et sa mutation.
+
+**« Annuler » mentait pendant la suppression.** La revue l'a trouvé : une fois le `DELETE`
+parti, « Annuler » fermait encore la fenêtre, et la page basculait ensuite sur `/blog`.
+« Annuler » et Échap sont désormais verrouillés jusqu'à la réponse. « Fermer » reste actif
+exprès : le refuser laisserait l'état ouvert si Chrome force la fermeture au second Échap.
+
+**La CI est tombée sur une dépendance étrangère au lot.** `npm audit` a refusé
+`source-map-js` 1.2.1 (GHSA-68fv-2mgg-jv7q), tiré par Vite, Tailwind et jsdom. La montée
+en 1.2.2 est passée dans la branche de #306, en commit à part.
+
+Le lot pèse **522 insertions pour 43 suppressions** sur 12 fichiers, hors `correction.md`, en
+10 commits.
+
+**Preuve de la correction** — rejouée sur `preprod` à `5cf6b20`.
+- Deux mutations font tomber leurs tests, puis sont restaurées :
+  - `author_id != request.user.pk` dans `get_is_author` : 3 tests `ArticleEstAuteurTests` ;
+  - la condition `is_author` inversée dans `ArticleDetails.tsx` : 7 tests.
+- `GET /api/articles/` ne rend `is_author` pour aucun article (test de la liste).
+- Back : `manage.py test` passe ses 119 tests, et `makemigrations --check` ne détecte rien.
+- Front : `npm run lint` ne rend rien, `npm test` rend `Tests  174 passed (174)` sur 20
+  fichiers, `npm run build` aboutit, et `npm audit` ne trouve aucune vulnérabilité.

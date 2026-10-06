@@ -174,15 +174,19 @@ npx playwright show-trace test-results/<dossier-du-cas>/trace.zip
 ### Intégration continue
 
 Deux workflows partent à chaque push sur `preprod` ou `main` et sur chaque pull request qui
-vise l'une des deux. Aucun ne publie rien.
+vise l'une des deux. Seul un push sur `main` publie quelque chose : les deux images, sur GHCR.
 
 | Workflow | Jobs | Ce qu'il lance |
 |---|---|---|
-| `.github/workflows/tests.yml` | `backend`, `frontend` | la suite Django sur PostgreSQL 17 et `pip-audit` ; `npm run lint`, `npm test`, `npm run build` et `npm audit` |
+| `.github/workflows/tests.yml` | `backend`, `frontend`, `e2e` | la suite Django sur PostgreSQL 17 et `pip-audit` ; `npm run lint`, `npm test`, `npm run build` et `npm audit` ; le parcours Playwright sur la pile de `compose.dev.yaml`, avec un compte créé pour lui |
 | `.github/workflows/docker-images.yml` | `backend`, `frontend` | la construction des deux images, le front en cible `prod` |
 
-Le parcours Playwright n'y tourne pas. Reproduire la construction des images à partir du dernier
-commit, sans rien de non versionné :
+Sur push `main`, `docker-images.yml` pousse `ghcr.io/maximemonnier/weeb-backend` et
+`ghcr.io/maximemonnier/weeb-frontend`, étiquetées par le SHA du commit et `latest`. Publiques,
+elles se tirent sans `docker login`. Une image qui vient d'être créée sur GHCR est privée : il
+faut la rendre publique à la main dans les réglages du paquet.
+
+Reproduire la construction des images à partir du dernier commit, sans rien de non versionné :
 
 ```bash
 mkdir -p /tmp/weeb-propre && git archive HEAD | tar -x -C /tmp/weeb-propre
@@ -285,8 +289,10 @@ cp .env.prod.example .env.prod
 | `DJANGO_BEHIND_PROXY` | `1` | Django croit le `X-Forwarded-Proto` que le nginx du serveur écrase |
 | `CORS_ALLOWED_ORIGINS` | **vide** | site et API sur la même origine. La ligne doit rester : omise, la production hériterait des origines du développement |
 | `DJANGO_HSTS_SECONDS` | `0` | tant que la pile est jointe sur `localhost` ; monter par paliers avec un vrai domaine |
+| `DJANGO_LOG_LEVEL` | `INFO` | la ligne doit rester : omise, la production hériterait d'un `DEBUG` posé dans le `.env` |
 | `EMAIL_HOST` | le relais SMTP | **exigée** : le backend refuse de démarrer sans |
 | `FRONTEND_URL` | l'adresse publique du front | **exigée** : racine des liens écrits dans les emails |
+| `DJANGO_ADMINS` | les adresses qui suivent le site | **exigée** : destinataires du rapport de chaque erreur 500 |
 
 Les autres lignes de `.env.prod.example` (expéditeur, port, identifiants SMTP) restent toutes
 décommentées : supprimée, une ligne hérite de la valeur du `.env`, réglée pour Mailpit.
@@ -298,8 +304,12 @@ docker compose -f compose.prod.yaml up -d --wait --wait-timeout 60
 docker compose -f compose.prod.yaml ps
 docker compose -f compose.prod.yaml logs -f backend
 docker compose -f compose.prod.yaml exec backend python manage.py createsuperuser
+docker compose -f compose.prod.yaml exec backend python manage.py sendtestemail --admins
 docker compose -f compose.prod.yaml down
 ```
+
+`sendtestemail --admins` vérifie la chaîne d'envoi des rapports d'erreur : relais, expéditeur
+et `DJANGO_ADMINS`.
 
 Sans `--wait-timeout`, `--wait` attend indéfiniment un service qui reboucle. Vérifier la pile
 avant de mettre nginx devant :

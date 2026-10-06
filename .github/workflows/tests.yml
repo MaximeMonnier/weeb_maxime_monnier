@@ -1,4 +1,4 @@
-# Lance les deux suites à chaque intégration. Fichier distinct de
+# Lance les suites à chaque intégration. Fichier distinct de
 # docker-images.yml, dont l'objet est la construction d'images : deux workflows
 # donnent deux journaux, et l'un se modifie sans risquer l'autre.
 
@@ -22,9 +22,8 @@ concurrency:
 permissions:
   contents: read
 
-# Aucun `needs` entre les deux jobs : ils partent ensemble et vont au bout
-# chacun de leur côté, donc une seule exécution suffit à connaître l'état des
-# deux suites.
+# Aucun `needs` entre les jobs : ils partent ensemble et vont au bout chacun de
+# leur côté, donc une seule exécution suffit à connaître l'état des suites.
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -128,8 +127,7 @@ jobs:
         run: npm run lint
 
       # `!cancelled()` : un style refusé ne cache pas l'état des tests et du
-      # build, le job restant rouge dès qu'une étape échoue. Playwright reste
-      # dehors, faute de pile Compose et de navigateur.
+      # build, le job restant rouge dès qu'une étape échoue.
       - name: Suite Vitest
         if: ${{ !cancelled() }}
         run: npm test
@@ -145,3 +143,81 @@ jobs:
       - name: Audit des dépendances
         if: ${{ !cancelled() }}
         run: npm audit
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Jetables, comme la base qui les reçoit. `E2E_*` et `DJANGO_SUPERUSER_*`
+    # désignent le même compte : celui que le parcours connecte est celui créé.
+    env:
+      E2E_EMAIL: parcours@weeb.local
+      E2E_PASSWORD: Parcours-de-ci-42
+      COMPOSE_FILE: compose.dev.yaml
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Aucun des deux n'est versionné. Le second sert le Vite du conteneur, qui
+      # lit le code monté : sans VITE_API_URL, le front s'arrête au chargement.
+      - name: Fichiers d'environnement
+        run: |
+          cp .env.example .env
+          cp frontend/.env.example frontend/.env
+
+      # Avant la pile : le volume anonyme du conteneur créerait sinon
+      # frontend/node_modules au nom de root, et npm ci y échouerait.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # La version de Chromium suit celle de @playwright/test : l'installer
+      # après npm ci, jamais avant.
+      - name: Playwright et Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # Ne borne que l'attente des sondes, pas la construction : ~20 s mesurées
+      # sur le runner. 180 laisse sa marge, un service jamais sain échoue ici.
+      - name: Pile de développement
+        run: docker compose up -d --wait --wait-timeout 180
+
+      # --noinput lit chaque champ de REQUIRED_FIELDS dans DJANGO_SUPERUSER_<CHAMP>.
+      # `exec` ne transmet que les `-e` nommés ; `-T`, faute de terminal ici.
+      - name: Compte de test actif
+        env:
+          DJANGO_SUPERUSER_EMAIL: ${{ env.E2E_EMAIL }}
+          DJANGO_SUPERUSER_PASSWORD: ${{ env.E2E_PASSWORD }}
+          DJANGO_SUPERUSER_FIRST_NAME: Parcours
+          DJANGO_SUPERUSER_LAST_NAME: Navigateur
+        run: >-
+          docker compose exec -T
+          -e DJANGO_SUPERUSER_EMAIL
+          -e DJANGO_SUPERUSER_PASSWORD
+          -e DJANGO_SUPERUSER_FIRST_NAME
+          -e DJANGO_SUPERUSER_LAST_NAME
+          backend python manage.py createsuperuser --noinput
+
+      # `CI`, posée par GitHub, arme le `forbidOnly` de playwright.config.ts.
+      - name: Parcours en navigateur
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Journaux de la pile
+        if: ${{ failure() }}
+        run: docker compose logs
+
+      # La trace contient le mot de passe en clair : sans conséquence ici, le
+      # compte disparaissant avec la machine.
+      - name: Traces Playwright
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: traces-playwright
+          path: frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

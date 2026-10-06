@@ -1,13 +1,20 @@
-"""Tests transversaux : la route de santé, et les droits de chaque profil sur l'API."""
+"""Tests transversaux : la route de santé, les journaux, le rapport des 500, et les droits de chaque profil sur l'API."""
 
+import logging
+import os
+import runpy
+from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import urlencode
 
+from django.core import mail
 from django.db import DatabaseError
-from django.test import TestCase
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import URLResolver, get_resolver, reverse
 from rest_framework_simplejwt.tokens import AccessToken
 
 from accounts.models import CustomUser
+from accounts.views import PasswordChangeView
 from articles.models import Article
 
 
@@ -30,6 +37,89 @@ class HealthTests(TestCase):
             response = self.client.get(reverse("health"))
 
         self.assertEqual(response.status_code, 503)
+
+
+class JournauxTests(SimpleTestCase):
+    """La configuration chargée, lue sur les loggers : assertLogs poserait son propre handler."""
+
+    def console_racine(self):
+        consoles = [h for h in logging.getLogger().handlers if type(h) is logging.StreamHandler]
+        self.assertEqual(len(consoles), 1)
+        return consoles[0]
+
+    def test_le_journal_racine_ecrit_heure_niveau_et_nom(self):
+        console = self.console_racine()
+        ligne = logging.makeLogRecord(
+            {"name": "accounts.views", "levelno": logging.ERROR, "levelname": "ERROR", "msg": "panne"}
+        )
+
+        sortie = console.format(ligne)
+
+        self.assertTrue(console.formatter.usesTime())
+        self.assertIn(ligne.asctime, sortie)
+        self.assertIn("ERROR accounts.views panne", sortie)
+
+    def test_le_niveau_lu_vaut_pour_la_racine_et_le_handler(self):
+        # base.py relu à part : test.py surcharge le niveau du handler de la suite.
+        with patch.dict(os.environ, {"DJANGO_LOG_LEVEL": "error"}):
+            journaux = runpy.run_path(Path(__file__).parent / "settings" / "base.py")["LOGGING"]
+
+        self.assertEqual(journaux["root"]["level"], "ERROR")
+        self.assertEqual(journaux["handlers"]["console"]["level"], "ERROR")
+
+    def test_le_logger_django_garde_mail_admins(self):
+        classes = [type(h).__name__ for h in logging.getLogger("django").handlers]
+
+        self.assertIn("AdminEmailHandler", classes)
+
+    def test_une_ligne_de_django_ne_sort_qu_une_fois_en_debug(self):
+        console = self.console_racine()
+        de_django = logging.makeLogRecord({"name": "django.request"})
+        du_projet = logging.makeLogRecord({"name": "accounts.views"})
+
+        with override_settings(DEBUG=True):
+            self.assertFalse(console.filter(de_django))
+            self.assertTrue(console.filter(du_projet))
+        with override_settings(DEBUG=False):
+            self.assertTrue(console.filter(de_django))
+
+
+@override_settings(ADMINS=["equipe@weeb.local"])
+class RapportDErreurTests(TestCase):
+    """Le rapport d'une 500 part aux ADMINS sans mot de passe, jeton, email du compte, IP ni Referer."""
+
+    def test_une_500_envoie_un_seul_rapport_sans_donnee_personnelle(self):
+        membre = compte("membre@weeb.local")
+        jeton = str(AccessToken.for_user(membre))
+        mots_de_passe = {"old_password": "MotDePasseValide123", "new_password": "NouveauSecret456"}
+        en_tetes = {
+            "REMOTE_ADDR": "198.51.100.9",
+            "HTTP_X_REAL_IP": "203.0.113.8",
+            "HTTP_X_FORWARDED_FOR": "203.0.113.7",
+            "HTTP_REFERER": "https://weeb.example/reset-password?uid=MQ&token=jeton-encore-valable",
+        }
+        # Sinon le client relance l'exception au test, avant tout envoi.
+        client = Client(raise_request_exception=False)
+
+        with patch.object(PasswordChangeView, "post", side_effect=RuntimeError("panne simulée")):
+            response = client.post(
+                reverse("password-change"),
+                urlencode(mots_de_passe),
+                content_type="application/x-www-form-urlencoded",
+                HTTP_AUTHORIZATION=f"Bearer {jeton}",
+                **en_tetes,
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(len(mail.outbox), 1)
+        rapport = mail.outbox[0]
+        self.assertEqual(rapport.to, ["equipe@weeb.local"])
+        self.assertEqual(rapport.alternatives, [])
+        # Les clés restent : le rapport a bien lu le corps et les en-têtes qu'il masque.
+        for cle in [*mots_de_passe, *en_tetes]:
+            self.assertIn(cle, rapport.body)
+        for fuite in [*mots_de_passe.values(), *en_tetes.values(), jeton, membre.email]:
+            self.assertNotIn(fuite, rapport.body)
 
 
 PUBLIC, CONNECTE, AUTEUR = "public", "connecté", "auteur"

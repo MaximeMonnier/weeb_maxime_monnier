@@ -50,7 +50,7 @@ et pour les prochaines itérations).
 
 ## Docker — mise en ligne
 
-Trois critères de l'epic de dockerisation #47 qu'aucune sous-issue n'a livrés, plus une dette
+Deux critères de l'epic de dockerisation #47 qu'aucune sous-issue n'a livrés, plus une dette
 née de la façade. Rien de ce qui reste ne bloque le développement.
 
 - [ ] **Durcir la façade du serveur.** Le nginx du serveur ne fait aujourd'hui que router :
@@ -70,11 +70,13 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
 - [ ] **Exécution des tests en conteneur isolé** : sur l'image de production, avec un
       service `db` éphémère, jamais sur l'image de développement. À reprendre avec le
       chantier des tests, qui dépasse Docker.
-- [ ] **Les images ne sont publiées vers aucun registre.** `docker-images.yml` les construit
-      sans les pousser, écarté volontairement le 2026-09-03 alors que l'epic #47 le
-      demandait : sans serveur où faire `docker pull`, une image publiée ne sert à personne.
-      Piste : ajouter le `push` au workflow existant le jour où une mise en ligne existe,
-      conditionné à un push sur `main`, sinon chaque pull request pousserait une image.
+
+## Intégration continue
+
+- [ ] **Épingler les actions des workflows par SHA.** `tests.yml` et `docker-images.yml`
+      les visent par étiquette (`@v7`, `@v4`), qu'un éditeur compromis peut déplacer.
+      Depuis l'issue #314, `docker-images.yml` tient un jeton `packages: write` : une action
+      détournée pourrait publier sur GHCR. Viser le SHA complet, l'étiquette en commentaire.
 
 ## Backend — sécurité
 
@@ -116,11 +118,6 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       réinitialisation. Depuis #68 la réinitialisation n'a plus de 404 pour le signaler,
       la panne est donc muette. À trancher globalement — normaliser à l'inscription, ou
       passer login et réinitialisation en `iexact` ensemble — jamais d'un seul côté.
-- [ ] **Aucun `LOGGING` dans `config/settings/`.** `send_password_reset_link` avale la
-      panne SMTP pour ne pas trahir l'existence du compte, et `logger.exception` est alors
-      sa seule trace ; faute de configuration, elle sort par le handler de dernier recours
-      de Python, sans horodatage ni niveau, hors de portée de `mail_admins`. Un handler
-      console explicite suffirait à rendre ce chemin d'échec lisible.
 - [ ] **Rien ne purge les tables de `token_blacklist`.** Depuis l'issue #72, chaque connexion
       et chaque rafraîchissement y écrivent une ligne qu'aucun processus ne reprend :
       `OutstandingToken` et `BlacklistedToken` ne font que croître, y compris pour des jetons
@@ -151,6 +148,12 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       passent par le nginx du serveur jusqu'à Django, sans en-tête. Piste : `SECURE_CSP` et
       `ContentSecurityPolicyMiddleware`, livrés par Django 6.0, dans `production.py` —
       après avoir mesuré ce que l'admin exige en scripts et styles en ligne.
+- [ ] **Le rapport des 500 reprend le message de l'exception et les paramètres d'URL.**
+      L'issue #319 y masque le corps POST, les IP, le Referer et la ligne `USER`, pas le
+      reste : le message d'une `IntegrityError` PostgreSQL cite la valeur en cause, un email
+      par exemple, et les paramètres `GET` sortent en clair, dans l'URL comme dans leur section.
+      Piste : étendre `RapportSansUtilisateur` (`config/rapport_erreurs.py`) pour masquer
+      les valeurs `GET` et ne garder que le type des erreurs de base de données.
 
 ## Backend — code
 
@@ -177,15 +180,5 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       s'exécutait jamais. C'est une fonctionnalité, pas un nettoyage. Piste : un `ImageField`
       (donc Pillow), des médias servis par le conteneur du front comme `/static/`, et le champ
       ajouté aux types `Article` et `ArticleListItem` en même temps qu'aux serializers.
-
-## Tests
-
-- [ ] **Le parcours Playwright ne tourne pas en intégration continue.** `tests.yml` lance
-      les suites Django et Vitest, mais `npm run test:e2e` exige la pile de `compose.dev.yaml`
-      démarrée et les navigateurs de Playwright, qu'aucun job ne prépare. Le `forbidOnly` de
-      `playwright.config.ts` reste donc une garde qui ne s'arme jamais. Piste : un job qui
-      monte la pile par Compose et installe Chromium, avec un compte de test créé avant le
-      parcours. Distinct de « Exécution des tests en conteneur isolé », qui vise l'image de
-      production.
 
 ## (à compléter au fil de l'eau)
