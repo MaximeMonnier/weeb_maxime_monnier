@@ -1,9 +1,10 @@
-"""Tests transversaux : la route de santé, et les droits de chaque profil sur l'API."""
+"""Tests transversaux : la route de santé, les journaux, et les droits de chaque profil sur l'API."""
 
+import logging
 from unittest.mock import patch
 
 from django.db import DatabaseError
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import URLResolver, get_resolver, reverse
 from rest_framework_simplejwt.tokens import AccessToken
 
@@ -30,6 +31,43 @@ class HealthTests(TestCase):
             response = self.client.get(reverse("health"))
 
         self.assertEqual(response.status_code, 503)
+
+
+class JournauxTests(SimpleTestCase):
+    """La configuration chargée, lue sur les loggers : assertLogs poserait son propre handler."""
+
+    def console_racine(self):
+        consoles = [h for h in logging.getLogger().handlers if type(h) is logging.StreamHandler]
+        self.assertEqual(len(consoles), 1)
+        return consoles[0]
+
+    def test_le_journal_racine_ecrit_heure_niveau_et_nom(self):
+        console = self.console_racine()
+        ligne = logging.makeLogRecord(
+            {"name": "accounts.views", "levelno": logging.ERROR, "levelname": "ERROR", "msg": "panne"}
+        )
+
+        sortie = console.format(ligne)
+
+        self.assertTrue(console.formatter.usesTime())
+        self.assertIn(ligne.asctime, sortie)
+        self.assertIn("ERROR accounts.views panne", sortie)
+
+    def test_le_logger_django_garde_mail_admins(self):
+        classes = [type(h).__name__ for h in logging.getLogger("django").handlers]
+
+        self.assertIn("AdminEmailHandler", classes)
+
+    def test_une_ligne_de_django_ne_sort_qu_une_fois_en_debug(self):
+        console = self.console_racine()
+        de_django = logging.makeLogRecord({"name": "django.request"})
+        du_projet = logging.makeLogRecord({"name": "accounts.views"})
+
+        with override_settings(DEBUG=True):
+            self.assertFalse(console.filter(de_django))
+            self.assertTrue(console.filter(du_projet))
+        with override_settings(DEBUG=False):
+            self.assertTrue(console.filter(de_django))
 
 
 PUBLIC, CONNECTE, AUTEUR = "public", "connecté", "auteur"

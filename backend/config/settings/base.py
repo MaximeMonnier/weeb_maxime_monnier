@@ -263,3 +263,40 @@ DEFAULT_FROM_EMAIL = env_str('DEFAULT_FROM_EMAIL', 'no-reply@weeb.local')
 # passe en tête. C'est l'adresse du front, pas celle de l'API : le destinataire
 # clique vers une page React. Sans barre oblique finale, un chemin s'y ajoute.
 FRONTEND_URL = env_str('FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+
+
+# --- Journaux ---
+def _hors_console_de_django(record):
+    """Écarte une ligne que le handler console de Django affiche déjà, DEBUG actif."""
+    # Lu à l'écriture et non ici : development.py redéfinit DEBUG après ce fichier.
+    from django.conf import settings
+
+    return not (settings.DEBUG and (record.name == 'django' or record.name.startswith('django.')))
+
+
+# S'ajoute à la configuration que Django pose d'abord. Ne pas redéfinir le logger
+# `django` : la redéfinition lui retirerait son handler `mail_admins`.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'horodate': {'format': '{asctime} {levelname} {name} {message}', 'style': '{'},
+    },
+    'filters': {
+        'hors_console_de_django': {
+            '()': 'django.utils.log.CallbackFilter',
+            'callback': _hors_console_de_django,
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'horodate',
+            'filters': ['hors_console_de_django'],
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': env_str('DJANGO_LOG_LEVEL', 'INFO').upper(),
+    },
+}
