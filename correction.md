@@ -2820,7 +2820,7 @@ apiFetch.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| À planifier | — | — | Bloc 1 — qualité |
+| Clos le 2026-10-06 — 2 sous-issues prévues, 4 livrées (la modale extraite, 18.2 coupée en modifier et supprimer) ; `source-map-js` monté en route | #302 | Lot 18 | Bloc 1 — qualité |
 
 **Origine** : audit du 2026-10-05, point 8. L'API offre le CRUD complet au propriétaire
 (`ModelViewSet`, `IsOwnerOrReadOnly`, `permissions.py:12`, six tests `ArticleProprieteTests`),
@@ -2834,8 +2834,8 @@ que l'API ne lui dit pas qui est l'auteur.
 
 ## 18.1 — Dire au front si le lecteur est l'auteur
 
-- [ ] **Fichiers** : `backend/articles/serializers.py`, `backend/articles/tests.py`,
-  `frontend/src/types/article.ts`
+- [x] **Fichiers** : `backend/articles/serializers.py`, `backend/articles/tests.py`,
+  `frontend/src/types/article.ts` — livré par #303 (PR #307)
 - **Constat** : `ArticleSerializer` (`serializers.py:5-14`) ne rend de l'auteur que son
   `public_name`. C'est voulu : aucun email ni identifiant ne sort sur le blog public. Mais le
   front ne peut donc pas savoir si le lecteur est l'auteur, et ne sait pas qui il est
@@ -2855,8 +2855,10 @@ Consulte `backend-django-drf` et `inventaire-avant-dev`.
 
 ## 18.2 — Modifier et supprimer depuis la page de l'article
 
-- [ ] **Fichiers** : `frontend/src/pages/Blog/ArticleDetails.tsx`,
-  `frontend/src/components/common/Blog/FormArticle.tsx`, leurs tests
+- [x] **Fichiers** : `frontend/src/pages/Blog/ArticleDetails.tsx`,
+  `frontend/src/components/common/Blog/FormArticle.tsx`, leurs tests, et
+  `frontend/src/components/ui/Modal/Modal.tsx` — livré par #304 (PR #308), #305 (PR #309) et
+  #306 (PR #311)
 - **Constat** : `ArticleDetails.tsx:119-131` affiche titre, signature et paragraphes, sans
   aucune action. `FormArticle` ne sait que créer : valeurs initiales vides, `POST` en dur.
 - **Attendu** : l'auteur, et lui seul, voit « Modifier » et « Supprimer ». « Modifier » ouvre
