@@ -118,11 +118,6 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       réinitialisation. Depuis #68 la réinitialisation n'a plus de 404 pour le signaler,
       la panne est donc muette. À trancher globalement — normaliser à l'inscription, ou
       passer login et réinitialisation en `iexact` ensemble — jamais d'un seul côté.
-- [ ] **Aucun `LOGGING` dans `config/settings/`.** `send_password_reset_link` avale la
-      panne SMTP pour ne pas trahir l'existence du compte, et `logger.exception` est alors
-      sa seule trace ; faute de configuration, elle sort par le handler de dernier recours
-      de Python, sans horodatage ni niveau, hors de portée de `mail_admins`. Un handler
-      console explicite suffirait à rendre ce chemin d'échec lisible.
 - [ ] **Rien ne purge les tables de `token_blacklist`.** Depuis l'issue #72, chaque connexion
       et chaque rafraîchissement y écrivent une ligne qu'aucun processus ne reprend :
       `OutstandingToken` et `BlacklistedToken` ne font que croître, y compris pour des jetons
