@@ -15,6 +15,7 @@ import ArticleDetails from "./ArticleDetails";
 import {
   appelReseau,
   couperLeReseau,
+  dernierAppel,
   reponse,
   retablirLeReseau,
 } from "../../test/reseau";
@@ -77,6 +78,14 @@ function rendreLeDetail(chemin = "/articles/1") {
 }
 
 beforeEach(() => {
+  // jsdom n'implémente ni `showModal` ni `close` : ces doublons ne posent que
+  // l'attribut, sans quoi le contenu de la fenêtre resterait hors de l'arbre.
+  HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  };
   couperLeReseau();
   appelReseau.mockResolvedValue(reponseArticle(ARTICLE));
 });
@@ -288,23 +297,15 @@ describe("ArticleDetails — modification par l'auteur", () => {
   const ARTICLE_DE_L_AUTEUR = { ...ARTICLE, is_author: true };
   const BOUTON_MODIFIER = { name: "Modifier" };
 
-  // jsdom n'implémente ni `showModal` ni `close` : ces doublons ne posent que
-  // l'attribut, sans quoi le contenu de la fenêtre resterait hors de l'arbre.
-  beforeEach(() => {
-    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
-      this.setAttribute("open", "");
-    };
-    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
-      this.removeAttribute("open");
-    };
-  });
-
-  it("ne propose pas la modification à qui n'a pas écrit l'article", async () => {
+  it("ne propose ni modification ni suppression à qui n'a pas écrit l'article", async () => {
     rendreLeDetail();
 
     expect(await screen.findByText(ARTICLE.title)).toBeInTheDocument();
     expect(
       screen.queryByRole("button", BOUTON_MODIFIER),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Supprimer" }),
     ).not.toBeInTheDocument();
   });
 
@@ -343,5 +344,83 @@ describe("ArticleDetails — modification par l'auteur", () => {
     ).not.toBeInTheDocument();
     // Le chargement initial et le PATCH, rien de plus : aucun rechargement.
     expect(appelReseau).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("ArticleDetails — suppression par l'auteur", () => {
+  const ARTICLE_DE_L_AUTEUR = { ...ARTICLE, is_author: true };
+  const SUPPRIMER = { name: "Supprimer" };
+
+  // Le bouton de la page et celui de la fenêtre portent le même nom : la
+  // confirmation se cherche dans la fenêtre seule.
+  async function ouvrirLaConfirmation() {
+    appelReseau.mockResolvedValueOnce(reponseArticle(ARTICLE_DE_L_AUTEUR));
+    rendreLeDetail();
+    await userEvent.click(await screen.findByRole("button", SUPPRIMER));
+    return within(screen.getByRole("dialog", { name: "Supprimer l'article" }));
+  }
+
+  it("ferme la confirmation sans rien envoyer à l'annulation", async () => {
+    const fenetre = await ouvrirLaConfirmation();
+
+    await userEvent.click(fenetre.getByRole("button", { name: "Annuler" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // Le seul chargement de l'article.
+    expect(appelReseau).toHaveBeenCalledTimes(1);
+  });
+
+  it("supprime l'article puis mène au blog", async () => {
+    const fenetre = await ouvrirLaConfirmation();
+    appelReseau.mockResolvedValueOnce(reponse(204));
+
+    await userEvent.click(fenetre.getByRole("button", SUPPRIMER));
+
+    expect(await screen.findByText("Liste des articles")).toBeInTheDocument();
+    const { url, options } = dernierAppel();
+    expect(url).toBe(`${import.meta.env.VITE_API_URL}/articles/1/`);
+    expect(options.method).toBe("DELETE");
+  });
+
+  it("verrouille la confirmation tant que la suppression est en cours", async () => {
+    const fenetre = await ouvrirLaConfirmation();
+    let livrer: (reponse: unknown) => void = () => {};
+    appelReseau.mockReturnValueOnce(
+      new Promise((resolve) => {
+        livrer = resolve;
+      }),
+    );
+
+    await userEvent.click(fenetre.getByRole("button", SUPPRIMER));
+
+    expect(fenetre.getByRole("button", SUPPRIMER)).toBeDisabled();
+    expect(fenetre.getByRole("button", { name: "Annuler" })).toBeDisabled();
+    // Échap n'atteint le dialog que par cet événement : refusé, il ne ferme rien.
+    const echap = new Event("cancel", { cancelable: true });
+    screen.getByRole("dialog").dispatchEvent(echap);
+    expect(echap.defaultPrevented).toBe(true);
+
+    livrer(reponse(204));
+
+    expect(await screen.findByText("Liste des articles")).toBeInTheDocument();
+  });
+
+  it.each([
+    [403, "Vous n'avez pas les droits nécessaires pour cette action."],
+    [404, "Cet article n'existe plus : il a déjà été supprimé."],
+  ])("traduit un refus %i dans la fenêtre", async (status, message) => {
+    const fenetre = await ouvrirLaConfirmation();
+    appelReseau.mockResolvedValueOnce(
+      reponseRefusee(status, { detail: "Refus en anglais." }),
+    );
+
+    await userEvent.click(fenetre.getByRole("button", SUPPRIMER));
+
+    await waitFor(() =>
+      expect(fenetre.getByRole("alert")).toHaveTextContent(message),
+    );
+    // La fenêtre reste ouverte, prête pour un nouvel essai.
+    expect(fenetre.getByRole("button", SUPPRIMER)).toBeEnabled();
+    expect(screen.queryByText("Liste des articles")).not.toBeInTheDocument();
   });
 });

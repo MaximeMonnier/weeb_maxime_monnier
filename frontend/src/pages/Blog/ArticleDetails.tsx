@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiFetch, type ApiError } from "../../lib/api";
 import { toFormErrors } from "../../lib/apiErrors";
 import type { Article } from "../../types/article";
@@ -17,6 +17,9 @@ type Resultat = { id: string } & (
   | { statut: "introuvable" }
   | { statut: "erreur"; message: string | null }
 );
+
+const ARTICLE_DEJA_SUPPRIME =
+  "Cet article n'existe plus : il a déjà été supprimé.";
 
 // Une ligne vide sépare deux paragraphes, et chacun reçoit son `<p>` : un lecteur
 // d'écran les annonce alors un par un. Le texte reste échappé par React.
@@ -53,6 +56,10 @@ const ArticleDetails = () => {
   const { id } = useParams();
   const [resultat, setResultat] = useState<Resultat | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const navigate = useNavigate();
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     // Un `:id` vide ne vient que d'un lien fautif : l'appel partirait vers
@@ -93,6 +100,28 @@ const ArticleDetails = () => {
       obsolete = true;
     };
   }, [id]);
+
+  function fermerLaConfirmation() {
+    setIsConfirmingDelete(false);
+    setDeleteError(null);
+  }
+
+  async function supprimer(articleId: number) {
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await apiFetch<null>(`/articles/${articleId}/`, { method: "DELETE" });
+      // Remplacée : le retour arrière rouvrirait la page d'un article effacé.
+      navigate("/blog", { replace: true });
+    } catch (err) {
+      setDeleteError(
+        (err as Partial<ApiError>).status === 404
+          ? ARTICLE_DEJA_SUPPRIME
+          : toFormErrors(err, []).formError,
+      );
+      setIsDeleting(false);
+    }
+  }
 
   // Le résultat d'un autre identifiant ne vaut plus rien : le temps que la nouvelle
   // réponse arrive, l'écran repasse au chargement.
@@ -135,13 +164,17 @@ const ArticleDetails = () => {
         </div>
         {recu.article.is_author && (
           <>
-            <Button
-              variant="outline"
-              className="mt-8"
-              onClick={() => setIsEditing(true)}
-            >
-              Modifier
-            </Button>
+            <div className="mt-8 flex gap-4">
+              <Button variant="outline" onClick={() => setIsEditing(true)}>
+                Modifier
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsConfirmingDelete(true)}
+              >
+                Supprimer
+              </Button>
+            </div>
             <Modal
               open={isEditing}
               title="Modifier l'article"
@@ -160,6 +193,37 @@ const ArticleDetails = () => {
                   />
                 </div>
               )}
+            </Modal>
+            <Modal
+              open={isConfirmingDelete}
+              title="Supprimer l'article"
+              onClose={fermerLaConfirmation}
+              // Le DELETE parti ne se rappelle pas : Échap et « Annuler » se taisent
+              // jusqu'à la réponse. « Fermer » reste, qui masque sans rien promettre.
+              onCancel={(e) => {
+                if (isDeleting) e.preventDefault();
+              }}
+            >
+              <ErrorAlert message={deleteError} />
+              <p className="mb-6">
+                La suppression est définitive : l'article ne pourra pas être
+                récupéré.
+              </p>
+              <div className="flex justify-end gap-4">
+                <Button
+                  variant="outline"
+                  disabled={isDeleting}
+                  onClick={fermerLaConfirmation}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  disabled={isDeleting}
+                  onClick={() => supprimer(recu.article.id)}
+                >
+                  Supprimer
+                </Button>
+              </div>
             </Modal>
           </>
         )}
