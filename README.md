@@ -454,6 +454,8 @@ COMPOSE_FILE=compose.prod.yaml:compose.vps.yaml
 
 Sur ce serveur, les commandes de la section « Déployer » s'écrivent donc **sans** `-f`. Un
 `-f compose.prod.yaml` seul recréerait les conteneurs hors de `web`, et nginx répondrait `502`.
+Les `curl` sur `127.0.0.1` n'y répondent pas, aucun port n'étant publié : `docker compose ps`
+(trois `healthy`) en tient lieu, puis `curl -sI https://weeb.kickster.fr/api/articles/`.
 
 Côté nginx (`/home/apps/nginx`, hors dépôt) :
 
