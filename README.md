@@ -243,7 +243,7 @@ l'une ne touche pas l'autre, et elles peuvent tourner ensemble.
 
 | | développement | production |
 |---|---|---|
-| services | `db`, `mailpit`, `backend`, `frontend` | `db`, `backend`, `frontend` |
+| services | `db`, `mailpit`, `backend`, `frontend` | `db`, `backend`, `frontend`, `purge` |
 | front | Vite sur `127.0.0.1:5173`, code monté | nginx sur `127.0.0.1:8081` |
 | API | `runserver` sur `127.0.0.1:8000`, code monté | Gunicorn sur `127.0.0.1:8001` |
 | base | publiée sur `127.0.0.1:5432` | non publiée |
@@ -325,6 +325,9 @@ ensuite celles de GHCR.
 
 `sendtestemail --admins` vérifie la chaîne d'envoi des rapports d'erreur : relais, expéditeur
 et `DJANGO_ADMINS`.
+
+`purge` lance `purger_contacts` et `flushexpiredtokens` au démarrage puis chaque jour ;
+`restart purge` le relance, `ps` dit s'il échoue.
 
 Sans `--wait-timeout`, `--wait` attend indéfiniment un service qui reboucle. Vérifier la pile
 avant de mettre nginx devant :

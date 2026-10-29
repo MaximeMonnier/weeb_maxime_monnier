@@ -118,14 +118,6 @@ née de la façade. Rien de ce qui reste ne bloque le développement.
       réinitialisation. Depuis #68 la réinitialisation n'a plus de 404 pour le signaler,
       la panne est donc muette. À trancher globalement — normaliser à l'inscription, ou
       passer login et réinitialisation en `iexact` ensemble — jamais d'un seul côté.
-- [ ] **Rien ne purge les tables de `token_blacklist`.** Depuis l'issue #72, chaque connexion
-      et chaque rafraîchissement y écrivent une ligne qu'aucun processus ne reprend :
-      `OutstandingToken` et `BlacklistedToken` ne font que croître, y compris pour des jetons
-      expirés depuis longtemps et donc sans effet. simplejwt livre la commande
-      `python manage.py flushexpiredtokens` pour ce ménage, mais rien ne la déclenche — le
-      dépôt n'a ni tâche planifiée ni cron dans ses conteneurs. Sans conséquence à l'échelle
-      d'un projet pédagogique ; à reprendre le jour où une file de tâches entrera, la même
-      qui manque à l'envoi des emails ci-dessus.
 - [ ] **Une connexion à l'ancien mot de passe peut survivre au changement.** L'issue #250 a
       sérialisé la rotation de `login/refresh/` et `set_password_and_revoke` par un verrou sur
       la ligne du compte, mais `login/` ne le prend pas : une connexion lancée pendant la

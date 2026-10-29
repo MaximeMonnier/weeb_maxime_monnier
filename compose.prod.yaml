@@ -54,14 +54,14 @@ services:
     # Le dernier l'emporte : .env.prod réécrit ce qui diffère et ajoute
     # EMAIL_HOST, FRONTEND_URL et DJANGO_ADMINS. ⚠️ Pour le conteneur seul : les
     # `${...}` d'ici se lisent dans le .env — README, § « La configuration de production ».
-    env_file:
+    env_file: &env-django
       - .env
       - .env.prod
 
     # `production` redit l'image, en regard de compose.dev.yaml. `db:5432` contredit
     # le .env, qui décrit la base vue depuis la machine : c'est la topologie du
     # réseau, pas de la configuration.
-    environment:
+    environment: &environment-django
       DJANGO_SETTINGS_MODULE: config.settings.production
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
@@ -97,6 +97,46 @@ services:
       timeout: 5s
       retries: 6
       start_period: 30s
+
+  # Ménage quotidien : messages de contact de plus de 90 jours, durée promise par
+  # /privacy, et jetons expirés de la liste noire. Au démarrage, puis toutes les 24 h.
+  purge:
+    image: "ghcr.io/maximemonnier/weeb-backend:${IMAGE_TAG:-latest}"
+
+    env_file: *env-django
+    environment: *environment-django
+
+    # `set -e` : un échec arrête le conteneur, `restart` le relance et `ps` le
+    # montre, au lieu d'une erreur noyée dans les journaux jusqu'au lendemain.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        while :; do
+          python manage.py purger_contacts
+          python manage.py flushexpiredtokens
+          echo "Jetons expirés purgés."
+          sleep 86400
+        done
+
+    # Un `sh` en PID 1 ignore le SIGTERM de `docker stop` : chaque déploiement
+    # attendrait les 10 s du délai de grâce. tini le lui transmet.
+    init: true
+
+    # Sinon la sonde de l'image interroge un Gunicorn qui ne tourne pas ici.
+    healthcheck:
+      disable: true
+
+    # Les tables à purger n'existent qu'une fois les migrations du backend passées.
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    networks:
+      - interne
+
+    restart: unless-stopped
 
   frontend:
     image: "ghcr.io/maximemonnier/weeb-frontend:${IMAGE_TAG:-latest}"
