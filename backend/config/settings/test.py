@@ -1,5 +1,10 @@
 """Réglages des tests automatisés : aucun secret Django réel, mais une vraie base PostgreSQL."""
 
+import atexit
+import shutil
+import tempfile
+from pathlib import Path
+
 from .base import *  # noqa: F403 — on repart de tous les réglages communs
 from .base import LOGGING, postgres_database, REST_FRAMEWORK
 
@@ -26,6 +31,13 @@ DATABASES = postgres_database()
 # Aucune connexion SMTP, les messages restent dans `django.core.mail.outbox`.
 # Le runner l'impose déjà ; l'écrire ici vaut hors du runner.
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+
+
+# --- Fichiers envoyés ---
+# Un dossier propre à chaque lancement, effacé à la sortie : backend/media/ est celui
+# du runserver, et deux suites lancées ensemble n'y mêlent pas leurs images.
+MEDIA_ROOT = Path(tempfile.mkdtemp(prefix='weeb-test-media-'))
+atexit.register(shutil.rmtree, MEDIA_ROOT, ignore_errors=True)
 
 
 # --- Journaux ---

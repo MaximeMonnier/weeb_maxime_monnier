@@ -199,6 +199,9 @@ STATIC_URL = 'static/'
 # web les serve en production. Ignoré par git : c'est un dossier généré.
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 
 REST_FRAMEWORK = {
     # Comment l'API reconnaît un utilisateur : via un token JWT dans l'en-tête "Authorization: Bearer <token>"

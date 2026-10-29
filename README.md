@@ -557,14 +557,13 @@ jamais dans le `.env`, lu trop tard.
 
 ## L'API
 
-Base : `http://localhost:8000/api/` en développement, l'adresse du site suivie de `/api/` en
-production.
+Base : `http://localhost:8000/api/` en développement, `/api/` à la racine du site en production.
 
 La colonne « Accès » distingue trois profils : le visiteur, sans jeton ; le membre, connecté
-avec un compte validé ; l'auteur, membre qui a écrit l'article visé. Un compte inscrit mais pas
-encore validé n'obtient aucun jeton : il a les droits du visiteur, et un jeton émis avant sa
-désactivation est refusé (`401`). `backend/config/tests.py` recopie ce tableau, rejoue chaque
-profil sur chaque route, et échoue si une route de l'API n'y figure pas.
+avec un compte validé ; l'auteur, membre qui a écrit l'article visé. Un compte pas encore validé
+n'obtient aucun jeton : il a les droits du visiteur, et un jeton émis avant sa désactivation
+est refusé (`401`). `backend/config/tests.py` recopie ce tableau, rejoue chaque profil sur
+chaque route et échoue si une route de l'API manque.
 
 | Méthode | Route | Accès | Rôle |
 |---|---|---|---|
@@ -576,8 +575,8 @@ profil sur chaque route, et échoue si une route de l'API n'y figure pas.
 | `POST` | `/api/auth/password-reset/confirm/` | public | `uid`, `token` et nouveau mot de passe. Révoque tous les jetons du compte |
 | `POST` | `/api/auth/password-change/` | connecté | Mot de passe actuel et nouveau. Révoque les autres sessions, rend une paire neuve |
 | `DELETE` | `/api/auth/account/` | connecté | Mot de passe redonné. Supprime le compte et ses articles, répond `204` |
-| `GET` | `/api/articles/` | public | Liste paginée par 12 : `{count, next, previous, results}`, avec un extrait |
-| `GET` | `/api/articles/{id}/` | public | Détail, contenu entier |
+| `GET` | `/api/articles/` | public | Liste paginée par 12 : `{count, next, previous, results}`, extrait et `cover` |
+| `GET` | `/api/articles/{id}/` | public | Détail, contenu entier et `cover` (URL ou `null`) |
 | `POST` | `/api/articles/` | connecté | Crée un article. `content` : 20 000 caractères au plus |
 | `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression |
 | `POST` | `/api/contact/` | public | Formulaire de contact. `message` : 5 000 caractères au plus |

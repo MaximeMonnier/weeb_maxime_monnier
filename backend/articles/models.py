@@ -7,6 +7,7 @@ class Article(models.Model):
 
     title = models.CharField(max_length=200)
     content = models.TextField()
+    cover = models.ImageField(upload_to="articles/", blank=True)
 
     # L'AUTEUR = le propriétaire de l'article. C'est ce lien qui permettra plus tard
     # de dire "seul le propriétaire peut modifier/supprimer".

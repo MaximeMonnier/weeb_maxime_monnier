@@ -14,8 +14,10 @@ class ArticleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Article
-        fields = ("id", "title", "content", "author", "is_author", "created_at", "updated_at")
-        read_only_fields = ("author", "created_at", "updated_at")
+        fields = (
+            "id", "title", "content", "cover", "author", "is_author", "created_at", "updated_at",
+        )
+        read_only_fields = ("cover", "author", "created_at", "updated_at")
         # Ici et pas au modèle : un TextField n'a pas de longueur en base, rien à migrer.
         extra_kwargs = {"content": {"max_length": 20000}}
 
@@ -38,4 +40,4 @@ class ArticleListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Article
-        fields = ("id", "title", "excerpt", "excerpt_truncated", "author", "created_at")
+        fields = ("id", "title", "excerpt", "excerpt_truncated", "cover", "author", "created_at")
