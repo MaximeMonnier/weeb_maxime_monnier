@@ -19,12 +19,14 @@ import {
   reponse,
   retablirLeReseau,
 } from "../../test/reseau";
+import type { Article } from "../../types/article";
 
 // Ce que rend le détail, et non la liste : `content` entier, pas d'`excerpt`.
-const ARTICLE = {
+const ARTICLE: Article = {
   id: 1,
   title: "Premier article",
   content: "Le texte entier de l'article.",
+  cover: null,
   author: "Jean Dupont",
   is_author: false,
   created_at: "2026-09-01T10:00:00Z",
@@ -119,6 +121,24 @@ describe("ArticleDetails — article reçu", () => {
       `${import.meta.env.VITE_API_URL}/articles/1/`,
       expect.anything(),
     );
+  });
+
+  it("affiche l'image au-dessus du titre", async () => {
+    const COVER = "http://localhost:8000/media/articles/couverture.jpg";
+    appelReseau.mockResolvedValueOnce(reponseArticle({ ...ARTICLE, cover: COVER }));
+    rendreLeDetail();
+
+    const titre = await screen.findByRole("heading", { level: 1 });
+    const image = document.querySelector("img");
+    expect(image).toHaveAttribute("src", COVER);
+    expect(titre.previousElementSibling).toBe(image);
+  });
+
+  it("n'affiche aucune image quand l'article n'en a pas", async () => {
+    rendreLeDetail();
+
+    expect(await screen.findByText(ARTICLE.title)).toBeInTheDocument();
+    expect(document.querySelector("img")).toBeNull();
   });
 
   it("garde les paragraphes distincts, et une ligne simple dans le sien", async () => {

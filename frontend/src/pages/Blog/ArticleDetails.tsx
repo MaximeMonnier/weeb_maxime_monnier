@@ -149,6 +149,13 @@ const ArticleDetails = () => {
 
     return (
       <>
+        {recu.article.cover && (
+          <img
+            src={recu.article.cover}
+            alt=""
+            className="aspect-video w-full object-cover rounded-lg mb-6"
+          />
+        )}
         <h1 className="text-2xl font-bold mb-4">{recu.article.title}</h1>
         <p className="text-ink-faint text-sm mb-4">
           Par {recu.article.author} le{" "}
