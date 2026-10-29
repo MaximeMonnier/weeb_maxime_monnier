@@ -6,6 +6,7 @@ import "@testing-library/jest-dom/vitest";
 
 import Blog from "./Blog";
 import { saveTokens } from "../../lib/tokens";
+import type { ArticleListItem } from "../../types/article";
 import {
   appelReseau,
   couperLeReseau,
@@ -15,11 +16,12 @@ import {
 
 // Ce que la liste rend, et rien de plus : l'API y coupe le texte en `excerpt`
 // et garde `content` pour le détail.
-const ARTICLE = {
+const ARTICLE: ArticleListItem = {
   id: 1,
   title: "Premier article",
   excerpt: "Un extrait de test.",
   excerpt_truncated: false,
+  cover: null,
   author: "Jean Dupont",
   created_at: "2026-09-01T10:00:00Z",
 };
@@ -278,6 +280,28 @@ describe("Blog — premier chargement", () => {
     expect(
       screen.getByText(`${ARTICLE_COUPE.excerpt}...`),
     ).toBeInTheDocument();
+  });
+
+  it("montre l'image d'un article, et un cadre de même ratio à celui qui n'en a pas", async () => {
+    const ARTICLE_ILLUSTRE = {
+      ...ARTICLE_PLUS_ANCIEN,
+      cover: "http://localhost:8000/media/articles/couverture.jpg",
+    };
+    appelReseau.mockResolvedValueOnce(reponsePage([ARTICLE, ARTICLE_ILLUSTRE]));
+    await afficherLeBlog();
+
+    const enTete = (titre: string) =>
+      screen.getByText(titre).closest("a")?.firstElementChild?.firstElementChild;
+
+    const image = enTete(ARTICLE_ILLUSTRE.title);
+    expect(image?.tagName).toBe("IMG");
+    expect(image).toHaveAttribute("src", ARTICLE_ILLUSTRE.cover);
+    expect(image).toHaveAttribute("loading", "lazy");
+    expect(image).toHaveClass("aspect-video");
+
+    const cadre = enTete(ARTICLE.title);
+    expect(cadre?.tagName).toBe("DIV");
+    expect(cadre).toHaveClass("aspect-video");
   });
 
   it("n'annonce la liste vide qu'une fois la première page arrivée", async () => {
