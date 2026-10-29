@@ -56,9 +56,10 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # Une faille d'écriture ne peut pas réécrire une vue pour s'installer.
 COPY . .
 
-# Seule exception, et seul dossier écrit à l'exécution : collectstatic remplit
-# STATIC_ROOT (/app/staticfiles) au démarrage, sous l'identité de `weeb`.
-RUN mkdir -p /app/staticfiles && chown weeb:weeb /app/staticfiles
+# Seules exceptions, et seuls dossiers écrits à l'exécution : collectstatic remplit
+# STATIC_ROOT (/app/staticfiles) au démarrage, les envois d'images MEDIA_ROOT
+# (/app/media), sous l'identité de `weeb`. Un volume neuf hérite de ces droits.
+RUN mkdir -p /app/staticfiles /app/media && chown weeb:weeb /app/staticfiles /app/media
 
 # Tout ce qui suit s'exécute sans privilèges. Une faille dans une dépendance
 # ne donne alors pas les droits root sur le conteneur.

@@ -47,7 +47,7 @@ describe("Content-Security-Policy de nginx.conf", () => {
   it("lit bien le script et les en-têtes qu'il prétend contrôler", () => {
     expect(SCRIPTS_EN_LIGNE).toHaveLength(1);
     expect(SCRIPTS_EN_LIGNE[0]).toContain('classList.add("dark")');
-    expect(ENTETES_CSP).toHaveLength(4);
+    expect(ENTETES_CSP).toHaveLength(5);
     expect(VALEUR_DE_CSP).toContain("default-src 'self'");
   });
 });

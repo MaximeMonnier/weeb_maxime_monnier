@@ -74,9 +74,10 @@ services:
 
     # Partagé avec le front, qui sert /static/ : Django ne sert pas ses statiques
     # avec DEBUG=False et l'image n'a pas whitenoise. Sans lui, l'admin perd
-    # son style.
+    # son style. `media_data` reçoit les images des articles, servies de même.
     volumes:
       - static_data:/app/staticfiles
+      - media_data:/app/media
 
     # `service_healthy` : Postgres accepte les connexions plusieurs secondes
     # après le démarrage du conteneur, et l'entrypoint migre avant Gunicorn.
@@ -161,6 +162,7 @@ services:
     # pas à lire les volumes de Docker, traversables par root seul.
     volumes:
       - static_data:/srv/static:ro
+      - media_data:/srv/media:ro
 
     # Le front n'appelle pas l'API depuis le conteneur — c'est le navigateur qui
     # le fait. La dépendance n'ordonne que le démarrage. Elle garantit en outre
@@ -196,3 +198,6 @@ volumes:
   # Volume nommé et non dossier de la machine : un bind-mount n'hérite pas des
   # droits posés par l'image, et `collectstatic` ne pourrait pas y écrire.
   static_data:
+
+  # Les images déposées par les auteurs : seule copie, perdue avec `down -v`.
+  media_data:
