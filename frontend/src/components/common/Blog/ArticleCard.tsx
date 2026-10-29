@@ -8,7 +8,19 @@ type ArticleCardProps = {
 export default function ArticleCard({ article }: ArticleCardProps) {
   return (
     <Link to={`/articles/${article.id}`}>
-      <div className="bg-surface-alt rounded-lg shadow-xl overflow-hidden border border-line">
+      <div className="h-full bg-surface-alt rounded-lg shadow-xl overflow-hidden border border-line">
+        {/* Sans image, un cadre de même ratio : le texte de chaque carte d'une
+            rangée démarre ainsi à la même hauteur. */}
+        {article.cover ? (
+          <img
+            src={article.cover}
+            alt=""
+            loading="lazy"
+            className="aspect-video w-full object-cover"
+          />
+        ) : (
+          <div className="aspect-video bg-surface-hover" />
+        )}
         <div className="p-4">
           <h3 className="text-lg font-semibold mb-2">{article.title}</h3>
           <p className="text-ink-faint text-sm mb-4">

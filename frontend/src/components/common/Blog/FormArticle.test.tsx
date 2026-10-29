@@ -122,6 +122,7 @@ describe("FormArticle — modification d'un article", () => {
     id: 7,
     title: "Titre actuel",
     content: "Le texte actuel de l'article.",
+    cover: null,
     author: "Jean Dupont",
     is_author: true,
     created_at: "2026-09-01T10:00:00Z",
