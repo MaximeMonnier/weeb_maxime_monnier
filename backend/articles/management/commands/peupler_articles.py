@@ -1,6 +1,9 @@
 """Publie des articles de démonstration, pour que /blog se remplisse en développement."""
 
+from pathlib import Path
+
 from django.conf import settings
+from django.core.files import File
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -9,19 +12,22 @@ from articles.models import Article
 
 DEMO_AUTHOR_EMAIL = "auteur-demo@example.com"
 
+# Hors de MEDIA_ROOT : versionnées, elles sont copiées dans le stockage, jamais servies d'ici.
+COVERS_DIR = Path(__file__).resolve().parents[2] / "couvertures_demo"
+
 # Le sujet n'est jamais sujet d'un verbe, ni précédé de « de » ou « à », qui se contractent
 # devant « le » et « les » : « de le mode sombre » sortirait tel quel.
 TOPICS = (
-    "l'accessibilité",
-    "le mode sombre",
-    "la performance d'une page",
-    "le référencement naturel",
-    "les formulaires",
-    "la typographie",
-    "le design responsive",
-    "les tests automatisés",
-    "la sécurité des mots de passe",
-    "le déploiement continu",
+    ("l'accessibilité", "accessibilite.jpg"),
+    ("le mode sombre", "mode-sombre.jpg"),
+    ("la performance d'une page", "performance.jpg"),
+    ("le référencement naturel", "referencement.jpg"),
+    ("les formulaires", "formulaires.jpg"),
+    ("la typographie", "typographie.jpg"),
+    ("le design responsive", "responsive.jpg"),
+    ("les tests automatisés", "tests.jpg"),
+    ("la sécurité des mots de passe", "mots-de-passe.jpg"),
+    ("le déploiement continu", "deploiement.jpg"),
 )
 
 ANGLES = (
@@ -60,12 +66,18 @@ CLOSING = (
 
 
 def demo_articles():
-    """Les couples (titre, contenu), un par sujet et par angle, les sujets alternant."""
+    """Les triplets (titre, contenu, photo), un par sujet et par angle, les sujets alternant."""
     return [
-        (title.format(topic=topic), f"{opening.format(topic=topic)}\n\n{CLOSING}")
+        (title.format(topic=topic), f"{opening.format(topic=topic)}\n\n{CLOSING}", photo)
         for title, opening in ANGLES
-        for topic in TOPICS
+        for topic, photo in TOPICS
     ]
+
+
+def attach_cover(article, photo):
+    """Copie la photo dans le stockage : chaque article a son fichier, effaçable sans les autres."""
+    with open(COVERS_DIR / photo, "rb") as source:
+        article.cover.save(photo, File(source), save=False)
 
 
 def demo_author():
@@ -80,7 +92,7 @@ def demo_author():
 
 
 class Command(BaseCommand):
-    help = "Publie 30 articles de démonstration, sans doublon d'un lancement à l'autre."
+    help = "Publie 30 articles de démonstration illustrés, sans doublon d'un lancement à l'autre."
 
     def handle(self, *args, **options):
         # production.py fige DEBUG à False : c'est ce qui ferme la commande à sa base.
@@ -90,16 +102,24 @@ class Command(BaseCommand):
             )
 
         expected = demo_articles()
+        photo_of = {title: photo for title, _, photo in expected}
         with transaction.atomic():
             author = demo_author()
             already_published = set(author.articles.values_list("title", flat=True))
             missing = [
                 Article(title=title, content=content, author=author)
-                for title, content in expected
+                for title, content, _ in expected
                 if title not in already_published
             ]
+            # Un article de la démo publié avant les images en reçoit une ; celui qui en a
+            # une la garde, et un titre retiré de la liste n'a pas de photo attitrée.
+            uncovered = list(author.articles.filter(cover="", title__in=photo_of))
+            for article in missing + uncovered:
+                attach_cover(article, photo_of[article.title])
             Article.objects.bulk_create(missing)
+            Article.objects.bulk_update(uncovered, ["cover"])
 
         self.stdout.write(self.style.SUCCESS(
-            f"{len(missing)} article(s) publié(s), {len(expected) - len(missing)} déjà en base."
+            f"{len(missing)} article(s) publié(s), {len(expected) - len(missing)} déjà en base, "
+            f"{len(missing) + len(uncovered)} image(s) posée(s)."
         ))

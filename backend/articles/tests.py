@@ -581,6 +581,69 @@ class PeuplerArticlesTests(TestCase):
         self.assertEqual(self.demonstration().count(), 30)
         self.assertTrue(self.demonstration().filter(title=disparu.title).exists())
 
+    def fichiers_poses(self):
+        dossier = settings.MEDIA_ROOT / "articles"
+        return sorted(dossier.iterdir()) if dossier.exists() else []
+
+    def test_chaque_article_de_demonstration_a_sa_propre_image(self):
+        """Une copie par article : en supprimer un ne prive pas les autres de leur image."""
+        avant = self.fichiers_poses()
+
+        self.peupler()
+
+        couvertures = [article.cover for article in self.demonstration()]
+        self.assertTrue(all(couvertures))
+        self.assertEqual(len({couverture.name for couverture in couvertures}), 30)
+        # MEDIA_ROOT sert à toute la suite : seuls comptent les fichiers de ce lancement.
+        self.assertEqual(len(self.fichiers_poses()) - len(avant), 30)
+
+    def test_les_articles_publies_sans_image_en_recoivent_une(self):
+        self.peupler()
+        self.demonstration().update(cover="")
+        sortie = StringIO()
+
+        call_command("peupler_articles", stdout=sortie)
+
+        self.assertEqual(Article.objects.count(), 30)
+        self.assertFalse(self.demonstration().filter(cover="").exists())
+        self.assertIn("0 article(s) publié(s)", sortie.getvalue())
+        self.assertIn("30 image(s) posée(s)", sortie.getvalue())
+
+    def test_un_second_lancement_ne_pose_aucune_image(self):
+        self.peupler()
+        avant = self.fichiers_poses()
+        sortie = StringIO()
+
+        call_command("peupler_articles", stdout=sortie)
+
+        self.assertEqual(self.fichiers_poses(), avant)
+        self.assertIn("0 image(s) posée(s)", sortie.getvalue())
+
+    def test_une_image_deja_posee_est_gardee(self):
+        self.peupler()
+        illustre = self.demonstration().first()
+        illustre.cover = "articles/choisie-par-l-auteur.jpg"
+        illustre.save()
+
+        self.peupler()
+
+        illustre.refresh_from_db()
+        self.assertEqual(illustre.cover.name, "articles/choisie-par-l-auteur.jpg")
+
+    def test_l_article_d_un_autre_auteur_reste_sans_image(self):
+        """Même titre qu'un article de la démo : c'est l'auteur qui décide, pas le titre."""
+        self.peupler()
+        autre = Article.objects.create(
+            title=self.demonstration().first().title,
+            content="Contenu.",
+            author=membre("membre@example.com"),
+        )
+
+        self.peupler()
+
+        autre.refresh_from_db()
+        self.assertFalse(autre.cover)
+
     def test_l_auteur_de_demonstration_ne_peut_pas_se_connecter(self):
         self.peupler()
 
