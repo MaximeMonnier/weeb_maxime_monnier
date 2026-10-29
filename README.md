@@ -326,15 +326,8 @@ ensuite celles de GHCR.
 `sendtestemail --admins` vérifie la chaîne d'envoi des rapports d'erreur : relais, expéditeur
 et `DJANGO_ADMINS`.
 
-Le service `purge` lance `purger_contacts` et `flushexpiredtokens` au démarrage, puis toutes les
-24 heures : un message de contact part au plus un jour après les 90 jours de `/privacy`. Un échec
-arrête le conteneur, que Docker relance : `ps` le montre en `Restarting`, ses journaux donnent
-l'erreur.
-
-```bash
-docker compose -f compose.prod.yaml logs -t purge       # les dernières purges, horodatées
-docker compose -f compose.prod.yaml restart purge       # purger tout de suite
-```
+`purge` lance `purger_contacts` et `flushexpiredtokens` au démarrage puis chaque jour ;
+`restart purge` le relance, `ps` dit s'il échoue.
 
 Sans `--wait-timeout`, `--wait` attend indéfiniment un service qui reboucle. Vérifier la pile
 avant de mettre nginx devant :
@@ -466,8 +459,7 @@ COMPOSE_FILE=compose.prod.yaml:compose.vps.yaml
 Sur ce serveur, les commandes de la section « Déployer » s'écrivent donc **sans** `-f`. Un
 `-f compose.prod.yaml` seul recréerait les conteneurs hors de `web`, et nginx répondrait `502`.
 Les `curl` sur `127.0.0.1` n'y répondent pas, aucun port n'étant publié : `docker compose ps`
-(trois `healthy`, `purge` en `Up`) en tient lieu, puis
-`curl -sI https://weeb.kickster.fr/api/articles/`.
+(trois `healthy`) en tient lieu, puis `curl -sI https://weeb.kickster.fr/api/articles/`.
 
 Côté nginx (`/home/apps/nginx`, hors dépôt) :
 
