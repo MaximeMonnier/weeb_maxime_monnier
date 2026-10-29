@@ -47,8 +47,8 @@ python3 -c 'import secrets, string; a = string.ascii_letters + string.digits; pr
 > Ces alphabets excluent `$` et `#` : Compose lit le même `.env` et tronquerait la valeur au
 > `$`. Les apostrophes extérieures évitent que le shell interprète le `!`.
 
-Chaque variable est commentée dans `.env.example`. Une clé secrète versionnée par erreur est
-compromise : en générer une autre.
+`.env.example` ne commente que les pièges ; ce README explique le reste. Une clé secrète
+versionnée par erreur est compromise : en générer une autre.
 
 ### 2. La base de données
 
@@ -677,8 +677,7 @@ Le détail du front est dans `frontend/README.md`.
 - Commits en français, à l'impératif, préfixés par un type : `feat`, `fix`, `refactor`,
   `style`, `docs`, `chore`, `test`.
 - Les pull requests vont vers `preprod`, puis `preprod` est fusionnée dans `main`.
-- Toute variable d'environnement lue par le code figure, commentée, dans le `.env.example`
-  correspondant.
+- Toute variable d'environnement lue par le code figure dans le `.env.example` correspondant.
 
 ## Résolution de problèmes
 
