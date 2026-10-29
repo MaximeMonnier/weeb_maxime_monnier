@@ -15,7 +15,7 @@ Application web React/TypeScript avec système de routing, authentification et d
 
 - **React 19.2** - Framework UI
 - **TypeScript 5.9** - Typage statique
-- **Vite 7.2** - Build tool ultra-rapide
+- **Vite 7.3** - Build tool ultra-rapide
 - **React Router DOM 7.12** - Routing SPA
 - **Tailwind CSS 4.1** - Framework CSS utility-first
 - **Lucide React** - Bibliothèque d'icônes
