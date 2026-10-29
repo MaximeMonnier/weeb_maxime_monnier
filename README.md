@@ -327,7 +327,7 @@ ensuite celles de GHCR.
 et `DJANGO_ADMINS`.
 
 Le service `purge` lance `purger_contacts` et `flushexpiredtokens` au démarrage, puis toutes les
-24 heures : un message de contact ne dépasse pas les 90 jours annoncés par `/privacy`. Un échec
+24 heures : un message de contact part au plus un jour après les 90 jours de `/privacy`. Un échec
 arrête le conteneur, que Docker relance : `ps` le montre en `Restarting`, ses journaux donnent
 l'erreur.
 
