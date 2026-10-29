@@ -114,8 +114,6 @@ docker compose -f compose.dev.yaml exec backend python manage.py createsuperuser
 docker compose -f compose.dev.yaml exec backend python manage.py peupler_articles
 ```
 
-Un compte inscrit par le site est créé **inactif** : l'activer depuis l'administration.
-
 ### Le serveur de mail du développement
 
 Mailpit reçoit tous les emails envoyés en développement et les affiche sur
@@ -239,8 +237,8 @@ docker image rm weeb-backend:ci weeb-frontend:ci
 | `docker compose -f compose.dev.yaml down -v` | Supprime aussi le volume : **toutes les données sont perdues** |
 
 Les deux piles sont deux projets Compose distincts, `weeb` et `weeb-prod` : un `down -v` de
-l'une ne touche pas l'autre, et elles peuvent tourner ensemble. En production, `down -v` détruit
-aussi `media_data` : les images déposées avec les articles, dont c'est la seule copie.
+l'une ne touche pas l'autre, et elles peuvent tourner ensemble. En production, il efface aussi
+les images des articles (`media_data`).
 
 | | développement | production |
 |---|---|---|
@@ -639,7 +637,7 @@ le `.env` ; la lecture des articles n'est pas limitée.
 ├── .github/workflows/        # tests et construction des images
 ├── AMELIORATIONS.md          # pistes repérées, non traitées
 ├── compose.dev.yaml          # pile de développement
-├── compose.prod.yaml         # pile de production ; images des articles dans le volume media_data
+├── compose.prod.yaml         # pile de production, volume media_data compris
 ├── compose.vps.yaml          # surcouche du VPS : réseau web, aucun port publié
 ├── scripts/deployer-vps.sh   # déploiement sur le VPS, lancé par la CI
 ├── backend/
@@ -708,8 +706,8 @@ cd backend && python manage.py shell -c "from accounts.models import CustomUser;
 ```
 
 **La réinitialisation n'envoie rien** — l'adresse n'a pas de compte, le compte est inactif, ou
-l'envoi a échoué : l'API répond pareil dans les trois cas. En développement, vérifier que
-Mailpit tourne et regarder http://127.0.0.1:8025.
+l'envoi a échoué : l'API répond pareil dans les trois cas. En développement, voir Mailpit,
+http://127.0.0.1:8025.
 
 **`env file /chemin/.env.prod not found`** — `cp .env.prod.example .env.prod`.
 
