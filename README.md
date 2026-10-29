@@ -480,6 +480,13 @@ sortie vers les ports 587 et 465, d'où `EMAIL_PORT=2525` dans son `.env.prod`, 
 STARTTLS. `DEFAULT_FROM_EMAIL` reste sur `kickster.fr` : Brevo accepte le message d'un autre
 domaine, puis le rejette dans ses journaux, sans aucune erreur côté Django.
 
+### Surveillance
+
+L'Uptime Kuma du VPS (`status.kickster.fr`) interroge chaque minute `https://weeb.kickster.fr/`
+et `/api/articles/` (mot-clé `count` : la base a répondu). Il prévient par Telegram, à la
+panne, au retour et avant l'expiration du certificat. Hébergé sur le même serveur, il ne voit
+pas une panne du VPS entier.
+
 ### Déploiement automatique
 
 Une fois publiées les deux images d'un push sur `main`, le job `déploiement` de
