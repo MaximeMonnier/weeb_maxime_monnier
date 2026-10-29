@@ -1,5 +1,7 @@
 """Routeur principal : chaque préfixe d'URL est délégué à l'app concernée."""
 
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 
@@ -14,3 +16,6 @@ urlpatterns = [
     path("api/", include("articles.urls")),
     path("api/", include("contact.urls")),
 ]
+
+# static() ne rend rien hors DEBUG : la production servira les médias autrement.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

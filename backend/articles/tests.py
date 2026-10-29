@@ -1,10 +1,11 @@
-"""Tests des articles : lecture, écriture, propriété, signature, listes, pages et peuplement."""
+"""Tests des articles : lecture, écriture, propriété, signature, couverture, listes, pages et peuplement."""
 
 import re
 from datetime import timedelta
 from io import StringIO
 
 from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import CommandError, call_command
 from django.db import connection
 from django.test import TestCase, override_settings
@@ -190,6 +191,41 @@ class ArticleSignatureTests(TestCase):
                 self.assertEqual(self.signature(url), "Auteur anonyme")
 
 
+class ArticleCouvertureTests(TestCase):
+    """La couverture sort en URL absolue, que le front n'a pas à recoller à l'adresse de l'API."""
+
+    # Le plus petit GIF valide : un pixel transparent.
+    GIF = (
+        b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00"
+        b"\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+    )
+
+    def setUp(self):
+        self.article = Article.objects.create(
+            title="Article illustré", content="Contenu.", author=membre("auteur@example.com"),
+        )
+
+    def couvertures(self):
+        """La couverture rendue par la liste et par le détail."""
+        liste = self.client.get(reverse("article-list")).json()["results"][0]
+        detail = self.client.get(reverse("article-detail", args=[self.article.pk])).json()
+        return {"liste": liste["cover"], "détail": detail["cover"]}
+
+    def test_un_article_sans_image_rend_null(self):
+        for vue, couverture in self.couvertures().items():
+            with self.subTest(vue=vue):
+                self.assertIsNone(couverture)
+
+    def test_un_article_illustre_rend_l_url_absolue_de_son_image(self):
+        self.article.cover = SimpleUploadedFile("couverture.gif", self.GIF, "image/gif")
+        self.article.save()
+
+        for vue, couverture in self.couvertures().items():
+            with self.subTest(vue=vue):
+                self.assertEqual(couverture, f"http://testserver{self.article.cover.url}")
+                self.assertTrue(couverture.startswith("http://testserver/media/articles/"))
+
+
 class ArticleEstAuteurTests(TestCase):
     """Le détail dit au lecteur s'il a écrit l'article ; la liste ne le dit à personne."""
 
@@ -273,7 +309,7 @@ class ArticleExtraitDeListeTests(TestCase):
         # rien ne tombe ici — la carte afficherait « Par undefined le Invalid Date ».
         self.assertEqual(
             sorted(article),
-            ["author", "created_at", "excerpt", "excerpt_truncated", "id", "title"],
+            ["author", "cover", "created_at", "excerpt", "excerpt_truncated", "id", "title"],
         )
         self.assertEqual(article["excerpt"], self.contenu[:LONGUEUR_EXTRAIT])
         self.assertEqual(len(article["excerpt"]), LONGUEUR_EXTRAIT)

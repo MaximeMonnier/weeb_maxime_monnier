@@ -576,8 +576,8 @@ profil sur chaque route, et échoue si une route de l'API n'y figure pas.
 | `POST` | `/api/auth/password-reset/confirm/` | public | `uid`, `token` et nouveau mot de passe. Révoque tous les jetons du compte |
 | `POST` | `/api/auth/password-change/` | connecté | Mot de passe actuel et nouveau. Révoque les autres sessions, rend une paire neuve |
 | `DELETE` | `/api/auth/account/` | connecté | Mot de passe redonné. Supprime le compte et ses articles, répond `204` |
-| `GET` | `/api/articles/` | public | Liste paginée par 12 : `{count, next, previous, results}`, avec un extrait |
-| `GET` | `/api/articles/{id}/` | public | Détail, contenu entier |
+| `GET` | `/api/articles/` | public | Liste paginée par 12 : `{count, next, previous, results}`, avec un extrait et `cover` |
+| `GET` | `/api/articles/{id}/` | public | Détail, contenu entier et `cover` : URL absolue de l'image, `null` sans image. Lecture seule, posée depuis l'admin |
 | `POST` | `/api/articles/` | connecté | Crée un article. `content` : 20 000 caractères au plus |
 | `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression |
 | `POST` | `/api/contact/` | public | Formulaire de contact. `message` : 5 000 caractères au plus |
