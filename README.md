@@ -243,7 +243,7 @@ l'une ne touche pas l'autre, et elles peuvent tourner ensemble.
 
 | | développement | production |
 |---|---|---|
-| services | `db`, `mailpit`, `backend`, `frontend` | `db`, `backend`, `frontend` |
+| services | `db`, `mailpit`, `backend`, `frontend` | `db`, `backend`, `frontend`, `purge` |
 | front | Vite sur `127.0.0.1:5173`, code monté | nginx sur `127.0.0.1:8081` |
 | API | `runserver` sur `127.0.0.1:8000`, code monté | Gunicorn sur `127.0.0.1:8001` |
 | base | publiée sur `127.0.0.1:5432` | non publiée |
@@ -325,6 +325,16 @@ ensuite celles de GHCR.
 
 `sendtestemail --admins` vérifie la chaîne d'envoi des rapports d'erreur : relais, expéditeur
 et `DJANGO_ADMINS`.
+
+Le service `purge` lance `purger_contacts` et `flushexpiredtokens` au démarrage, puis toutes les
+24 heures : un message de contact ne dépasse pas les 90 jours annoncés par `/privacy`. Un échec
+arrête le conteneur, que Docker relance : `ps` le montre en `Restarting`, ses journaux donnent
+l'erreur.
+
+```bash
+docker compose -f compose.prod.yaml logs -t purge       # les dernières purges, horodatées
+docker compose -f compose.prod.yaml restart purge       # purger tout de suite
+```
 
 Sans `--wait-timeout`, `--wait` attend indéfiniment un service qui reboucle. Vérifier la pile
 avant de mettre nginx devant :
@@ -456,7 +466,8 @@ COMPOSE_FILE=compose.prod.yaml:compose.vps.yaml
 Sur ce serveur, les commandes de la section « Déployer » s'écrivent donc **sans** `-f`. Un
 `-f compose.prod.yaml` seul recréerait les conteneurs hors de `web`, et nginx répondrait `502`.
 Les `curl` sur `127.0.0.1` n'y répondent pas, aucun port n'étant publié : `docker compose ps`
-(trois `healthy`) en tient lieu, puis `curl -sI https://weeb.kickster.fr/api/articles/`.
+(trois `healthy`, `purge` en `Up`) en tient lieu, puis
+`curl -sI https://weeb.kickster.fr/api/articles/`.
 
 Côté nginx (`/home/apps/nginx`, hors dépôt) :
 
