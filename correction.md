@@ -2883,7 +2883,7 @@ Consulte `inventaire-avant-dev` et `frontend-react-ts`.
 
 | État | Epic | Journal | Alimente |
 |---|---|---|---|
-| En cours — fusionné avec le lot 20 le 2026-10-06 ; 19.1 et 19.2 livrées, mise en ligne manuelle sur `weeb.kickster.fr` par #324 (19.4 en partie) ; restent 19.3, la fin de 19.4, 20.1 à 20.4 | #312 | — | Bloc 2 — déploiement |
+| Clos le 2026-10-29 — fusionné avec le lot 20 le 2026-10-06 ; 8 tâches prévues, 10 sous-issues livrées (19.2 coupée en publication et tirage, 19.4 en mise en ligne et relais SMTP) ; la sauvegarde de la base, critère de l'epic sans tâche, et les paliers HSTS suivants renvoyés à `AMELIORATIONS.md` | #312 | Lot 19 | Bloc 2 — déploiement |
 
 **Origine** : audit du 2026-10-05, points 36 et 38. L'intégration continue existe :
 - `tests.yml` lance la suite Django sur un service PostgreSQL, puis lint, Vitest et build ;
@@ -2949,7 +2949,8 @@ Consulte `conventions-docker`.
 
 ## 19.3 — Déployer automatiquement sur `main`
 
-- [ ] **Fichiers** : un job de déploiement dans `.github/workflows/`, le README (§ « Déployer »)
+- [x] **Fichiers** : un job de déploiement dans `.github/workflows/`, le README (§ « Déployer »)
+  — livré par #326 (PR #344, simplifié par la PR #346)
 - **Constat** : la mise en production se fait à la main, commande par commande, depuis le
   README. Rien ne garantit que `main` est ce qui tourne.
 - **Attendu** : après la publication de 19.2, un job déploie la nouvelle version et attend
@@ -2968,11 +2969,11 @@ Consulte `conventions-docker` et `workflow-git`.
 
 ## 19.4 — Domaine, TLS et HSTS
 
-- [ ] **Fichiers** : `.env.prod` (non versionné), `.env.prod.example`, la configuration du nginx du serveur
-  (hors dépôt), le README si une étape change — domaine, TLS et HSTS à 3600 livrés par #324,
-  avec `compose.vps.yaml`. Restent le lien de réinitialisation reçu par email (le VPS bloque
-  tout SMTP sortant, 25, 465, 587 et 2525) et les paliers HSTS ; `check --deploy` garde W021
-  (préchargement) jusqu'au palier 31536000
+- [x] **Fichiers** : `.env.prod` (non versionné), `.env.prod.example`, la configuration du nginx du serveur
+  (hors dépôt), le README si une étape change — domaine, TLS et HSTS à 3600 livrés par #324
+  (PR #342), avec `compose.vps.yaml` ; le lien de réinitialisation reçu par email par #325
+  (PR #343, relais Brevo sur le port 2525). Les paliers HSTS suivants vont à `AMELIORATIONS.md` :
+  `check --deploy` garde W021 (préchargement) jusqu'au palier 31536000
 - **Constat** : `DJANGO_HSTS_SECONDS=0` (`.env.prod:70`) tant que la pile est jointe sur
   `localhost`, ce qui laisse l'avertissement W004 de `check --deploy`. `AMELIORATIONS.md`
   (« Durcir la façade du serveur ») attend Let's Encrypt et un HSTS monté par paliers.
@@ -3001,7 +3002,7 @@ un site en ligne (19.3).
 
 ## 20.1 — Configurer les journaux du backend
 
-- [ ] **Fichiers** : `backend/config/settings/base.py`, `.env.example`
+- [x] **Fichiers** : `backend/config/settings/base.py`, `.env.example` — livré par #318 (PR #320)
 - **Constat** : aucun `LOGGING` dans `config/settings/`. Le `logger.exception` de
   `send_password_reset_link`, seule trace d'une panne SMTP, sort par le handler de dernier
   recours de Python, sans horodatage ni niveau.
@@ -3019,8 +3020,9 @@ Consulte `backend-django-drf`. Lis l'environnement par les helpers env_*, jamais
 
 ## 20.2 — Être prévenu quand le site tombe
 
-- [ ] **Fichiers** : selon le plan, la configuration du nginx du serveur ; un service de
-  surveillance externe (hors dépôt)
+- [x] **Fichiers** : selon le plan, la configuration du nginx du serveur ; un service de
+  surveillance externe (hors dépôt) — livré par #327 (PR #349) : Uptime Kuma du VPS, alerte
+  par Telegram
 - **Constat** : `/health/` vérifie la base en un `SELECT 1`, mais le nginx du serveur ne relaie
   vers le backend que `/api/` et `/admin/` : aucune sonde extérieure ne peut l'interroger. Une panne se découvre
   en visitant le site.
@@ -3039,7 +3041,8 @@ Consulte `conventions-docker`.
 
 ## 20.3 — Recevoir les erreurs du serveur
 
-- [ ] **Fichiers** : `backend/config/settings/production.py`, `.env.prod.example`
+- [x] **Fichiers** : `backend/config/settings/production.py`, `.env.prod.example` — livré par
+  #319 (PR #321)
 - **Constat** : avec `DEBUG = False`, une erreur `500` laisse au mieux une trace dans les
   journaux, que personne ne lit. Le relais SMTP de production existe déjà
   (`production.py:40-52`).
@@ -3063,8 +3066,8 @@ Consulte `backend-django-drf`.
 
 ## 20.4 — Planifier les tâches d'entretien
 
-- [ ] **Fichiers** : selon le plan, un service dans `compose.prod.yaml` ou la crontab du serveur
-  (hors dépôt), le README (§ « Déployer »)
+- [x] **Fichiers** : selon le plan, un service dans `compose.prod.yaml` ou la crontab du serveur
+  (hors dépôt), le README (§ « Déployer ») — livré par #328 (PR #350) : service `purge`
 - **Constat** : rien ne lance `flushexpiredtokens` (`AMELIORATIONS.md`, « Rien ne purge les
   tables de `token_blacklist` »), ni la purge des messages de 16.3. Les conteneurs n'ont ni
   cron ni planificateur.

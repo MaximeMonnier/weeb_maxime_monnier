@@ -1288,3 +1288,66 @@ Le lot pèse **522 insertions pour 43 suppressions** sur 12 fichiers, hors `corr
 - Back : `manage.py test` passe ses 119 tests, et `makemigrations --check` ne détecte rien.
 - Front : `npm run lint` ne rend rien, `npm test` rend `Tests  174 passed (174)` sur 20
   fichiers, `npm run build` aboutit, et `npm audit` ne trouve aucune vulnérabilité.
+
+## Lot 19 — Déploiement : mise en ligne et surveillance
+
+Clos le 2026-10-29 · Epic #312 · Alimente : Bloc 2 — déploiement
+
+**Constat mesuré** — l'audit du 2026-10-05, points 36, 38 et 39 : rien n'était en ligne.
+`docker-images.yml` construisait les deux images sans les publier, `compose.prod.yaml` se
+lançait à la main, HSTS restait à 0. Le backend n'avait ni `LOGGING` ni destinataire pour ses
+erreurs `500`, et rien ne lançait `flushexpiredtokens`. Un conteneur tombé était relancé, mais
+personne n'était prévenu. Le lot 20, la surveillance, a été fusionné dans celui-ci le
+2026-10-06 : elle se règle sur le même serveur, au même moment.
+
+**Décision et justification** :
+
+- la cible est un VPS, où `compose.prod.yaml` tourne tel que le README le décrivait, plutôt
+  qu'une plateforme qui aurait tout fait réécrire. Son nginx vit dans un conteneur, sur le
+  réseau `web` : `compose.vps.yaml` retire les ports publiés et branche le front et l'API sur
+  ce réseau (#324) ;
+- les images partent sur GHCR au seul push sur `main`, étiquetées par SHA et `latest` (#314),
+  et la production les tire sans construire (#323). Un job `déploiement` lance ensuite
+  `scripts/deployer-vps.sh <sha>` en SSH et échoue si la pile n'est pas `healthy` en 60 s
+  (#326) ;
+- journaux horodatés au niveau réglable (#318), puis rapport des `500` par `mail_admins`
+  plutôt que Sentry : le relais SMTP existait, et le rapport sort filtré, sans mot de passe,
+  jeton, email ni IP (#319). Le relais réel est Brevo (#325) ;
+- la sonde est l'Uptime Kuma déjà installé sur le VPS, avec une alerte Telegram (#327) : pas
+  de seconde machine, et une panne du VPS entier n'est donc pas vue ;
+- la purge de nuit est un service `purge` de `compose.prod.yaml`, sur l'image du backend
+  (#328) : il part avec chaque déploiement, sans rien installer sur le serveur.
+
+**Ce qui a surpris** — quatre constats.
+
+**Le plan comptait huit tâches, il a fallu dix sous-issues.** 19.2 a été coupée entre la
+publication et le tirage des images, 19.4 entre la mise en ligne et le relais SMTP.
+
+**Le VPS bloquait l'email sortant.** Après la mise en ligne, aucun email ne partait :
+l'hébergeur ferme 25, 465 et 587. Le relais Brevo passe par 2525, toujours en STARTTLS, et
+l'expéditeur doit rester sur `kickster.fr` : Brevo rejette un autre domaine dans ses propres
+journaux, sans erreur côté Django.
+
+**Le déploiement a été simplifié le jour même.** La première version passait par un compte
+`deploy`, une règle sudo et une clé limitée à une commande forcée. Trop d'étapes pour le
+besoin : la PR #346 l'a ramenée à une clé du compte `apps`, avec le même script.
+
+**L'epic portait un critère sans tâche.** « La base de production est sauvegardée chaque nuit »
+figurait dans ses critères, mais dans aucune tâche du plan ni aucune sous-issue. Le lot est
+clos sans elle, et la sauvegarde va à `AMELIORATIONS.md`, avec les paliers HSTS suivants.
+
+Le lot pèse **674 insertions pour 109 suppressions** sur 14 fichiers, hors `correction.md` et
+`journal.md`, en 44 commits.
+
+**Preuve de la correction** — rejouée sur `preprod` à `a3814c6`, et sur le site en ligne.
+- `https://weeb.kickster.fr/` répond `200` avec `strict-transport-security: max-age=3600`,
+  `http://` répond `301` vers `https://`, et `/api/articles/` répond `200`.
+- `compose.prod.yaml` publie 2 ports, et 0 une fois `compose.vps.yaml` ajouté. Ses services
+  sont `db backend frontend purge`.
+- Le dernier push sur `main`, le 2026-10-06, a publié les deux images et déployé (jobs
+  `backend`, `frontend` et `déploiement` en succès). `preprod` a 15 commits d'avance, la
+  sonde et la purge comprises : elles partiront en production au prochain merge vers `main`.
+- Back : `manage.py test` passe ses 126 tests.
+- Front : `npm run lint` ne rend rien, et `npm test` rend `Tests  174 passed (174)` sur 20
+  fichiers. `npm audit` et `pip-audit` échouent sur des failles publiées depuis, suivies par
+  #352 et #353.

@@ -50,18 +50,23 @@ et pour les prochaines itérations).
 
 ## Docker — mise en ligne
 
-Deux critères de l'epic de dockerisation #47 qu'aucune sous-issue n'a livrés, plus une dette
-née de la façade. Rien de ce qui reste ne bloque le développement.
+Deux critères de l'epic de dockerisation #47 et un de l'epic de mise en ligne #312 qu'aucune
+sous-issue n'a livrés, plus une dette née de la façade. Rien de ce qui reste ne bloque le
+développement.
 
+- [ ] **Sauvegarder la base de production chaque nuit.** Rien ne copie aujourd'hui le volume
+      PostgreSQL du VPS : une perte du disque emporte comptes, articles et messages. Pistes :
+      un `pg_dump` nocturne sur le modèle du service `purge` de `compose.prod.yaml`, copié
+      hors du VPS, et une restauration essayée dans une base vide.
 - [ ] **Durcir la façade du serveur.** Le nginx du serveur ne fait aujourd'hui que router :
       `/admin/` et les routes d'authentification (`/api/auth/login/`,
       `/api/auth/password-reset/`) n'y ont aucune limitation de débit ni restriction
       d'origine. Pistes : un `limit_req_zone` sur ces chemins, et un `allow`/`deny` sur
       `/admin/`. Moins urgent depuis l'issue #71 : Django limite ces deux routes lui-même.
       Le faire aussi devant garderait l'abus hors du processus Python, et couvrirait
-      `/admin/`, que le throttling de DRF ne voit pas. S'y ajoutent les deux chantiers qu'un domaine réel ouvre : Let's Encrypt
-      et HSTS remonté par paliers, à `0` tant que la pile est jointe sur `localhost`,
-      qu'elle partage avec le développement.
+      `/admin/`, que le throttling de DRF ne voit pas. S'y ajoute HSTS, posé par le nginx
+      du VPS à 3600 depuis #324 : le monter à 86400, puis à 31536000, seul palier qui éteint
+      l'avertissement W021 de `check --deploy`. L'engagement ne se révoque pas.
 - [ ] **Logs et métriques depuis une interface unique** : piste, Grafana + Loki pour les
       logs, cAdvisor pour les métriques de conteneurs, dans un troisième fichier Compose
       que la pile de production n'a pas à connaître : elle doit démarrer sans lui. Reste à
