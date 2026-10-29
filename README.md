@@ -47,7 +47,7 @@ python3 -c 'import secrets, string; a = string.ascii_letters + string.digits; pr
 > Ces alphabets excluent `$` et `#` : Compose lit le même `.env` et tronquerait la valeur au
 > `$`. Les apostrophes extérieures évitent que le shell interprète le `!`.
 
-`.env.example` ne commente que les pièges ; ce README explique le reste. Une clé secrète
+`.env.example` ne commente que les pièges ; le reste est ici. Une clé secrète
 versionnée par erreur est compromise : en générer une autre.
 
 ### 2. La base de données
