@@ -101,7 +101,7 @@ cd frontend && npm run dev
 ```
 
 Créer un compte administrateur (`http://localhost:8000/admin/`), puis publier 30 articles de
-démonstration — la commande refuse de tourner quand `DEBUG` vaut faux :
+démonstration illustrés — la commande refuse de tourner si `DEBUG` vaut faux :
 
 ```bash
 # applications lancées sur la machine
@@ -206,7 +206,7 @@ docker image rm weeb-backend:ci weeb-frontend:ci
 | `python manage.py migrate` | Applique les migrations |
 | `python manage.py makemigrations` | Crée une migration après un changement de modèle |
 | `python manage.py createsuperuser` | Crée un compte administrateur |
-| `python manage.py peupler_articles` | Publie 30 articles de démonstration, en développement seulement |
+| `python manage.py peupler_articles` | Publie 30 articles illustrés, en développement seulement |
 | `python manage.py purger_contacts` | Supprime les messages de contact de plus de 90 jours (`--dry-run` : les compte seulement) |
 | `python manage.py flushexpiredtokens` | Purge les jetons expirés de la liste noire |
 | `python manage.py check --deploy` | Contrôle la configuration de sécurité avant mise en ligne |
