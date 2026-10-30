@@ -18,6 +18,14 @@ class ArticleViewSet(viewsets.ModelViewSet):
     queryset = Article.objects.select_related("author")
     serializer_class = ArticleSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+    throttle_scope = "article_write"
+
+    def get_throttles(self):
+        # Toute écriture qui peut déposer une image, avec ou sans : lecture et suppression,
+        # qui n'ajoutent rien au disque, restent libres.
+        if self.action in ("create", "update", "partial_update"):
+            return super().get_throttles()
+        return []
 
     def get_serializer_class(self):
         # La liste seule : le détail et l'écriture ont besoin du champ content.

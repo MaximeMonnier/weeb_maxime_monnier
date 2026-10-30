@@ -1,23 +1,30 @@
-"""Tests des articles : lecture, écriture, propriété, signature, couverture, listes, pages et peuplement."""
+"""Tests des articles : lecture, écriture, propriété, signature, couverture, quota, listes, pages et peuplement."""
 
 import re
 from datetime import timedelta
-from io import StringIO
+from io import BytesIO, StringIO
+from unittest.mock import patch
 
 from django.conf import settings
+from django.core.cache import cache
+from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import CommandError, call_command
 from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
+from PIL import Image
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import AccessToken
 
 from accounts.models import CustomUser
 
 from .management.commands.peupler_articles import DEMO_AUTHOR_EMAIL
 from .models import Article
+from .serializers import TAILLE_COUVERTURE_MAX
 from .views import LONGUEUR_EXTRAIT
 
 
@@ -224,6 +231,233 @@ class ArticleCouvertureTests(TestCase):
             with self.subTest(vue=vue):
                 self.assertEqual(couverture, f"http://testserver{self.article.cover.url}")
                 self.assertTrue(couverture.startswith("http://testserver/media/articles/"))
+
+
+def photo(nom="photo.jpg", format_pillow="JPEG", taille=(2, 2)):
+    """Une vraie image, du format demandé, sous le nom annoncé."""
+    contenu = BytesIO()
+    Image.new("RGB", taille).save(contenu, format_pillow)
+    return SimpleUploadedFile(nom, contenu.getvalue())
+
+
+def fichiers_de_couverture():
+    """Les noms présents dans le dossier des couvertures."""
+    dossier = settings.MEDIA_ROOT / "articles"
+    return {fichier.name for fichier in dossier.iterdir()} if dossier.exists() else set()
+
+
+class ArticleEnvoiCouvertureTests(TestCase):
+    """L'auteur joint, remplace ou retire l'image ; chaque contrôle porte sur le contenu."""
+
+    def setUp(self):
+        self.auteur = membre("auteur@example.com")
+
+    def creer(self, **champs):
+        """POST multipart, comme le ferait un formulaire avec un fichier."""
+        return self.client.post(
+            reverse("article-list"),
+            {"title": "Essai", "content": "Texte", **champs},
+            headers=porteur(self.auteur),
+        )
+
+    def modifier(self, article, champs):
+        # Le client de test n'encode en multipart que le POST.
+        return self.client.patch(
+            reverse("article-detail", args=[article.pk]),
+            encode_multipart(BOUNDARY, champs),
+            content_type=MULTIPART_CONTENT,
+            headers=porteur(self.auteur),
+        )
+
+    def test_l_image_est_enregistree_sous_un_nom_aleatoire(self):
+        response = self.creer(cover=photo("photo.jpg"))
+
+        self.assertEqual(response.status_code, 201)
+        nom = response.json()["cover"].rsplit("/", 1)[1]
+        self.assertNotIn("photo", nom)
+        self.assertRegex(nom, r"^[0-9a-f]{32}\.jpg$")
+        self.assertIn(nom, fichiers_de_couverture())
+
+    def test_l_extension_vient_du_contenu_et_non_du_nom(self):
+        response = self.creer(cover=photo("photo.jpg", "PNG"))
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.json()["cover"].endswith(".png"))
+
+    def test_deux_envois_du_meme_nom_ne_s_ecrasent_pas(self):
+        premiere = self.creer(cover=photo("photo.jpg")).json()["cover"]
+        seconde = self.creer(cover=photo("photo.jpg")).json()["cover"]
+
+        self.assertNotEqual(premiere, seconde)
+        self.assertLessEqual(
+            {premiere.rsplit("/", 1)[1], seconde.rsplit("/", 1)[1]}, fichiers_de_couverture(),
+        )
+
+    def test_les_fichiers_refuses_ne_laissent_ni_article_ni_fichier(self):
+        trop_lourde = photo().read() + b"\0" * (TAILLE_COUVERTURE_MAX + 1)
+        refus = {
+            "texte renommé": SimpleUploadedFile("photo.jpg", b"Ceci n'est pas une image."),
+            "SVG": SimpleUploadedFile(
+                "dessin.svg", b'<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>',
+            ),
+            "GIF": photo("anime.gif", "GIF"),
+            "plus de 5 Mo": SimpleUploadedFile("lourde.jpg", trop_lourde),
+            "fichier vide": SimpleUploadedFile("vide.jpg", b""),
+        }
+        avant = fichiers_de_couverture()
+        for cas, fichier in refus.items():
+            with self.subTest(cas=cas):
+                response = self.creer(cover=fichier)
+
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(list(response.json()), ["cover"])
+                self.assertEqual(len(response.json()["cover"]), 1)
+        self.assertFalse(Article.objects.exists())
+        self.assertEqual(fichiers_de_couverture(), avant)
+
+    def test_le_message_de_taille_est_en_francais(self):
+        response = self.creer(
+            cover=SimpleUploadedFile("lourde.jpg", b"\0" * (TAILLE_COUVERTURE_MAX + 1)),
+        )
+
+        self.assertEqual(response.json(), {"cover": ["L'image dépasse 5 Mo."]})
+
+    @patch("articles.serializers.PIXELS_COUVERTURE_MAX", 100)
+    def test_une_image_de_trop_de_pixels_est_refusee(self):
+        """Le plafond abaissé tient lieu de bombe : une vraie pèserait des centaines de Mo."""
+        self.assertEqual(self.creer(cover=photo(taille=(10, 10))).status_code, 201)
+
+        response = self.creer(cover=photo(taille=(11, 10)))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("mégapixels", response.json()["cover"][0])
+
+    def test_un_envoi_json_sans_image_reste_accepte(self):
+        response = self.client.post(
+            reverse("article-list"),
+            {"title": "Sans image", "content": "Texte"},
+            content_type="application/json",
+            headers=porteur(self.auteur),
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertIsNone(response.json()["cover"])
+
+    def test_un_patch_remplace_l_image(self):
+        article = Article.objects.get(pk=self.creer(cover=photo()).json()["id"])
+        ancienne = article.cover.name
+
+        response = self.modifier(article, {"cover": photo("autre.png", "PNG")})
+
+        self.assertEqual(response.status_code, 200)
+        article.refresh_from_db()
+        self.assertNotEqual(article.cover.name, ancienne)
+        self.assertTrue(article.cover.name.endswith(".png"))
+
+    def test_un_patch_avec_cover_vide_retire_l_image(self):
+        article = Article.objects.get(pk=self.creer(cover=photo()).json()["id"])
+
+        response = self.modifier(article, {"cover": ""})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()["cover"])
+        article.refresh_from_db()
+        self.assertFalse(article.cover)
+
+    def test_un_patch_json_avec_cover_null_retire_l_image(self):
+        article = Article.objects.get(pk=self.creer(cover=photo()).json()["id"])
+
+        response = self.client.patch(
+            reverse("article-detail", args=[article.pk]),
+            {"cover": None},
+            content_type="application/json",
+            headers=porteur(self.auteur),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()["cover"])
+
+    def test_un_patch_sans_cover_garde_l_image(self):
+        article = Article.objects.get(pk=self.creer(cover=photo()).json()["id"])
+        couverture = article.cover.name
+
+        response = self.modifier(article, {"title": "Nouveau titre"})
+
+        self.assertEqual(response.status_code, 200)
+        article.refresh_from_db()
+        self.assertEqual(article.cover.name, couverture)
+        self.assertTrue(article.cover.storage.exists(couverture))
+
+
+class ArticleImageOrphelineTests(TestCase):
+    """Une image qu'aucun article ne désigne plus quitte le disque, une fois l'écriture validée."""
+
+    def setUp(self):
+        self.auteur = membre("auteur@example.com")
+        self.article = Article.objects.create(
+            title="Illustré", content="Texte", author=self.auteur, cover=photo(),
+        )
+        self.image = self.article.cover.name
+
+    def image_restee(self):
+        return self.article.cover.storage.exists(self.image)
+
+    def test_l_image_remplacee_est_effacee(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.patch(
+                reverse("article-detail", args=[self.article.pk]),
+                encode_multipart(BOUNDARY, {"cover": photo()}),
+                content_type=MULTIPART_CONTENT,
+                headers=porteur(self.auteur),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.image_restee())
+        self.article.refresh_from_db()
+        self.assertTrue(self.article.cover.storage.exists(self.article.cover.name))
+
+    def test_l_image_retiree_est_effacee(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.article.cover = None
+            self.article.save()
+
+        self.assertFalse(self.image_restee())
+
+    def test_l_image_d_un_article_supprime_est_effacee(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(
+                reverse("article-detail", args=[self.article.pk]), headers=porteur(self.auteur),
+            )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(self.image_restee())
+
+    def test_un_compte_supprime_emporte_les_images_de_ses_articles(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.auteur.delete()
+
+        self.assertFalse(self.image_restee())
+
+    def test_un_effacement_rate_ne_fait_pas_echouer_la_suppression(self):
+        """L'article est déjà supprimé en base : un 500 annoncerait un échec qui n'a pas eu lieu."""
+        with (
+            patch.object(FileSystemStorage, "delete", side_effect=PermissionError),
+            self.assertLogs("django", "ERROR"),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            response = self.client.delete(
+                reverse("article-detail", args=[self.article.pk]), headers=porteur(self.auteur),
+            )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Article.objects.exists())
+
+    def test_un_enregistrement_sans_changement_d_image_la_garde(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.article.title = "Retitré"
+            self.article.save()
+
+        self.assertTrue(self.image_restee())
 
 
 class ArticleEstAuteurTests(TestCase):
@@ -658,3 +892,59 @@ class PeuplerArticlesTests(TestCase):
 
         self.assertFalse(Article.objects.exists())
         self.assertFalse(CustomUser.objects.filter(email=DEMO_AUTHOR_EMAIL).exists())
+
+
+class ArticleQuotaEcritureTests(TestCase):
+    """Les écritures sont comptées par compte ; la lecture et la suppression ne le sont pas."""
+
+    def setUp(self):
+        self.auteur = membre("auteur@example.com")
+        # Le compteur vit dans un cache de processus, que rien ne vide entre deux tests.
+        cache.clear()
+
+    def creer(self, auteur):
+        return self.client.post(
+            reverse("article-list"),
+            {"title": "Essai", "content": "Texte"},
+            content_type="application/json",
+            headers=porteur(auteur),
+        )
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"article_write": "20/hour"})
+    def test_la_vingt_et_unieme_ecriture_est_refusee(self):
+        for _ in range(20):
+            self.assertEqual(self.creer(self.auteur).status_code, 201)
+
+        self.assertEqual(self.creer(self.auteur).status_code, 429)
+        article = Article.objects.first()
+        modification = self.client.patch(
+            reverse("article-detail", args=[article.pk]),
+            {"title": "Retouche"},
+            content_type="application/json",
+            headers=porteur(self.auteur),
+        )
+        self.assertEqual(modification.status_code, 429)
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"article_write": "1/hour"})
+    def test_le_quota_epuise_laisse_lire_et_supprimer(self):
+        self.creer(self.auteur)
+        self.assertEqual(self.creer(self.auteur).status_code, 429)
+        article = Article.objects.get()
+
+        self.assertEqual(self.client.get(reverse("article-list")).status_code, 200)
+        self.assertEqual(
+            self.client.get(reverse("article-detail", args=[article.pk])).status_code, 200,
+        )
+        self.assertEqual(
+            self.client.delete(
+                reverse("article-detail", args=[article.pk]), headers=porteur(self.auteur),
+            ).status_code,
+            204,
+        )
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"article_write": "1/hour"})
+    def test_le_quota_est_compte_par_compte(self):
+        self.creer(self.auteur)
+        self.assertEqual(self.creer(self.auteur).status_code, 429)
+
+        self.assertEqual(self.creer(membre("autre@example.com")).status_code, 201)
