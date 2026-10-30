@@ -579,7 +579,7 @@ chaque route et échoue si une route de l'API manque.
 | `GET` | `/api/articles/` | public | Liste paginée par 12 : `{count, next, previous, results}`, extrait et `cover` |
 | `GET` | `/api/articles/{id}/` | public | Détail, contenu entier et `cover` (URL ou `null`) |
 | `POST` | `/api/articles/` | connecté | Crée un article. `content` : 20 000 caractères au plus, `cover` facultative |
-| `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression. `cover` vide retire l'image |
+| `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression. `cover` vide en multipart, ou `null` en JSON, retire l'image |
 | `POST` | `/api/contact/` | public | Formulaire de contact. `message` : 5 000 caractères au plus |
 | `GET` | `/api/` | connecté | Index navigable des routes du routeur DRF |
 
