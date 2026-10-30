@@ -430,6 +430,7 @@ class ThrottleScopeTests(SimpleTestCase):
             "password-change": "password_change",
             "account-delete": "account_delete",
             "contact": "contact",
+            "article-list": "article_write",
         }.items():
             with self.subTest(route=nom_de_route):
                 vue = resolve(reverse(nom_de_route)).func

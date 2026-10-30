@@ -6,6 +6,7 @@ from io import BytesIO, StringIO
 from unittest.mock import patch
 
 from django.conf import settings
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import CommandError, call_command
 from django.db import connection
@@ -15,6 +16,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import AccessToken
 
 from accounts.models import CustomUser
@@ -804,3 +806,59 @@ class PeuplerArticlesTests(TestCase):
 
         self.assertFalse(Article.objects.exists())
         self.assertFalse(CustomUser.objects.filter(email=DEMO_AUTHOR_EMAIL).exists())
+
+
+class ArticleQuotaEcritureTests(TestCase):
+    """Les écritures sont comptées par compte ; la lecture et la suppression ne le sont pas."""
+
+    def setUp(self):
+        self.auteur = membre("auteur@example.com")
+        # Le compteur vit dans un cache de processus, que rien ne vide entre deux tests.
+        cache.clear()
+
+    def creer(self, auteur):
+        return self.client.post(
+            reverse("article-list"),
+            {"title": "Essai", "content": "Texte"},
+            content_type="application/json",
+            headers=porteur(auteur),
+        )
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"article_write": "20/hour"})
+    def test_la_vingt_et_unieme_ecriture_est_refusee(self):
+        for _ in range(20):
+            self.assertEqual(self.creer(self.auteur).status_code, 201)
+
+        self.assertEqual(self.creer(self.auteur).status_code, 429)
+        article = Article.objects.first()
+        modification = self.client.patch(
+            reverse("article-detail", args=[article.pk]),
+            {"title": "Retouche"},
+            content_type="application/json",
+            headers=porteur(self.auteur),
+        )
+        self.assertEqual(modification.status_code, 429)
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"article_write": "1/hour"})
+    def test_le_quota_epuise_laisse_lire_et_supprimer(self):
+        self.creer(self.auteur)
+        self.assertEqual(self.creer(self.auteur).status_code, 429)
+        article = Article.objects.get()
+
+        self.assertEqual(self.client.get(reverse("article-list")).status_code, 200)
+        self.assertEqual(
+            self.client.get(reverse("article-detail", args=[article.pk])).status_code, 200,
+        )
+        self.assertEqual(
+            self.client.delete(
+                reverse("article-detail", args=[article.pk]), headers=porteur(self.auteur),
+            ).status_code,
+            204,
+        )
+
+    @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"article_write": "1/hour"})
+    def test_le_quota_est_compte_par_compte(self):
+        self.creer(self.auteur)
+        self.assertEqual(self.creer(self.auteur).status_code, 429)
+
+        self.assertEqual(self.creer(membre("autre@example.com")).status_code, 201)
