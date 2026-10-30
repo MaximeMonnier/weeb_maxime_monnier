@@ -1,6 +1,8 @@
 """Tests des articles : lecture, écriture, propriété, signature, couverture, quota, listes, pages et peuplement."""
 
 import re
+import struct
+import zlib
 from datetime import timedelta
 from io import BytesIO, StringIO
 from unittest.mock import patch
@@ -16,7 +18,7 @@ from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
-from PIL import ExifTags, Image
+from PIL import ExifTags, Image, ImageCms
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import AccessToken
 
@@ -240,6 +242,15 @@ def photo(nom="photo.jpg", format_pillow="JPEG", taille=(2, 2), mode="RGB", **op
     return SimpleUploadedFile(nom, contenu.getvalue())
 
 
+def png_au_texte_piege():
+    """Un PNG de 50 Ko dont le bloc de texte, après l'image, se décompresse en 50 Mo : verify() n'en lit que le CRC."""
+    png = photo("piege.png", "PNG").read()
+    texte = b"k\0\0" + zlib.compress(b"a" * 50_000_000)
+    bloc = struct.pack(">I", len(texte)) + b"zTXt" + texte + struct.pack(">I", zlib.crc32(b"zTXt" + texte))
+    fin = png.rfind(b"IEND") - 4
+    return SimpleUploadedFile("piege.png", png[:fin] + bloc + png[fin:])
+
+
 def couverture_stockee(response):
     """Le fichier enregistré pour l'article que la réponse décrit, ouvert par Pillow."""
     return Image.open(settings.MEDIA_ROOT / "articles" / response.json()["cover"].rsplit("/", 1)[1])
@@ -309,6 +320,7 @@ class ArticleEnvoiCouvertureTests(TestCase):
         Image.effect_noise((64, 64), 50).save(bruit, "JPEG")
         refus = {
             "JPEG tronqué": SimpleUploadedFile("coupee.jpg", bruit.getvalue()[:len(bruit.getvalue()) // 2]),
+            "PNG au texte piégé": png_au_texte_piege(),
             "texte renommé": SimpleUploadedFile("photo.jpg", b"Ceci n'est pas une image."),
             "SVG": SimpleUploadedFile(
                 "dessin.svg", b'<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>',
@@ -441,6 +453,12 @@ class ArticleNettoyageCouvertureTests(TestCase):
     def test_la_transparence_d_un_png_est_gardee(self):
         with self.stocker(photo("logo.png", "PNG", mode="RGBA")) as image:
             self.assertEqual(image.mode, "RGBA")
+
+    def test_le_profil_de_couleur_est_garde(self):
+        profil = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+
+        with self.stocker(photo(icc_profile=profil)) as image:
+            self.assertEqual(image.info.get("icc_profile"), profil)
 
 
 class ArticleImageOrphelineTests(TestCase):

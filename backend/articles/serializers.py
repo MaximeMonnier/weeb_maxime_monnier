@@ -22,8 +22,9 @@ def reencoder_en_webp(fichier):
     image = ImageOps.exif_transpose(Image.open(fichier))
     image.thumbnail((COTE_COUVERTURE_MAX, COTE_COUVERTURE_MAX))
     contenu = BytesIO()
-    # Ni exif ni xmp passés : Pillow n'écrit en WebP que ceux qu'on lui donne.
-    image.save(contenu, "WEBP", quality=85)
+    # Pillow n'écrit en WebP que les métadonnées qu'on lui passe : ni exif ni xmp, mais le
+    # profil de couleur, qui ne dit rien de l'auteur et sans lequel une photo P3 ternit.
+    image.save(contenu, "WEBP", quality=85, icc_profile=image.info.get("icc_profile"))
     return contenu.getvalue()
 
 
@@ -52,8 +53,9 @@ class CouvertureField(serializers.ImageField):
             self.fail("trop_grande")
         try:
             contenu = reencoder_en_webp(fichier)
-        # Le verify() de Django ne décode pas un JPEG : tronqué, il ne casse qu'ici.
-        except OSError:
+        # Le verify() de Django ne décode pas l'image : un JPEG tronqué ou un bloc de texte
+        # PNG piégé ne cassent qu'ici. Toute exception, comme Django autour de Pillow.
+        except Exception:
             self.fail("invalid_image")
         # Le nom reçu est jeté : nginx sert le type d'après l'extension, qui doit dire vrai.
         return ContentFile(contenu, name=f"{uuid4().hex}.webp")
