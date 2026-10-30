@@ -21,7 +21,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
     throttle_scope = "article_write"
 
     def get_throttles(self):
-        # Seules les écritures qui déposent une image sont comptées : la lecture reste libre.
+        # Toute écriture qui peut déposer une image, avec ou sans : lecture et suppression,
+        # qui n'ajoutent rien au disque, restent libres.
         if self.action in ("create", "update", "partial_update"):
             return super().get_throttles()
         return []

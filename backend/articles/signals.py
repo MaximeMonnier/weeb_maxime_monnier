@@ -9,8 +9,10 @@ from .models import Article
 
 def effacer_apres_validation(storage, nom):
     """Efface le fichier une fois la transaction validée : annulée, elle garde l'article et son image."""
+    # robust : un échec d'effacement est journalisé, et ne fait pas répondre 500 à une écriture
+    # déjà validée — un fichier orphelin vaut mieux qu'une réponse fausse.
     if nom:
-        transaction.on_commit(lambda: storage.delete(nom))
+        transaction.on_commit(lambda: storage.delete(nom), robust=True)
 
 
 @receiver(pre_save, sender=Article)

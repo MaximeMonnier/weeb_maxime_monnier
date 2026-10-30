@@ -33,7 +33,7 @@ class CouvertureField(serializers.ImageField):
         largeur, hauteur = image.size
         if largeur * hauteur > PIXELS_COUVERTURE_MAX:
             self.fail("trop_grande")
-        # L'extension vient du contenu : « photo.html » servi sur l'origine du site serait du HTML.
+        # L'extension vient du contenu : nginx sert le type d'après elle, jamais d'après le nom reçu.
         fichier.name = f"{uuid4().hex}.{FORMATS_COUVERTURE[image.format]}"
         return fichier
 

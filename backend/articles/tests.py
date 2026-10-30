@@ -363,6 +363,19 @@ class ArticleEnvoiCouvertureTests(TestCase):
         article.refresh_from_db()
         self.assertFalse(article.cover)
 
+    def test_un_patch_json_avec_cover_null_retire_l_image(self):
+        article = Article.objects.get(pk=self.creer(cover=photo()).json()["id"])
+
+        response = self.client.patch(
+            reverse("article-detail", args=[article.pk]),
+            {"cover": None},
+            content_type="application/json",
+            headers=porteur(self.auteur),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()["cover"])
+
     def test_un_patch_sans_cover_garde_l_image(self):
         article = Article.objects.get(pk=self.creer(cover=photo()).json()["id"])
         couverture = article.cover.name
