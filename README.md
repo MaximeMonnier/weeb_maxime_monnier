@@ -415,6 +415,8 @@ server {
 
     # Sans barre oblique finale : avec, le préfixe /api/ serait retiré et Django rendrait 404.
     location /api/ {
+        # Le défaut de 1 Mo refuserait une image de couverture, que l'API accepte jusqu'à 5 Mo.
+        client_max_body_size 6m;
         proxy_pass http://127.0.0.1:8001;
     }
 
@@ -464,7 +466,7 @@ Côté nginx (`/home/apps/nginx`, hors dépôt) :
 
 | Fichier | Rôle |
 |---|---|
-| `conf.d/weeb.conf` | `/api/` et `/admin/` vers `weeb-backend:8000`, le reste vers `weeb-frontend:8080` |
+| `conf.d/weeb.conf` | `/api/` et `/admin/` vers `weeb-backend:8000`, le reste vers `weeb-frontend:8080`. `/api/` porte `client_max_body_size 6m;`, comme au § « Déployer derrière le nginx du serveur » |
 | `snippets/ssl-app.conf` | `ssl.conf` sans ses `add_header` : le front et Django posent leurs propres en-têtes de sécurité |
 
 `weeb.conf` pose le seul HSTS du site et masque celui de Django : son `max-age` suit
@@ -576,13 +578,22 @@ chaque route et échoue si une route de l'API manque.
 | `DELETE` | `/api/auth/account/` | connecté | Mot de passe redonné. Supprime le compte et ses articles, répond `204` |
 | `GET` | `/api/articles/` | public | Liste paginée par 12 : `{count, next, previous, results}`, extrait et `cover` |
 | `GET` | `/api/articles/{id}/` | public | Détail, contenu entier et `cover` (URL ou `null`) |
-| `POST` | `/api/articles/` | connecté | Crée un article. `content` : 20 000 caractères au plus |
-| `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression |
+| `POST` | `/api/articles/` | connecté | Crée un article. `content` : 20 000 caractères au plus, `cover` facultative |
+| `PUT` `PATCH` `DELETE` | `/api/articles/{id}/` | auteur | Modification et suppression. `cover` vide retire l'image |
 | `POST` | `/api/contact/` | public | Formulaire de contact. `message` : 5 000 caractères au plus |
 | `GET` | `/api/` | connecté | Index navigable des routes du routeur DRF |
 
 L'auteur d'un article est rendu en « Prénom Nom », jamais par son email. Les routes protégées
 attendent l'en-tête `Authorization: Bearer <jeton d'accès>`.
+
+`cover` s'envoie en `multipart/form-data`. L'image est jugée sur son contenu : JPEG, PNG ou
+WebP, 5 Mo et 40 mégapixels au plus. Elle est enregistrée sous un nom aléatoire, et effacée du
+disque quand elle est remplacée, retirée, ou que son article est supprimé :
+
+```bash
+curl -H "Authorization: Bearer <jeton>" -F title=Essai -F content=Texte -F cover=@photo.jpg \
+  http://localhost:8000/api/articles/
+```
 
 Les messages d'erreur sont en français, ceux de simplejwt compris grâce à `backend/locale/`.
 Après une modification du `.po`, recompiler le `.mo`, versionné :
@@ -616,7 +627,7 @@ un `400` rangé sous la clé du champ :
 ### Le débit
 
 Au-delà du quota, l'API répond `429` avec un en-tête `Retry-After`. Les quotas se règlent dans
-le `.env` ; la lecture des articles n'est pas limitée.
+le `.env` ; la lecture et la suppression des articles ne sont pas limitées.
 
 | Route | Quota par défaut | Compté par | Variable |
 |---|---|---|---|
@@ -627,6 +638,7 @@ le `.env` ; la lecture des articles n'est pas limitée.
 | `POST /api/auth/password-change/` | 5 par heure | compte | `THROTTLE_PASSWORD_CHANGE` |
 | `DELETE /api/auth/account/` | 5 par heure | compte | `THROTTLE_ACCOUNT_DELETE` |
 | `POST /api/contact/` | 5 par heure | IP | `THROTTLE_CONTACT` |
+| `POST /api/articles/`, `PUT` `PATCH /api/articles/{id}/` | 20 par heure | compte | `THROTTLE_ARTICLE_WRITE` |
 
 ## Structure
 
