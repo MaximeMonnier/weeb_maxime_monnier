@@ -460,6 +460,14 @@ class ArticleNettoyageCouvertureTests(TestCase):
         with self.stocker(photo(icc_profile=profil)) as image:
             self.assertEqual(image.info.get("icc_profile"), profil)
 
+    def test_le_profil_d_une_image_grise_ou_cmjn_n_est_pas_recopie(self):
+        """Passée en RGB par le WebP, elle n'a plus les pixels que son profil décrit."""
+        profil = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+        for mode in ("L", "CMYK"):
+            with self.subTest(mode=mode), self.stocker(photo(mode=mode, icc_profile=profil)) as image:
+                self.assertEqual(image.mode, "RGB")
+                self.assertIsNone(image.info.get("icc_profile"))
+
 
 class ArticleImageOrphelineTests(TestCase):
     """Une image qu'aucun article ne désigne plus quitte le disque, une fois l'écriture validée."""

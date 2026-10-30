@@ -15,7 +15,7 @@ COTE_COUVERTURE_MAX = 1600
 
 
 def reencoder_en_webp(fichier):
-    """L'image redressée, ramenée à 1600 px de côté au plus, en WebP et sans métadonnées."""
+    """L'image redressée, ramenée à 1600 px de côté au plus, en WebP et sans EXIF ni XMP."""
     fichier.seek(0)
     # L'orientation EXIF disparaît avec les métadonnées : appliquée avant, sans quoi
     # une photo de téléphone resterait couchée.
@@ -23,8 +23,10 @@ def reencoder_en_webp(fichier):
     image.thumbnail((COTE_COUVERTURE_MAX, COTE_COUVERTURE_MAX))
     contenu = BytesIO()
     # Pillow n'écrit en WebP que les métadonnées qu'on lui passe : ni exif ni xmp, mais le
-    # profil de couleur, qui ne dit rien de l'auteur et sans lequel une photo P3 ternit.
-    image.save(contenu, "WEBP", quality=85, icc_profile=image.info.get("icc_profile"))
+    # profil de couleur, sans lequel une photo P3 ternit. Pas celui d'une image CMJN ou grise :
+    # le WebP la passe en RGB, et ce profil ne décrirait plus les pixels écrits.
+    profil = image.info.get("icc_profile") if image.mode in ("RGB", "RGBA", "P") else None
+    image.save(contenu, "WEBP", quality=85, icc_profile=profil)
     return contenu.getvalue()
 
 
