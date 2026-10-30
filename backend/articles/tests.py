@@ -16,7 +16,7 @@ from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
-from PIL import Image
+from PIL import ExifTags, Image
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import AccessToken
 
@@ -233,11 +233,16 @@ class ArticleCouvertureTests(TestCase):
                 self.assertTrue(couverture.startswith("http://testserver/media/articles/"))
 
 
-def photo(nom="photo.jpg", format_pillow="JPEG", taille=(2, 2)):
-    """Une vraie image, du format demandé, sous le nom annoncé."""
+def photo(nom="photo.jpg", format_pillow="JPEG", taille=(2, 2), mode="RGB", **options):
+    """Une vraie image, du format demandé, sous le nom annoncé ; options va à Image.save."""
     contenu = BytesIO()
-    Image.new("RGB", taille).save(contenu, format_pillow)
+    Image.new(mode, taille).save(contenu, format_pillow, **options)
     return SimpleUploadedFile(nom, contenu.getvalue())
+
+
+def couverture_stockee(response):
+    """Le fichier enregistré pour l'article que la réponse décrit, ouvert par Pillow."""
+    return Image.open(settings.MEDIA_ROOT / "articles" / response.json()["cover"].rsplit("/", 1)[1])
 
 
 def fichiers_de_couverture():
@@ -275,14 +280,17 @@ class ArticleEnvoiCouvertureTests(TestCase):
         self.assertEqual(response.status_code, 201)
         nom = response.json()["cover"].rsplit("/", 1)[1]
         self.assertNotIn("photo", nom)
-        self.assertRegex(nom, r"^[0-9a-f]{32}\.jpg$")
+        self.assertRegex(nom, r"^[0-9a-f]{32}\.webp$")
         self.assertIn(nom, fichiers_de_couverture())
 
-    def test_l_extension_vient_du_contenu_et_non_du_nom(self):
-        response = self.creer(cover=photo("photo.jpg", "PNG"))
+    def test_chaque_format_accepte_est_enregistre_en_webp(self):
+        for format_pillow in ("JPEG", "PNG", "WEBP"):
+            with self.subTest(format=format_pillow):
+                response = self.creer(cover=photo("photo.jpg", format_pillow))
 
-        self.assertEqual(response.status_code, 201)
-        self.assertTrue(response.json()["cover"].endswith(".png"))
+                self.assertEqual(response.status_code, 201)
+                with couverture_stockee(response) as image:
+                    self.assertEqual(image.format, "WEBP")
 
     def test_deux_envois_du_meme_nom_ne_s_ecrasent_pas(self):
         premiere = self.creer(cover=photo("photo.jpg")).json()["cover"]
@@ -295,7 +303,12 @@ class ArticleEnvoiCouvertureTests(TestCase):
 
     def test_les_fichiers_refuses_ne_laissent_ni_article_ni_fichier(self):
         trop_lourde = photo().read() + b"\0" * (TAILLE_COUVERTURE_MAX + 1)
+        # Du bruit et non un aplat : coupé de moitié, un aplat perd son en-tête et Django le
+        # refuse avant le réencodage, qui n'est alors jamais essayé.
+        bruit = BytesIO()
+        Image.effect_noise((64, 64), 50).save(bruit, "JPEG")
         refus = {
+            "JPEG tronqué": SimpleUploadedFile("coupee.jpg", bruit.getvalue()[:len(bruit.getvalue()) // 2]),
             "texte renommé": SimpleUploadedFile("photo.jpg", b"Ceci n'est pas une image."),
             "SVG": SimpleUploadedFile(
                 "dessin.svg", b'<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>',
@@ -352,7 +365,6 @@ class ArticleEnvoiCouvertureTests(TestCase):
         self.assertEqual(response.status_code, 200)
         article.refresh_from_db()
         self.assertNotEqual(article.cover.name, ancienne)
-        self.assertTrue(article.cover.name.endswith(".png"))
 
     def test_un_patch_avec_cover_vide_retire_l_image(self):
         article = Article.objects.get(pk=self.creer(cover=photo()).json()["id"])
@@ -387,6 +399,48 @@ class ArticleEnvoiCouvertureTests(TestCase):
         article.refresh_from_db()
         self.assertEqual(article.cover.name, couverture)
         self.assertTrue(article.cover.storage.exists(couverture))
+
+
+class ArticleNettoyageCouvertureTests(TestCase):
+    """L'image reçue est redressée, réduite et dépouillée de ses métadonnées avant d'être gardée."""
+
+    def setUp(self):
+        self.auteur = membre("auteur@example.com")
+
+    def stocker(self, fichier):
+        """Publie un article illustré et ouvre l'image que le serveur a gardée."""
+        response = self.client.post(
+            reverse("article-list"),
+            {"title": "Essai", "content": "Texte", "cover": fichier},
+            headers=porteur(self.auteur),
+        )
+        self.assertEqual(response.status_code, 201)
+        return couverture_stockee(response)
+
+    def test_la_position_gps_et_le_xmp_ne_sont_pas_gardes(self):
+        exif = Image.Exif()
+        exif[ExifTags.Base.Make] = "Téléphone"
+        exif[ExifTags.IFD.GPSInfo] = {ExifTags.GPS.GPSLatitude: (48.0, 51.0, 24.0)}
+
+        with self.stocker(photo(exif=exif, xmp=b"<x:xmpmeta>lieu</x:xmpmeta>")) as image:
+            self.assertEqual(dict(image.getexif()), {})
+            self.assertNotIn("xmp", image.info)
+
+    def test_une_grande_photo_est_reduite_et_une_petite_gardee(self):
+        for taille, attendue in (((4000, 3000), (1600, 1200)), ((800, 600), (800, 600))):
+            with self.subTest(taille=taille), self.stocker(photo(taille=taille)) as image:
+                self.assertEqual(image.size, attendue)
+
+    def test_une_photo_marquee_orientation_6_est_gardee_en_portrait(self):
+        exif = Image.Exif()
+        exif[ExifTags.Base.Orientation] = 6
+
+        with self.stocker(photo(taille=(4000, 3000), exif=exif)) as image:
+            self.assertEqual(image.size, (1200, 1600))
+
+    def test_la_transparence_d_un_png_est_gardee(self):
+        with self.stocker(photo("logo.png", "PNG", mode="RGBA")) as image:
+            self.assertEqual(image.mode, "RGBA")
 
 
 class ArticleImageOrphelineTests(TestCase):

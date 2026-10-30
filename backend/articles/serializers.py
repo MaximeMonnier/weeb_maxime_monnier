@@ -1,17 +1,34 @@
+from io import BytesIO
 from uuid import uuid4
 
+from django.core.files.base import ContentFile
+from PIL import Image, ImageOps
 from rest_framework import serializers
 from .models import Article
 
 TAILLE_COUVERTURE_MAX = 5 * 1024 * 1024
-# Le format que Pillow lit dans le contenu, et l'extension donnée au fichier enregistré.
-FORMATS_COUVERTURE = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}
+# Les formats que Pillow doit lire dans le contenu ; tous sont réenregistrés en WebP.
+FORMATS_COUVERTURE = {"JPEG", "PNG", "WEBP"}
 # 40 mégapixels : une photo d'appareil passe, une bombe de décompression non.
 PIXELS_COUVERTURE_MAX = 40_000_000
+COTE_COUVERTURE_MAX = 1600
+
+
+def reencoder_en_webp(fichier):
+    """L'image redressée, ramenée à 1600 px de côté au plus, en WebP et sans métadonnées."""
+    fichier.seek(0)
+    # L'orientation EXIF disparaît avec les métadonnées : appliquée avant, sans quoi
+    # une photo de téléphone resterait couchée.
+    image = ImageOps.exif_transpose(Image.open(fichier))
+    image.thumbnail((COTE_COUVERTURE_MAX, COTE_COUVERTURE_MAX))
+    contenu = BytesIO()
+    # Ni exif ni xmp passés : Pillow n'écrit en WebP que ceux qu'on lui donne.
+    image.save(contenu, "WEBP", quality=85)
+    return contenu.getvalue()
 
 
 class CouvertureField(serializers.ImageField):
-    """Une image jugée sur son contenu, enregistrée sous un nom tiré au hasard."""
+    """Une image jugée sur son contenu, enregistrée en WebP sous un nom tiré au hasard."""
 
     default_error_messages = {
         "trop_lourde": f"L'image dépasse {TAILLE_COUVERTURE_MAX // (1024 * 1024)} Mo.",
@@ -33,9 +50,13 @@ class CouvertureField(serializers.ImageField):
         largeur, hauteur = image.size
         if largeur * hauteur > PIXELS_COUVERTURE_MAX:
             self.fail("trop_grande")
-        # L'extension vient du contenu : nginx sert le type d'après elle, jamais d'après le nom reçu.
-        fichier.name = f"{uuid4().hex}.{FORMATS_COUVERTURE[image.format]}"
-        return fichier
+        try:
+            contenu = reencoder_en_webp(fichier)
+        # Le verify() de Django ne décode pas un JPEG : tronqué, il ne casse qu'ici.
+        except OSError:
+            self.fail("invalid_image")
+        # Le nom reçu est jeté : nginx sert le type d'après l'extension, qui doit dire vrai.
+        return ContentFile(contenu, name=f"{uuid4().hex}.webp")
 
 
 class ArticleSerializer(serializers.ModelSerializer):
