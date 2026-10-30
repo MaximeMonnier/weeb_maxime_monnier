@@ -161,6 +161,13 @@ développement.
       `accounts/models.py`, celles d'`is_active`, `is_staff`, `USERNAME_FIELD` et
       `REQUIRED_FIELDS`. Repéré à la revue de l'issue #263. Piste : ne garder que celles qui
       disent un pourquoi, comme « demandés en plus par createsuperuser ».
+- [ ] **Un JPEG à plusieurs images est refusé comme « format ».** Pillow lit ce fichier
+      comme du `MPO`, absent de `FORMATS_COUVERTURE` (`articles/serializers.py`), et l'auteur
+      lit « Formats acceptés : JPEG, PNG et WebP. » alors qu'il a bien envoyé un JPEG. Vérifié
+      sur un MPO fabriqué par Pillow. Une vraie photo d'iPhone n'a pas été essayée, mais
+      certaines y joignent une carte HDR et seraient refusées. Repéré à la revue de
+      l'issue #336. Piste : ajouter `"MPO"` à l'ensemble, puisque le réencodage en WebP ne
+      garde que la première image.
 
 ## Fonctionnalités écartées
 
