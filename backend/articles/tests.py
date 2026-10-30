@@ -12,7 +12,7 @@ from django.core.cache import cache
 from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import CommandError, call_command
-from django.db import connection
+from django.db import connection, transaction
 from django.test import TestCase, override_settings
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.test.utils import CaptureQueriesContext
@@ -498,9 +498,14 @@ class ArticleImageOrphelineTests(TestCase):
 
     def test_l_image_retiree_est_effacee(self):
         with self.captureOnCommitCallbacks(execute=True):
-            self.article.cover = None
-            self.article.save()
+            response = self.client.patch(
+                reverse("article-detail", args=[self.article.pk]),
+                encode_multipart(BOUNDARY, {"cover": ""}),
+                content_type=MULTIPART_CONTENT,
+                headers=porteur(self.auteur),
+            )
 
+        self.assertEqual(response.status_code, 200)
         self.assertFalse(self.image_restee())
 
     def test_l_image_d_un_article_supprime_est_effacee(self):
@@ -513,10 +518,34 @@ class ArticleImageOrphelineTests(TestCase):
         self.assertFalse(self.image_restee())
 
     def test_un_compte_supprime_emporte_les_images_de_ses_articles(self):
-        with self.captureOnCommitCallbacks(execute=True):
-            self.auteur.delete()
+        autre = Article.objects.create(
+            title="Second", content="Texte", author=self.auteur, cover=photo(),
+        ).cover.name
 
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(
+                reverse("account-delete"),
+                {"password": "MotDePasseValide123"},
+                content_type="application/json",
+                headers=porteur(self.auteur),
+            )
+
+        self.assertEqual(response.status_code, 204)
         self.assertFalse(self.image_restee())
+        self.assertFalse(self.article.cover.storage.exists(autre))
+
+    def test_une_suppression_annulee_garde_l_image(self):
+        pk = self.article.pk
+        with (
+            self.captureOnCommitCallbacks(execute=True),
+            self.assertRaises(RuntimeError),
+            transaction.atomic(),
+        ):
+            self.article.delete()
+            raise RuntimeError
+
+        self.assertTrue(Article.objects.filter(pk=pk).exists())
+        self.assertTrue(self.image_restee())
 
     def test_un_effacement_rate_ne_fait_pas_echouer_la_suppression(self):
         """L'article est déjà supprimé en base : un 500 annoncerait un échec qui n'a pas eu lieu."""
