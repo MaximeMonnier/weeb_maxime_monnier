@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import CommandError, call_command
 from django.db import connection
@@ -436,6 +437,20 @@ class ArticleImageOrphelineTests(TestCase):
             self.auteur.delete()
 
         self.assertFalse(self.image_restee())
+
+    def test_un_effacement_rate_ne_fait_pas_echouer_la_suppression(self):
+        """L'article est déjà supprimé en base : un 500 annoncerait un échec qui n'a pas eu lieu."""
+        with (
+            patch.object(FileSystemStorage, "delete", side_effect=PermissionError),
+            self.assertLogs("django", "ERROR"),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            response = self.client.delete(
+                reverse("article-detail", args=[self.article.pk]), headers=porteur(self.auteur),
+            )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Article.objects.exists())
 
     def test_un_enregistrement_sans_changement_d_image_la_garde(self):
         with self.captureOnCommitCallbacks(execute=True):
