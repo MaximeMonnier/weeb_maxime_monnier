@@ -1,4 +1,4 @@
-"""Tests des articles : lecture, écriture, propriété, signature, couverture, listes, pages et peuplement."""
+"""Tests des articles : lecture, écriture, propriété, signature, couverture, quota, listes, pages et peuplement."""
 
 import re
 from datetime import timedelta
@@ -372,6 +372,64 @@ class ArticleEnvoiCouvertureTests(TestCase):
         self.assertEqual(response.status_code, 200)
         article.refresh_from_db()
         self.assertEqual(article.cover.name, couverture)
+        self.assertTrue(article.cover.storage.exists(couverture))
+
+
+class ArticleImageOrphelineTests(TestCase):
+    """Une image qu'aucun article ne désigne plus quitte le disque, une fois l'écriture validée."""
+
+    def setUp(self):
+        self.auteur = membre("auteur@example.com")
+        self.article = Article.objects.create(
+            title="Illustré", content="Texte", author=self.auteur, cover=photo(),
+        )
+        self.image = self.article.cover.name
+
+    def image_restee(self):
+        return self.article.cover.storage.exists(self.image)
+
+    def test_l_image_remplacee_est_effacee(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.patch(
+                reverse("article-detail", args=[self.article.pk]),
+                encode_multipart(BOUNDARY, {"cover": photo()}),
+                content_type=MULTIPART_CONTENT,
+                headers=porteur(self.auteur),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.image_restee())
+        self.article.refresh_from_db()
+        self.assertTrue(self.article.cover.storage.exists(self.article.cover.name))
+
+    def test_l_image_retiree_est_effacee(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.article.cover = None
+            self.article.save()
+
+        self.assertFalse(self.image_restee())
+
+    def test_l_image_d_un_article_supprime_est_effacee(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(
+                reverse("article-detail", args=[self.article.pk]), headers=porteur(self.auteur),
+            )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(self.image_restee())
+
+    def test_un_compte_supprime_emporte_les_images_de_ses_articles(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.auteur.delete()
+
+        self.assertFalse(self.image_restee())
+
+    def test_un_enregistrement_sans_changement_d_image_la_garde(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.article.title = "Retitré"
+            self.article.save()
+
+        self.assertTrue(self.image_restee())
 
 
 class ArticleEstAuteurTests(TestCase):
