@@ -14,8 +14,7 @@ import {
   retablirLeReseau,
 } from "../../../test/reseau";
 
-// Aucun jeton n'est posé : avec un jeton, apiFetch tenterait un renouvellement
-// sur le 401 et ferait un second appel.
+// Sans jeton : sinon apiFetch renouvellerait sur le 401 et ferait un second appel.
 function afficherFormulaire() {
   const onCreated = vi.fn();
   render(<FormArticle onCreated={onCreated} />);
@@ -34,15 +33,13 @@ function image(nom: string, type: string, octets = 1024) {
 }
 const PHOTO = image("photo.jpg", "image/jpeg");
 
-// Sans `applyAccept`, user-event filtrerait le GIF comme le sélecteur du navigateur,
-// que l'option « Tous les fichiers » laisse pourtant passer.
+// Sinon user-event filtrerait le GIF, que « Tous les fichiers » laisse passer.
 const utilisateur = () => userEvent.setup({ applyAccept: false });
 
 const TITRE = "Mon premier article";
 const CONTENU = "Un contenu assez long pour passer.";
 
-// Les saisies refusées restent non vides : dans un navigateur, `required` arrête
-// le vide avant la règle du formulaire, que jsdom laisse passer.
+// Saisies non vides : en navigateur, `required` arrêterait le vide avant la règle.
 async function remplirEtEnvoyer(titre: string, contenu: string) {
   await userEvent.type(champTitre(), titre);
   await userEvent.type(champContenu(), contenu);
@@ -51,7 +48,7 @@ async function remplirEtEnvoyer(titre: string, contenu: string) {
 
 beforeEach(() => {
   couperLeReseau();
-  // jsdom n'a pas d'URL d'objet : l'aperçu en reçoit une qui nomme le fichier.
+  // jsdom n'a pas d'URL d'objet.
   URL.createObjectURL = vi.fn((fichier: Blob) => `blob:${(fichier as File).name}`);
   URL.revokeObjectURL = vi.fn();
 });

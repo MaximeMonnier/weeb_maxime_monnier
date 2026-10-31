@@ -14,8 +14,6 @@ import {
   retablirLeReseau,
 } from "../../test/reseau";
 
-// Ce que la liste rend, et rien de plus : l'API y coupe le texte en `excerpt`
-// et garde `content` pour le détail.
 const ARTICLE: ArticleListItem = {
   id: 1,
   title: "Premier article",
@@ -28,20 +26,15 @@ const ARTICLE: ArticleListItem = {
 
 const ARTICLE_PLUS_ANCIEN = { ...ARTICLE, id: 2, title: "Article plus ancien" };
 
-// Une page de la liste telle que l'API la rend. Le blog ne lit de `next` que
-// sa présence, et jamais `count` ni `previous`.
 function reponsePage(results: (typeof ARTICLE)[], next: string | null = null) {
   return reponse(200, { count: results.length, next, previous: null, results });
 }
 
 const PAGE_2 = "http://localhost:8000/api/articles/?page=2";
 
-// jsdom n'implémente pas `showModal` : le doublon ne prouve que l'appel,
-// l'ouverture réelle de la fenêtre ne se voit que dans un navigateur.
+// jsdom n'implémente pas `showModal` : le doublon ne prouve que l'appel.
 const ouvrirFenetre = vi.fn();
 
-// La route de connexion porte un repère : c'est par ce qu'elle affiche que le
-// lien se révèle mener au bon endroit, et non par son seul attribut.
 function rendreLeBlog() {
   render(
     <MemoryRouter initialEntries={["/blog"]}>
@@ -55,11 +48,10 @@ function rendreLeBlog() {
 
 async function afficherLeBlog() {
   rendreLeBlog();
-  // La liste chargée, aucun rendu ne tombe plus après le cas.
+  // Attendre la liste : sinon un rendu tombe après le cas.
   expect(await screen.findByText(ARTICLE.title)).toBeInTheDocument();
 }
 
-// Une erreur de l'API telle que `fetch` la livre, corps compris.
 function reponseRefusee(status: number, corps: unknown = {}) {
   return reponse(status, corps);
 }
@@ -74,8 +66,6 @@ const SERVEUR_INJOIGNABLE =
 const SERVICE_INDISPONIBLE =
   "Le service est momentanément indisponible. Réessayez dans un instant.";
 
-// Rendue vide dès l'affichage : c'est son texte, et non sa présence, qui dit
-// l'échec.
 const alerte = () => screen.getByRole("alert");
 
 beforeEach(() => {
@@ -85,8 +75,6 @@ beforeEach(() => {
   HTMLDialogElement.prototype.showModal = ouvrirFenetre;
 });
 
-// Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
-// trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(() => {
   cleanup();
   retablirLeReseau();
@@ -140,7 +128,7 @@ describe("Blog — pages suivantes", () => {
     expect(
       await screen.findByText(ARTICLE_PLUS_ANCIEN.title),
     ).toBeInTheDocument();
-    // L'adresse entière : suivre `next`, absolue, doublerait le préfixe de l'API.
+    // `next` est absolue : la suivre doublerait le préfixe de l'API.
     expect(appelReseau).toHaveBeenLastCalledWith(
       `${import.meta.env.VITE_API_URL}/articles/?page=2`,
       expect.anything(),
@@ -256,8 +244,6 @@ describe("Blog — premier chargement", () => {
   it("affiche sous le titre l'extrait que l'API a taillé", async () => {
     await afficherLeBlog();
 
-    // Le texte entier n'arrive plus jusqu'ici : la carte ne coupe plus rien
-    // elle-même, elle rend ce que la liste lui donne.
     expect(
       screen.getByText(ARTICLE.excerpt, { exact: false }),
     ).toBeInTheDocument();
@@ -272,7 +258,6 @@ describe("Blog — premier chargement", () => {
     appelReseau.mockResolvedValueOnce(reponsePage([ARTICLE, ARTICLE_COUPE]));
     await afficherLeBlog();
 
-    // Textes exacts : c'est la fin du paragraphe, et non sa présence, qui change.
     expect(screen.getByText(ARTICLE.excerpt)).toBeInTheDocument();
     expect(
       screen.queryByText(`${ARTICLE.excerpt}...`),
@@ -322,7 +307,6 @@ describe("Blog — premier chargement", () => {
   });
 
   it("signale un serveur injoignable plutôt qu'un blog vide", async () => {
-    // `fetch` rejette sans réponse quand la requête n'atteint pas le serveur.
     appelReseau.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     rendreLeBlog();
 
@@ -333,7 +317,6 @@ describe("Blog — premier chargement", () => {
   });
 
   it("signale une panne du serveur plutôt qu'un blog vide", async () => {
-    // Le corps d'un 500 est souvent une page HTML, illisible en JSON.
     appelReseau.mockResolvedValueOnce({
       ok: false,
       status: 500,

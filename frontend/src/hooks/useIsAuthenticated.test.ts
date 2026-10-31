@@ -12,12 +12,9 @@ import {
 
 const JETONS = { access: "jeton-acces", refresh: "jeton-renouvellement" };
 
-// Même source que `apiFetch` : une adresse écrite en dur ferait tomber la suite
-// chez qui change son frontend/.env.
 const BASE = import.meta.env.VITE_API_URL;
 
-// Chaque valeur rendue, dans l'ordre : `result.current` ne donne que la
-// dernière, et un état corrigé par un effet aurait d'abord rendu l'autre.
+// `result.current` ne donne que la dernière valeur : un état corrigé par un effet passerait.
 function suivreLesRendus() {
   const rendus: boolean[] = [];
   const { result } = renderHook(() => {
@@ -28,8 +25,6 @@ function suivreLesRendus() {
   return { rendus, result };
 }
 
-// Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
-// trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -37,8 +32,6 @@ afterEach(() => {
 });
 
 describe("useIsAuthenticated — premier rendu", () => {
-  // Écrit directement, comme l'a laissé la page d'avant le rechargement :
-  // aucun abonné n'est prévenu, seule la lecture initiale peut le voir.
   it("vaut connecté dès le premier rendu quand un jeton de renouvellement est stocké", () => {
     localStorage.setItem("refresh", JETONS.refresh);
 
@@ -53,8 +46,6 @@ describe("useIsAuthenticated — premier rendu", () => {
     expect(rendus).toEqual([false]);
   });
 
-  // Il expire au bout de 15 minutes : le prendre pour témoin déconnecterait
-  // l'interface bien avant la fin de la session.
   it("ne tient pas le seul jeton d'accès pour une session", () => {
     localStorage.setItem("access", JETONS.access);
 
@@ -64,8 +55,6 @@ describe("useIsAuthenticated — premier rendu", () => {
   });
 });
 
-// `act` ne sert qu'à laisser React finir le rendu : les écritures, elles,
-// viennent du module, comme celles d'un code hors de React, sans aucun setState.
 describe("useIsAuthenticated — écritures du module", () => {
   it("passe à déconnecté quand le module efface les jetons, sans remonter le composant", () => {
     saveTokens(JETONS);
@@ -73,7 +62,6 @@ describe("useIsAuthenticated — écritures du module", () => {
 
     act(() => clearTokens());
 
-    // Aucun `rerender` : seule la souscription au module a pu relancer le rendu.
     expect(result.current).toBe(false);
     expect(rendus).toEqual([true, false]);
   });
@@ -86,8 +74,7 @@ describe("useIsAuthenticated — écritures du module", () => {
     expect(result.current).toBe(true);
   });
 
-  // Le navigateur n'émet `storage` que dans les autres onglets : l'événement
-  // est donc envoyé à la main, après l'effacement qu'il annonce.
+  // `storage` n'est émis que dans les autres onglets : envoyé à la main.
   it("suit un effacement fait dans un autre onglet", () => {
     saveTokens(JETONS);
     const { result } = suivreLesRendus();
@@ -124,8 +111,6 @@ describe("logout", () => {
     expect(result.current).toBe(false);
   });
 
-  // Garder les jetons sur un échec laisserait l'interface connectée, sans
-  // aucun moyen d'en sortir tant que l'API ne répond pas.
   const ECHECS = {
     "le réseau est coupé": () => Promise.reject(new TypeError("Failed to fetch")),
     "l'API refuse": async () => reponse(401),

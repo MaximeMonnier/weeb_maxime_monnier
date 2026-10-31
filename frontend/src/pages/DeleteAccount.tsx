@@ -34,7 +34,7 @@ const DeleteAccount = () => {
           method: "DELETE",
           body: JSON.stringify({ password: values.password }),
         });
-        // Pas `logout()` : le compte supprimé, l'API n'a plus de refresh à révoquer.
+        // Pas `logout()` : le compte supprimé n'a plus de refresh à révoquer.
         clearTokens();
         navigate("/", { replace: true });
       },

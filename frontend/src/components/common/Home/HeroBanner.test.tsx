@@ -6,8 +6,7 @@ import "@testing-library/jest-dom/vitest";
 import { LIEN_BLOG } from "../../../lib/navigation";
 import HeroBanner from "./HeroBanner";
 
-// Ce que le seul HeroBanner.tsx ne dit pas : un appel à l'action rendu en `<button>`
-// sans `onClick` ne casse ni le build ni le typage — seul ce test le rattrape.
+// Un appel à l'action en `<button>` sans `onClick` ne casse ni build ni typage.
 
 function rendreLaBanniere() {
   render(
@@ -17,8 +16,6 @@ function rendreLaBanniere() {
   );
 }
 
-// Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
-// trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(cleanup);
 
 describe("HeroBanner", () => {

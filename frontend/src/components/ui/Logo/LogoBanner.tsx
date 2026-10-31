@@ -25,7 +25,7 @@ const LogoItem = ({
   brand: Brand;
   isLoopCopy: boolean;
 }) => {
-  // `alt` vide : le `<span>` nomme déjà la marque, et le lecteur d'écran la lirait deux fois.
+  // `alt` vide : le `<span>` nomme déjà la marque.
   const content = (
     <>
       <img
@@ -62,8 +62,7 @@ export default function LogoBanner() {
     <section className="w-full py-6">
       <div className="marquee-mask">
         <div className="marquee-track">
-          {/* La copie n'existe que pour boucler l'animation : masquée aux lecteurs
-              d'écran, et son lien éventuel retiré du parcours au clavier. */}
+          {/* La copie ne sert qu'à boucler : masquée aux lecteurs d'écran et au clavier. */}
           {[false, true].map((isLoopCopy) => (
             <div key={String(isLoopCopy)} className="marquee-group">
               {brands.map((brand) => (

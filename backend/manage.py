@@ -1,14 +1,10 @@
 #!/usr/bin/env python
-"""Django's command-line utility for administrative tasks."""
 import os
 import sys
 
 
 def main():
-    """Run administrative tasks."""
-    # Développement par défaut : les commandes lancées à la main le sont
-    # sur un poste de dev. Surchargeable par DJANGO_SETTINGS_MODULE
-    # (config.settings.test, config.settings.production).
+    # Développement par défaut : une commande lancée à la main l'est sur un poste de dev.
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.development')
     try:
         from django.core.management import execute_from_command_line

@@ -7,7 +7,6 @@ from rest_framework import serializers
 from .models import Article
 
 TAILLE_COUVERTURE_MAX = 5 * 1024 * 1024
-# Les formats que Pillow doit lire dans le contenu ; tous sont réenregistrés en WebP.
 FORMATS_COUVERTURE = {"JPEG", "PNG", "WEBP"}
 # 40 mégapixels : une photo d'appareil passe, une bombe de décompression non.
 PIXELS_COUVERTURE_MAX = 40_000_000
@@ -17,14 +16,12 @@ COTE_COUVERTURE_MAX = 1600
 def reencoder_en_webp(fichier):
     """L'image redressée, ramenée à 1600 px de côté au plus, en WebP et sans EXIF ni XMP."""
     fichier.seek(0)
-    # L'orientation EXIF disparaît avec les métadonnées : appliquée avant, sans quoi
-    # une photo de téléphone resterait couchée.
+    # Orientation appliquée avant de perdre l'EXIF, sinon une photo de téléphone reste couchée.
     image = ImageOps.exif_transpose(Image.open(fichier))
     image.thumbnail((COTE_COUVERTURE_MAX, COTE_COUVERTURE_MAX))
     contenu = BytesIO()
-    # Pillow n'écrit en WebP que les métadonnées qu'on lui passe : ni exif ni xmp, mais le
-    # profil de couleur, sans lequel une photo P3 ternit. Pas celui d'une image CMJN ou grise :
-    # le WebP la passe en RGB, et ce profil ne décrirait plus les pixels écrits.
+    # Le profil de couleur seul, sans exif ni xmp : sans lui une photo P3 ternit.
+    # Pas en CMJN ou gris : le WebP passe en RGB, le profil ne décrirait plus les pixels.
     profil = image.info.get("icc_profile") if image.mode in ("RGB", "RGBA", "P") else None
     image.save(contenu, "WEBP", quality=85, icc_profile=profil)
     return contenu.getvalue()
@@ -55,8 +52,7 @@ class CouvertureField(serializers.ImageField):
             self.fail("trop_grande")
         try:
             contenu = reencoder_en_webp(fichier)
-        # Le verify() de Django ne décode pas l'image : un JPEG tronqué ou un bloc de texte
-        # PNG piégé ne cassent qu'ici. Toute exception, comme Django autour de Pillow.
+        # verify() ne décode pas : un JPEG tronqué ou un PNG piégé ne cassent qu'ici.
         except Exception:
             self.fail("invalid_image")
         # Le nom reçu est jeté : nginx sert le type d'après l'extension, qui doit dire vrai.
@@ -64,15 +60,13 @@ class CouvertureField(serializers.ImageField):
 
 
 class ArticleSerializer(serializers.ModelSerializer):
-    """Convertit un Article en JSON et valide les données reçues."""
+    """Article complet, pour le détail et l'écriture."""
 
-    # Le prénom et le nom, jamais fournis par le client — et surtout jamais le
-    # __str__ du compte, qui rend l'email : le blog se lit sans authentification.
+    # Jamais __str__, qui rend l'email : le blog se lit sans authentification.
     author = serializers.CharField(source="author.public_name", read_only=True)
     # allow_null : un `cover` vide en multipart arrive en None, et retire l'image.
     cover = CouvertureField(required=False, allow_null=True)
-    # Un booléen plutôt que l'identifiant de l'auteur, que le front comparerait au
-    # sien : il ne connaît pas le lecteur, et rien d'autre ne sort sur l'auteur.
+    # Un booléen plutôt que l'id de l'auteur : rien d'autre ne sort sur lui.
     is_author = serializers.SerializerMethodField()
 
     class Meta:
@@ -81,7 +75,7 @@ class ArticleSerializer(serializers.ModelSerializer):
             "id", "title", "content", "cover", "author", "is_author", "created_at", "updated_at",
         )
         read_only_fields = ("author", "created_at", "updated_at")
-        # Ici et pas au modèle : un TextField n'a pas de longueur en base, rien à migrer.
+        # Ici et non au modèle : un TextField n'a pas de longueur en base, rien à migrer.
         extra_kwargs = {"content": {"max_length": 20000}}
 
     def get_is_author(self, article):
@@ -96,8 +90,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
     """L'article tel que la liste le rend : un extrait, jamais le texte entier."""
 
     author = serializers.CharField(source="author.public_name", read_only=True)
-    # Déclarés à la main : ce ne sont pas des champs du modèle mais des annotations
-    # posées par ArticleViewSet, et ModelSerializer ne sait pas les deviner.
+    # Annotations d'ArticleViewSet, que ModelSerializer ne devine pas.
     excerpt = serializers.CharField(read_only=True)
     excerpt_truncated = serializers.BooleanField(read_only=True)
 

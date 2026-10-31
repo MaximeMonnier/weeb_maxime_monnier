@@ -21,7 +21,6 @@ import {
 } from "../../test/reseau";
 import type { Article } from "../../types/article";
 
-// Ce que rend le détail, et non la liste : `content` entier, pas d'`excerpt`.
 const ARTICLE: Article = {
   id: 1,
   title: "Premier article",
@@ -57,21 +56,14 @@ const SERVICE_INDISPONIBLE =
 
 const RETOUR_AUX_ARTICLES = { name: "Retour aux articles" };
 
-// Rendue à tous les écrans, vide ou non : c'est son texte, et non sa présence,
-// qui dit l'échec.
 const alerte = () => screen.getByRole("alert");
 
-// La route du blog porte un repère : c'est ce qu'elle affiche qui prouve que le
-// lien de retour mène au bon endroit, et non son seul attribut.
 function rendreLeDetail(chemin = "/articles/1") {
   render(
     <MemoryRouter initialEntries={[chemin]}>
-      {/* Hors des routes : la page de détail ne propose elle-même aucun voisin,
-          et le passage d'un article à l'autre est ce qui met la course à nu. */}
       <Link to={`/articles/${ARTICLE_SUIVANT.id}`}>Article suivant</Link>
       <Routes>
         <Route path="/articles/:id" element={<ArticleDetails />} />
-        {/* Sans `:id` : la forme que `useParams` rend `undefined`. */}
         <Route path="/articles" element={<ArticleDetails />} />
         <Route path="/blog" element={<p>Liste des articles</p>} />
       </Routes>
@@ -80,8 +72,7 @@ function rendreLeDetail(chemin = "/articles/1") {
 }
 
 beforeEach(() => {
-  // jsdom n'implémente ni `showModal` ni `close` : ces doublons ne posent que
-  // l'attribut, sans quoi le contenu de la fenêtre resterait hors de l'arbre.
+  // jsdom n'implémente ni `showModal` ni `close`.
   HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
     this.setAttribute("open", "");
   };
@@ -92,8 +83,6 @@ beforeEach(() => {
   appelReseau.mockResolvedValue(reponseArticle(ARTICLE));
 });
 
-// Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
-// trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(() => {
   cleanup();
   retablirLeReseau();
@@ -115,8 +104,7 @@ describe("ArticleDetails — article reçu", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(CHARGEMENT)).not.toBeInTheDocument();
     expect(alerte()).toBeEmptyDOMElement();
-    // L'adresse entière : une barre oblique finale perdue vaut une redirection
-    // 301 en production, et un identifiant en dur passerait tous les autres cas.
+    // L'adresse entière : sans barre finale, la production répond 301.
     expect(appelReseau).toHaveBeenCalledWith(
       `${import.meta.env.VITE_API_URL}/articles/1/`,
       expect.anything(),
@@ -151,7 +139,6 @@ describe("ArticleDetails — article reçu", () => {
     rendreLeDetail();
 
     const second = await screen.findByText("Second.");
-    // `getByText` ramène les retours à la ligne à des espaces avant de comparer.
     const premier = screen.getByText("Premier. Suite du premier.");
 
     expect(premier.tagName).toBe("P");
@@ -214,7 +201,6 @@ describe("ArticleDetails — article absent", () => {
 
 describe("ArticleDetails — refus de l'API", () => {
   it("signale un serveur injoignable plutôt qu'un chargement figé", async () => {
-    // `fetch` rejette sans réponse quand la requête n'atteint pas le serveur.
     appelReseau.mockRejectedValueOnce(new TypeError("Failed to fetch"));
     rendreLeDetail();
 
@@ -232,8 +218,6 @@ describe("ArticleDetails — refus de l'API", () => {
     await waitFor(() =>
       expect(alerte()).toHaveTextContent(SERVICE_INDISPONIBLE),
     );
-    // La page garde une issue, sans pour autant annoncer une suppression que
-    // rien ne prouve.
     expect(screen.getByRole("link", RETOUR_AUX_ARTICLES)).toBeInTheDocument();
     expect(screen.queryByText(INTROUVABLE)).not.toBeInTheDocument();
   });
@@ -254,7 +238,6 @@ describe("ArticleDetails — changement d'article en cours de route", () => {
 
     await userEvent.click(screen.getByRole("link", { name: "Article suivant" }));
 
-    // Laisser le précédent à l'écran ferait lire un article pour un autre.
     expect(screen.getByText(CHARGEMENT)).toBeInTheDocument();
     expect(screen.queryByText(ARTICLE.title)).not.toBeInTheDocument();
 
@@ -277,8 +260,7 @@ describe("ArticleDetails — changement d'article en cours de route", () => {
     await userEvent.click(screen.getByRole("link", { name: "Article suivant" }));
     expect(await screen.findByText(ARTICLE_SUIVANT.title)).toBeInTheDocument();
 
-    // La réponse périmée traverse ses `then` en microtâches : sans ce tour, le
-    // test conclurait avant qu'elle ait eu l'occasion d'écraser l'affichage.
+    // Laisse la réponse périmée traverser ses `then` avant de conclure.
     await act(async () => {
       livrerLePremier(reponseArticle(ARTICLE));
     });
@@ -301,8 +283,6 @@ describe("ArticleDetails — changement d'article en cours de route", () => {
     await userEvent.click(screen.getByRole("link", { name: "Article suivant" }));
     expect(await screen.findByText(ARTICLE_SUIVANT.title)).toBeInTheDocument();
 
-    // L'article quitté a pu disparaître entre-temps : son 404 ne concerne plus
-    // la page affichée, et l'annoncer effacerait un article bien présent.
     await act(async () => {
       livrerLePremier(reponseRefusee(404, { detail: "Pas trouvé." }));
     });
@@ -362,7 +342,6 @@ describe("ArticleDetails — modification par l'auteur", () => {
     expect(
       screen.queryByLabelText("Titre de l'article"),
     ).not.toBeInTheDocument();
-    // Le chargement initial et le PATCH, rien de plus : aucun rechargement.
     expect(appelReseau).toHaveBeenCalledTimes(2);
   });
 });
@@ -371,8 +350,7 @@ describe("ArticleDetails — suppression par l'auteur", () => {
   const ARTICLE_DE_L_AUTEUR = { ...ARTICLE, is_author: true };
   const SUPPRIMER = { name: "Supprimer" };
 
-  // Le bouton de la page et celui de la fenêtre portent le même nom : la
-  // confirmation se cherche dans la fenêtre seule.
+  // Page et fenêtre ont un bouton du même nom : chercher dans la fenêtre.
   async function ouvrirLaConfirmation() {
     appelReseau.mockResolvedValueOnce(reponseArticle(ARTICLE_DE_L_AUTEUR));
     rendreLeDetail();
@@ -386,7 +364,6 @@ describe("ArticleDetails — suppression par l'auteur", () => {
     await userEvent.click(fenetre.getByRole("button", { name: "Annuler" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    // Le seul chargement de l'article.
     expect(appelReseau).toHaveBeenCalledTimes(1);
   });
 
@@ -415,7 +392,7 @@ describe("ArticleDetails — suppression par l'auteur", () => {
 
     expect(fenetre.getByRole("button", SUPPRIMER)).toBeDisabled();
     expect(fenetre.getByRole("button", { name: "Annuler" })).toBeDisabled();
-    // Échap n'atteint le dialog que par cet événement : refusé, il ne ferme rien.
+    // Échap n'atteint le dialog que par cet événement.
     const echap = new Event("cancel", { cancelable: true });
     screen.getByRole("dialog").dispatchEvent(echap);
     expect(echap.defaultPrevented).toBe(true);
@@ -439,7 +416,6 @@ describe("ArticleDetails — suppression par l'auteur", () => {
     await waitFor(() =>
       expect(fenetre.getByRole("alert")).toHaveTextContent(message),
     );
-    // La fenêtre reste ouverte, prête pour un nouvel essai.
     expect(fenetre.getByRole("button", SUPPRIMER)).toBeEnabled();
     expect(screen.queryByText("Liste des articles")).not.toBeInTheDocument();
   });

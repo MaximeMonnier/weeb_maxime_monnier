@@ -20,22 +20,18 @@ type FooterColumn = {
   links: FooterLink[];
 };
 
-// Chaque `to` doit exister dans `App.tsx` : `Footer.test.tsx` le tient. Les
-// entrées servies aussi par l'en-tête viennent de `lib/navigation.ts`, seul
-// endroit où s'écrivent leur libellé et leur destination.
+// Chaque `to` doit exister dans `App.tsx` (vérifié par `Footer.test.tsx`).
 const SITE_COLUMN: FooterColumn = {
   title: "SITE",
   links: [{ label: "Accueil", to: "/" }, LIEN_BLOG, LIEN_A_PROPOS],
 };
 
-// Entrées du seul visiteur : connecté, l'en-tête propose la déconnexion.
 const VISITOR_LINKS: FooterLink[] = [
   LIEN_CONNEXION,
   LIEN_INSCRIPTION,
   { label: "Mot de passe oublié", to: "/forgot-password" },
 ];
 
-// Le membre connaît son mot de passe : il le change sans passer par un email.
 const MEMBER_LINKS: FooterLink[] = [
   { label: "Changer mon mot de passe", to: "/change-password" },
   { label: "Supprimer mon compte", to: "/delete-account" },
@@ -52,8 +48,6 @@ const LEGAL_COLUMN: FooterColumn = {
 
 const Footer = () => {
   const year = new Date().getFullYear();
-  // La même source que `NavBar.tsx` : sans elle, l'en-tête proposerait la
-  // déconnexion pendant que le pied de page propose encore l'inscription.
   const isAuthenticated = useIsAuthenticated();
 
   const accountColumn: FooterColumn = {

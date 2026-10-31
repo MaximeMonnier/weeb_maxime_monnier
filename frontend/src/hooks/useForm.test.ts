@@ -4,13 +4,9 @@ import type { ChangeEvent, FormEvent } from "react";
 
 import { useForm } from "./useForm";
 
-// Les champs d'un formulaire de contact : deux saisies courtes et une zone de
-// texte, seule forme du projet où `handleChange` reçoit autre chose qu'un input.
 const CHAMPS_INITIAUX = { email: "", sujet: "", message: "" };
 
-// Le hook ne lit que `name` et `value` de la cible : un élément jsdom suffit, et
-// il porte le type réel que les formulaires passent. Le reste de l'événement
-// n'est jamais touché, d'où la conversion.
+// Le hook ne lit que `name` et `value` de la cible, d'où la conversion.
 function frappe(balise: "input" | "textarea", name: string, value: string) {
   const cible = document.createElement(balise);
   cible.name = name;
@@ -20,13 +16,10 @@ function frappe(balise: "input" | "textarea", name: string, value: string) {
   >;
 }
 
-// Le hook n'appelle que `preventDefault` sur l'événement d'envoi.
 function envoi() {
   return { preventDefault: vi.fn() } as unknown as FormEvent;
 }
 
-// Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
-// trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(cleanup);
 
 describe("useForm — écriture des champs", () => {
@@ -35,8 +28,6 @@ describe("useForm — écriture des champs", () => {
 
     act(() => result.current.handleChange(frappe("input", "sujet", "Devis")));
 
-    // Le champ visé n'est pas le premier de l'état : une écriture par position
-    // remplirait `email` sans que rien ne le signale.
     expect(result.current.formData).toEqual({
       email: "",
       sujet: "Devis",
@@ -74,8 +65,6 @@ describe("useForm — péremption des erreurs à la frappe", () => {
     );
 
     expect(result.current.errors.email).toBeUndefined();
-    // L'erreur des autres champs porte sur une saisie que la frappe n'a pas
-    // touchée : la retirer masquerait un refus encore vrai.
     expect(result.current.errors.message).toBe("Le message est requis");
   });
 
@@ -168,7 +157,6 @@ describe("useForm — cycle d'envoi", () => {
       }),
     );
 
-    // Resté à `true`, le bouton désactivé interdirait de corriger et de renvoyer.
     expect(result.current.isSubmitting).toBe(false);
   });
 
@@ -242,8 +230,6 @@ describe("useForm — rappel de frappe", () => {
     act(() => result.current.handleChange(frappe("input", "email", "j")));
     act(() => result.current.handleChange(frappe("input", "email", "je")));
 
-    // Le hook ignore ce que ce rappel retire — un message de succès, que seuls
-    // FormContact et FormSubscribe affichent.
     expect(onChange).toHaveBeenCalledTimes(2);
   });
 });

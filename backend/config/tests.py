@@ -1,4 +1,4 @@
-"""Tests transversaux : la route de santé, les journaux, le rapport des 500, et les droits de chaque profil sur l'API."""
+"""Tests transversaux : santé, journaux, rapport des 500 et droits de chaque profil sur l'API."""
 
 import logging
 import os
@@ -27,8 +27,7 @@ class HealthTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_ne_coute_qu_une_requete(self):
-        # La sonde passe toutes les cinq secondes : une seconde requête, ou un COUNT
-        # sur une table qui grandit, se paierait à chaque passage.
+        # La sonde passe toutes les cinq secondes : chaque requête se paie à chaque passage.
         with self.assertNumQueries(1):
             self.client.get(reverse("health"))
 
@@ -124,8 +123,7 @@ class RapportDErreurTests(TestCase):
 
 PUBLIC, CONNECTE, AUTEUR = "public", "connecté", "auteur"
 
-# Le tableau du README, § « L'API ». Une route ajoutée sans sa ligne ici fait tomber
-# test_chaque_route_de_l_api_figure_dans_la_matrice.
+# Le tableau du README, § « L'API » : une route ajoutée sans sa ligne ici fait tomber un test.
 MATRICE = [
     ("post", "register", PUBLIC),
     ("post", "login", PUBLIC),
@@ -168,8 +166,7 @@ class ControleDAccesTests(TestCase):
     def setUp(self):
         self.auteur = compte("auteur@example.com")
         self.membre = compte("membre@example.com")
-        # Un compte en attente n'obtient aucun jeton (LoginTests) : le seul qu'il puisse
-        # présenter date d'avant sa désactivation, le cas d'un compte suspendu par l'admin.
+        # Un compte en attente n'a pas de jeton : celui-ci date d'avant sa suspension par l'admin.
         non_valide = compte("attente@example.com")
         self.jeton_non_valide = AccessToken.for_user(non_valide)
         non_valide.is_active = False

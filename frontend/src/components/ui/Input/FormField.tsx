@@ -1,32 +1,18 @@
 import { useId } from "react";
 import { cx } from "../../../lib/cx";
 
-/** Les trois états visuels d'un champ de formulaire. */
 export type FieldVariant = "default" | "error" | "success";
 
-/** Props communes à Input et à Textarea, qui transmettent ce qu'ils reçoivent :
- *  leurs valeurs par défaut se posent ici seulement. */
+// Input et Textarea transmettent tout : les valeurs par défaut se posent ici seulement.
 export type FieldProps = {
-  /** Étiquette affichée au-dessus du champ */
   label?: string;
-
-  /** Message d'erreur affiché sous le champ */
   error?: string;
-
-  /** Texte d'aide affiché sous le champ */
   helperText?: string;
-
-  /** Si vrai, ajoute un astérisque (*) à l'étiquette */
   required?: boolean;
-
-  /** Variante visuelle du champ */
   variant?: FieldVariant;
-
-  /** Si vrai, le champ occupe toute la largeur du conteneur */
   fullWidth?: boolean;
 };
 
-/** Attributs calculés par l'habillage, que le champ rendu doit porter. */
 type FieldAttributes = {
   id: string;
   className: string;
@@ -35,18 +21,11 @@ type FieldAttributes = {
 };
 
 type FormFieldProps = FieldProps & {
-  /** Identifiant imposé par l'appelant ; sinon généré */
   id?: string;
-
-  /** Classes ajoutées à celles du champ */
   className?: string;
-
-  /** Rend le champ à partir des attributs que l'habillage lui impose */
   children: (attributes: FieldAttributes) => React.ReactNode;
 };
 
-/** Habillage d'un champ : étiquette, erreur, aide. L'appelant rend son `input` ou son
- *  `textarea` avec les attributs reçus, qui le relient à l'étiquette et aux messages. */
 export default function FormField({
   label,
   error,

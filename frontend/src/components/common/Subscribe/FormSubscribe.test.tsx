@@ -13,8 +13,6 @@ import {
   retablirLeReseau,
 } from "../../../test/reseau";
 
-// Le formulaire pose des Link : sans routeur, il ne rend pas. La route de
-// connexion porte un repère, l'absence de redirection ne se voyant qu'ainsi.
 function afficherFormulaire() {
   render(
     <MemoryRouter initialEntries={["/subscribe"]}>
@@ -39,8 +37,7 @@ const zoneDeSucces = () => screen.getByRole("status");
 const CONFIRMATION_ATTENDUE =
   "Un administrateur doit l'activer avant votre première connexion.";
 
-// Le texte est attendu DANS la région annoncée, et non n'importe où dans la page :
-// un message rendu à côté d'une région restée vide passerait autrement pour annoncé.
+// Le texte est attendu dans la région annoncée, pas ailleurs dans la page.
 async function attendreLaConfirmation() {
   await waitFor(() =>
     expect(zoneDeSucces()).toHaveTextContent(CONFIRMATION_ATTENDUE),
@@ -55,7 +52,6 @@ const SAISIE_VALIDE = {
   confirmPassword: "MotDePasse1",
 };
 
-// Le chemin nominal, dont chaque cas ne change qu'une pièce.
 async function remplirEtEnvoyer(saisie: Partial<typeof SAISIE_VALIDE> = {}) {
   const valeurs = { ...SAISIE_VALIDE, ...saisie };
 
@@ -72,8 +68,6 @@ async function remplirEtEnvoyer(saisie: Partial<typeof SAISIE_VALIDE> = {}) {
 
 beforeEach(couperLeReseau);
 
-// Le nettoyage du DOM est explicite : Testing Library ne l'inscrit lui-même que
-// s'il trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(() => {
   cleanup();
   retablirLeReseau();
@@ -104,12 +98,9 @@ describe("FormSubscribe — inscription acceptée", () => {
 
     await remplirEtEnvoyer();
 
-    // Le compte naît inactif : sans cette phrase, la connexion qui suit
-    // renverrait un refus que rien n'explique.
     await attendreLaConfirmation();
     expect(zoneDeSucces()).toHaveClass("form-alert-success");
     expect(screen.queryByText("Page de connexion")).not.toBeInTheDocument();
-    // `confirmPassword` reste au formulaire : l'API ne le connaît pas.
     expect(requeteEnvoyee()).toEqual({
       url: expect.stringMatching(/\/auth\/register\/$/),
       methode: "POST",
@@ -143,8 +134,6 @@ describe("FormSubscribe — inscription acceptée", () => {
 
     await userEvent.type(champEmail(), "a");
 
-    // La région reste montée et se vide : apparue avec son texte, elle ne serait
-    // pas annoncée de façon fiable.
     expect(zoneDeSucces()).toBeEmptyDOMElement();
   });
 });
@@ -161,7 +150,6 @@ describe("FormSubscribe — refus de l'API", () => {
     await remplirEtEnvoyer();
 
     expect(alerte()).toHaveTextContent(/^Impossible de créer un compte/);
-    // Pointer le champ dirait déjà que l'adresse est prise.
     expect(champEmail()).toHaveAttribute("aria-invalid", "false");
     expect(zoneDeSucces()).toBeEmptyDOMElement();
   });

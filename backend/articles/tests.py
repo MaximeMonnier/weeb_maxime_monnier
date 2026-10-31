@@ -1,5 +1,3 @@
-"""Tests des articles : lecture, écriture, propriété, signature, couverture, quota, listes, pages et peuplement."""
-
 import re
 import struct
 import zlib
@@ -31,7 +29,7 @@ from .views import LONGUEUR_EXTRAIT
 
 
 def membre(email):
-    """Un compte actif : create_user laisse is_active à True, seule l'inscription le baisse."""
+    """Un compte actif : seule l'inscription crée un compte inactif."""
     return CustomUser.objects.create_user(
         email=email, first_name="M", last_name="Embre", password="MotDePasseValide123",
     )
@@ -243,7 +241,7 @@ def photo(nom="photo.jpg", format_pillow="JPEG", taille=(2, 2), mode="RGB", **op
 
 
 def png_au_texte_piege():
-    """Un PNG de 50 Ko dont le bloc de texte, après l'image, se décompresse en 50 Mo : verify() n'en lit que le CRC."""
+    """PNG de 50 Ko dont le bloc de texte se décompresse en 50 Mo : verify() n'en lit que le CRC."""
     png = photo("piege.png", "PNG").read()
     texte = b"k\0\0" + zlib.compress(b"a" * 50_000_000)
     bloc = struct.pack(">I", len(texte)) + b"zTXt" + texte + struct.pack(">I", zlib.crc32(b"zTXt" + texte))
@@ -257,7 +255,6 @@ def couverture_stockee(response):
 
 
 def fichiers_de_couverture():
-    """Les noms présents dans le dossier des couvertures."""
     dossier = settings.MEDIA_ROOT / "articles"
     return {fichier.name for fichier in dossier.iterdir()} if dossier.exists() else set()
 
@@ -269,7 +266,7 @@ class ArticleEnvoiCouvertureTests(TestCase):
         self.auteur = membre("auteur@example.com")
 
     def creer(self, **champs):
-        """POST multipart, comme le ferait un formulaire avec un fichier."""
+        """POST multipart, comme un formulaire avec fichier."""
         return self.client.post(
             reverse("article-list"),
             {"title": "Essai", "content": "Texte", **champs},
@@ -314,8 +311,7 @@ class ArticleEnvoiCouvertureTests(TestCase):
 
     def test_les_fichiers_refuses_ne_laissent_ni_article_ni_fichier(self):
         trop_lourde = photo().read() + b"\0" * (TAILLE_COUVERTURE_MAX + 1)
-        # Du bruit et non un aplat : coupé de moitié, un aplat perd son en-tête et Django le
-        # refuse avant le réencodage, qui n'est alors jamais essayé.
+        # Du bruit : un aplat coupé perd son en-tête, refusé par Django avant le réencodage.
         bruit = BytesIO()
         Image.effect_noise((64, 64), 50).save(bruit, "JPEG")
         refus = {
@@ -612,9 +608,8 @@ class ArticleOrdreTests(TestCase):
 
     def setUp(self):
         auteur = membre("auteur@example.com")
-        # Les trois articles sont créés dans le désordre : sans cela, l'ordre attendu
-        # serait aussi celui des identifiants, et un Meta.ordering retiré passerait.
-        # auto_now_add écrase toute date passée à create(), d'où l'UPDATE qui suit.
+        # Créés dans le désordre : sinon l'ordre des id suffirait et un Meta.ordering retiré passerait.
+        # auto_now_add écrase la date passée à create(), d'où l'UPDATE.
         for titre, jours in (("Intermédiaire", 1), ("Ancien", 2), ("Récent", 0)):
             article = Article.objects.create(title=titre, content="Contenu.", author=auteur)
             Article.objects.filter(pk=article.pk).update(
@@ -635,8 +630,7 @@ class ArticleExtraitDeListeTests(TestCase):
     """La liste rend l'extrait, le détail le texte : l'extrait vient de l'annotation du queryset."""
 
     def setUp(self):
-        # Plus long que l'extrait : à contenu plus court, la liste rendrait le texte
-        # entier et une coupure disparue passerait inaperçue.
+        # Plus long que l'extrait : sinon une coupure disparue passerait inaperçue.
         self.contenu = "Phrase de démonstration. " * 20
         self.article = Article.objects.create(
             title="Article long", content=self.contenu, author=membre("auteur@example.com"),
@@ -647,9 +641,7 @@ class ArticleExtraitDeListeTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         article = response.json()["results"][0]
-        # Le jeu entier, et pas seulement l'absence de content : ArticleCard lit aussi
-        # id, author et created_at, qu'un fields raccourci ferait disparaître sans que
-        # rien ne tombe ici — la carte afficherait « Par undefined le Invalid Date ».
+        # Le jeu entier : ArticleCard lit aussi id, author et created_at (« Par undefined le Invalid Date »).
         self.assertEqual(
             sorted(article),
             ["author", "cover", "created_at", "excerpt", "excerpt_truncated", "id", "title"],
@@ -710,9 +702,8 @@ class ArticlePaginationTests(TestCase):
         auteur = membre("auteur@example.com")
         taille = settings.REST_FRAMEWORK["PAGE_SIZE"]
         total = taille + 3
-        # Deux par deux à la même date, une paire à cheval sur la coupure quand la
-        # taille est paire : l'id seul les départage, et sans lui l'un des deux peut
-        # sortir sur les deux pages. L'UPDATE, parce qu'auto_now_add écrase la date.
+        # Paires de même date, l'une à cheval sur la coupure : seul l'id les départage.
+        # L'UPDATE, parce qu'auto_now_add écrase la date.
         maintenant = timezone.now()
         for rang in range(total):
             article = Article.objects.create(
@@ -783,9 +774,7 @@ class ArticleDatesImposeesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         article.refresh_from_db()
         self.assertEqual(article.created_at, creation)
-        # Comparer à l'updated_at d'avant la requête, jamais à created_at : les deux
-        # champs appellent now() chacun de leur côté et tombent souvent sur la même
-        # microseconde, si bien qu'un updated_at resté figé passerait le test.
+        # L'updated_at d'avant, pas created_at : les deux tombent souvent sur la même microseconde.
         self.assertGreater(article.updated_at, modification)
 
 
@@ -833,8 +822,7 @@ class ArticleCoutDesListesTests(TestCase):
     """Le coût des deux listes ne dépend pas du nombre d'articles : l'auteur est joint, pas relu."""
 
     def setUp(self):
-        # Plusieurs auteurs : un seul ferait tomber le test tout autant, l'ORM ne
-        # partageant aucun cache entre deux instances, mais pas une liste réelle.
+        # Plusieurs auteurs comme une liste réelle ; un seul ferait tomber le test tout autant.
         self.auteurs = [membre(f"auteur{rang}@example.com") for rang in range(3)]
         self.admin = CustomUser.objects.create_superuser(
             email="admin@example.com", first_name="A", last_name="Dmin",
@@ -871,8 +859,7 @@ class ArticleCoutDesListesTests(TestCase):
                 suivante = self.client.get(suivante).json()["next"]
 
     def test_la_liste_de_l_admin_coute_autant_a_30_articles_qu_a_3(self):
-        # force_login et non un jeton porteur : l'API ne monte que JWTAuthentication,
-        # quand l'admin n'ouvre ses pages qu'à une session.
+        # force_login : l'admin n'ouvre ses pages qu'à une session, l'API qu'au JWT.
         self.client.force_login(self.admin)
         url = reverse("admin:articles_article_changelist")
         self.publier(3)

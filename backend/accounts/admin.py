@@ -8,8 +8,7 @@ from .models import CustomUser
 class CustomUserAdmin(UserAdmin):
     """Affichage des utilisateurs dans l'admin Django (et validation des comptes)."""
 
-    # UserAdmin hashe le mot de passe et masque le hash ; mais il décrit un modèle
-    # à username, absent de CustomUser : ses deux listes de champs sont à réécrire.
+    # UserAdmin décrit un modèle à username : ses deux listes de champs sont à réécrire.
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         ("Identité", {"fields": ("first_name", "last_name")}),
@@ -47,5 +46,5 @@ class CustomUserAdmin(UserAdmin):
     list_filter = ("is_active", "is_staff")
     search_fields = ("email", "first_name", "last_name")
     ordering = ("email",)  # UserAdmin trierait sur username
-    # is_active modifiable depuis la liste → l'admin valide un compte en 1 clic
+    # L'admin valide un compte en un clic, depuis la liste.
     list_editable = ("is_active",)

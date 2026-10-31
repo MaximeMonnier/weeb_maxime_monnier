@@ -5,8 +5,7 @@ import {
   saveTokens,
 } from "./tokens";
 
-// L'URL vient de frontend/.env : Vite ne lit jamais le .env de la racine.
-// Tout ce qui est préfixé VITE_ part en clair dans le bundle — aucun secret ici.
+// Lue dans frontend/.env, jamais celui de la racine ; tout VITE_ part en clair dans le bundle.
 const API_URL = import.meta.env.VITE_API_URL;
 
 // Pas de repli : un défaut silencieux changerait l'oubli en 404 inexplicable.
@@ -16,16 +15,14 @@ if (!API_URL) {
   );
 }
 
-// DRF authentifie AVANT d'appliquer les permissions : un token périmé resté en
-// localStorage fait répondre 401 à une vue AllowAny — inscription et réinitialisation
-// de mot de passe en tête. Les routes /auth/ sont publiques, sauf celles-ci.
+// DRF authentifie avant les permissions : un jeton périmé ferait répondre 401 à une vue
+// AllowAny. Les routes /auth/ partent donc sans jeton, sauf celles-ci.
 const ROUTES_AUTH_PROTEGEES = new Set(["/auth/password-change/", "/auth/account/"]);
 
 function needsToken(path: string): boolean {
   return !path.startsWith("/auth/") || ROUTES_AUTH_PROTEGEES.has(path);
 }
 
-// Exporté pour `apiErrors.ts`, qui traduit ces refus en messages de formulaire.
 export type ApiError = {
   status: number;
   data: unknown;
@@ -35,24 +32,20 @@ function envoyer(path: string, options: RequestInit, token: string | null) {
   return fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      // Le navigateur pose celui d'un FormData, avec la boundary qui sépare ses
-      // parties : sans elle, l'API ne lit plus rien du corps.
+      // Un FormData garde le Content-Type du navigateur : sans sa boundary, l'API ne lit rien.
       ...(options.body instanceof FormData
         ? {}
         : { "Content-Type": "application/json" }),
-      // si connecté, on envoie le token : "Authorization: Bearer <token>"
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
 }
 
-// Partagé par les 401 reçus en même temps : login/refresh/ fait tourner le jeton
-// de rafraîchissement, et un second appel avec le même serait refusé.
+// Partagé par les 401 simultanés : le refresh tourne, un second appel serait refusé.
 let renouvellementEnCours: Promise<boolean> | null = null;
 
-// Passe par apiFetch sans risque de boucle : needsToken écarte /auth/, donc un 401
-// reçu ici ne relance aucun renouvellement.
+// Pas de boucle : needsToken écarte /auth/, un 401 ici ne relance aucun renouvellement.
 async function renouvelerJetons(refresh: string): Promise<boolean> {
   try {
     saveTokens(
@@ -71,7 +64,6 @@ async function renouvelerJetons(refresh: string): Promise<boolean> {
   }
 }
 
-// Vrai quand la requête refusée peut repartir, avec un jeton neuf ou sans jeton.
 // Faux sur une panne : l'appelant reçoit alors le 401 d'origine.
 async function preparerNouvelEssai(tokenRefuse: string): Promise<boolean> {
   // Un appel voisin, ou un autre onglet, a déjà renouvelé ou effacé les jetons.
@@ -89,7 +81,6 @@ async function preparerNouvelEssai(tokenRefuse: string): Promise<boolean> {
   return renouvellementEnCours;
 }
 
-// Fonction unique pour appeler l'API : ajoute le JSON, le token, et gère les erreurs
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
@@ -97,18 +88,16 @@ export async function apiFetch<T>(
   const token = needsToken(path) ? getAccessToken() : null;
   let res = await envoyer(path, options, token);
 
-  // Un seul nouvel essai, et sans jeton si le renouvellement est refusé : seule
-  // l'API sait si la route est publique. Un second 401 remonte à l'appelant.
+  // Un seul nouvel essai, sans jeton si le renouvellement est refusé : seule l'API sait
+  // si la route est publique.
   if (res.status === 401 && token && (await preparerNouvelEssai(token))) {
     res = await envoyer(path, options, getAccessToken());
   }
 
   if (!res.ok) {
-    // on tente de lire le message d'erreur renvoyé par Django (ex: "email déjà utilisé")
     const data = await res.json().catch(() => ({}));
     throw { status: res.status, data } as ApiError;
   }
 
-  // 204 = "No Content" (ex: après un DELETE) → rien à parser
   return (res.status === 204 ? null : await res.json()) as T;
 }

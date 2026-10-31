@@ -9,13 +9,10 @@ import {
   retablirLeReseau,
 } from "../test/reseau";
 
-// Même source que le module testé : une adresse écrite en dur ferait tomber la
-// suite chez qui change son frontend/.env.
 const BASE = import.meta.env.VITE_API_URL;
 
 beforeEach(couperLeReseau);
 
-// Sans vider localStorage, le jeton d'un cas vaudrait pour le suivant.
 afterEach(() => {
   retablirLeReseau();
   localStorage.clear();
@@ -78,8 +75,7 @@ describe("apiFetch — jeton d'accès", () => {
     expect(dernierAppel().entetes.Authorization).toBeUndefined();
   });
 
-  // Le cas qui justifie needsToken : DRF authentifie avant d'appliquer les
-  // permissions, et un jeton périmé ferait répondre 401 à ces vues AllowAny.
+  // DRF authentifie avant les permissions : un jeton périmé ferait répondre 401.
   it.each(["/auth/register/", "/auth/password-reset/", "/auth/login/"])(
     "l'omet sur %s, même avec un jeton en localStorage",
     async (chemin) => {
@@ -92,7 +88,6 @@ describe("apiFetch — jeton d'accès", () => {
     },
   );
 
-  // Routes /auth/ fermées au visiteur : l'omettre y vaudrait un 401 à tout coup.
   it("le pose sur /auth/password-change/", async () => {
     localStorage.setItem("access", "jeton-de-test");
     appelReseau.mockResolvedValue(reponse(200, {}));
@@ -137,12 +132,10 @@ describe("apiFetch — jeton d'accès expiré", () => {
 
     expect(dernierAppel().url).toBe(`${BASE}/articles/`);
     expect(dernierAppel().entetes.Authorization).toBe("Bearer acces-neuf");
-    // Rejouée en GET, la publication répondrait 200 sans créer l'article.
     expect(dernierAppel().options).toMatchObject({ method: "POST", body: "{}" });
   });
 
-  // Le refresh neuf compris : login/refresh/ met l'ancien en liste noire, et le
-  // garder couperait la session au renouvellement suivant.
+  // L'ancien refresh part en liste noire : le garder couperait la session.
   it("stocke les deux jetons rendus par login/refresh/", async () => {
     appelReseau
       .mockResolvedValueOnce(reponse(401))
@@ -152,7 +145,6 @@ describe("apiFetch — jeton d'accès expiré", () => {
     await apiFetch("/articles/");
 
     const [, options] = appelsA(RENOUVELLEMENT)[0] as [string, RequestInit];
-    // Sans POST, le navigateur refuse l'envoi d'un corps : la panne serait permanente.
     expect(options).toMatchObject({
       method: "POST",
       body: '{"refresh":"refresh-valide"}',
@@ -161,7 +153,7 @@ describe("apiFetch — jeton d'accès expiré", () => {
     expect(localStorage.getItem("refresh")).toBe("refresh-neuf");
   });
 
-  // Le cas que StrictMode rend courant : les effets de /blog partent deux fois.
+  // StrictMode lance deux fois les effets de /blog.
   it("ne renouvelle qu'une fois pour deux 401 simultanés", async () => {
     appelReseau.mockImplementation(async (url: string, options: RequestInit) => {
       if (url === RENOUVELLEMENT) return reponse(200, JETONS_NEUFS);
@@ -176,7 +168,6 @@ describe("apiFetch — jeton d'accès expiré", () => {
     expect(appelsA(RENOUVELLEMENT)).toHaveLength(1);
   });
 
-  // Un 401 de login/ dit un mot de passe faux, jamais un jeton expiré.
   it("ne renouvelle rien sur un 401 de /auth/login/", async () => {
     appelReseau.mockResolvedValue(reponse(401));
 
@@ -199,8 +190,6 @@ describe("apiFetch — jeton d'accès expiré", () => {
     expect(appelsA(RENOUVELLEMENT)).toHaveLength(1);
   });
 
-  // La requête repart sans jeton : c'est ce qui rouvre /blog, dont la lecture est
-  // publique, à qui garde un jeton mort.
   it("efface les jetons sur un renouvellement refusé et rejoue sans Authorization", async () => {
     appelReseau
       .mockResolvedValueOnce(reponse(401))
@@ -228,8 +217,6 @@ describe("apiFetch — jeton d'accès expiré", () => {
     expect(localStorage.getItem("access")).toBeNull();
   });
 
-  // Un serveur qui redémarre ne doit pas déconnecter : seul un 401 de
-  // login/refresh/ dit que le jeton est mort.
   it.each([
     ["réseau coupé", () => Promise.reject(new TypeError("Failed to fetch"))],
     ["502 du proxy", () => Promise.resolve(reponse(502))],
@@ -248,8 +235,6 @@ describe("apiFetch — jeton d'accès expiré", () => {
     expect(localStorage.getItem("refresh")).toBe("refresh-valide");
   });
 
-  // Le jeton a changé pendant le trajet de la requête : le renouveler encore
-  // ferait tourner pour rien le refresh qu'un autre onglet vient de ranger.
   it("rejoue avec le jeton qu'un autre onglet a déjà renouvelé, sans renouveler", async () => {
     appelReseau
       .mockImplementationOnce(async () => {
@@ -264,8 +249,6 @@ describe("apiFetch — jeton d'accès expiré", () => {
     expect(dernierAppel().entetes.Authorization).toBe("Bearer acces-autre-onglet");
   });
 
-  // Deux onglets partagent le localStorage : celui qui perd la course au
-  // renouvellement reçoit un 401, alors que le gagnant a déjà rangé des jetons valides.
   it("garde les jetons qu'un autre onglet vient de ranger malgré le refus", async () => {
     appelReseau
       .mockResolvedValueOnce(reponse(401))
@@ -315,8 +298,7 @@ describe("apiFetch — refus de l'API", () => {
     });
   });
 
-  // Une page d'erreur du proxy n'est pas du JSON : sans ce repli, l'appelant
-  // recevrait l'erreur d'analyse au lieu du statut, et n'aurait rien à afficher.
+  // Une page d'erreur du proxy n'est pas du JSON.
   it("laisse un corps illisible donner un data vide, jamais une autre erreur", async () => {
     appelReseau.mockResolvedValue({
       ok: false,

@@ -4,38 +4,28 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import "@testing-library/jest-dom/vitest";
 
-// Le tableau qu'`App.tsx` monte, et non une liste recopiée : recopier les routes
-// ici laisserait le test vert le jour où l'une d'elles est renommée ou retirée.
 import { ROUTES } from "../../routes";
 
 import { saveTokens } from "../../lib/tokens";
 import NavBar from "./Navigation/NavBar";
 import Footer from "./Footer";
 
-// Les seules destinations fixes : le `*` est le fourre-tout de `NotFound`, et
-// un chemin à paramètre n'est pas une adresse qu'un lien puisse porter tel quel.
 const ROUTES_DE_L_APP = ROUTES.map(({ path }) => path)
   .filter((chemin) => chemin !== "*" && !chemin.includes(":"));
 
-// Le pied de page est rendu à côté des `Routes`, comme `MainLayout` le rend hors
-// de son `Outlet` : il reste affiché après un clic, et la zone de routes montre
-// la page visée.
 function rendreLePiedDePage() {
   render(
     <MemoryRouter initialEntries={["/"]}>
       <Footer />
       <Routes>
         <Route path="/blog" element={<p>Page du blog</p>} />
-        {/* Sans cette route, React Router avertit à chaque cas que `/` ne
-            correspond à rien, et ce bruit finirait par en couvrir un vrai. */}
+        {/* Évite l'avertissement de React Router sur `/` à chaque cas. */}
         <Route path="*" element={null} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
-// Tout le pied de page, et non la seule `nav` : un lien mort ajouté près du
-// copyright échapperait sinon au contrôle des destinations.
 function liensDuPiedDePage() {
   const liens = [...screen.getByRole("contentinfo").querySelectorAll("a")];
   return {
@@ -44,8 +34,6 @@ function liensDuPiedDePage() {
   };
 }
 
-// L'en-tête et le pied de page d'une même page, comme `MainLayout` les rend :
-// c'est le seul rendu où leurs libellés se confrontent.
 function rendreLEnTeteEtLePiedDePage() {
   render(
     <MemoryRouter initialEntries={["/"]}>
@@ -55,9 +43,7 @@ function rendreLEnTeteEtLePiedDePage() {
   );
 }
 
-// Les liens à `aria-label` sont écartés : le logo et les icônes sociales nomment
-// leur destination autrement qu'un libellé de menu. Les doublons restent : leur nombre
-// dit qu'aucun lien n'a quitté le relevé, qu'un `aria-label` en sortirait en silence.
+// Logo et icônes sociales (`aria-label`) écartés ; les doublons restent, comptés.
 function libellesParDestination(): Map<string, string[]> {
   const parDestination = new Map<string, string[]>();
 
@@ -79,9 +65,6 @@ function navigationDuPiedDePage() {
   return screen.getByRole("navigation", { name: "Navigation du pied de page" });
 }
 
-// Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
-// trouve un afterEach global, et `globals: false` n'en pose aucun. Les jetons
-// partent avec : ils décident de ce que le pied de page affiche.
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -92,8 +75,6 @@ describe("Footer — liens internes", () => {
     rendreLePiedDePage();
 
     const { internes } = liensDuPiedDePage();
-    // `querySelectorAll` ne lève pas sur zéro résultat : sans ce garde-fou, un
-    // pied de page vidé de ses liens passerait par une boucle muette.
     expect(internes.length).toBeGreaterThan(0);
 
     for (const lien of internes) {
@@ -106,8 +87,6 @@ describe("Footer — liens internes", () => {
 
     await userEvent.click(screen.getByRole("link", { name: "Blog" }));
 
-    // Une ancre ordinaire laisserait jsdom sur place : c'est le `Link` qui rend
-    // la page visée sans repartir du serveur.
     expect(screen.getByText("Page du blog")).toBeInTheDocument();
   });
 });
@@ -122,7 +101,6 @@ describe("Footer — liens externes", () => {
     for (const lien of externes) {
       expect(lien.getAttribute("href")).toMatch(/^https:\/\//);
       expect(lien).toHaveAttribute("target", "_blank");
-      // Les jetons un à un : `rel="noopener noreferrer"` reste recevable.
       expect(lien.rel.split(/\s+/)).toContain("noreferrer");
     }
   });
@@ -147,8 +125,6 @@ describe("Footer — visiteur", () => {
 
 describe("Footer — membre connecté", () => {
   it("remplace les entrées du visiteur par la gestion du compte", () => {
-    // Lu dès le premier rendu par `useIsAuthenticated` : la session se pose
-    // avant, sans quoi le pied de page s'afficherait en visiteur.
     saveTokens({ access: "jeton-acces", refresh: "jeton-renouvellement" });
     rendreLePiedDePage();
 
@@ -156,8 +132,6 @@ describe("Footer — membre connecté", () => {
       expect(screen.queryByRole("link", { name: libelle })).toBeNull();
     }
 
-    // Le seul accès du membre au changement : le retirer l'obligerait à se
-    // déconnecter puis à attendre un email pour changer le sien.
     expect(
       screen.getByRole("link", { name: "Changer mon mot de passe" }),
     ).toHaveAttribute("href", "/change-password");
@@ -181,9 +155,7 @@ describe("Footer — accord avec l'en-tête", () => {
     rendreLEnTeteEtLePiedDePage();
     const parDestination = libellesParDestination();
 
-    // Trois exemplaires de chaque destination servie des deux côtés : le menu
-    // desktop, le menu mobile et le pied de page. Sans ce repère, un lien
-    // disparu ou sorti du relevé laisserait la boucle passer à vide.
+    // Trois exemplaires : menu desktop, menu mobile et pied de page.
     for (const destination of [
       "/blog",
       "/about",

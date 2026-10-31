@@ -12,7 +12,6 @@ import Modal from "../../components/ui/Modal/Modal";
 import ArticleCard from "../../components/common/Blog/ArticleCard";
 import FormArticle from "../../components/common/Blog/FormArticle";
 
-// La forme que DRF donne à toute liste de l'API, découpée en pages.
 type Page<T> = {
   count: number;
   next: string | null;
@@ -24,24 +23,18 @@ const Blog = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isAuthenticated = useIsAuthenticated();
 
-  // null tant que la première page n'est pas arrivée : une liste pas encore
-  // chargée ne dit pas que le blog est vide.
   const [articles, setArticles] = useState<ArticleListItem[] | null>(null);
-  // Numéro à demander ensuite, null quand la dernière page est affichée.
   const [pageSuivante, setPageSuivante] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  // La page 1 remplace la liste — chargement initial ET rechargement après
-  // création —, les suivantes s'y ajoutent. `next` est une URL absolue, que
-  // apiFetch préfixerait une seconde fois : seule sa présence sert ici.
+  // `next` est une URL absolue qu'apiFetch préfixerait deux fois : seule sa présence sert.
   const loadArticles = (numero = 1) => {
     apiFetch<Page<ArticleListItem>>(`/articles/?page=${numero}`)
       .then((page) => {
         setArticles((dejaAffiches) => {
           if (numero === 1 || dejaAffiches === null) return page.results;
-          // Un article publié entre deux pages décale la liste d'un cran : le
-          // dernier de la page d'avant revient en tête de celle-ci.
+          // Un article publié entre deux pages ramène le dernier de la précédente.
           const ids = new Set(dejaAffiches.map((article) => article.id));
           return [
             ...dejaAffiches,
@@ -52,14 +45,11 @@ const Blog = () => {
         setErreur(null);
       })
       .catch((err: unknown) => {
-        // Au-delà de la première, que DRF rend toujours, un 404 dit qu'une
-        // suppression a raccourci la liste : le bouton n'aurait plus rien à charger.
+        // Un 404 au-delà de la page 1 : une suppression a raccourci la liste.
         if (numero > 1 && (err as Partial<ApiError>).status === 404) {
           setPageSuivante(null);
-          // Un échec précédent inviterait à réessayer un bouton disparu.
           setErreur(null);
         } else {
-          // Liste et bouton restent : une page suivante se retente d'un clic.
           setErreur(toFormErrors(err, []).formError);
         }
       })
@@ -81,8 +71,6 @@ const Blog = () => {
           Des articles récents pour vous{" "}
           <span className="text-accent font-bold">inspirer !</span>
         </p>
-        {/* L'API refuse l'écriture au visiteur : le formulaire ne lui vaudrait
-            qu'un refus, une fois l'article rédigé. */}
         {isAuthenticated ? (
           <Button
             variant="primary"
@@ -112,8 +100,6 @@ const Blog = () => {
             <ArticleCard key={article.id} article={article} />
           ))}
         </div>
-        {/* Sous la liste et non au-dessus : l'échec d'une page suivante se lit
-            près du bouton qui l'a demandée. */}
         <div className="mt-6">
           <ErrorAlert message={erreur} />
         </div>
@@ -123,8 +109,7 @@ const Blog = () => {
               variant="outline"
               disabled={isLoading}
               onClick={() => {
-                // Posé au clic et non dans loadArticles, que l'effet appelle :
-                // un setState synchrone y relancerait un rendu pour rien.
+                // Au clic : dans l'effet, un setState synchrone relancerait un rendu.
                 setIsLoading(true);
                 loadArticles(pageSuivante);
               }}

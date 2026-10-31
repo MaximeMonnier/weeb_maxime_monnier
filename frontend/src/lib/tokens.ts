@@ -1,6 +1,5 @@
-// Seul fichier à toucher aux jetons : une écriture faite ailleurs n'avertirait
-// pas les composants abonnés. Renommer une clé déconnecterait toutes les
-// sessions ouvertes au moment du déploiement.
+// Seul fichier à toucher aux jetons, sinon les abonnés ne sont pas prévenus.
+// Renommer une clé déconnecterait toutes les sessions ouvertes.
 const CLE_ACCES = "access";
 const CLE_RENOUVELLEMENT = "refresh";
 
@@ -32,8 +31,7 @@ export function clearTokens(): void {
   prevenirAbonnes();
 }
 
-// Une écriture faite dans un autre onglet n'arrive que par l'événement
-// `storage`. Sa clé vaut null quand cet onglet a vidé tout le localStorage.
+// Clé null : l'autre onglet a vidé tout le localStorage.
 function concerneLesJetons(evenement: StorageEvent): boolean {
   return [null, CLE_ACCES, CLE_RENOUVELLEMENT].includes(evenement.key);
 }

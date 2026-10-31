@@ -9,8 +9,7 @@ export default function ArticleCard({ article }: ArticleCardProps) {
   return (
     <Link to={`/articles/${article.id}`}>
       <div className="h-full bg-surface-alt rounded-lg shadow-xl overflow-hidden border border-line">
-        {/* Sans image, un cadre de même ratio : le texte de chaque carte d'une
-            rangée démarre ainsi à la même hauteur. */}
+        {/* Cadre vide de même ratio : les textes d'une rangée démarrent à la même hauteur. */}
         {article.cover ? (
           <img
             src={article.cover}
@@ -27,8 +26,6 @@ export default function ArticleCard({ article }: ArticleCardProps) {
             Par {article.author} le{" "}
             {new Date(article.created_at).toLocaleDateString()}
           </p>
-          {/* Déjà coupé par l'API, qui dit aussi s'il l'a été : un article court
-              arrive entier et ne reçoit pas de points de suspension. */}
           <p className="text-ink-soft">
             {article.excerpt_truncated ? `${article.excerpt}...` : article.excerpt}
           </p>

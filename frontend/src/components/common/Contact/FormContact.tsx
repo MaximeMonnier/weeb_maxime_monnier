@@ -74,7 +74,6 @@ const FormContact = () => {
     handleChange,
     submit,
   } = useForm<FormData>(VALEURS_INITIALES, {
-    // La confirmation parle du message parti : la première frappe du suivant la périme.
     onChange: () => setConfirmation(null),
   });
 
@@ -95,8 +94,6 @@ const FormContact = () => {
           }),
         });
         setFormData(VALEURS_INITIALES);
-        // Le formulaire se vide au succès : sans ce message, rien ne le distinguerait
-        // d'un échec.
         setConfirmation("Votre message est parti. Nous vous répondrons par email.");
       },
     });
@@ -107,8 +104,7 @@ const FormContact = () => {
       className="w-full max-w-2xl my-8 border border-line p-6 rounded-lg"
     >
       <ErrorAlert message={formError} />
-      {/* Monté en permanence : une région live apparue avec son texte n'est pas
-          annoncée de façon fiable. */}
+      {/* Toujours monté : une région live apparue avec son texte n'est pas annoncée. */}
       <p role="status" className="form-alert-success">
         {confirmation}
       </p>
@@ -193,7 +189,7 @@ const FormContact = () => {
             type="submit"
             variant="primary"
             size="lg"
-            // Sans ce verrou, un double clic entame un quota de cinq messages par heure.
+            // Sans verrou, un double clic entame le quota de cinq messages par heure.
             disabled={isSubmitting}
           >
             {isSubmitting ? "Envoi en cours..." : "Envoyer le message"}

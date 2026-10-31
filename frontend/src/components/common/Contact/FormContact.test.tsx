@@ -46,9 +46,7 @@ const SAISIE = {
   message: "Un message assez long pour passer.",
 };
 
-// Les saisies refusées passent la validation native : dans un navigateur, `required`
-// et `type="email"` arrêteraient le reste avant la règle du formulaire, que jsdom
-// laisse passer.
+// Saisies valides pour `required` et `type="email"`, que jsdom n'applique pas.
 async function remplirEtEnvoyer(modifications: Partial<typeof SAISIE> = {}) {
   const saisie = { ...SAISIE, ...modifications };
   for (const [champ, valeur] of Object.entries(saisie)) {
@@ -65,8 +63,6 @@ afterEach(() => {
 });
 
 describe("FormContact", () => {
-  // L'information est due au moment de la collecte : placée après le bouton,
-  // elle serait lue une fois le message parti.
   it("informe de l'usage des données entre le message et le bouton d'envoi", () => {
     afficherFormulaire();
 
@@ -167,7 +163,6 @@ describe("FormContact — réponse de l'API", () => {
     );
   });
 
-  // Le délai restant n'est que dans le texte de DRF : reformulé, il se perdrait.
   it("affiche mot pour mot le refus d'un quota épuisé", async () => {
     const detail =
       "Requête ralentie. Prochaine requête disponible dans 3542 secondes.";

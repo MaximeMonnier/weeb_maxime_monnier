@@ -22,7 +22,6 @@ type FormData = {
   confirmPassword: string;
 };
 
-// `confirmPassword` n'est pas envoyé : l'API ne le connaît pas et ne peut rien en dire.
 const CHAMPS = ["current_password", "new_password"] as const;
 
 const VALEURS_INITIALES: FormData = {
@@ -84,8 +83,7 @@ const ChangePassword = () => {
             }),
           },
         );
-        // L'API a révoqué tous les refresh du compte, celui-ci compris : sans les
-        // jetons neufs, la session s'éteindrait au prochain renouvellement.
+        // L'API a révoqué tous les refresh du compte : sans ces jetons, la session meurt.
         saveTokens(reponse);
         setFormData(VALEURS_INITIALES);
         setConfirmation(
@@ -117,8 +115,7 @@ const ChangePassword = () => {
           ) : (
             <form onSubmit={handleSubmit}>
               <ErrorAlert message={formError} />
-              {/* Monté en permanence : une région live apparue avec son texte n'est pas
-                  annoncée de façon fiable. */}
+              {/* Toujours monté : une région live née avec son texte n'est pas lue. */}
               <p role="status" className="form-alert-success">
                 {confirmation}
               </p>

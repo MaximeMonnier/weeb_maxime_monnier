@@ -1,31 +1,26 @@
 @import "tailwindcss";
 
-/* La classe .dark est posée sur <html> par le hook de thème, jamais ici. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Valeurs du thème clair. Le thème sombre les redéfinit sous `.dark`, en @layer base. */
-  --color-surface: oklch(1 0 0); /* Fond de page */
-  --color-surface-alt: oklch(0.97 0.014 264); /* Sections et cartes */
-  /* Plus foncé que la maquette, dont la valeur ne se distinguait pas du fond
-     secondaire : le survol posé dessus ne se voyait pas. */
+  --color-surface: oklch(1 0 0);
+  --color-surface-alt: oklch(0.97 0.014 264);
+  /* Plus foncé que la maquette : sinon le survol ne se voit pas. */
   --color-surface-hover: oklch(0.94 0.01 250);
-  --color-field: oklch(1 0 0); /* Champs de saisie */
+  --color-field: oklch(1 0 0);
   --color-field-focus: oklch(1 0 0);
 
-  --color-ink: oklch(0.15 0.01 250); /* Titres, étiquettes */
-  --color-ink-soft: oklch(0.3 0.02 250); /* Descriptions */
-  --color-ink-faint: oklch(0.52 0.03 250); /* Indications */
-  --color-ink-muted: oklch(0.68 0.02 250); /* Désactivé */
-  /* Titres de colonne du pied de page : la même valeur dans les deux thèmes,
-     donc absente du bloc `.dark`. */
+  --color-ink: oklch(0.15 0.01 250);
+  --color-ink-soft: oklch(0.3 0.02 250);
+  --color-ink-faint: oklch(0.52 0.03 250);
+  --color-ink-muted: oklch(0.68 0.02 250);
+  /* Même valeur dans les deux thèmes : absente de `.dark` exprès. */
   --color-ink-caption: oklch(0.68 0.02 250);
 
   --color-line: oklch(0.91 0.01 250);
-  --color-line-strong: oklch(0.85 0.01 250); /* Bordures appuyées et champs */
+  --color-line-strong: oklch(0.85 0.01 250);
 
-  /* Accents et états plus foncés qu'en sombre : il faut plus de contraste sur fond blanc.
-     Quatre décimales : arrondie à trois, la valeur s'écarte de la maquette. */
+  /* Quatre décimales : arrondie à trois, la valeur s'écarte de la maquette. */
   --color-accent: oklch(0.5575 0.2525 302.32);
   --color-accent-hover: oklch(0.496 0.237 301.9);
 
@@ -35,8 +30,8 @@
   --text-body: 1rem;
   --text-body-sm: 0.875rem;
 
-  --radius-input: 0.5rem; /* 8px pour les champs */
-  --radius-button: 0.5rem; /* 8px pour boutons */
+  --radius-input: 0.5rem;
+  --radius-button: 0.5rem;
 
   --shadow-dark-md: 0 4px 6px -1px rgb(0 0 0 / 0.5);
 
@@ -152,8 +147,7 @@
     color: var(--color-error);
   }
 
-  /* Vide, le paragraphe n'occupe aucune hauteur. Pas de `display: none` : sa région
-     live n'existerait qu'au premier message, trop tard pour être annoncée. */
+  /* Pas de `display: none` à vide : la région live naîtrait trop tard pour être annoncée. */
   .form-alert-error {
     font-size: var(--text-body-sm);
     color: var(--color-error);
@@ -252,7 +246,7 @@
     outline-offset: 2px;
   }
 }
-/* Carrousel : noms repris de la documentation d'Embla, hors des conventions du projet. */
+/* Noms repris de la documentation d'Embla, hors des conventions du projet. */
 
 .embla__viewport {
   overflow: hidden;
@@ -267,7 +261,7 @@
   flex: 0 0 100%;
   min-width: 0;
 }
-/* Bandeau défilant de l'accueil. Déclaré hors de @theme, donc toujours émis. */
+/* Hors de @theme, donc toujours émis. */
 .marquee-mask {
   overflow: hidden;
   width: 100%;

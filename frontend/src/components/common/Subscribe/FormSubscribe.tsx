@@ -22,11 +22,9 @@ type FormData = {
   confirmPassword: string;
 };
 
-// `confirmPassword` n'est pas envoyé : l'API ne le connaît pas et ne peut rien en dire.
 const CHAMPS = ["first_name", "last_name", "email", "password"] as const;
 
-// L'API nomme l'adresse déjà inscrite (AMELIORATIONS.md).
-// Relayer son message ferait du formulaire un test d'existence de compte.
+// L'API nomme l'adresse déjà inscrite : relayer son message énumérerait les comptes.
 const REFUS_NEUTRE =
   "Impossible de créer un compte avec ces informations. Si vous avez déjà un compte, connectez-vous.";
 
@@ -85,8 +83,6 @@ const FormSubscribe = () => {
     handleChange,
     submit,
   } = useForm<FormData>(VALEURS_INITIALES, {
-    // La confirmation parle du compte créé : la première frappe de l'inscription
-    // suivante la périme.
     onChange: () => setConfirmation(null),
   });
 
@@ -106,14 +102,12 @@ const FormSubscribe = () => {
           }),
         });
         setFormData(VALEURS_INITIALES);
-        // Le compte est créé INACTIF : sans ce message, la connexion qui suit
-        // renverrait un refus que rien n'explique.
+        // Compte créé inactif : sans ce message, l'échec de connexion resterait inexpliqué.
         setConfirmation(
           "Votre compte est créé. Un administrateur doit l'activer avant votre première connexion.",
         );
       },
-      // Le message part sous le formulaire et non sous le champ : le seul fait de
-      // pointer l'adresse dirait déjà qu'elle est prise.
+      // Pas sous le champ : pointer l'adresse dirait déjà qu'elle est prise.
       translate: ({ fieldErrors: { email, ...autres }, formError }) => ({
         fieldErrors: autres,
         formError: email ? REFUS_NEUTRE : formError,
@@ -126,8 +120,7 @@ const FormSubscribe = () => {
       className="w-full max-w-2xl my-8 border border-line p-6 rounded-lg"
     >
       <ErrorAlert message={formError} />
-      {/* Monté en permanence : une région live apparue avec son texte n'est pas
-          annoncée de façon fiable. */}
+      {/* Toujours monté : une région live apparue avec son texte n'est pas annoncée. */}
       <p role="status" className="form-alert-success">
         {confirmation}
       </p>

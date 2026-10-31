@@ -74,8 +74,6 @@ describe("ChangePassword — membre connecté", () => {
       current_password: "AncienSecret123",
       new_password: "NouveauSecret456",
     });
-    // L'API a révoqué le refresh d'avant : le garder éteindrait la session à
-    // son prochain renouvellement.
     expect(localStorage.getItem("access")).toBe("acces-neuf");
     expect(localStorage.getItem("refresh")).toBe("refresh-neuf");
     expect(screen.getByRole("status")).toHaveTextContent("mot de passe est modifié");

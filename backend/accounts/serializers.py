@@ -17,7 +17,6 @@ MAX_PASSWORD_LENGTH = 128
 class RegisterSerializer(serializers.ModelSerializer):
     """Valide les données d'inscription et crée l'utilisateur (mot de passe hashé, compte inactif)."""
 
-    # write_only : le mot de passe peut ENTRER (inscription) mais ne RESSORT jamais dans la réponse JSON
     password = serializers.CharField(write_only=True, max_length=MAX_PASSWORD_LENGTH)
 
     class Meta:
@@ -26,8 +25,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """Vérifie le mot de passe contre AUTH_PASSWORD_VALIDATORS, l'identité en main."""
-        # Instance non enregistrée : elle ne sert qu'à donner ses attributs au
-        # validateur de similarité, qui refuse un mot de passe tiré de l'email ou du nom.
+        # Instance non enregistrée, pour le validateur de similarité (email, nom).
         user = CustomUser(
             email=attrs["email"], first_name=attrs["first_name"], last_name=attrs["last_name"],
         )
@@ -35,26 +33,23 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        # On passe par create_user (notre manager) → le mot de passe est HASHÉ.
-        # is_active dès l'appel : le désactiver après coup laisserait le compte
-        # ouvert entre l'INSERT et l'UPDATE, le temps qu'une connexion s'y glisse.
+        # is_active dès l'appel : désactivé après coup, le compte serait ouvert entre INSERT et UPDATE.
         return CustomUser.objects.create_user(**validated_data, is_active=False)
 
 class PasswordResetRequestSerializer(serializers.Serializer):
-    """Valide la demande : on a juste besoin de l'email."""
+    """Demande de réinitialisation : l'email seul."""
     email = serializers.EmailField()
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
-    """Valide la confirmation : uid + token + nouveau mot de passe."""
+    """Confirmation de réinitialisation : uid, token et nouveau mot de passe."""
     uid = serializers.CharField()
     token = serializers.CharField()
     new_password = serializers.CharField(write_only=True, max_length=MAX_PASSWORD_LENGTH)
 
     def validate(self, attrs):
         """Vérifie le mot de passe contre AUTH_PASSWORD_VALIDATORS, sans connaître le titulaire."""
-        # Sans user : l'uid ne se décode qu'après ce serializer, dans la vue. Le
-        # validateur de similarité reste donc muet ici — consigné dans AMELIORATIONS.md.
+        # Sans user : l'uid ne se décode que dans la vue, la similarité reste muette (AMELIORATIONS.md).
         validate_password_strength(attrs["new_password"], "new_password")
         return attrs
 
@@ -83,7 +78,7 @@ class AccountDeleteSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, max_length=MAX_PASSWORD_LENGTH)
 
     def validate_password(self, value):
-        # 400 et non 401, comme au changement de mot de passe : apiFetch renouvellerait le jeton.
+        # 400 et non 401 : apiFetch renouvellerait le jeton.
         if not self.context["request"].user.check_password(value):
             raise serializers.ValidationError("Le mot de passe est incorrect.")
         return value
@@ -93,8 +88,7 @@ class LoginSerializer(TokenObtainPairSerializer):
     """Délivre les jetons, le mot de passe borné comme partout ailleurs."""
 
     def __init__(self, *args, **kwargs):
-        # simplejwt crée ses champs dans __init__, et non en attributs de classe :
-        # une déclaration au niveau de la classe serait écrasée.
+        # simplejwt crée ses champs dans __init__ : un attribut de classe serait écrasé.
         super().__init__(*args, **kwargs)
         self.fields["password"] = PasswordField(max_length=MAX_PASSWORD_LENGTH)
 
@@ -105,13 +99,11 @@ class RefreshSerializer(TokenRefreshSerializer):
     def validate(self, attrs):
         user_id = self.token_class(attrs["refresh"]).payload.get(api_settings.USER_ID_CLAIM)
         with transaction.atomic():
-            # Pris avant que super() relise le jeton et sa liste noire : vérifiée avant le
-            # verrou, elle ignorerait une révocation de set_password_and_revoke en cours.
+            # Verrou avant que super() lise la liste noire : sinon une révocation en cours passerait.
             CustomUser.objects.select_for_update().filter(
                 **{api_settings.USER_ID_FIELD: user_id}
             ).first()
-            # simplejwt relit le titulaire par objects.get() sans intercepter son absence :
-            # le 500 qui en sortait, apiFetch le prend pour une panne et garde les jetons.
+            # simplejwt n'intercepte pas l'absence du titulaire : apiFetch prendrait son 500 pour une panne.
             try:
                 return super().validate(attrs)
             except CustomUser.DoesNotExist:

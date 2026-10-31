@@ -1,29 +1,19 @@
-# Lance les suites à chaque intégration. Fichier distinct de
-# docker-images.yml, dont l'objet est la construction d'images : deux workflows
-# donnent deux journaux, et l'un se modifie sans risquer l'autre.
-
 name: Tests
 
-# Les mêmes branches que la construction d'images : une suite rouge doit se voir
-# avant la fusion, pas après.
 on:
   push:
     branches: [preprod, main]
   pull_request:
     branches: [preprod, main]
 
-# Le groupe porte le nom du workflow : celui-ci et docker-images.yml s'annulent
-# chacun de leur côté sans jamais se couper l'un l'autre.
+# Groupe au nom du workflow : celui-ci et docker-images.yml ne s'annulent pas l'un l'autre.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Lecture seule : rien n'est publié, donc rien n'a besoin d'être écrit.
 permissions:
   contents: read
 
-# Aucun `needs` entre les jobs : ils partent ensemble et vont au bout chacun de
-# leur côté, donc une seule exécution suffit à connaître l'état des suites.
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -35,25 +25,19 @@ jobs:
 
     services:
       db:
-        # La version de compose.dev.yaml : tester sur un autre moteur que celui
-        # du poste et de la production ne prouverait pas grand-chose.
+        # Même version que compose.dev.yaml.
         image: postgres:17-alpine
 
-        # En clair : la base est jetée avec la machine. Écrits aussi dans `env`
-        # plus bas, ce contexte n'étant pas lisible depuis un bloc `services`.
+        # Répétés dans `env` plus bas : ce contexte n'est pas lisible depuis `services`.
         env:
           POSTGRES_DB: weeb
           POSTGRES_USER: weeb
           POSTGRES_PASSWORD: mot-de-passe-de-ci
 
-        # Le port doit être publié : la suite tourne sur la machine, pas dans un
-        # conteneur du même réseau.
         ports:
           - 5432:5432
 
-        # `-h 127.0.0.1` comme dans compose.dev.yaml : sans lui la sonde déclare
-        # le service prêt avant qu'il écoute en TCP, et la première connexion de
-        # Django tombe sur un port fermé.
+        # -h 127.0.0.1 : sinon la sonde déclare le service prêt avant qu'il écoute en TCP.
         options: >-
           --health-cmd "pg_isready -h 127.0.0.1 -U weeb -d weeb"
           --health-interval 5s
@@ -65,8 +49,6 @@ jobs:
       POSTGRES_DB: weeb
       POSTGRES_USER: weeb
       POSTGRES_PASSWORD: mot-de-passe-de-ci
-      # Hôte et port ont un défaut dans base.py ; les écrire ici évite d'avoir à
-      # ouvrir les settings pour savoir où la suite se connecte.
       POSTGRES_HOST: localhost
       POSTGRES_PORT: 5432
 
@@ -75,21 +57,17 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          # La version du backend/Dockerfile : la suite doit tourner sur le
-          # Python qui part en ligne.
+          # Même version que backend/Dockerfile.
           python-version: "3.13"
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
       - run: pip install -r requirements.txt
 
-      # DJANGO_SETTINGS_MODULE vient de `env` : test.py pose une clé factice et
-      # éteint les quotas de débit, et lui seul crée puis détruit `test_weeb`.
       - name: Suite Django
         run: python manage.py test
 
-      # `-r` plutôt que l'environnement du job : celui-ci contient aussi
-      # pip-audit et ses dépendances, qui ne partent pas en ligne.
+      # `-r` : l'environnement du job contient aussi pip-audit, qui ne part pas en ligne.
       - name: Audit des dépendances
         if: ${{ !cancelled() }}
         run: |
@@ -105,9 +83,7 @@ jobs:
         working-directory: frontend
 
     env:
-      # Lue deux fois : lib/api.ts lève à l'import quand elle manque, et
-      # vite.config.ts interrompt le build de production sans elle. Sa valeur
-      # est celle du .env de la racine, frontend/.env n'étant pas versionné.
+      # Exigée par lib/api.ts et vite.config.ts ; frontend/.env n'est pas versionné.
       VITE_API_URL: /api
 
     steps:
@@ -115,31 +91,27 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          # La version du frontend/Dockerfile, pour la même raison que Python.
+          # Même version que frontend/Dockerfile.
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      # npm ci et non install : il respecte le verrou au lieu de le réécrire.
       - run: npm ci
 
       - name: Contrôle du style
         run: npm run lint
 
-      # `!cancelled()` : un style refusé ne cache pas l'état des tests et du
-      # build, le job restant rouge dès qu'une étape échoue.
+      # `!cancelled()` : un style refusé ne cache pas l'état des tests et du build.
       - name: Suite Vitest
         if: ${{ !cancelled() }}
         run: npm test
 
-      # `tsc -b` puis Vite : le contrôle de types couvre src/, vite.config.ts et
-      # e2e/, que Vitest n'exécute pas et que rien d'autre ne compilerait ici.
+      # `tsc -b` contrôle aussi vite.config.ts et e2e/, que rien d'autre ne compile ici.
       - name: Build de production
         if: ${{ !cancelled() }}
         run: npm run build
 
-      # Sans `--omit=dev` : l'outillage de build et de test s'exécute ici, une
-      # faille dans ses dépendances compte autant qu'une faille du bundle.
+      # Sans `--omit=dev` : l'outillage de build et de test s'exécute ici.
       - name: Audit des dépendances
         if: ${{ !cancelled() }}
         run: npm audit
@@ -148,8 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    # Jetables, comme la base qui les reçoit. `E2E_*` et `DJANGO_SUPERUSER_*`
-    # désignent le même compte : celui que le parcours connecte est celui créé.
+    # Jetables. `E2E_*` et `DJANGO_SUPERUSER_*` désignent le même compte.
     env:
       E2E_EMAIL: parcours@weeb.local
       E2E_PASSWORD: Parcours-de-ci-42
@@ -158,36 +129,31 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Aucun des deux n'est versionné. Le second sert le Vite du conteneur, qui
-      # lit le code monté : sans VITE_API_URL, le front s'arrête au chargement.
+      # Sans frontend/.env, le Vite du conteneur (code monté) s'arrête au chargement.
       - name: Fichiers d'environnement
         run: |
           cp .env.example .env
           cp frontend/.env.example frontend/.env
 
-      # Avant la pile : le volume anonyme du conteneur créerait sinon
-      # frontend/node_modules au nom de root, et npm ci y échouerait.
+      # Avant la pile : son volume anonyme créerait frontend/node_modules au nom de root.
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      # La version de Chromium suit celle de @playwright/test : l'installer
-      # après npm ci, jamais avant.
+      # Chromium suit la version de @playwright/test : après npm ci, jamais avant.
       - name: Playwright et Chromium
         working-directory: frontend
         run: |
           npm ci
           npx playwright install --with-deps chromium
 
-      # Ne borne que l'attente des sondes, pas la construction : ~20 s mesurées
-      # sur le runner. 180 laisse sa marge, un service jamais sain échoue ici.
+      # Ne borne que l'attente des sondes (~20 s mesurées), pas la construction.
       - name: Pile de développement
         run: docker compose up -d --wait --wait-timeout 180
 
-      # --noinput lit chaque champ de REQUIRED_FIELDS dans DJANGO_SUPERUSER_<CHAMP>.
-      # `exec` ne transmet que les `-e` nommés ; `-T`, faute de terminal ici.
+      # --noinput lit DJANGO_SUPERUSER_<CHAMP> ; `exec` ne transmet que les `-e` nommés.
       - name: Compte de test actif
         env:
           DJANGO_SUPERUSER_EMAIL: ${{ env.E2E_EMAIL }}
@@ -211,8 +177,7 @@ jobs:
         if: ${{ failure() }}
         run: docker compose logs
 
-      # La trace contient le mot de passe en clair : sans conséquence ici, le
-      # compte disparaissant avec la machine.
+      # La trace contient le mot de passe en clair, d'un compte jetable.
       - name: Traces Playwright
         if: ${{ failure() }}
         uses: actions/upload-artifact@v7

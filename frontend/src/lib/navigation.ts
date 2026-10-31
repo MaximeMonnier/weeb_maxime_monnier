@@ -1,8 +1,6 @@
 import type { NavItem } from "../types/navigation";
 
-// Les cinq couples servis à la fois par l'en-tête, le menu mobile et le pied de
-// page. Recopiés, ils divergent : même libellé menant ailleurs, ou même lien
-// nommé autrement d'un bloc à l'autre.
+// Partagés par l'en-tête, le menu mobile et le pied de page : recopiés, ils divergent.
 export const LIEN_BLOG: NavItem = {
   to: "/blog",
   label: "Blog",

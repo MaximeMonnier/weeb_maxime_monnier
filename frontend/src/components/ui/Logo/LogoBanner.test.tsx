@@ -4,14 +4,10 @@ import "@testing-library/jest-dom/vitest";
 
 import LogoBanner from "./LogoBanner";
 
-// Ce que le seul LogoBanner.tsx ne dit pas : le bandeau est rendu deux fois pour
-// que l'animation boucle, et un logo nommant sa marque dans l'`alt` comme dans le
-// texte ferait lire chaque nom quatre fois au lecteur d'écran.
+// Bandeau rendu deux fois pour boucler : un `alt` nommé ferait lire chaque marque quatre fois.
 
 const MARQUES = ["SmartFinder", "Zoomerr", "SHELLS", "WAVES", "ArtVenue"];
 
-// Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
-// trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(cleanup);
 
 describe("LogoBanner", () => {

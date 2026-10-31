@@ -7,13 +7,10 @@ type ModalProps = Omit<
 > & {
   open: boolean;
   title: string;
-  /** Appelé à chaque fermeture, Échap comprise : le parent y repasse `open` à faux. */
+  // Appelé aussi sur Échap : le parent doit y repasser `open` à faux.
   onClose: () => void;
 };
 
-/**
- * Fenêtre modale : titre, bouton « Fermer » et contenu, ouverte tant que `open` est vrai.
- */
 export default function Modal({
   open,
   title,
@@ -25,8 +22,7 @@ export default function Modal({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
-  // Échap ferme le dialog sans passer par `open` : l'effet compare donc à
-  // l'état réel de la fenêtre, et `showModal()` lève sur une fenêtre déjà ouverte.
+  // Échap ferme le dialog sans passer par `open`, et `showModal()` lève s'il est déjà ouvert.
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;

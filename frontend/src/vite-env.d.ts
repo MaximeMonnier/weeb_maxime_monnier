@@ -1,10 +1,8 @@
 /// <reference types="vite/client" />
 
-// `interface` et non `type` : étendre ImportMetaEnv passe par la fusion de
-// déclarations, que seule l'interface permet.
+// `interface` et non `type` : étendre ImportMetaEnv exige la fusion de déclarations.
 interface ImportMetaEnv {
-  // Volontairement optionnelle : c'est ce qui oblige lib/api.ts à traiter le
-  // cas où elle manque.
+  // Optionnelle exprès : lib/api.ts doit traiter son absence.
   readonly VITE_API_URL: string | undefined;
 }
 
