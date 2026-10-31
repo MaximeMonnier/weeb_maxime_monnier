@@ -99,6 +99,7 @@ Ces règles sont reprises en tête de chaque prompt. Elles ne se négocient pas.
 | 19 | Déploiement : mise en ligne et surveillance | 8 | Rien n'est en ligne, et une panne ne préviendrait personne : condition du lot 21 |
 | 20 | — | — | Fusionné dans le lot 19 le 2026-10-06 ; ses tâches gardent leur numéro |
 | 21 | Finitions et clôture de l'audit | 2 | Vérifie que chaque écart de l'audit est fermé ou consigné |
+| 22 | Image de couverture des articles | 5 | Hors audit : une fonctionnalité, après le formulaire de modification du lot 18 |
 
 ---
 
@@ -3137,6 +3138,47 @@ Ferme les issues à la main : Closes #N ne les ferme pas au merge dans preprod.
 
 ---
 
+# Lot 22 — Image de couverture des articles
+
+| État | Epic | Journal | Alimente |
+|---|---|---|---|
+| Clos le 2026-10-31 — 9 sous-issues livrées ; le réglage du nginx du VPS, hors dépôt, suivi par #360 | #330 | Lot 22 | Bloc 1 + 2 — qualité et déploiement |
+
+**Origine** : pas l'audit, une fonctionnalité découpée par `/plan-chapitre` le 2026-10-06.
+`AMELIORATIONS.md` rangeait les images de couverture parmi les fonctionnalités écartées depuis
+l'issue #175 : le blog n'était qu'un mur de texte.
+
+**Grain de ticket** : epic + 9 sous-issues, en quatre groupes : la lecture d'abord, l'écriture
+ensuite, ses règles avant le formulaire qui l'expose.
+
+> **Dépendances : lot 18** (le formulaire de modification que 22.5 étend).
+
+## 22.1 — Lire l'image par l'API
+
+- [x] **Fichiers** : `backend/articles/`, `backend/config/settings/` — livré par #331 (PR #354)
+
+## 22.2 — Servir et afficher l'image, en donner une aux articles factices
+
+- [x] **Fichiers** : `compose.prod.yaml`, `frontend/nginx.conf`, les pages du blog,
+  `peupler_articles` — livré par #332 (PR #357), #333 (PR #358) et #334 (PR #359)
+
+## 22.3 — Recevoir l'image par l'API
+
+- [x] **Fichiers** : `backend/articles/serializers.py`, `signals.py`, `views.py` — livré par
+  #335 (PR #361)
+
+## 22.4 — Nettoyer l'image reçue, effacer celle qui ne sert plus
+
+- [x] **Fichiers** : `backend/articles/serializers.py`, `backend/articles/tests.py` — livré
+  par #336 (PR #362) et #337 (PR #363)
+
+## 22.5 — Joindre l'image depuis le formulaire, la déclarer aux pages légales
+
+- [x] **Fichiers** : `FormArticle.tsx`, `lib/api.ts`, `hooks/useForm.ts`, `Privacy.tsx`,
+  `Terms.tsx` — livré par #338 (PR #364) et #339 (PR #367)
+
+---
+
 ## Récapitulatif des tâches
 
 | # | Tâche | Gravité | Dépend de | Alimente |
@@ -3225,6 +3267,11 @@ Ferme les issues à la main : Closes #N ne les ferme pas au merge dans preprod.
 | 20.4 | Aucune tâche d'entretien planifiée | Faible | 16.3, 19.3, 20.1 | Bloc 2 — déploiement |
 | 21.1 | Version de Python, statut de ce fichier, issue #38 | Faible | 15-20 | Bloc 1 + 2 — documentation |
 | 21.2 | Audit rejoué et remontée dans `main` | Clôture | tout | Bloc 1 + 2 — documentation |
+| 22.1 | Aucune image d'article dans l'API | Fonctionnel | 18 | Bloc 1 — qualité |
+| 22.2 | Images ni servies, ni affichées, ni fournies aux factices | Fonctionnel | 22.1 | Bloc 1 + 2 — qualité et déploiement |
+| 22.3 | Aucun envoi d'image par l'API | Fonctionnel | 22.1 | Bloc 1 — sécurité |
+| 22.4 | Métadonnées publiées, fichiers orphelins | Moyen (RGPD) | 22.3 | Bloc 1 — sécurité |
+| 22.5 | Formulaire sans image, pages légales muettes | Fonctionnel | 22.4 | Bloc 1 — qualité |
 
 Cinq tâches ne portent pas le bloc de leur lot : **0.2** est une remédiation de vulnérabilités
 avec preuve avant/après ; **3.3** et **3.4** relèvent de la qualité dans un lot classé

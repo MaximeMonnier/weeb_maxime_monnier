@@ -1351,3 +1351,63 @@ Le lot pèse **674 insertions pour 109 suppressions** sur 14 fichiers, hors `cor
 - Front : `npm run lint` ne rend rien, et `npm test` rend `Tests  174 passed (174)` sur 20
   fichiers. `npm audit` et `pip-audit` échouent sur des failles publiées depuis, suivies par
   #352 et #353.
+
+## Lot 22 — Image de couverture des articles
+
+Clos le 2026-10-31 · Epic #330 · Alimente : Bloc 1 + 2 — qualité et déploiement
+
+**Constat mesuré** — `Article` n'avait que titre, texte, auteur et dates : aucun champ image, et
+`AMELIORATIONS.md` rangeait les couvertures parmi les fonctionnalités écartées depuis #175. Le
+lot n'est pas issu de l'audit : c'est une fonctionnalité, découpée par `/plan-chapitre`. Au
+départ, la suite backend comptait 126 tests et Vitest 174.
+
+**Décision et justification** :
+
+- un `ImageField` sur le disque du serveur, dans le volume `media_data`, servi par le nginx du
+  conteneur du front comme `/static/` : aucun stockage externe. nginx ne sert sous `/media/` que
+  quatre extensions d'image, le reste répond `404` (#332) : les fichiers viennent d'inconnus et
+  partent sur l'origine du site ;
+- chaque contrôle porte sur le contenu, pas sur le nom : Pillow lit le fichier, 5 Mo et
+  40 mégapixels au plus, JPEG, PNG ou WebP, nom tiré au hasard. Les écritures d'article sont
+  bornées à 20 par heure et par compte (#335) ;
+- toute image reçue est redressée, ramenée à 1600 px sur son plus grand côté et réenregistrée
+  en WebP sans EXIF ni XMP (#336). Le profil de couleur est gardé : il ne dit rien de l'auteur,
+  et une photo Display P3 ternirait sans lui ;
+- l'effacement passe par des signaux, pas par `Article.delete()` : la suppression d'un compte
+  emporte ses articles en cascade sans jamais appeler leur `delete()`. Il attend la validation
+  de la transaction : annulée, elle garde l'article et son image (#335, #337) ;
+- le formulaire n'envoie du multipart que si l'image est jointe ou retirée, du JSON sinon
+  (#338).
+
+**Ce qui a surpris** — cinq constats.
+
+**Le critère des 1600 px était faux pour un portrait.** L'epic disait « de large ». Une photo
+4000 × 3000 tournée par son EXIF fait 3000 × 4000 : bornée en largeur, elle restait trop
+haute. La limite porte sur le plus grand côté. La conversion en WebP n'était pas prévue non plus.
+
+**Le contrôle de Django ne décode pas l'image.** Un JPEG tronqué, ou un PNG au bloc de texte
+piégé, passait son `verify()` et faisait répondre `500` au réencodage. Ils sont refusés en `400`.
+Un JPEG à plusieurs images (MPO, celui de certains téléphones) est refusé comme « format » :
+consigné dans `AMELIORATIONS.md`.
+
+**L'effacement est arrivé un ticket trop tôt.** Il fallait l'écrire avec l'envoi (#335), sans
+quoi chaque remplacement laissait un orphelin. #337 n'a ajouté que ses preuves, par l'API.
+
+**Le nginx du VPS est hors du dépôt.** Il refuse par défaut tout corps de plus de 1 Mo, quand
+l'API en admet 5 : sans `client_max_body_size 6m;`, une grande photo prendrait un `413` en
+production. Suivi par #360, qui attend la publication sur `main`.
+
+**La CI du front est tombée en route.** Une alerte d'audit sur `minimatch` et des tests trop
+lents sous charge l'ont rendue rouge sans lien avec le lot. Réparée à part (#365, PR #366).
+
+Le lot pèse **1 429 insertions pour 554 suppressions** sur ses 9 PR, en 32 commits ; 434 de ces
+suppressions viennent de #361, qui a aussi compacté le README de 35 à 24 Ko.
+
+**Preuve de la correction** — rejouée sur `preprod` à `c7ec2d2`.
+- `GET /api/articles/` sur la pile de développement : 32 articles, les 12 de la première page
+  ont un `cover`, en URL absolue sous `/media/articles/`.
+- Back : `manage.py test` passe ses 158 tests, et `makemigrations --check` ne propose rien.
+- Front : `npm run lint` ne rend rien, `npm test` rend `Tests  190 passed (190)`, et
+  `npm run build` aboutit.
+- CI : `Tests` et `Images Docker` en succès sur `c7ec2d2`. Rien n'est encore en production :
+  le lot partira au prochain merge vers `main`, avec #360.
