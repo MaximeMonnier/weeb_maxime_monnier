@@ -29,9 +29,7 @@ const HeroBanner = () => {
           vous offre du contenu de qualité pour rester à la pointe.
         </div>
         <div className="flex items-center justify-center py-6">
-          {/* Un `<Link>` habillé, et non le composant `Button` qui rend un
-              `<button>` : un `useNavigate` casserait le clic milieu. Seule la
-              destination vient de `lib/navigation.ts`, pas le libellé. */}
+          {/* Un `<Link>` et non `Button` : un `useNavigate` casserait le clic milieu. */}
           <Link
             to={LIEN_BLOG.to}
             className={buttonClasses({ variant: "primary", size: "lg" })}

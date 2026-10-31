@@ -71,7 +71,6 @@ describe("DeleteAccount — membre connecté", () => {
 
     await confirmerAvec("BonSecret123");
 
-    // La redirection suit la réponse : l'attendre, sous peine de perdre la course.
     expect(await screen.findByText("Page d'accueil")).toBeInTheDocument();
     const { url, methode, corps } = requeteEnvoyee();
     const { entetes } = dernierAppel();

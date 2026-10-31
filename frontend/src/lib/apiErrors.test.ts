@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { toFormErrors } from "./apiErrors";
 
-// Les champs qu'affiche un formulaire de connexion : toute autre clé du corps est
-// inconnue de lui et doit remonter au message d'ensemble.
 const CHAMPS = ["email", "password"] as const;
 
 describe("toFormErrors — refus de validation (400)", () => {
@@ -132,8 +130,6 @@ describe("toFormErrors — quota de débit (429)", () => {
 });
 
 describe("toFormErrors — panne du service et du réseau", () => {
-  // 500 et 502 encadrent la borne : le premier la tient, le second prouve qu'elle
-  // vaut pour tout ce qui suit.
   it.each([500, 502])(
     "annonce une indisponibilité passagère sur un %i",
     (status) => {

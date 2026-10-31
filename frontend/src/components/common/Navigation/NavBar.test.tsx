@@ -2,15 +2,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
-// Le tableau qu'`App.tsx` monte, et non une liste recopiée : recopier les routes
-// ici laisserait le test vert le jour où l'une d'elles est renommée ou retirée.
 import { ROUTES } from "../../../routes";
 
 import { saveTokens } from "../../../lib/tokens";
 import NavBar from "./NavBar";
 
-// Les seules destinations fixes : le `*` est le fourre-tout de `NotFound`, et
-// un chemin à paramètre n'est pas une adresse qu'un lien puisse porter tel quel.
 const ROUTES_DE_L_APP = ROUTES.map(({ path }) => path)
   .filter((chemin) => chemin !== "*" && !chemin.includes(":"));
 
@@ -22,9 +18,7 @@ function rendreLaBarre() {
   );
 }
 
-// Tailwind ne masque rien sous jsdom : le bloc desktop et le menu mobile cohabitent
-// dans le même `nav`, ce qui rend leur comparaison possible. Les doublons restent :
-// leur nombre dit qu'un libellé est bien servi par les deux blocs.
+// Sous jsdom, bloc desktop et menu mobile cohabitent : les doublons sont attendus.
 function destinationsParLibelle(): Map<string, string[]> {
   const parLibelle = new Map<string, string[]>();
 
@@ -41,9 +35,6 @@ function destinationsParLibelle(): Map<string, string[]> {
   return parLibelle;
 }
 
-// Le nettoyage est explicite : Testing Library ne l'inscrit lui-même que s'il
-// trouve un afterEach global, et `globals: false` n'en pose aucun. Le
-// localStorage part avec, jetons et thème compris.
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -54,8 +45,7 @@ describe("NavBar — visiteur", () => {
     rendreLaBarre();
     const parLibelle = destinationsParLibelle();
 
-    // Un exemplaire par bloc. Sans ce contrôle, un bloc vidé de ses actions
-    // laisserait la boucle ci-dessous passer à vide.
+    // Sans ce contrôle, un bloc vide laisserait la boucle passer à vide.
     expect(parLibelle.get("Se connecter")).toHaveLength(2);
     expect(parLibelle.get("Nous rejoindre")).toHaveLength(2);
 
@@ -73,8 +63,6 @@ describe("NavBar — visiteur", () => {
       "/subscribe",
     ]);
 
-    // Les ancres de défilement ne sont pas des adresses : seules les
-    // destinations internes se confrontent aux routes.
     const internes = [...parLibelle.values()]
       .flat()
       .filter((destination) => destination.startsWith("/"));
@@ -94,8 +82,6 @@ describe("NavBar — visiteur", () => {
 
 describe("NavBar — membre connecté", () => {
   it("remplace les deux jeux d'actions par une déconnexion", () => {
-    // Lu dès le premier rendu par `useIsAuthenticated` : la session se pose
-    // avant, sans quoi la barre s'afficherait en visiteur.
     saveTokens({ access: "jeton-acces", refresh: "jeton-renouvellement" });
     rendreLaBarre();
 

@@ -30,7 +30,6 @@ function NavBar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Détection du scroll pour effet sticky
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
@@ -52,8 +51,7 @@ function NavBar() {
   return (
     <>
       <nav
-        // Deux navigations sur la page depuis que le pied de page porte la
-        // sienne : sans nom, ni un lecteur d'écran ni `e2e/` ne les départagent.
+        // Le pied de page a aussi son `nav` : sans nom, `e2e/` ne les départage pas.
         aria-label="Navigation principale"
         className={cx(
           "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
@@ -144,7 +142,6 @@ function NavBar() {
         />
       </nav>
 
-      {/* Compense la hauteur du `nav` fixé : sinon la page démarre sous la barre. */}
       <div className="h-16 md:h-20" />
     </>
   );

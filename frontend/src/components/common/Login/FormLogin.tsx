@@ -47,8 +47,7 @@ const FormLogin = () => {
     submit(e, {
       rules: reglesDeSaisie,
       fields: CHAMPS,
-      // Un mot de passe faux et un compte pas encore validé donnent le même 401 : les
-      // distinguer dirait à un inconnu quelles adresses sont inscrites.
+      // Mot de passe faux et compte inactif donnent le même 401, exprès : pas d'énumération.
       unauthorized:
         "Connexion impossible. Vérifiez votre email et votre mot de passe ; un compte tout juste créé doit d'abord être validé par un administrateur.",
       send: async (values) => {

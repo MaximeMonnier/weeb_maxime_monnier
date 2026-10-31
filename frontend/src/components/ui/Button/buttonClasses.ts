@@ -15,9 +15,7 @@ const base =
   "rounded-[var(--radius-button)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
   "disabled:opacity-50 disabled:cursor-not-allowed";
 
-// Deux registres : `sm`/`md`/`lg` fixent une hauteur, `cta` et `compact` un
-// padding, celle d'un lien-bouton suivant son texte. `none` n'en pose aucun,
-// deux paddings utilitaires se départageant par l'ordre de la feuille.
+// `none` ne pose rien : deux paddings utilitaires se départagent par l'ordre de la feuille.
 const sizes: Record<ButtonSize, string> = {
   none: "",
   sm: "h-9 px-4 text-sm",
@@ -27,8 +25,6 @@ const sizes: Record<ButtonSize, string> = {
   compact: "px-4 py-2 text-base",
 };
 
-// Le poids et la transition vivent dans la variante : `ghost` est la seule à
-// garder le poids du texte courant et à n'animer que son fond.
 const variants: Record<ButtonVariant, string> = {
   primary:
     "font-medium transition-all duration-200 text-white " +
@@ -54,7 +50,6 @@ const variants: Record<ButtonVariant, string> = {
     "focus-visible:outline-accent",
 };
 
-/** Habille un lien ou un bouton écrit à la main du même style que `Button`. */
 export function buttonClasses({
   variant = "primary",
   size = "md",

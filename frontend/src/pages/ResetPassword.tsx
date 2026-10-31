@@ -13,10 +13,9 @@ import Button from "../components/ui/Button/Button";
 import HeroTitle from "../components/ui/Title/HeroTitle";
 import ErrorAlert from "../components/ui/Alert/ErrorAlert";
 
-// La clé porte le nom du champ côté API : `toFormErrors` range son refus dessous.
+// Clé au nom du champ de l'API : `toFormErrors` y range son refus.
 type FormData = { new_password: string; confirmPassword: string };
 
-// `confirmPassword` n'est pas envoyé : l'API ne le connaît pas et ne peut rien en dire.
 const CHAMPS = ["new_password"] as const;
 
 const VALEURS_INITIALES: FormData = { new_password: "", confirmPassword: "" };
@@ -40,7 +39,6 @@ const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
 
 const ResetPassword = () => {
   const navigate = useNavigate();
-  // uid et token viennent du lien reçu par email, jamais d'une réponse de l'API.
   const [searchParams] = useSearchParams();
   const uid = searchParams.get("uid");
   const token = searchParams.get("token");
@@ -63,9 +61,7 @@ const ResetPassword = () => {
         });
         navigate("/login", { replace: true });
       },
-      // Le lien mort est le seul refus que l'API rende sans dire quoi faire — son
-      // "detail" tient en trois mots. Une panne ou un serveur injoignable gardent le
-      // leur : les ramener au lien invalide ferait redemander un lien encore bon.
+      // Seul le 400 hors mot de passe signifie un lien mort : une panne garde son message.
       translate: (refus, err) =>
         !refus.fieldErrors.new_password &&
         (err as { status?: number }).status === 400

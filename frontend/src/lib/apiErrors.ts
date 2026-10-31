@@ -1,6 +1,5 @@
 import type { ApiError } from "./api";
 
-/** Refus de l'API réparti entre les champs du formulaire et un message d'ensemble. */
 export type FormApiErrors<F extends string = string> = {
   fieldErrors: Partial<Record<F, string>>;
   formError: string | null;
@@ -15,17 +14,14 @@ const SERVER =
 const THROTTLED = "Trop de tentatives. Patientez avant de réessayer.";
 const UNEXPECTED = "Une erreur est survenue. Réessayez dans un instant.";
 
-// `apiFetch` lève cette forme, mais `fetch` lui-même rejette sur un TypeError quand
-// la requête n'atteint pas le serveur : les deux arrivent dans le même `catch`.
+// Sans serveur joignable, `fetch` rejette un TypeError, pas un ApiError.
 function isApiError(err: unknown): err is ApiError {
   return (
     typeof err === "object" && err !== null && "status" in err && "data" in err
   );
 }
 
-// DRF range les erreurs de validation en listes, et les autres refus dans une chaîne
-// unique sous "detail". Toutes sont rendues : un mot de passe faible en récolte trois
-// à la fois, et n'en montrer qu'une ferait corriger le même champ trois fois de suite.
+// Tous les messages sont rendus : un mot de passe faible en récolte trois à la fois.
 function messagesOf(value: unknown): string | null {
   if (typeof value === "string") return value || null;
 
@@ -36,8 +32,6 @@ function messagesOf(value: unknown): string | null {
     return messages.length > 0 ? messages.join(" ") : null;
   }
 
-  // Un champ imbriqué arrive sous forme d'objet : ses clés ne veulent rien dire au
-  // lecteur, ses messages si.
   if (typeof value === "object" && value !== null) {
     return messagesOf(Object.values(value));
   }
@@ -45,8 +39,6 @@ function messagesOf(value: unknown): string | null {
   return null;
 }
 
-/** Traduit un refus de l'API : les clés connues vont à leur champ, le reste au
- *  message d'ensemble. */
 export function toFormErrors<F extends string>(
   err: unknown,
   knownFields: readonly F[],
@@ -69,8 +61,7 @@ export function toFormErrors<F extends string>(
     for (const [key, value] of Object.entries(body)) {
       const message = messagesOf(value);
       if (!message) continue;
-      // Une clé que le formulaire n'affiche pas — "detail", "non_field_errors", ou un
-      // champ qu'il n'a pas — resterait invisible si on ne la remontait pas ici.
+      // Une clé sans champ affiché ("detail", "non_field_errors"…) resterait invisible.
       if ((knownFields as readonly string[]).includes(key)) {
         fieldErrors[key as F] = message;
       } else {
@@ -81,8 +72,7 @@ export function toFormErrors<F extends string>(
     if (general.length > 0) {
       return { fieldErrors, formError: general.join(" ") };
     }
-    // Un 400 au corps vide ou illisible laisserait le formulaire muet, le défaut même
-    // que ce module corrige : mieux vaut un message vague qu'aucun.
+    // Un 400 au corps vide laisserait le formulaire muet : mieux vaut un message vague.
     return {
       fieldErrors,
       formError:
@@ -98,8 +88,7 @@ export function toFormErrors<F extends string>(
     return { fieldErrors, formError: FORBIDDEN };
   }
 
-  // Message de l'API repris tel quel : il porte le délai restant en secondes, qu'une
-  // reformulation perdrait. DRF le rend déjà en français.
+  // Repris tel quel : il porte le délai restant, qu'une reformulation perdrait.
   if (err.status === 429) {
     return { fieldErrors, formError: messagesOf(body.detail) ?? THROTTLED };
   }

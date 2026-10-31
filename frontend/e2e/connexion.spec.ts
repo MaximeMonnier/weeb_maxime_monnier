@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Aucun repli : un identifiant écrit ici deviendrait un compte réel sur toute
-// machine qui lance la suite. Une variable présente mais vide vaut absente.
+// Aucun repli : un identifiant écrit ici deviendrait un compte réel partout.
 function variableRequise(nom: string): string {
   const valeur = process.env[nom];
   if (!valeur) {
@@ -15,9 +14,7 @@ function variableRequise(nom: string): string {
 const EMAIL = variableRequise("E2E_EMAIL");
 const MOT_DE_PASSE = variableRequise("E2E_PASSWORD");
 
-// Recherche partielle, et non exacte : `.form-label-required::after` ajoute « * »
-// aux libellés obligatoires, et un vrai navigateur verse ce contenu généré dans
-// le nom accessible. jsdom n'applique aucune feuille de style et ne le montre pas.
+// Recherche partielle : le navigateur ajoute le « * » du `::after` au nom accessible.
 async function seConnecter(page: Page, motDePasse: string) {
   await page.goto("/login");
   await page.getByLabel("Adresse email").fill(EMAIL);
@@ -25,8 +22,6 @@ async function seConnecter(page: Page, motDePasse: string) {
   await page.getByRole("button", { name: "Se connecter" }).click();
 }
 
-// Lu dans le navigateur : localStorage n'existe que là, jamais dans le processus
-// qui pilote le test.
 function jeton(page: Page, nom: string) {
   return page.evaluate((cle) => localStorage.getItem(cle), nom);
 }
@@ -36,8 +31,6 @@ test.describe("Connexion", () => {
     await seConnecter(page, MOT_DE_PASSE);
 
     await expect(page).toHaveURL("/");
-    // Trois segments séparés par des points, la forme d'un JWT : une valeur
-    // seulement non vide laisserait passer "undefined" ou un objet sérialisé.
     expect(await jeton(page, "access")).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
     expect(await jeton(page, "refresh")).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
   });
@@ -45,13 +38,9 @@ test.describe("Connexion", () => {
   test("refuse un mot de passe faux sans rien stocker", async ({ page }) => {
     await seConnecter(page, "mot-de-passe-faux-42");
 
-    // Ce libellé est celui que le front substitue au 401 de simplejwt.
-    // Une pile arrêtée donnerait « Le serveur est injoignable » : ce cas tombe
-    // donc si l'API n'est pas là, au lieu de passer sur un refus de façade.
+    // Libellé du 401 : une pile arrêtée donnerait « injoignable » et ferait tomber le cas.
     await expect(page.getByRole("alert")).toContainText("Connexion impossible.");
     await expect(page).toHaveURL("/login");
-    // Les deux, et pas seulement le premier : un refus qui écrirait quand même
-    // le jeton de rafraîchissement rendrait une session récupérable.
     expect(await jeton(page, "access")).toBeNull();
     expect(await jeton(page, "refresh")).toBeNull();
   });
@@ -61,7 +50,6 @@ test.describe("Déconnexion", () => {
   test("révoque la session et rend le menu d'un visiteur", async ({ page }) => {
     await seConnecter(page, MOT_DE_PASSE);
     await expect(page).toHaveURL("/");
-    // Loin de l'accueil : sinon le retour vers « / » serait acquis d'avance.
     await page.goto("/blog");
     const refresh = await jeton(page, "refresh");
 
@@ -73,9 +61,7 @@ test.describe("Déconnexion", () => {
 
     expect(logout.status()).toBe(200);
     await expect(page).toHaveURL("/");
-    // Dans l'en-tête, et non sur toute la page : le pied de page sert le même
-    // libellé, et deux correspondances arrêtent Playwright au lieu de choisir.
-    // Le menu mobile n'en ajoute pas tant que le projet est Desktop Chrome.
+    // Dans l'en-tête : le pied de page sert le même lien, Playwright refuse deux résultats.
     await expect(
       page
         .getByRole("navigation", { name: "Navigation principale" })
@@ -84,8 +70,7 @@ test.describe("Déconnexion", () => {
     expect(await jeton(page, "access")).toBeNull();
     expect(await jeton(page, "refresh")).toBeNull();
 
-    // Effacer le jeton ne suffit pas : l'API doit aussi le refuser. Son adresse
-    // est prise sur l'appel du front, seul à connaître VITE_API_URL.
+    // L'API doit aussi refuser le refresh ; son adresse vient de l'appel du front.
     const renouvellement = await page.request.post(
       logout.url().replace(/logout\/$/, "login/refresh/"),
       { data: { refresh } },

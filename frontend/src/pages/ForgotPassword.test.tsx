@@ -47,7 +47,6 @@ describe("ForgotPassword", () => {
     });
   });
 
-  // Le même corps que le compte existe ou non : la page n'a rien à en déduire.
   it("affiche mot pour mot la réponse de l'API et retire le formulaire", async () => {
     const detail =
       "Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé.";
@@ -69,7 +68,6 @@ describe("ForgotPassword", () => {
     expect(boutonEnvoi()).toBeInTheDocument();
   });
 
-  // Le délai restant n'est que dans le texte de DRF : reformulé, il se perdrait.
   it("affiche mot pour mot le refus d'un quota épuisé", async () => {
     const detail =
       "Requête ralentie. Prochaine requête disponible dans 3542 secondes.";

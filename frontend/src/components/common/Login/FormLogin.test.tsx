@@ -13,9 +13,6 @@ import {
   retablirLeReseau,
 } from "../../../test/reseau";
 
-// Le formulaire pose un Link et appelle useNavigate : sans routeur, il ne rend
-// pas. La route d'accueil porte un repère, la redirection après succès n'étant
-// visible que par ce qu'elle affiche.
 function afficherFormulaire() {
   render(
     <MemoryRouter initialEntries={["/login"]}>
@@ -32,7 +29,6 @@ const champMotDePasse = () => screen.getByLabelText("Mot de passe");
 const bouton = () => screen.getByRole("button");
 const alerte = () => screen.getByRole("alert");
 
-// Le chemin nominal, dont chaque cas ne change qu'une pièce.
 async function remplirEtEnvoyer(email: string, motDePasse: string) {
   if (email) await userEvent.type(champEmail(), email);
   if (motDePasse) await userEvent.type(champMotDePasse(), motDePasse);
@@ -41,8 +37,6 @@ async function remplirEtEnvoyer(email: string, motDePasse: string) {
 
 beforeEach(couperLeReseau);
 
-// Le nettoyage du DOM est explicite : Testing Library ne l'inscrit lui-même que
-// s'il trouve un afterEach global, et `globals: false` n'en pose aucun.
 afterEach(() => {
   cleanup();
   retablirLeReseau();
@@ -82,8 +76,7 @@ describe("FormLogin — réponse de l'API", () => {
     await remplirEtEnvoyer("jean.dupont@example.com", "motdepasse123");
 
     expect(alerte()).toHaveTextContent(/^Connexion impossible\./);
-    // Le message ne dit ni lequel des deux champs est faux, ni si l'adresse est
-    // inscrite : le savoir énumérerait les comptes.
+    // Ni le champ fautif ni l'existence du compte : sinon énumération des comptes.
     expect(alerte()).toHaveTextContent(/validé par un administrateur\.$/);
     expect(localStorage.getItem("access")).toBeNull();
   });
@@ -97,8 +90,6 @@ describe("FormLogin — réponse de l'API", () => {
     await remplirEtEnvoyer("jean.dupont@example.com", "motdepasse123");
 
     expect(await screen.findByText("Page d'accueil")).toBeInTheDocument();
-    // Le chemin est vérifié par sa fin seule : le préfixe vient de VITE_API_URL,
-    // et c'est apiFetch qui le pose — api.test.ts s'en charge.
     expect(requeteEnvoyee()).toEqual({
       url: expect.stringMatching(/\/auth\/login\/$/),
       methode: "POST",
@@ -107,14 +98,11 @@ describe("FormLogin — réponse de l'API", () => {
         password: "motdepasse123",
       },
     });
-    // Le premier jeton est celui qu'apiFetch relira à chaque appel ; le second
-    // est la seule façon d'en obtenir un neuf.
     expect(localStorage.getItem("access")).toBe("jeton-acces");
     expect(localStorage.getItem("refresh")).toBe("jeton-renouvellement");
   });
 
-  // La longueur minimale est une règle de création : un compte au mot de passe
-  // plus court, né d'un create_user() au shell, doit pouvoir se connecter.
+  // La longueur minimale ne vaut qu'à la création : un compte du shell peut être plus court.
   it("envoie un mot de passe de moins de huit caractères", async () => {
     appelReseau.mockResolvedValue(
       reponse(200, { access: "jeton-acces", refresh: "jeton-renouvellement" }),
@@ -133,8 +121,7 @@ describe("FormLogin — réponse de l'API", () => {
 
 describe("FormLogin — envoi en cours", () => {
   it("annonce l'attente et ferme le bouton jusqu'à la réponse", async () => {
-    // La réponse est retenue à la main : « Connexion... » ne s'affiche que
-    // pendant ce laps, et une promesse déjà résolue le traverserait sans arrêt.
+    // Réponse retenue : « Connexion... » ne s'affiche que pendant l'attente.
     let repondre: (reponseHttp: unknown) => void = () => {};
     appelReseau.mockReturnValue(
       new Promise((resolve) => {
@@ -149,8 +136,6 @@ describe("FormLogin — envoi en cours", () => {
     expect(bouton()).toBeDisabled();
 
     repondre(reponse(200, { access: "jeton-acces", refresh: "renouvellement" }));
-    // Sans cette attente, le rendu déclenché par la réponse tomberait après le
-    // cas, dans un DOM déjà nettoyé.
     expect(await screen.findByText("Page d'accueil")).toBeInTheDocument();
   });
 });

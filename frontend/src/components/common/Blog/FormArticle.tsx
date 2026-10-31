@@ -24,8 +24,7 @@ const VALEURS_INITIALES: Saisie = {
 // `null` laisse l'image de l'article telle quelle, `"retiree"` l'efface.
 type Image = { fichier: File; apercu: string } | "retiree" | null;
 
-// Les limites de CouvertureField (backend/articles/serializers.py), qui juge en
-// plus le contenu : un fichier renommé en .png passe ici et pas là-bas.
+// Limites de CouvertureField (articles/serializers.py), qui juge aussi le contenu réel.
 const TAILLE_IMAGE_MAX = 5 * 1024 * 1024;
 const TYPES_IMAGE = ["image/jpeg", "image/png", "image/webp"];
 
@@ -62,7 +61,7 @@ const reglesDeSaisie = (
   return newErrors;
 };
 
-// Le multipart seulement quand l'image change : sinon le JSON, qui ne la touche pas.
+// Multipart seulement quand l'image change : le JSON ne la touche pas.
 function corpsDeLEnvoi(values: Saisie, image: Image): BodyInit {
   if (image === null) {
     return JSON.stringify({ title: values.title, content: values.content });
@@ -70,14 +69,12 @@ function corpsDeLEnvoi(values: Saisie, image: Image): BodyInit {
   const corps = new FormData();
   corps.append("title", values.title);
   corps.append("content", values.content);
-  // Vide, le champ arrive à None côté API, qui retire l'image.
+  // Vide : l'API reçoit None et retire l'image.
   corps.append("cover", image === "retiree" ? "" : image.fichier);
   return corps;
 }
 
-// apiFetch renouvelle le jeton d'accès : ce 401 ne vient plus de ses quinze minutes,
-// mais d'une session finie ou d'un renouvellement en panne. Le formulaire vit dans une
-// modale, donc aller se reconnecter emporte le texte saisi.
+// Ce 401 suit un renouvellement échoué ; se reconnecter ferme la modale et perd le texte.
 const LIBELLES = {
   creation: {
     bouton: "Publier l'article",
@@ -106,10 +103,8 @@ function traduireRefusEdition(
 }
 
 type FormArticleProps = {
-  /** Article à modifier ; absent, le formulaire en crée un. */
   article?: Article;
   onCreated?: () => void;
-  /** Reçoit l'article tel que l'API l'a enregistré. */
   onUpdated?: (article: Article) => void;
 };
 
@@ -133,7 +128,6 @@ const FormArticle = ({ article, onCreated, onUpdated }: FormArticleProps) => {
   const champImage = useRef<HTMLInputElement>(null);
 
   const apercuChoisi = image !== null && image !== "retiree" ? image.apercu : null;
-  // Libère l'aperçu remplacé, et le dernier quand le formulaire se démonte.
   useEffect(
     () => () => {
       if (apercuChoisi) URL.revokeObjectURL(apercuChoisi);
@@ -150,7 +144,6 @@ const FormArticle = ({ article, onCreated, onUpdated }: FormArticleProps) => {
   }
 
   function retirerImage() {
-    // Sans image enregistrée, rien à effacer : l'envoi reste en JSON.
     setImage(article?.cover ? "retiree" : null);
     if (champImage.current) champImage.current.value = "";
     markChanged("cover");
@@ -163,8 +156,7 @@ const FormArticle = ({ article, onCreated, onUpdated }: FormArticleProps) => {
       unauthorized: libelles.unauthorized,
       translate: article ? traduireRefusEdition : undefined,
       send: async (values) => {
-        // Le token (utilisateur connecté) est ajouté automatiquement par apiFetch.
-        // L'auteur est défini côté serveur (perform_create) : il ne part jamais d'ici.
+        // L'auteur est posé par l'API (perform_create), jamais envoyé d'ici.
         const body = corpsDeLEnvoi(values, image);
         if (article) {
           const enregistre = await apiFetch<Article>(`/articles/${article.id}/`, {
@@ -200,8 +192,6 @@ const FormArticle = ({ article, onCreated, onUpdated }: FormArticleProps) => {
           required
           fullWidth
         />
-        {/* Pas de champ "Auteur" : l'auteur = l'utilisateur connecté (défini côté serveur) */}
-
         <Textarea
           label="Description de votre article"
           name="content"

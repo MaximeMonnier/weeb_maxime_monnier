@@ -8,8 +8,7 @@ import Image3 from "../../../assets/img/img3.jpg";
 import Image4 from "../../../assets/img/img4.jpg";
 
 const CADRE_SLIDE = "aspect-[1100/661] w-full rounded-lg object-cover";
-// img2 est carrée : rognée par le cadre, elle perdrait ses bords ; elle y est
-// centrée entière, sur le fond du thème plutôt qu'un vide.
+// img2 est carrée : rognée par le cadre, elle perdrait ses bords.
 const CADRE_SLIDE_CARRE =
   "aspect-[1100/661] w-full rounded-lg object-contain bg-surface-alt";
 

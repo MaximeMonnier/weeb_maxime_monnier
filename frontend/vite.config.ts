@@ -1,18 +1,14 @@
-// defineConfig vient de vitest/config et non de vite : lui seul connaît la clé
-// `test` ci-dessous, absente du type de configuration de Vite.
+// vitest/config et non vite : seul son type connaît la clé `test`.
 import { configDefaults, defineConfig } from "vitest/config";
 import { loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-// https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // Préfixe vide : loadEnv verse alors tout process.env en plus des fichiers
-  // .env, ce qui couvre la variable passée par --build-arg en conteneur.
+  // Préfixe vide : loadEnv lit aussi process.env, donc le --build-arg du conteneur.
   const apiUrl = loadEnv(mode, process.cwd(), "").VITE_API_URL;
 
-  // Échouer ici plutôt que de livrer un bundle vert qui meurt au chargement :
-  // l'adresse est figée dans le JavaScript, elle doit être connue maintenant.
+  // L'adresse est figée dans le bundle : sans elle, il mourrait au chargement.
   if (mode === "production" && !apiUrl) {
     throw new Error(
       "VITE_API_URL est absente : la passer en --build-arg VITE_API_URL=... (image) " +
@@ -24,30 +20,20 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
 
     server: {
-      // Les événements du système de fichiers ne traversent pas un montage lié :
-      // sans interrogation, le rechargement à chaud est muet en conteneur.
+      // Les événements fichiers ne traversent pas un montage lié : sans polling, pas de HMR.
       watch: {
         usePolling: process.env.DEV_POLLING === "1",
       },
     },
 
     test: {
-      // localStorage et le DOM n'existent pas sous Node : la suite de lib/api.ts
-      // lit le jeton dans le premier, les formulaires rendus attendront le second.
       environment: "jsdom",
-      // Vitest remplace par du vide tout ce qu'il reconnaît comme du CSS, le
-      // `?raw` compris : `index.css.test.ts` lirait une chaîne vide et passerait
-      // sans avoir rien contrôlé. Aucun autre test n'importe de feuille.
+      // Sans lui, le `?raw` d'`index.css.test.ts` serait vide et le test passerait à vide.
       css: true,
-      // Pas de globales : chaque fichier importe describe, it et expect de
-      // "vitest", ce qui évite d'apprendre ces noms à TypeScript et à ESLint.
       globals: false,
-      // e2e/ appartient à Playwright, qui a son propre lanceur : Vitest y verrait
-      // des `test(...)` qu'il exécuterait sans navigateur. Les défauts sont repris
-      // à la main — les remplacer ferait relire node_modules et dist.
+      // e2e/ est à Playwright ; défauts repris, sinon Vitest relirait node_modules et dist.
       exclude: [...configDefaults.exclude, "e2e/**"],
-      // userEvent.type tape lettre à lettre : sur une machine chargée, un formulaire
-      // dépasse les 5 s par défaut, et le test coupé tape encore dans le suivant.
+      // userEvent.type dépasse les 5 s par défaut sur une machine chargée.
       testTimeout: 20_000,
     },
   };

@@ -32,9 +32,7 @@ export default function TextCtaLink({
     </>
   );
 
-  // Seul composant de `ui/` à connaître le routeur : un `<a>` vers un chemin de
-  // l'application rechargerait tout le bundle au lieu de changer de vue. Les
-  // ancres de défilement et les liens externes gardent le leur.
+  // Un `<a>` vers un chemin interne rechargerait tout le bundle : d'où le routeur dans `ui/`.
   if (external || href.startsWith("#")) {
     return (
       <a
