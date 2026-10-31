@@ -158,7 +158,7 @@ Front et API ne sont publiés que sur `127.0.0.1` ; TLS et ouverture au réseau 
 | Variable | Valeur | Pourquoi |
 |---|---|---|
 | `POSTGRES_SSLMODE` | `disable` | la base ne quitte pas le réseau `interne` |
-| `DJANGO_BEHIND_PROXY` | `1` | Django croit le `X-Forwarded-Proto` que nginx écrase |
+| `DJANGO_BEHIND_PROXY` | `1` | Django croit le `X-Forwarded-Proto` que nginx écrase, et compte les quotas sur la dernière adresse de `X-Forwarded-For` |
 | `CORS_ALLOWED_ORIGINS` | **vide** | même origine. La ligne doit rester : omise, les origines du développement passent |
 | `DJANGO_HSTS_SECONDS` | `0` | tant que la pile est jointe sur `localhost` |
 | `DJANGO_LOG_LEVEL` | `INFO` | la ligne doit rester, sinon un `DEBUG` du `.env` passe |
@@ -243,6 +243,7 @@ server {
 
     proxy_set_header Host              $host;
     proxy_set_header X-Real-IP         $remote_addr;
+    # Sans lui, les quotas comptent tous les visiteurs sous l'IP de nginx.
     proxy_set_header X-Forwarded-For   $remote_addr;
     # $scheme écrase la valeur du client ; $http_x_forwarded_proto la relaierait.
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -290,7 +291,7 @@ Côté nginx (`/home/apps/nginx`, hors dépôt), recharger par
 
 | Fichier | Rôle |
 |---|---|
-| `conf.d/weeb.conf` | `/api/` (avec `client_max_body_size 6m;`) et `/admin/` vers `weeb-backend:8000`, le reste vers `weeb-frontend:8080` ; seul HSTS du site (`max-age` = `DJANGO_HSTS_SECONDS`) |
+| `conf.d/weeb.conf` | `X-Forwarded-Proto` et `X-Forwarded-For` comme ci-dessus ; `/api/` (avec `client_max_body_size 6m;`) et `/admin/` vers `weeb-backend:8000`, le reste vers `weeb-frontend:8080` ; seul HSTS du site (`max-age` = `DJANGO_HSTS_SECONDS`) |
 | `snippets/ssl-app.conf` | `ssl.conf` sans ses `add_header` : front et Django posent les leurs |
 
 Tout autre conteneur de `web` joint l'API directement, et pourrait y forger `X-Forwarded-Proto`.
