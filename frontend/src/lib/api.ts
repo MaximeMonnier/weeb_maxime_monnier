@@ -35,7 +35,11 @@ function envoyer(path: string, options: RequestInit, token: string | null) {
   return fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      // Le navigateur pose celui d'un FormData, avec la boundary qui sépare ses
+      // parties : sans elle, l'API ne lit plus rien du corps.
+      ...(options.body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
       // si connecté, on envoie le token : "Authorization: Bearer <token>"
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
