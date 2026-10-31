@@ -27,6 +27,15 @@ DATABASES = postgres_database()
 # setdefault : une affectation effacerait les OPTIONS de postgres_database().
 DATABASES['default'].setdefault('OPTIONS', {})['sslmode'] = env_str('POSTGRES_SSLMODE', 'require')
 
+# Compteurs des quotas partagés par les workers Gunicorn : en mémoire, chacun tiendrait les siens.
+# La table vient de `createcachetable`, pas d'une migration (docker-entrypoint.sh).
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'cache_quotas',
+    }
+}
+
 # Relais exigé : sans canal d'envoi, la réinitialisation devrait renvoyer son jeton au client.
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = env_required('EMAIL_HOST')
