@@ -82,6 +82,10 @@ développement.
       les visent par étiquette (`@v7`, `@v4`), qu'un éditeur compromis peut déplacer.
       Depuis l'issue #314, `docker-images.yml` tient un jeton `packages: write` : une action
       détournée pourrait publier sur GHCR. Viser le SHA complet, l'étiquette en commentaire.
+- [ ] **Retirer la surcharge `minimatch` de `frontend/package.json`.** Posée par l'issue #365 :
+      ESLint 10 et typescript-eslint tirent `minimatch@^10`, que GHSA-g3hv-75wg-m249 rend
+      vulnérable, et `npm audit` faisait tomber la CI. La 11 ne garde ni `makeRe` ni `AST`, que
+      l'outillage n'appelait pas. Quand ESLint dépendra lui-même d'une 11, la retirer.
 
 ## Backend — sécurité
 
