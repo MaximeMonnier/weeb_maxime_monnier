@@ -71,6 +71,8 @@ describe("DeleteAccount — membre connecté", () => {
 
     await confirmerAvec("BonSecret123");
 
+    // La redirection suit la réponse : l'attendre, sous peine de perdre la course.
+    expect(await screen.findByText("Page d'accueil")).toBeInTheDocument();
     const { url, methode, corps } = requeteEnvoyee();
     const { entetes } = dernierAppel();
     expect(url).toMatch(/\/auth\/account\/$/);
@@ -79,7 +81,6 @@ describe("DeleteAccount — membre connecté", () => {
     expect(corps).toEqual({ password: "BonSecret123" });
     expect(localStorage.getItem("access")).toBeNull();
     expect(localStorage.getItem("refresh")).toBeNull();
-    expect(screen.getByText("Page d'accueil")).toBeInTheDocument();
   });
 
   it("range le refus du mot de passe sous son champ et garde la session", async () => {
