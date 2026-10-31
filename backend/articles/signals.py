@@ -23,7 +23,8 @@ def noter_la_couverture_en_base(sender, instance, **kwargs):
     )
 
 
-# Après l'écriture : hors transaction, on_commit efface aussitôt, même si l'UPDATE échoue.
+# Après l'écriture et non avant : hors transaction, on_commit efface aussitôt, et un UPDATE
+# en échec pointerait vers un fichier disparu.
 @receiver(post_save, sender=Article)
 def effacer_la_couverture_remplacee(sender, instance, **kwargs):
     """Remplacée ou retirée, l'ancienne image quitte le disque."""

@@ -97,7 +97,7 @@ npm run lint && npm test && npm run build
 |---|---|---|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4 | les pages du site, les formulaires, l'affichage du blog |
 | Backend | Django 6, Django REST Framework | une API qui ne rend que du JSON : comptes, articles, contact |
-| Base de données | PostgreSQL 17, en conteneur | comptes, articles, messages, jetons révoqués |
+| Base de données | PostgreSQL 17, en conteneur | comptes, articles, messages, jetons émis et révoqués |
 
 Le frontend ne parle jamais à la base : il passe toujours par l'API. Le backend ne produit aucune
 page HTML pour le visiteur, seulement l'administration Django pour l'équipe.
@@ -225,7 +225,7 @@ dépendances de celles-ci, figées pour que chaque installation soit identique.
 | embla-carousel-react, -autoplay | 8.6 | carrousel de la page d'accueil, accessible et léger |
 | typescript | 5.9 | typage : une erreur de forme de données se voit à la compilation |
 | vite, @vitejs/plugin-react | 7.3, 5.1 | serveur de développement rapide et construction du site |
-| vitest, jsdom, @testing-library/* | 5.0, 30.0, 16.3 | tests des composants dans un faux navigateur |
+| vitest, jsdom, @testing-library/react | 5.0, 30.0, 16.3 | tests des composants dans un faux navigateur |
 | @playwright/test | 1.63 | parcours de bout en bout dans un vrai Chromium |
 | eslint, typescript-eslint | 10.14, 8.72 | contrôle de style et d'erreurs courantes |
 
@@ -291,7 +291,8 @@ route oubliée est donc fermée, jamais ouverte par accident.
 
 **Limitation de débit.** Les routes sensibles ont un quota ; au-delà, l'API répond `429`. Par
 exemple 5 connexions par minute et par adresse IP, 3 demandes de réinitialisation par heure,
-20 écritures d'article par heure et par compte. Les quotas se règlent dans le `.env`.
+20 écritures d'article par heure et par compte. Les quotas se règlent dans le `.env`. Chaque
+processus Gunicorn tient ses propres compteurs (voir les limites ci-dessous).
 
 **Images envoyées.** Chaque image est jugée sur son contenu et non sur son nom, limitée en poids
 et en taille, puis réenregistrée en WebP sous un nom tiré au hasard, sans ses métadonnées
@@ -320,8 +321,8 @@ requêtes, les adresses IP et l'email du compte.
 | prénom, nom, email, mot de passe haché | inscription | identifier le compte ; prénom et nom signent les articles publiés | tant que le compte existe |
 | titre, texte, image d'un article | publication | afficher le blog | tant que l'article et le compte existent |
 | prénom, nom, email, sujet, message | formulaire de contact | répondre au message | 90 jours, puis suppression automatique (`purger_contacts`, lancé chaque jour en production) |
-| jetons de connexion | connexion | garder la session ouverte | stockés dans le navigateur, effacés à la déconnexion ; ceux révoqués côté serveur sont purgés à leur expiration |
-| préférence de thème | choix du membre | afficher le thème clair ou sombre | stockée dans le navigateur seulement |
+| jetons de connexion | connexion | garder la session ouverte | dans le navigateur, effacés à la déconnexion ; le serveur garde la liste des jetons de rafraîchissement émis et révoqués, rattachés au compte, purgée chaque jour une fois expirés |
+| préférence de thème | première visite, puis à chaque changement, pour tout visiteur | afficher le thème clair ou sombre | stockée dans le navigateur seulement |
 
 L'email n'est jamais affiché aux visiteurs : les articles sont signés « Prénom Nom ». Le site ne
 pose aucun cookie publicitaire et ne mesure pas l'audience. Les données ne sont cédées à aucun
@@ -334,10 +335,14 @@ informations au visiteur.
 
 ### Limites actuelles
 
-Ces points sont connus et suivis dans `AMELIORATIONS.md`. Aucun n'est corrigé à ce jour.
+Ces points sont connus et, sauf le premier, suivis dans `AMELIORATIONS.md`. Aucun n'est corrigé
+à ce jour.
 
 **Sécurité**
 
+- **Les quotas sont comptés par processus.** Les compteurs vivent dans la mémoire de chaque
+  processus Gunicorn, sans cache partagé : avec les trois processus de production, une adresse
+  peut tenter jusqu'à 15 connexions par minute au lieu de 5.
 - **Les jetons sont lisibles par les scripts de la page.** Ils sont rangés dans le stockage local
   du navigateur. La CSP bloque les scripts injectés, mais une faille qui la contournerait
   emporterait le jeton de rafraîchissement, valable un jour. Piste : un cookie `httpOnly`.
