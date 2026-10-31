@@ -38,6 +38,16 @@ describe("apiFetch — requête envoyée", () => {
     expect(dernierAppel().entetes["Content-Type"]).toBe("application/json");
   });
 
+  it("laisse au navigateur le Content-Type d'un FormData", async () => {
+    appelReseau.mockResolvedValue(reponse(201, {}));
+    const corps = new FormData();
+
+    await apiFetch("/articles/", { method: "POST", body: corps });
+
+    expect(dernierAppel().entetes).not.toHaveProperty("Content-Type");
+    expect(dernierAppel().options.body).toBe(corps);
+  });
+
   it("relaie la méthode et le corps que l'appelant donne", async () => {
     appelReseau.mockResolvedValue(reponse(201, {}));
 

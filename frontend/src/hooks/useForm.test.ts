@@ -247,3 +247,56 @@ describe("useForm — rappel de frappe", () => {
     expect(onChange).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("useForm — champ sans valeur dans l'état", () => {
+  it("range sous ce champ la règle et le refus de l'API qui le visent", async () => {
+    const { result } = renderHook(() =>
+      useForm<typeof CHAMPS_INITIAUX, "piece">(CHAMPS_INITIAUX),
+    );
+
+    await act(() =>
+      result.current.submit(envoi(), {
+        rules: () => ({ piece: "Fichier trop lourd." }),
+        fields: [],
+        send: vi.fn(),
+      }),
+    );
+    expect(result.current.errors).toEqual({ piece: "Fichier trop lourd." });
+
+    await act(() =>
+      result.current.submit(envoi(), {
+        fields: ["piece"],
+        send: () =>
+          Promise.reject({ status: 400, data: { piece: ["Format refusé."] } }),
+      }),
+    );
+    expect(result.current.errors).toEqual({ piece: "Format refusé." });
+    expect(result.current.formError).toBeNull();
+  });
+
+  it("périme son erreur et le message d'ensemble quand il change, sans toucher aux autres", async () => {
+    const { result } = renderHook(() =>
+      useForm<typeof CHAMPS_INITIAUX, "piece">(CHAMPS_INITIAUX),
+    );
+
+    await act(() =>
+      result.current.submit(envoi(), {
+        fields: ["piece", "email"],
+        send: () =>
+          Promise.reject({
+            status: 400,
+            data: {
+              piece: ["Format refusé."],
+              email: ["Adresse invalide."],
+              detail: "Requête incomplète.",
+            },
+          }),
+      }),
+    );
+    act(() => result.current.markChanged("piece"));
+
+    expect(result.current.errors.piece).toBeUndefined();
+    expect(result.current.errors.email).toBe("Adresse invalide.");
+    expect(result.current.formError).toBeNull();
+  });
+});
