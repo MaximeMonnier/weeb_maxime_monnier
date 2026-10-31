@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -14,12 +14,14 @@ const CADRE_SLIDE_CARRE =
   "aspect-[1100/661] w-full rounded-lg object-contain bg-surface-alt";
 
 const Slider = () => {
-  const autoplay = useRef(Autoplay({ delay: 3500, stopOnInteraction: false }));
+  const [autoplay] = useState(() =>
+    Autoplay({ delay: 3500, stopOnInteraction: false }),
+  );
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false }, [
-    autoplay.current,
+    autoplay,
   ]);
 
   const goToPrev = () => emblaApi?.scrollPrev();

@@ -46,6 +46,9 @@ export default defineConfig(({ mode }) => {
       // des `test(...)` qu'il exécuterait sans navigateur. Les défauts sont repris
       // à la main — les remplacer ferait relire node_modules et dist.
       exclude: [...configDefaults.exclude, "e2e/**"],
+      // userEvent.type tape lettre à lettre : sur une machine chargée, un formulaire
+      // dépasse les 5 s par défaut, et le test coupé tape encore dans le suivant.
+      testTimeout: 20_000,
     },
   };
 });
