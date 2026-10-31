@@ -426,7 +426,7 @@ articles n'est pas limitée.
 │   ├── config/                       # settings/, urls.py, views.py (/health/)
 │   ├── accounts/  articles/  contact/
 │   ├── locale/                       # traductions de simplejwt
-│   ├── docker-entrypoint.sh          # migrations et statiques avant Gunicorn
+│   ├── docker-entrypoint.sh          # migrations, table des quotas, statiques
 │   └── healthcheck.py                # sonde du conteneur
 └── frontend/                         # détail dans frontend/README.md
     ├── nginx.conf                    # image prod : site, /static/ et /media/

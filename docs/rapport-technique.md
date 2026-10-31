@@ -180,7 +180,7 @@ Chaque application regroupe un domaine et suit le même découpage :
 | `tests.py` | les tests automatisés |
 
 **`accounts`** — `CustomUser` remplace l'utilisateur de Django : on se connecte par email, sans
-nom d'utilisateur. `public_name` rend « Prénom Nom », seul nom montré aux visiteurs.
+nom d'utilisateur. `public_name` rend « Prénom Nom » (ou « Auteur anonyme »), seul nom montré aux visiteurs.
 `validators.py` impose la complexité du mot de passe. Les vues couvrent l'inscription, la
 connexion, le renouvellement des jetons, la réinitialisation et le changement du mot de passe,
 la suppression du compte.
@@ -291,8 +291,9 @@ route oubliée est donc fermée, jamais ouverte par accident.
 
 **Limitation de débit.** Les routes sensibles ont un quota ; au-delà, l'API répond `429`. Par
 exemple 5 connexions par minute et par adresse IP, 3 demandes de réinitialisation par heure,
-20 écritures d'article par heure et par compte. Les quotas se règlent dans le `.env`. Chaque
-processus Gunicorn tient ses propres compteurs (voir les limites ci-dessous).
+20 écritures d'article par heure et par compte. Les quotas se règlent dans le `.env`. En
+production, les compteurs vivent dans une table de la base, partagée par les trois processus
+Gunicorn : gardés en mémoire, chacun aurait les siens et le plafond réel serait triplé.
 
 **Images envoyées.** Chaque image est jugée sur son contenu et non sur son nom, limitée en poids
 et en taille, puis réenregistrée en WebP sous un nom tiré au hasard, sans ses métadonnées
@@ -335,14 +336,10 @@ informations au visiteur.
 
 ### Limites actuelles
 
-Ces points sont connus et, sauf le premier, suivis dans `AMELIORATIONS.md`. Aucun n'est corrigé
-à ce jour.
+Ces points sont connus et suivis dans `AMELIORATIONS.md`. Aucun n'est corrigé à ce jour.
 
 **Sécurité**
 
-- **Les quotas sont comptés par processus.** Les compteurs vivent dans la mémoire de chaque
-  processus Gunicorn, sans cache partagé : avec les trois processus de production, une adresse
-  peut tenter jusqu'à 15 connexions par minute au lieu de 5.
 - **Les jetons sont lisibles par les scripts de la page.** Ils sont rangés dans le stockage local
   du navigateur. La CSP bloque les scripts injectés, mais une faille qui la contournerait
   emporterait le jeton de rafraîchissement, valable un jour. Piste : un cookie `httpOnly`.
