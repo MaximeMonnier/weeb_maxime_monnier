@@ -19,7 +19,7 @@ const Terms = () => {
             de vous.
           </p>
           <p className="text-ink-muted text-sm mt-4">
-            Dernière mise à jour : 25 septembre 2026.
+            Dernière mise à jour : 31 octobre 2026.
           </p>
         </div>
 
@@ -49,16 +49,17 @@ const Terms = () => {
         <section className="py-8">
           <SectionTitle align="left" line1={<>3. Contenus publiés</>} />
           <p className="text-ink-soft mt-4">
-            Vous restez propriétaire des textes que vous publiez : aucun autre
-            membre ne peut les modifier, et l'équipe du projet peut les retirer
-            ou les corriger depuis son interface d'administration. Le site
-            n'offre pas encore d'écran de modification ni de suppression :
-            demandez-les par le formulaire de contact. Un article publié porte
-            le prénom et le nom de son auteur, à la vue de tous ; votre adresse
-            électronique, elle, ne paraît nulle part sur le site. En publiant,
-            vous garantissez que vos textes sont les vôtres et qu'ils ne portent
-            atteinte à personne. Tout contenu illicite, injurieux ou contraire
-            au droit d'auteur peut être retiré sans préavis.
+            Vous restez propriétaire des textes et des images que vous publiez :
+            aucun autre membre ne peut les modifier, et l'équipe du projet peut
+            les retirer ou les corriger depuis son interface d'administration.
+            Vous modifiez ou supprimez vous-même vos articles depuis leur page.
+            Un article publié porte le prénom et le nom de son auteur, à la vue
+            de tous ; votre adresse électronique, elle, ne paraît nulle part sur
+            le site. En publiant, vous garantissez que vos textes sont les
+            vôtres, que vous avez le droit de publier vos images, et que les uns
+            comme les autres ne portent atteinte à personne. Tout contenu
+            illicite, injurieux ou contraire au droit d'auteur peut être retiré
+            sans préavis.
           </p>
         </section>
 
