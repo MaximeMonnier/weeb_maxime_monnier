@@ -133,7 +133,7 @@ const FormArticle = ({ article, onCreated, onUpdated }: FormArticleProps) => {
   const champImage = useRef<HTMLInputElement>(null);
 
   const apercuChoisi = image !== null && image !== "retiree" ? image.apercu : null;
-  // Libère l'aperçu remplacé, et le dernier quand la modale se ferme.
+  // Libère l'aperçu remplacé, et le dernier quand le formulaire se démonte.
   useEffect(
     () => () => {
       if (apercuChoisi) URL.revokeObjectURL(apercuChoisi);

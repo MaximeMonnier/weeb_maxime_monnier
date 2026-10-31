@@ -34,7 +34,6 @@ function image(nom: string, type: string, octets = 1024) {
 }
 const PHOTO = image("photo.jpg", "image/jpeg");
 
-// jsdom n'a pas d'URL d'objet : l'aperçu en reçoit une qui nomme le fichier.
 // Sans `applyAccept`, user-event filtrerait le GIF comme le sélecteur du navigateur,
 // que l'option « Tous les fichiers » laisse pourtant passer.
 const utilisateur = () => userEvent.setup({ applyAccept: false });
@@ -52,6 +51,7 @@ async function remplirEtEnvoyer(titre: string, contenu: string) {
 
 beforeEach(() => {
   couperLeReseau();
+  // jsdom n'a pas d'URL d'objet : l'aperçu en reçoit une qui nomme le fichier.
   URL.createObjectURL = vi.fn((fichier: Blob) => `blob:${(fichier as File).name}`);
   URL.revokeObjectURL = vi.fn();
 });
