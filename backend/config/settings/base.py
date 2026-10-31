@@ -199,7 +199,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_CLASSES': (
         'rest_framework.throttling.ScopedRateThrottle',
     ),
-    # Compteur en LocMemCache, un par worker Gunicorn : le quota réel est multiplié par leur nombre.
+    # Compteurs dans le cache `default` : partagé en production (production.py), en mémoire ailleurs.
     'DEFAULT_THROTTLE_RATES': {
         'login': env_str('THROTTLE_LOGIN', '5/min'),
         'register': env_str('THROTTLE_REGISTER', '5/hour'),
