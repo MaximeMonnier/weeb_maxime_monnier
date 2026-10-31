@@ -21,7 +21,7 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        extra_fields.setdefault("is_active", True)   # un admin doit pouvoir se connecter
+        extra_fields.setdefault("is_active", True)
         return self.create_user(email, password, **extra_fields)
 
 
@@ -32,14 +32,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
 
-    is_active = models.BooleanField(default=True)    # compte utilisable ?
-    is_staff = models.BooleanField(default=False)    # accès à l'admin Django ?
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
 
     objects = UserManager()
 
-    USERNAME_FIELD = "email"                         # on se connecte avec l'email
-    REQUIRED_FIELDS = ["first_name", "last_name"]    # demandés en plus par createsuperuser
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["first_name", "last_name"]
 
     def __str__(self):
         return self.email
@@ -47,6 +47,5 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     @property
     def public_name(self):
         """Le nom sous lequel un compte paraît côté visiteur, jamais son email."""
-        # Le repli n'est pas décoratif : les deux champs sont exigés à l'inscription
-        # mais pas en base, et un compte créé au shell signerait d'une chaîne vide.
+        # Exigés à l'inscription, pas en base : un compte créé au shell signerait d'une chaîne vide.
         return f"{self.first_name} {self.last_name}".strip() or "Auteur anonyme"

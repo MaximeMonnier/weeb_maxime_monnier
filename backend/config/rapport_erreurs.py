@@ -2,8 +2,7 @@
 
 from django.views.debug import ExceptionReporter, SafeExceptionReporterFilter
 
-# Les IP, posées par le nginx du serveur, et le Referer : sur la page de réinitialisation,
-# il porte l'uid et le jeton encore valables, le front et l'API partageant l'origine.
+# Le Referer de la page de réinitialisation porte l'uid et le jeton encore valables.
 EN_TETES_MASQUES = frozenset(
     {'REMOTE_ADDR', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_REFERER'}
 )
@@ -13,8 +12,7 @@ class FiltreSansDonneesPersonnelles(SafeExceptionReporterFilter):
     """Masque toutes les valeurs du corps POST, les adresses IP du visiteur et le Referer."""
 
     def get_post_parameters(self, request):
-        # Toutes les clés, pas une liste par vue : contact et réinitialisation portent
-        # des emails, et `logout/` est la vue de simplejwt, qu'on ne décore pas.
+        # Toutes les clés, sans liste par vue : `logout/` est la vue de simplejwt, qu'on ne décore pas.
         if request is None:
             return {}
         corps = request.POST.copy()

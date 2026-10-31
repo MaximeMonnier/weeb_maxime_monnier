@@ -1,5 +1,3 @@
-"""Supprime les messages de contact reçus il y a plus de 90 jours, comme l'annonce /privacy."""
-
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
@@ -7,8 +5,7 @@ from django.utils import timezone
 
 from contact.models import Contact
 
-# En dur, et non en variable d'environnement : aucune production ne doit garder plus
-# longtemps que ce qu'annonce la section 5 de /privacy.
+# En dur : aucune production ne doit garder plus longtemps que n'annonce /privacy (section 5).
 RETENTION = timedelta(days=90)
 
 

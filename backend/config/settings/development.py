@@ -1,51 +1,36 @@
 """Réglages de développement : machine du développeur, front Vite en local."""
 
-from .base import *  # noqa: F403 — on repart de tous les réglages communs
+from .base import *  # noqa: F403
 from .base import env_bool, env_int, env_list, env_required, env_str, postgres_database
 
-# Même en développement, aucune valeur de repli : une clé connue de tous
-# finirait par se retrouver en production par simple oubli.
+# Aucun repli, même ici : une clé connue de tous finirait en production par oubli.
 SECRET_KEY = env_required('DJANGO_SECRET_KEY')
 
-# En développement le debug est allumé par défaut : la page d'erreur détaillée
-# de Django est justement ce qu'on veut voir ici, et nulle part ailleurs.
 DEBUG = env_bool('DJANGO_DEBUG', True)
 
-# Hôtes du poste local, sauf si le .env en impose d'autres.
 ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', ['localhost', '127.0.0.1', '[::1]'])
 
-# Le front Vite tourne sur le port 5173 : sans ces origines, le navigateur
-# bloquerait chaque appel du front vers l'API.
 CORS_ALLOWED_ORIGINS = env_list(
     'CORS_ALLOWED_ORIGINS',
     ['http://localhost:5173', 'http://127.0.0.1:5173'],
 )
 
 
-# Base PostgreSQL du poste local, servie par le conteneur `db` de compose.dev.yaml.
-# Les identifiants sont exigés : une base de développement accessible avec des
-# identifiants devinables finirait par être exposée telle quelle ailleurs.
+# Identifiants exigés même ici : une base aux identifiants devinables finirait exposée ailleurs.
 DATABASES = postgres_database()
 
 
-# --- Emails ---
-# Un vrai SMTP plutôt que `console`, pour exercer l'envoi réel. Mailpit affiche
-# les messages au lieu de les livrer : http://127.0.0.1:8025.
+# Vrai SMTP plutôt que `console`, pour exercer l'envoi ; Mailpit affiche les messages sur :8025.
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
-# Le défaut vise Mailpit publié sur la machine, pour le backend lancé dans le
-# venv. Celui qui tourne en conteneur reçoit `mailpit:1025` de compose.dev.yaml,
-# la topologie du réseau Compose.
+# Défauts du venv ; en conteneur, compose.dev.yaml impose `mailpit:1025`.
 EMAIL_HOST = env_str('EMAIL_HOST', 'localhost')
 EMAIL_PORT = env_int('EMAIL_PORT', 1025)
 
-# Sans ce réglage, smtplib retombe sur le délai global des sockets, c'est-à-dire aucun :
-# un relais qui avale les paquets bloquerait le worker qui envoie le lien de
-# réinitialisation, dans une vue publique.
+# smtplib n'a aucun délai par défaut : un relais muet bloquerait le worker d'une vue publique.
 EMAIL_TIMEOUT = env_int('EMAIL_TIMEOUT', 10)
 
-# En dur, pas lus : Mailpit n'attend ni compte ni TLS, et lui en imposer un
-# depuis un .env ferait échouer l'envoi sans que la cause soit visible.
+# En dur : Mailpit n'attend ni compte ni TLS, en imposer depuis le .env ferait échouer l'envoi sans bruit.
 EMAIL_HOST_USER = ''
 EMAIL_HOST_PASSWORD = ''
 EMAIL_USE_TLS = False

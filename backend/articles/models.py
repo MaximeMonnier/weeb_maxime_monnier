@@ -9,21 +9,17 @@ class Article(models.Model):
     content = models.TextField()
     cover = models.ImageField(upload_to="articles/", blank=True)
 
-    # L'AUTEUR = le propriétaire de l'article. C'est ce lien qui permettra plus tard
-    # de dire "seul le propriétaire peut modifier/supprimer".
     author = models.ForeignKey(
-        settings.AUTH_USER_MODEL,        # = notre CustomUser
-        on_delete=models.CASCADE,        # si l'auteur est supprimé, ses articles aussi
-        related_name="articles",         # permet de faire user.articles.all()
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="articles",
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)   # rempli UNE fois, à la création
-    updated_at = models.DateTimeField(auto_now=True)       # mis à jour à CHAQUE sauvegarde
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        # Les plus récents en premier. L'id départage deux dates égales : sans lui,
-        # la base les ordonne à son gré à chaque requête, et une liste paginée peut
-        # montrer l'un sur deux pages et jamais l'autre.
+        # L'id départage deux dates égales : sinon la pagination peut montrer un article deux fois.
         ordering = ["-created_at", "-id"]
 
     def __str__(self):

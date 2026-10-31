@@ -6,23 +6,20 @@ from .models import Article
 from .serializers import ArticleListSerializer, ArticleSerializer
 from .permissions import IsOwnerOrReadOnly
 
-# Longueur de l'extrait rendu par la liste, taillé par PostgreSQL : le texte entier
-# ne quitte plus la base pour une carte qui n'en montre que le début.
+# Extrait taillé par PostgreSQL : le texte entier ne quitte pas la base pour la liste.
 LONGUEUR_EXTRAIT = 100
 
 
 class ArticleViewSet(viewsets.ModelViewSet):
-    """CRUD complet des articles (liste, création, détail, modif, suppression)."""
-    # Jointure et non requête par ligne : le serializer rend l'auteur par son
-    # public_name, et la liste irait sinon le chercher en base une fois par article.
+    """CRUD des articles : lecture PUBLIQUE, écriture réservée à l'auteur."""
+    # Sans jointure, la liste chercherait le public_name de l'auteur une fois par article.
     queryset = Article.objects.select_related("author")
     serializer_class = ArticleSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
     throttle_scope = "article_write"
 
     def get_throttles(self):
-        # Toute écriture qui peut déposer une image, avec ou sans : lecture et suppression,
-        # qui n'ajoutent rien au disque, restent libres.
+        # Quota sur les écritures qui peuvent déposer une image ; lecture et suppression restent libres.
         if self.action in ("create", "update", "partial_update"):
             return super().get_throttles()
         return []
@@ -36,9 +33,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         if self.action == "list":
-            # defer laisse content en base, annotate y taille l'extrait : sans l'annotation, le
-            # serializer rechargerait content ligne par ligne ; sans le defer, il voyagerait entier.
-            # La coupure se mesure ici : la mesurer au front recopierait LONGUEUR_EXTRAIT.
+            # Sans l'annotate, content serait rechargé ligne par ligne ; sans le defer, il voyagerait entier.
+            # La coupure se mesure ici : au front, il faudrait recopier LONGUEUR_EXTRAIT.
             return queryset.defer("content").annotate(
                 excerpt=Left("content", LONGUEUR_EXTRAIT),
                 excerpt_truncated=GreaterThan(Length("content"), LONGUEUR_EXTRAIT),

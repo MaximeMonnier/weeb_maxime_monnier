@@ -1,5 +1,3 @@
-"""Publie des articles de démonstration, pour que /blog se remplisse en développement."""
-
 from pathlib import Path
 
 from django.conf import settings
@@ -15,8 +13,7 @@ DEMO_AUTHOR_EMAIL = "auteur-demo@example.com"
 # Hors de MEDIA_ROOT : versionnées, elles sont copiées dans le stockage, jamais servies d'ici.
 COVERS_DIR = Path(__file__).resolve().parents[2] / "couvertures_demo"
 
-# Le sujet n'est jamais sujet d'un verbe, ni précédé de « de » ou « à », qui se contractent
-# devant « le » et « les » : « de le mode sombre » sortirait tel quel.
+# Jamais après « de » ou « à » ni sujet d'un verbe : « de le mode sombre » sortirait tel quel.
 TOPICS = (
     ("l'accessibilité", "accessibilite.jpg"),
     ("le mode sombre", "mode-sombre.jpg"),
@@ -111,8 +108,7 @@ class Command(BaseCommand):
                 for title, content, _ in expected
                 if title not in already_published
             ]
-            # Un article de la démo publié avant les images en reçoit une ; celui qui en a
-            # une la garde, et un titre retiré de la liste n'a pas de photo attitrée.
+            # Un article publié avant les images en reçoit une ; un titre retiré de la liste, non.
             uncovered = list(author.articles.filter(cover="", title__in=photo_of))
             for article in missing + uncovered:
                 attach_cover(article, photo_of[article.title])

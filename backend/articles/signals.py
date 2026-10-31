@@ -9,8 +9,7 @@ from .models import Article
 
 def effacer_apres_validation(storage, nom):
     """Efface le fichier une fois la transaction validée : annulée, elle garde l'article et son image."""
-    # robust : un échec d'effacement est journalisé, et ne fait pas répondre 500 à une écriture
-    # déjà validée — un fichier orphelin vaut mieux qu'une réponse fausse.
+    # robust : un échec d'effacement est journalisé, sans 500 sur une écriture déjà validée.
     if nom:
         transaction.on_commit(lambda: storage.delete(nom), robust=True)
 
@@ -24,8 +23,7 @@ def noter_la_couverture_en_base(sender, instance, **kwargs):
     )
 
 
-# Après l'écriture et non avant : hors transaction, on_commit efface sur-le-champ, et un
-# UPDATE en échec laisserait l'article pointer sur un fichier disparu.
+# Après l'écriture : hors transaction, on_commit efface aussitôt, même si l'UPDATE échoue.
 @receiver(post_save, sender=Article)
 def effacer_la_couverture_remplacee(sender, instance, **kwargs):
     """Remplacée ou retirée, l'ancienne image quitte le disque."""
@@ -34,8 +32,7 @@ def effacer_la_couverture_remplacee(sender, instance, **kwargs):
         effacer_apres_validation(instance.cover.storage, ancienne)
 
 
-# Un signal et non Article.delete() : la suppression d'un compte emporte ses articles en
-# cascade sans jamais appeler leur delete().
+# Signal et non Article.delete() : la cascade d'une suppression de compte ne l'appelle pas.
 @receiver(post_delete, sender=Article)
 def effacer_la_couverture_supprimee(sender, instance, **kwargs):
     """Un article supprimé emporte son image."""

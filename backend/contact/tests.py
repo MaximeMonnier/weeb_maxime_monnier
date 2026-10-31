@@ -1,5 +1,3 @@
-"""Tests du contact : envoi public, refus, absence de lecture, tri, date, quota et purge."""
-
 from datetime import UTC, datetime, timedelta
 from io import StringIO
 from unittest.mock import patch
@@ -17,7 +15,6 @@ from accounts.models import CustomUser
 
 from .models import Contact
 
-# Les cinq champs du modèle, dans un message que l'API accepte tel quel.
 MESSAGE = {
     "first_name": "Jean",
     "last_name": "Dupont",
@@ -28,7 +25,6 @@ MESSAGE = {
 
 
 def envoyer(client, corps):
-    """POST sur le formulaire de contact, le corps sérialisé en JSON comme le fait le front."""
     return client.post(reverse("contact"), corps, content_type="application/json")
 
 
@@ -65,7 +61,6 @@ class ContactValidationTests(TestCase):
         self.assertEqual(Contact.objects.count(), 0)
 
     def test_un_champ_vide_ne_vaut_pas_un_champ_absent(self):
-        """Chaîne vide et clé absente sont refusées, pour deux raisons différentes."""
         for champ in MESSAGE:
             with self.subTest(champ=champ):
                 response = envoyer(self.client, {**MESSAGE, champ: ""})
@@ -106,7 +101,7 @@ class ContactDateImposeeTests(TestCase):
         response = envoyer(self.client, {**MESSAGE, "created_at": "2000-01-01T00:00:00Z"})
 
         self.assertEqual(response.status_code, 201)
-        # Vraie date de traitement, à une minute près : la suite ne date rien de 2000.
+        # À une minute près : la suite ne date rien de 2000.
         self.assertGreater(Contact.objects.get().created_at, timezone.now() - timedelta(minutes=1))
 
     def test_la_reponse_de_creation_porte_la_date(self):
@@ -152,8 +147,7 @@ class ContactThrottleTests(TestCase):
         # Le compteur vit dans un cache de processus, que rien ne vide entre deux tests.
         cache.clear()
 
-    # Le taux est éteint pour toute la suite par config/settings/test.py : il faut le
-    # réarmer ici, sinon ce test seul ne verrait jamais de refus.
+    # Taux éteint pour la suite par settings/test.py : réarmé ici, sinon aucun refus.
     @patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"contact": "5/hour"})
     def test_le_sixieme_message_de_l_heure_est_refuse(self):
         for _ in range(5):
@@ -176,9 +170,8 @@ class ContactOrdreTests(TestCase):
     """Du plus récent au plus ancien, et seul Meta.ordering le dit."""
 
     def setUp(self):
-        # Les trois messages sont créés dans le désordre : sans cela, l'ordre attendu
-        # serait aussi celui des identifiants, et un Meta.ordering retiré passerait.
-        # auto_now_add écrase toute date passée à create(), d'où l'UPDATE qui suit.
+        # Créés dans le désordre : sinon l'ordre des id suffirait et un Meta.ordering retiré passerait.
+        # auto_now_add écrase la date passée à create(), d'où l'UPDATE.
         for sujet, jours in (("Intermédiaire", 1), ("Ancien", 2), ("Récent", 0)):
             contact = Contact.objects.create(**{**MESSAGE, "subject": sujet})
             Contact.objects.filter(pk=contact.pk).update(
@@ -203,8 +196,7 @@ class ContactModeleTests(TestCase):
 class ContactPurgeTests(TestCase):
     """La commande purger_contacts tient la durée promise par la section 5 de /privacy."""
 
-    # Heure figée : sans elle, la seconde écoulée entre l'écriture et la commande
-    # ferait basculer le message de 90 jours pile du côté des supprimés.
+    # Heure figée : sinon la seconde écoulée ferait supprimer le message de 90 jours pile.
     MAINTENANT = datetime(2026, 1, 1, 12, tzinfo=UTC)
 
     def setUp(self):

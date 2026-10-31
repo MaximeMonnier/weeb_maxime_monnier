@@ -1,5 +1,3 @@
-"""Validation du mot de passe : le validateur maison, et le pont vers les serializers DRF."""
-
 import re
 
 from django.contrib.auth import password_validation
@@ -8,10 +6,9 @@ from rest_framework import serializers
 
 
 class PasswordComplexityValidator:
-    """Exige une minuscule, une majuscule et un chiffre — ce qu'aucun des quatre validateurs de Django ne regarde."""
+    """Exige une minuscule, une majuscule et un chiffre, que Django ne vérifie pas."""
 
-    # Classes ASCII, celles de la regex de lib/validationRules.ts : les deux règles doivent
-    # accepter les mêmes mots de passe, sinon le front refuse ce que l'API vient d'admettre.
+    # Mêmes classes ASCII que lib/validationRules.ts : front et API acceptent les mêmes mots de passe.
     REQUIRED_CLASSES = (r"[a-z]", r"[A-Z]", r"[0-9]")
     MESSAGE = "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre."
 
@@ -28,6 +25,5 @@ def validate_password_strength(password, field_name, user=None):
     try:
         password_validation.validate_password(password, user=user)
     except DjangoValidationError as error:
-        # Django lève une erreur sans champ ; sans ce dict, DRF la rendrait à la racine
-        # de la réponse, d'où aucun champ de formulaire ne peut la reprendre.
+        # Erreur sans champ : DRF la rendrait à la racine, hors de portée du formulaire.
         raise serializers.ValidationError({field_name: list(error.messages)}) from error

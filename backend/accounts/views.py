@@ -29,8 +29,7 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
-# La première répond à tous les cas de sa vue, la seconde à tous ses échecs : deux
-# libellés diraient qui est inscrit. Rendues par copie, ces dicts étant partagés.
+# Un seul libellé par vue, sinon on devine qui est inscrit ; rendus par copie, ces dicts étant partagés.
 NEUTRAL_RESPONSE = {
     "detail": "Si un compte existe pour cet email, un lien de réinitialisation vient d'être envoyé."
 }
@@ -61,18 +60,15 @@ def send_password_reset_link(user):
             recipient_list=[user.email],
         )
     except Exception:
-        # Une panne SMTP ne survient que pour un compte existant : la laisser remonter
-        # en 500 rendrait la réponse distinguable et trahirait l'inscription.
+        # Seul un compte existant atteint le SMTP : un 500 trahirait l'inscription.
         logger.exception("Échec de l'envoi du lien de réinitialisation")
 
 
 def set_password_and_revoke(user, password):
     """Change le mot de passe et met en liste noire chaque refresh encore valable du compte."""
-    # D'un bloc : sans quoi une révocation en échec garderait le nouveau mot de passe et
-    # les sessions volées. Les jetons d'accès vivent leurs 15 minutes, voir base.py.
+    # D'un bloc : une révocation en échec ne doit pas garder le nouveau mot de passe.
     with transaction.atomic():
-        # Le verrou que prend aussi RefreshSerializer : une rotation lancée pendant ce bloc
-        # attend sa fin, celle qui l'a précédé a déjà inscrit son refresh neuf.
+        # Verrou partagé avec RefreshSerializer : une rotation concurrente attend la fin du bloc.
         CustomUser.objects.select_for_update().get(pk=user.pk)
         user.set_password(password)
         user.save()
@@ -85,12 +81,10 @@ def set_password_and_revoke(user, password):
 
 
 class LoginView(TokenObtainPairView):
-    """Connexion : délivre les tokens JWT. Endpoint PUBLIC (pas besoin d'être connecté)."""
-    # Redit alors que simplejwt le pose déjà : la convention du dépôt veut qu'une
-    # vue publique le déclare, une vue muette étant fermée par défaut.
+    """Connexion : délivre les jetons JWT. Endpoint PUBLIC."""
+    # Déjà posé par simplejwt, mais toute vue publique le déclare.
     permission_classes = [AllowAny]
-    # Sous-classée pour deux attributs que la vue de simplejwt, importée, ne porte pas.
-    # Le compteur compte les appels, pas les échecs.
+    # Sous-classée pour le quota et le serializer ; le quota compte les appels, pas les échecs.
     throttle_scope = "login"
     serializer_class = LoginSerializer
 
@@ -102,26 +96,24 @@ class LoginRefreshView(TokenRefreshView):
 
 
 class RegisterView(generics.CreateAPIView):
-    """Inscription d'un nouvel utilisateur. Endpoint PUBLIC (pas besoin d'être connecté)."""
+    """Inscription d'un nouvel utilisateur. Endpoint PUBLIC."""
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
     throttle_scope = "register"
 
 
 class PasswordResetRequestView(APIView):
-    """Étape 1 : envoie par email un lien de réinitialisation. Endpoint PUBLIC (pas besoin d'être connecté)."""
+    """Étape 1 : envoie par email un lien de réinitialisation. Endpoint PUBLIC."""
     permission_classes = [AllowAny]
-    # Le quota le plus bas des six : chaque appel envoie un email réel, donc
-    # sans lui l'endpoint est un envoyeur gratuit qui fait blacklister le relais.
+    # Quota le plus bas : chaque appel envoie un vrai email, le relais finirait sur liste noire.
     throttle_scope = "password_reset"
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)          # 400 auto si email manquant/invalide
+        serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"]
 
-        # is_active : un compte créé mais pas encore validé par un administrateur
-        # choisirait un mot de passe pour se heurter ensuite au login.
+        # is_active : un compte pas encore validé choisirait un mot de passe pour buter au login.
         try:
             user = CustomUser.objects.get(email=email, is_active=True)
         except CustomUser.DoesNotExist:
@@ -134,11 +126,10 @@ class PasswordResetRequestView(APIView):
 
 
 class PasswordResetConfirmView(APIView):
-    """Étape 2 : vérifie le token et applique le nouveau mot de passe. Endpoint PUBLIC (pas besoin d'être connecté)."""
+    """Étape 2 : vérifie le token et applique le nouveau mot de passe. Endpoint PUBLIC."""
     permission_classes = [AllowAny]
-    # Le token HMAC ne se devine pas : c'est le coût qu'on borne, chaque appel passant
-    # un mot de passe aux validateurs puis à PBKDF2. Scope à part : la demande et la
-    # confirmation ne doivent pas se consommer leur quota l'une l'autre.
+    # Le token ne se devine pas : le quota borne le coût des validateurs et de PBKDF2.
+    # Scope à part : demande et confirmation ne se consomment pas leur quota.
     throttle_scope = "password_reset_confirm"
 
     def post(self, request):
@@ -146,12 +137,10 @@ class PasswordResetConfirmView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        # Message unique aux deux échecs : les distinguer dirait, un uid étant
-        # base64(pk), quels identifiants correspondent à un compte actif.
+        # Message unique : l'uid valant base64(pk), deux messages diraient quels comptes sont actifs.
         try:
             user_id = force_str(urlsafe_base64_decode(data["uid"]))
-            # Même filtre qu'à la demande : un compte désactivé entre-temps ne doit
-            # pas pouvoir consommer le lien qu'il a reçu.
+            # Un compte désactivé entre-temps ne consomme pas le lien reçu.
             user = CustomUser.objects.get(pk=user_id, is_active=True)
         except (CustomUser.DoesNotExist, ValueError, TypeError):
             return Response(dict(INVALID_LINK_RESPONSE), status=status.HTTP_400_BAD_REQUEST)
@@ -175,8 +164,7 @@ class PasswordChangeView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = request.user
-        # Chaque refresh émis passe en liste noire, celui de cet appareil compris : qui
-        # change un mot de passe compromis veut couper la session volée.
+        # Celui de cet appareil compris : qui change un mot de passe compromis coupe la session volée.
         set_password_and_revoke(user, serializer.validated_data["new_password"])
         # Émis après la révocation, sans quoi il y passerait avec les autres.
         refresh = RefreshToken.for_user(user)

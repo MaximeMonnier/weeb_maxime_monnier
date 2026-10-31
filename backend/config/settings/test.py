@@ -5,53 +5,41 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from .base import *  # noqa: F403 — on repart de tous les réglages communs
+from .base import *  # noqa: F403
 from .base import LOGGING, postgres_database, REST_FRAMEWORK
 
 # Un test ne doit jamais dépendre de la page d'erreur détaillée pour passer.
 DEBUG = False
 
-# Clé factice et publique : aucune donnée réelle à protéger, aucune clé à fournir en CI.
-# C'est pourquoi base.py ne définit pas SECRET_KEY.
+# Clé factice et publique : rien à fournir en CI, d'où son absence de base.py.
 SECRET_KEY = 'cle-de-test-non-secrete-de-32-octets-au-moins'
 
-# Le client de test Django utilise l'hôte "testserver".
 ALLOWED_HOSTS = ['testserver', 'localhost', '127.0.0.1']
 
-# Aucun navigateur n'appelle l'API pendant les tests : rien à autoriser.
 CORS_ALLOWED_ORIGINS = []
 
 
-# Le moteur de la production : Django crée et détruit `test_<POSTGRES_DB>`, sans toucher
-# à la base de développement. La suite exige donc un PostgreSQL joignable.
+# Django crée et détruit `test_<POSTGRES_DB>` : la suite exige un PostgreSQL joignable.
 DATABASES = postgres_database()
 
 
-# --- Emails ---
-# Aucune connexion SMTP, les messages restent dans `django.core.mail.outbox`.
-# Le runner l'impose déjà ; l'écrire ici vaut hors du runner.
+# Le runner impose déjà locmem ; l'écrire ici vaut hors du runner.
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
 
-# --- Fichiers envoyés ---
-# Un dossier propre à chaque lancement, effacé à la sortie : backend/media/ est celui
-# du runserver, et deux suites lancées ensemble n'y mêlent pas leurs images.
+# Un dossier par lancement : deux suites en parallèle ne mêlent pas leurs images à celles du runserver.
 MEDIA_ROOT = Path(tempfile.mkdtemp(prefix='weeb-test-media-'))
 atexit.register(shutil.rmtree, MEDIA_ROOT, ignore_errors=True)
 
 
-# --- Journaux ---
-# Chaque refus 4xx de la suite écrirait sa ligne : le niveau seul monte, le handler
-# reste celui de base.py, que vérifie config/tests.py.
+# Seul le niveau monte (chaque refus 4xx écrirait sa ligne) : config/tests.py vérifie le handler.
 LOGGING = {
     **LOGGING,
     'handlers': {'console': {**LOGGING['handlers']['console'], 'level': 'CRITICAL'}},
 }
 
 
-# --- Quotas de débit ---
-# Un taux à None éteint son scope. Le taux et non la classe, figée à l'import de DRF :
-# une classe retirée ne se réarmerait plus dans un test, un taux si.
+# Les taux et non la classe, figée à l'import de DRF : un taux se réarme dans un test.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
     'DEFAULT_THROTTLE_RATES': {

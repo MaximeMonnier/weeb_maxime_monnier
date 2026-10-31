@@ -1,5 +1,3 @@
-"""Tests des comptes : réinitialisation, mots de passe, jetons, quotas, inscription et suppression."""
-
 import re
 import threading
 import time
@@ -119,7 +117,6 @@ class PasswordResetConfirmTests(TestCase):
         self.assertTrue(self.user.check_password("NouveauMotDePasse456"))
 
     def test_la_session_ouverte_avant_ne_se_renouvelle_plus(self):
-        """On réinitialise quand on croit sa session volée : celle de l'attaquant doit tomber."""
         refresh_avant = self.refresh_apres_connexion("AncienMotDePasse123")
 
         response = self.confirm("NouveauMotDePasse456")
@@ -143,7 +140,6 @@ class PasswordResetConfirmTests(TestCase):
         self.assertTrue(self.user.check_password("NouveauMotDePasse456"))
 
     def test_les_deux_echecs_sont_indistinguables(self):
-        """Un uid étant base64(pk), deux messages diraient quels pk sont des comptes actifs."""
         unknown_uid = self.post(
             urlsafe_base64_encode(force_bytes(self.user.pk + 10_000)), self.token
         )
@@ -254,8 +250,7 @@ class PasswordValidationTests(TestCase):
 
     def test_les_quatre_validateurs_de_django_ne_suffisent_pas(self):
         """Assez longs, ni courants ni numériques : seul le cinquième validateur les rejette."""
-        # Une classe manquante par cas : sans le message, une règle réduite au seul
-        # chiffre refuserait encore le premier et le test resterait vert.
+        # Message vérifié : sinon une règle réduite au seul chiffre refuserait encore le premier cas.
         for password in ("motdepassesansrien", "motdepasse123", "MOTDEPASSE123"):
             with self.subTest(password=password):
                 response = self.register(password)
@@ -267,7 +262,7 @@ class PasswordValidationTests(TestCase):
 
 
 class PasswordLengthTests(TestCase):
-    """128 caractères passent, 129 non : la borne vit aux serializers, les validateurs n'en ont pas."""
+    """128 caractères passent, 129 non : la borne vit aux serializers."""
 
     # Une majuscule, une minuscule, un chiffre : seule la longueur peut faire tomber le cas.
     LIMITE = "Aa1" + "x" * 125
@@ -370,7 +365,6 @@ class CustomUserAdminTests(TestCase):
         self.assertEqual(response.status_code, 302)
         cree = CustomUser.objects.get(email="nouveau@example.com")
         self.assertNotEqual(cree.password, self.PASSWORD)
-        # Le seul contrôle qui vaille : le compte passe la porte d'entrée réelle.
         login = Client().post(
             reverse("login"),
             {"email": "nouveau@example.com", "password": self.PASSWORD},
@@ -435,8 +429,7 @@ class ThrottleScopeTests(SimpleTestCase):
             with self.subTest(route=nom_de_route):
                 vue = resolve(reverse(nom_de_route)).func
                 self.assertEqual(getattr(vue.cls, "throttle_scope", None), scope)
-                # Un scope sans taux ne laisse pas passer : il fait répondre 500.
-                # Renommer une clé de base.py se verrait ici, pas en production.
+                # Un scope sans taux fait répondre 500 : une clé renommée dans base.py se voit ici.
                 self.assertIn(scope, taux)
 
 
@@ -530,8 +523,7 @@ class JWTRotationTests(TestCase):
         self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
 
     def test_la_deconnexion_revoque_le_refresh(self):
-        # Aucun en-tête d'authentification ici : la vue est publique, et le refresh
-        # envoyé est la seule preuve exigée. Un IsAuthenticated hérité la fermerait.
+        # Sans en-tête : le refresh est la seule preuve, un IsAuthenticated hérité fermerait la vue.
         self.assertEqual(self.deconnecter(self.refresh).status_code, 200)
 
         self.assertEqual(self.rafraichir(self.refresh).status_code, 401)
@@ -623,16 +615,14 @@ class RegisterTests(TestCase):
 
     def test_l_inscription_n_ecrit_la_ligne_qu_une_fois(self):
         """Écrit inactif d'un coup : sinon une connexion concurrente trouverait le compte actif."""
-        # \b écarte les tables dérivées, accounts_customuser_groups et sa voisine,
-        # dont le nom contient celui du compte sans qu'une écriture y touche.
+        # \b écarte les tables dérivées (accounts_customuser_groups…), que l'écriture ne touche pas.
         table = re.compile(rf"\b{CustomUser._meta.db_table}\b")
 
         with CaptureQueriesContext(connection) as requetes:
             response = self.inscrire()
 
         self.assertEqual(response.status_code, 201)
-        # Les SELECT restent comptés avec le reste : le contrôle d'unicité de l'email en
-        # émet un, et c'est le verbe qu'on regarde, une lecture n'ouvrant aucune fenêtre.
+        # Seul le verbe compte : le SELECT d'unicité de l'email n'ouvre aucune fenêtre.
         verbes = [
             requete["sql"].split(maxsplit=1)[0] for requete in requetes
             if table.search(requete["sql"])
@@ -980,8 +970,7 @@ class RotationConcurrenteTests(TransactionTestCase):
         self.assertEqual(self.rafraichir(self.rotation_puis(self.reinitialiser)).status_code, 401)
 
     def test_une_rotation_arrivee_pendant_le_changement_est_refusee(self):
-        # Tombe si la liste noire est lue avant le verrou de RefreshSerializer : la rotation
-        # passerait son contrôle, puis émettrait après la révocation un refresh qui lui survit.
+        # Tombe si la liste noire est lue avant le verrou : la rotation émettrait un refresh survivant.
         revocation, rotation = self.course(
             self.changer, lambda: self.rafraichir(self.refresh),
             BlacklistedToken.objects, "bulk_create",

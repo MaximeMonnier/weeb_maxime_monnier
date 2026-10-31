@@ -1,17 +1,13 @@
-"""Sonde de santé du conteneur : la seule vue du projet qui ne serve aucun domaine métier."""
-
 from http import HTTPStatus
 
 from django.db import DatabaseError, connection
 from django.http import JsonResponse
 
 
-# Vue Django nue et non DRF : le défaut IsAuthenticated fermerait la route, et ni le
-# jeton ni les quotas n'ont de sens pour une sonde qui s'appelle elle-même.
+# Vue Django nue, pas DRF : le défaut IsAuthenticated fermerait la sonde.
 def health(request):
     """Répond 200 si la base est joignable, 503 sinon. Endpoint PUBLIC, interne au conteneur."""
-    # SELECT 1 : son coût ne bouge pas quand la table grandit, là où la pagination de
-    # /api/articles/ comptait toute la table à chaque passage de la sonde.
+    # SELECT 1 : coût constant, quelle que soit la taille des tables.
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
