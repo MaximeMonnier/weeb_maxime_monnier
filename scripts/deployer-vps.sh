@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Met en ligne sur le VPS le commit de main dont le SHA est passé en argument.
-# Lancé par le job déploiement de la CI — README, § « Déploiement automatique ».
+# Lancé par la CI avec le SHA d'un commit de main : README, § « Déploiement automatique ».
 
 set -euo pipefail
 
@@ -19,8 +18,7 @@ deployer() {
     git fetch --quiet origin main
     git merge --ff-only --quiet "$sha"
 
-    # Écrit dans le .env et non passé à la commande : un `docker compose up` lancé
-    # plus tard à la main garde ainsi la version en ligne.
+    # Dans le .env : un `docker compose up` lancé plus tard à la main garde la version en ligne.
     if grep -q '^IMAGE_TAG=' .env; then
         sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$sha/" .env
     else

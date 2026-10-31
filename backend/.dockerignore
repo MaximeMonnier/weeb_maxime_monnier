@@ -1,16 +1,8 @@
-# Docker ignore le .gitignore : sans ce fichier, le venv partirait au démon à
-# chaque build. Ce qui est exclu ici n'entre pas, même par `COPY . .`. Chemins
-# relatifs à backend/ : `venv/`, pas `backend/venv/`.
+# Chemins relatifs à backend/ : `venv/`, pas `backend/venv/`.
 
-# --- Environnement virtuel local ---
-# Compilé pour la machine du développeur (Python 3.12 ici), inutilisable dans
-# l'image, qui réinstalle ses dépendances depuis requirements.txt.
 venv/
 .venv/
 
-# --- Caches Python ---
-# Régénérés à l'exécution. Des .pyc issus d'une autre version de Python
-# seraient au mieux ignorés, au pire une source de confusion.
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -18,31 +10,20 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# --- Secrets ---
-# Deux motifs : `*.env` laisse passer `.env.prod`, `.env*` laisse passer
-# `secrets.env`. Le .env de la racine, lui, est hors du contexte.
+# Deux motifs : `*.env` laisse passer `.env.prod`, `.env*` laisse passer `secrets.env`.
 .env*
 *.env
 
-# --- Fichiers générés par Django ---
-# staticfiles/ est reconstruit par collectstatic au démarrage du conteneur ;
-# media/ contient des données d'exécution, qui n'ont rien à faire dans une image.
 staticfiles/
 media/
 *.log
 
-# --- Base SQLite résiduelle ---
-# Le projet est passé à PostgreSQL. Un db.sqlite3 oublié sur un poste ne doit
-# en aucun cas être embarqué dans une image.
 *.sqlite3
 
-# --- Fichiers de build eux-mêmes ---
-# Ils décrivent l'image sans la servir. BuildKit reçoit le Dockerfile par un
-# canal distinct : l'exclure n'empêche pas le build.
+# BuildKit reçoit le Dockerfile à part : l'exclure n'empêche pas le build.
 Dockerfile
 .dockerignore
 
-# --- Outillage de développement ---
 .git/
 .gitignore
 .idea/

@@ -1,26 +1,18 @@
-# Pile de PRODUCTION, autonome : le développement est dans compose.dev.yaml.
-# Sans TLS : publiée sur 127.0.0.1, servie au monde par le nginx du serveur —
-# voir le README, § « Déployer derrière le nginx du serveur ».
+# Sans TLS, publiée sur 127.0.0.1 : README, § « Déployer derrière le nginx du serveur ».
 
-# Nom distinct de celui du développement, donc conteneurs, réseaux et volumes
-# distincts. Sans ça, un `docker compose -f compose.dev.yaml down -v` détruirait
-# les données d'ici.
+# Distinct de `weeb` : un `down -v` du développement épargne ces volumes.
 name: weeb-prod
 
 services:
   db:
     image: postgres:17-alpine
 
-    # `:?` interrompt le démarrage avec ce message quand la variable manque,
-    # plutôt que de créer une base aux identifiants surprise.
     environment:
       POSTGRES_DB: "${POSTGRES_DB:?absente du .env, voir .env.example}"
       POSTGRES_USER: "${POSTGRES_USER:?absente du .env, voir .env.example}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?absente du .env, voir .env.example}"
 
-    # Aucun `ports:` : la base n'est joignable que par le réseau `interne`,
-    # fermé plus bas. Rien n'est publié, donc rien n'est atteignable depuis
-    # l'extérieur du démon Docker.
+    # Aucun `ports:` : seul le réseau `interne`, fermé, atteint la base.
 
     volumes:
       - db_data:/var/lib/postgresql/data
@@ -28,14 +20,10 @@ services:
     networks:
       - interne
 
-    # `unless-stopped` et non `always` : le conteneur repart après un plantage
-    # ou un redémarrage, pas un arrêt volontaire. D'où le `--wait-timeout` : sans
-    # lui, `--wait` attend indéfiniment un service qui reboucle.
+    # D'où le `--wait-timeout` : sans lui, `--wait` attend sans fin un service qui reboucle.
     restart: unless-stopped
 
-    # `-h 127.0.0.1` : sans lui, la sonde passe par la socket Unix et déclare
-    # le service sain avant qu'il écoute en TCP. `$$` diffère la substitution
-    # au conteneur.
+    # -h 127.0.0.1 : sinon la sonde passe par la socket Unix et déclare le service sain avant qu'il écoute en TCP.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -44,43 +32,31 @@ services:
       start_period: 10s
 
   backend:
-    # L'image que la CI publie au push sur main. `build:` reste pour un `build`
-    # explicite, sous ce même nom. ⚠️ Étiquette absente de GHCR : `up` construit
-    # sans prévenir, d'où le `--no-build` du README, § « Déployer ».
+    # ⚠️ Étiquette absente de GHCR : `up` construit en local sans prévenir, d'où `--no-build`.
     image: "ghcr.io/maximemonnier/weeb-backend:${IMAGE_TAG:-latest}"
 
     build: ./backend
 
-    # Le dernier l'emporte : .env.prod réécrit ce qui diffère et ajoute
-    # EMAIL_HOST, FRONTEND_URL et DJANGO_ADMINS. ⚠️ Pour le conteneur seul : les
-    # `${...}` d'ici se lisent dans le .env — README, § « La configuration de production ».
+    # .env.prod l'emporte, pour le conteneur seul : les `${...}` de ce fichier ne lisent que le .env.
     env_file: &env-django
       - .env
       - .env.prod
 
-    # `production` redit l'image, en regard de compose.dev.yaml. `db:5432` contredit
-    # le .env, qui décrit la base vue depuis la machine : c'est la topologie du
-    # réseau, pas de la configuration.
+    # `db:5432` prime sur le .env, qui décrit la base vue depuis la machine.
     environment: &environment-django
       DJANGO_SETTINGS_MODULE: config.settings.production
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
 
-    # 127.0.0.1 seul : c'est ce qui borne DJANGO_BEHIND_PROXY=1, le nginx du
-    # serveur restant seul à poser X-Forwarded-Proto. Variable distincte de celle du
-    # développement, pour que les deux piles tournent ensemble.
+    # 127.0.0.1 seul : c'est ce qui borne DJANGO_BEHIND_PROXY=1.
     ports:
       - "127.0.0.1:${BACKEND_PORT_PROD:-8001}:8000"
 
-    # Partagé avec le front, qui sert /static/ : Django ne sert pas ses statiques
-    # avec DEBUG=False et l'image n'a pas whitenoise. Sans lui, l'admin perd
-    # son style. `media_data` reçoit les images des articles, servies de même.
+    # Servis par le front : Django ne sert rien avec DEBUG=False, pas de whitenoise.
     volumes:
       - static_data:/app/staticfiles
       - media_data:/app/media
 
-    # `service_healthy` : Postgres accepte les connexions plusieurs secondes
-    # après le démarrage du conteneur, et l'entrypoint migre avant Gunicorn.
     depends_on:
       db:
         condition: service_healthy
@@ -91,24 +67,21 @@ services:
 
     restart: unless-stopped
 
-    # Sonde héritée de l'image, seule sa cadence est reprise : les 30 s de
-    # l'image mèneraient la chaîne des trois services bien au-delà de la minute.
+    # Cadence resserrée : les 30 s de l'image porteraient la chaîne au-delà de la minute.
     healthcheck:
       interval: 5s
       timeout: 5s
       retries: 6
       start_period: 30s
 
-  # Ménage quotidien : messages de contact de plus de 90 jours, durée promise par
-  # /privacy, et jetons expirés de la liste noire. Au démarrage, puis toutes les 24 h.
+  # Contacts de plus de 90 jours (durée promise par /privacy) et jetons expirés, toutes les 24 h.
   purge:
     image: "ghcr.io/maximemonnier/weeb-backend:${IMAGE_TAG:-latest}"
 
     env_file: *env-django
     environment: *environment-django
 
-    # `set -e` : un échec arrête le conteneur, `restart` le relance et `ps` le
-    # montre, au lieu d'une erreur noyée dans les journaux jusqu'au lendemain.
+    # `set -e` : un échec arrête le conteneur et se voit dans `ps`, au lieu de se noyer dans les journaux.
     command:
       - sh
       - -c
@@ -121,15 +94,14 @@ services:
           sleep 86400
         done
 
-    # Un `sh` en PID 1 ignore le SIGTERM de `docker stop` : chaque déploiement
-    # attendrait les 10 s du délai de grâce. tini le lui transmet.
+    # Un `sh` en PID 1 ignore le SIGTERM : sans tini, chaque arrêt attendrait 10 s.
     init: true
 
     # Sinon la sonde de l'image interroge un Gunicorn qui ne tourne pas ici.
     healthcheck:
       disable: true
 
-    # Les tables à purger n'existent qu'une fois les migrations du backend passées.
+    # Les tables à purger n'existent qu'après les migrations du backend.
     depends_on:
       backend:
         condition: service_healthy
@@ -142,31 +114,23 @@ services:
   frontend:
     image: "ghcr.io/maximemonnier/weeb-frontend:${IMAGE_TAG:-latest}"
 
-    # `target: prod` sert par nginx, sans Node ; le développement construit le
-    # même Dockerfile en `target: dev`, servi par Vite. Ce ne sont pas deux
-    # réglages du même serveur, ce sont deux serveurs.
     build:
       context: ./frontend
       target: prod
 
-      # L'adresse de l'API est écrite DANS le bundle : elle doit être connue à la
-      # construction. `:?` interrompt le build plutôt que de livrer un front qui
-      # s'arrête au chargement.
+      # Écrite dans le bundle : sans elle, le front s'arrêterait au chargement.
       args:
         VITE_API_URL: "${VITE_API_URL:?absente du .env de la racine, voir .env.example}"
 
     ports:
       - "127.0.0.1:${FRONTEND_PORT_PROD:-8081}:8080"
 
-    # Lecture seule. Ce nginx sert les statiques pour que celui du serveur n'ait
-    # pas à lire les volumes de Docker, traversables par root seul.
+    # Ce nginx sert les statiques : celui du serveur ne lit pas les volumes Docker, réservés à root.
     volumes:
       - static_data:/srv/static:ro
       - media_data:/srv/media:ro
 
-    # Le front n'appelle pas l'API depuis le conteneur — c'est le navigateur qui
-    # le fait. La dépendance n'ordonne que le démarrage. Elle garantit en outre
-    # que `collectstatic` a rempli le volume avant que nginx le serve.
+    # Garantit aussi que `collectstatic` a rempli le volume avant que nginx le serve.
     depends_on:
       backend:
         condition: service_healthy
@@ -183,21 +147,16 @@ services:
       start_period: 30s
 
 networks:
-  # `internal` coupe le réseau de la passerelle de l'hôte : plus aucune entrée
-  # ni sortie. La base n'y perd rien, elle ne parle qu'au backend — qui garde
-  # `public` pour le reste.
+  # Ni entrée ni sortie : la base ne parle qu'au backend.
   interne:
     internal: true
   public:
 
 volumes:
-  # Volume nommé, et non un dossier du dépôt : les données ne disparaissent
-  # qu'avec `docker compose -f compose.prod.yaml down -v`.
   db_data:
 
-  # Volume nommé et non dossier de la machine : un bind-mount n'hérite pas des
-  # droits posés par l'image, et `collectstatic` ne pourrait pas y écrire.
+  # Pas de bind-mount : il n'hériterait pas des droits de l'image, `collectstatic` n'y écrirait pas.
   static_data:
 
-  # Les images déposées par les auteurs : seule copie, perdue avec `down -v`.
+  # Seule copie des images d'articles, perdue avec `down -v`.
   media_data:

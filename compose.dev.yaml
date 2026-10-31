@@ -1,25 +1,18 @@
-# Pile de DÉVELOPPEMENT, autonome : la production est dans compose.prod.yaml.
-# Pas de compose.yaml : sans `-f`, une commande échoue au lieu de viser la
-# mauvaise pile. `export COMPOSE_FILE=compose.dev.yaml` le pose une fois.
+# Pas de compose.yaml, exprès : sans `-f`, une commande échoue au lieu de viser la mauvaise pile.
 
-# Nom figé : déduit du dossier, il changerait d'une machine à l'autre. Distinct
-# de `weeb-prod`, donc volume distinct : un `down -v` ici épargne la production.
+# Distinct de `weeb-prod` : un `down -v` ici épargne le volume de production.
 name: weeb
 
 services:
   db:
     image: postgres:17-alpine
 
-    # `:?` interrompt le démarrage avec ce message quand la variable manque,
-    # plutôt que de créer une base aux identifiants surprise.
     environment:
       POSTGRES_DB: "${POSTGRES_DB:?absente du .env, voir .env.example}"
       POSTGRES_USER: "${POSTGRES_USER:?absente du .env, voir .env.example}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?absente du .env, voir .env.example}"
 
-    # Sur 127.0.0.1 seul : la base reste joignable depuis cette machine — c'est
-    # ce qui permet de travailler dans le venv — jamais depuis le réseau local.
-    # La production ne publie rien de tout ça.
+    # 127.0.0.1 : joignable depuis le venv, jamais depuis le réseau local.
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
 
@@ -29,9 +22,7 @@ services:
     networks:
       - interne
 
-    # `-h 127.0.0.1` : sans lui, la sonde passe par la socket Unix et déclare
-    # le service sain avant qu'il écoute en TCP. `$$` diffère la substitution
-    # au conteneur.
+    # -h 127.0.0.1 : sinon la sonde passe par la socket Unix et déclare le service sain avant qu'il écoute en TCP.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -40,19 +31,12 @@ services:
       start_period: 10s
 
   mailpit:
-    # Serveur SMTP jetable : il affiche les messages au lieu de les livrer, sur
-    # http://127.0.0.1:8025. Absent de la production, qui parlera à un vrai
-    # relais. Détail au README, § « Le serveur de mail du développement ».
     image: axllent/mailpit:v1.31.0
 
-    # L'image ne pose aucun `USER` et démarrerait donc en root. Ses ports sont
-    # tous au-dessus de 1024 et elle n'écrit rien sur disque tant qu'aucun
-    # `MP_DATA_FILE` ne lui est passé : un compte sans privilèges lui suffit.
+    # L'image ne pose aucun `USER` ; ports > 1024 et rien d'écrit sans `MP_DATA_FILE`.
     user: "1000:1000"
 
-    # Le SMTP est publié en plus de l'interface, comme la base l'est : c'est la
-    # voie du backend lancé dans le venv, celui en conteneur passant par le
-    # réseau `interne`. Le POP3 de l'image, sur 1110, ne sert à rien ici.
+    # SMTP publié pour le backend lancé dans le venv.
     ports:
       - "127.0.0.1:${MAILPIT_SMTP_PORT_DEV:-1025}:1025"
       - "127.0.0.1:${MAILPIT_UI_PORT_DEV:-8025}:8025"
@@ -60,8 +44,7 @@ services:
     networks:
       - interne
 
-    # Sonde héritée de l'image — `/mailpit readyz` —, seule sa cadence est reprise :
-    # les 15 s de l'image feraient attendre le backend, qui dépend de ce service.
+    # Sonde de l'image, cadence resserrée : ses 15 s retarderaient le backend.
     healthcheck:
       interval: 5s
       timeout: 3s
@@ -69,20 +52,14 @@ services:
       start_period: 10s
 
   backend:
-    # `image:` explicite : sans elle Compose déduit `<projet>-<service>`, soit
-    # `weeb-backend`, le nom même des constructions manuelles du README — qu'il
-    # réutiliserait alors au lieu de construire la sienne, sans rien signaler.
+    # Sans nom explicite, Compose réutiliserait sans prévenir le `weeb-backend` d'un `docker build` manuel.
     image: weeb-backend:dev
 
     build: ./backend
 
-    # Le même .env que celui lu par Compose, cette fois versé dans le conteneur.
-    # Absent, il interrompt le démarrage au lieu de partir sur des valeurs vides.
     env_file: .env
 
-    # L'image pose `production`, on veut l'inverse. Hôtes et ports contredisent le
-    # .env, qui décrit base et mail vus depuis la machine : `db:5432` et
-    # `mailpit:1025` sont la topologie du réseau Compose, pas de la configuration.
+    # Prime sur le .env, qui décrit base et mail vus depuis la machine.
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.development
       POSTGRES_HOST: db
@@ -90,21 +67,16 @@ services:
       EMAIL_HOST: mailpit
       EMAIL_PORT: 1025
 
-    # Le code de la machine masque celui de l'image : `runserver` surveille ces
-    # fichiers-là. Le conteneur y écrit sous l'uid 1001, voir le README.
+    # Le conteneur écrit dans ce dossier sous l'uid 1001 (README).
     volumes:
       - ./backend:/app
 
     ports:
       - "127.0.0.1:${BACKEND_PORT_DEV:-8000}:8000"
 
-    # L'entrypoint ne prépare la base que devant `gunicorn` : cette commande-ci
-    # migre donc elle-même. `exec` pour que runserver reçoive le SIGTERM.
+    # L'entrypoint ne migre que devant `gunicorn` ; `exec` pour que runserver reçoive le SIGTERM.
     command: ["sh", "-c", "python manage.py migrate --noinput && exec python manage.py runserver 0.0.0.0:8000"]
 
-    # `service_healthy` : Postgres accepte les connexions plusieurs secondes
-    # après le démarrage du conteneur, et le `migrate` échouerait entre-temps.
-    # Mailpit à la même condition, pour que le code n'ait jamais à s'en assurer.
     depends_on:
       db:
         condition: service_healthy
@@ -115,8 +87,7 @@ services:
       - interne
       - public
 
-    # Sonde héritée de l'image, seule sa cadence est reprise : les 30 s de
-    # l'image mèneraient la chaîne des services au-delà de la minute.
+    # Cadence resserrée : les 30 s de l'image porteraient la chaîne au-delà de la minute.
     healthcheck:
       interval: 5s
       timeout: 5s
@@ -126,15 +97,11 @@ services:
   frontend:
     image: weeb-frontend:dev
 
-    # `target: dev` sert par Vite ; la production construit le même Dockerfile
-    # en `target: prod`, servi par nginx. Ce ne sont pas deux réglages du même
-    # serveur, ce sont deux serveurs.
     build:
       context: ./frontend
       target: dev
 
-    # Volume anonyme sur node_modules, EN PLUS du montage du code : sans lui, le
-    # frontend/ de la machine masque celui de l'image et Vite ne trouve rien.
+    # Volume anonyme : sans lui, le code monté masque le node_modules de l'image.
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -142,8 +109,7 @@ services:
     ports:
       - "127.0.0.1:${FRONTEND_PORT_DEV:-5173}:5173"
 
-    # Le front n'appelle pas l'API depuis le conteneur — c'est le navigateur qui
-    # le fait. La dépendance n'ordonne que le démarrage.
+    # N'ordonne que le démarrage : c'est le navigateur qui appelle l'API.
     depends_on:
       backend:
         condition: service_healthy
@@ -158,13 +124,9 @@ services:
       start_period: 30s
 
 networks:
-  # Base et Mailpit ne sont joints que par le backend, seul sur les deux réseaux.
-  # `interne` n'est pas fermé, contrairement à la production : les deux sont
-  # publiés sur la machine pour le travail en venv.
+  # `interne` reste ouvert, contrairement à la production : base et Mailpit sont publiés pour le venv.
   interne:
   public:
 
 volumes:
-  # Volume nommé, et non un dossier du dépôt : les données ne disparaissent
-  # qu'avec `docker compose -f compose.dev.yaml down -v`.
   db_data:

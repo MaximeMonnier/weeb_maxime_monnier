@@ -1,19 +1,12 @@
-# Docker n'utilise pas le .gitignore : sans ce fichier, node_modules/ partirait
-# au démon à chaque build. Les chemins sont relatifs à frontend/.
-
-# Réinstallé dans l'image depuis le verrou, et parfois compilé pour l'hôte.
 node_modules/
 
-# L'image de développement sert par Vite, jamais depuis dist/.
 dist/
 dist-ssr/
 
-# Un .env entré dans un layer resterait lisible dans `docker history`. Le motif
-# couvre .env.production et consorts, que Vite lit aussi.
+# Un .env entré dans un layer resterait lisible dans `docker history`.
 .env*
 *.local
 
-# Ils décrivent l'image, ils ne la servent pas.
 Dockerfile
 .dockerignore
 
