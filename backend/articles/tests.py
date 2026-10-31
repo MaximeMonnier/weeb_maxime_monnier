@@ -822,7 +822,7 @@ class ArticleCoutDesListesTests(TestCase):
     """Le coût des deux listes ne dépend pas du nombre d'articles : l'auteur est joint, pas relu."""
 
     def setUp(self):
-        # Plusieurs auteurs, comme une liste réelle.
+        # Plusieurs auteurs comme une liste réelle ; un seul ferait tomber le test tout autant.
         self.auteurs = [membre(f"auteur{rang}@example.com") for rang in range(3)]
         self.admin = CustomUser.objects.create_superuser(
             email="admin@example.com", first_name="A", last_name="Dmin",

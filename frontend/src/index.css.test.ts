@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 // Lu grâce au `css: true` de `vite.config.ts` : sans lui, une chaîne vide.
 import sourceDuCss from "./index.css?raw";
 
-// `.dark` n'est posée par aucun `className` : le script d'index.html, hors de `src/`, la lit.
+// `.dark` n'est posée par aucun `className` : c'est le script d'index.html, hors de `src/`.
 import sourceDuHtml from "../index.html?raw";
 
 const SOURCES = import.meta.glob<string>("./**/*.{ts,tsx}", {
