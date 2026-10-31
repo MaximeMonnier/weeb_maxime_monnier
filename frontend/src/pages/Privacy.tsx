@@ -18,7 +18,7 @@ const Privacy = () => {
             faire fonctionner le site.
           </p>
           <p className="text-ink-muted text-sm mt-4">
-            Dernière mise à jour : 5 octobre 2026.
+            Dernière mise à jour : 31 octobre 2026.
           </p>
         </div>
 
@@ -29,7 +29,11 @@ const Privacy = () => {
             ainsi qu'un mot de passe, ce dernier n'étant jamais enregistré en
             clair. À l'envoi du formulaire de contact : vos prénom, nom et
             adresse électronique, le sujet et le message. À la publication d'un
-            article : son titre, son texte et le compte qui en est l'auteur.
+            article : son titre, son texte, l'image qui l'illustre si vous en
+            joignez une, et le compte qui en est l'auteur. L'image perd à la
+            réception ses métadonnées, comme la date, le lieu ou l'appareil de
+            la prise de vue ; remplacée ou retirée, elle est effacée du serveur,
+            et elle disparaît avec l'article comme avec le compte.
             Nous ne demandons rien d'autre : ni date de naissance, ni téléphone,
             ni adresse postale.
           </p>
