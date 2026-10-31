@@ -33,6 +33,8 @@ CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
         'LOCATION': 'cache_quotas',
+        # Au-delà de 300 entrées, le défaut, Django en efface un tiers : autant de compteurs remis à zéro.
+        'OPTIONS': {'MAX_ENTRIES': 100_000},
     }
 }
 
@@ -76,3 +78,7 @@ SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS >= 31536000
 # Seulement derrière un proxy qui ÉCRASE l'en-tête : sinon un client le forge et contourne HTTPS.
 if env_bool('DJANGO_BEHIND_PROXY', False):
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Sans NUM_PROXIES, DRF prend tout X-Forwarded-For pour identité : un client en changerait à
+# chaque requête. 1 : la dernière adresse, celle qu'écrit le nginx ; 0 : REMOTE_ADDR seul.
+REST_FRAMEWORK['NUM_PROXIES'] = 1 if env_bool('DJANGO_BEHIND_PROXY', False) else 0  # noqa: F405
