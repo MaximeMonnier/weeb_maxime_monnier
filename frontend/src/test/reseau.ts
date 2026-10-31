@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { expect, vi } from "vitest";
 
 // Coupé à `fetch` et non à `apiFetch` : le test traverse la vraie chaîne, du
 // jeton posé et de l'adresse jusqu'à la traduction du refus.
@@ -41,4 +41,11 @@ export function requeteEnvoyee() {
     methode: options.method,
     corps: JSON.parse(options.body as string) as unknown,
   };
+}
+
+// Un FormData ne se compare pas d'un bloc : ses entrées, si.
+export function champsMultipart() {
+  const { options } = dernierAppel();
+  expect(options.body).toBeInstanceOf(FormData);
+  return Object.fromEntries(options.body as FormData);
 }
