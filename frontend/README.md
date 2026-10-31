@@ -1,418 +1,127 @@
-# Weeb - Plateforme Web Moderne
+# Weeb — frontend
 
-Application web React/TypeScript avec système de routing, authentification et design system complet.
+Site vitrine et blog en React/TypeScript. Installation complète, API, Docker et CI :
+[`../README.md`](../README.md). Limites connues : [`../AMELIORATIONS.md`](../AMELIORATIONS.md).
 
-## Table des matières
-
-- [Technologies](#technologies)
-- [Installation](#installation)
-- [Pages disponibles](#pages-disponibles)
-- [Features](#features)
-- [Documentation](#documentation)
-- [Structure du projet](#structure-du-projet)
+[Technologies](#technologies) · [Installation](#installation) · [Scripts disponibles](#scripts-disponibles) ·
+[Pages disponibles](#pages-disponibles) · [Structure du projet](#structure-du-projet) ·
+[Conventions](#conventions) · [Design System](#design-system)
 
 ## Technologies
 
-- **React 19.2** - Framework UI
-- **TypeScript 5.9** - Typage statique
-- **Vite 7.3** - Build tool ultra-rapide
-- **React Router DOM 7.12** - Routing SPA
-- **Tailwind CSS 4.1** - Framework CSS utility-first
-- **Lucide React** - Bibliothèque d'icônes
-- **Embla Carousel 8.6** - Carrousel de l'accueil (`embla-carousel-react`, `embla-carousel-autoplay`)
-- **Vitest 5** et **Testing Library** - Tests unitaires et de composants, sous `jsdom`
-- **Playwright 1.63** - Parcours de bout en bout dans un navigateur
+React 19.2 · TypeScript 5.9 · Vite 7.3 · React Router DOM 7.12 · Tailwind CSS 4.1 (config dans
+`index.css`, aucun `tailwind.config.js`) · Lucide React · Embla Carousel 8.6 · Vitest 5 +
+Testing Library (`jsdom`) · Playwright 1.63.
 
 ## Installation
 
 ```bash
-# Installer les dépendances
 npm install
-
-# Créer la configuration locale : sans VITE_API_URL, src/lib/api.ts lève à l'import
-cp .env.example .env
-
-# Lancer le serveur de développement
+cp .env.example .env   # sans VITE_API_URL, src/lib/api.ts lève au chargement
 npm run dev
-
-# Build de production
-npm run build
-
-# Preview du build
-npm run preview
-
-# Linter le code
-npm run lint
 ```
+
+## Scripts disponibles
+
+| Commande | Effet |
+|---|---|
+| `npm run dev` | Serveur de développement, http://localhost:5173 |
+| `npm run build` | `tsc -b`, puis build de production dans `dist/` |
+| `npm run preview` | Sert le build |
+| `npm run lint` | ESLint |
+| `npm test` | Vitest, sans base ni conteneur |
+| `npm run test:e2e` | Playwright contre la pile Compose de développement ; identifiants dans `E2E_EMAIL` et `E2E_PASSWORD` |
 
 ## Pages disponibles
 
-| Route | Description |
-|-------|-------------|
-| `/` | Page d'accueil avec hero banner et sections |
+| Route | Page |
+|---|---|
+| `/` | Accueil |
+| `/about` | Présentation |
 | `/contact` | Formulaire de contact |
-| `/login` | Page de connexion |
-| `/forgot-password` | Demande d'un lien de réinitialisation, envoyé par email |
-| `/reset-password` | Saisie du nouveau mot de passe. Atteinte par le lien du mail, qui porte `uid` et `token` en paramètres d'URL |
-| `/change-password` | Changement du mot de passe par le membre connecté, qui reste connecté. Le visiteur y est renvoyé vers la connexion |
-| `/delete-account` | Suppression définitive du compte et de ses articles par le membre connecté, sur son mot de passe redonné. Le visiteur y est renvoyé vers la connexion |
-| `/subscribe` | Page d'inscription |
-| `/about` | Page de présentation |
-| `/blog` | Liste des articles |
-| `/articles/:id` | Détail d'un article |
-| `/terms` | Conditions d'utilisation |
-| `/privacy` | Politique de confidentialité |
-| `/*` | Page 404 personnalisée |
-
-## Features
-
-### Navigation
-- ✅ Menu responsive avec version mobile
-- ✅ Dark mode avec persistance localStorage
-- ✅ Indicateur de page active
-
-### Formulaires
-- ✅ Validation côté client complète
-- ✅ Messages d'erreur sous chaque champ, à l'envoi
-- ✅ Clearing automatique des erreurs à la saisie
-- ✅ Support : text, email, password, textarea
-- ✅ États de chargement (isSubmitting)
-
-### Design System
-- ✅ Variables CSS pour light/dark mode
-- ✅ Composants UI réutilisables
-- ✅ Accessibilité (ARIA, focus states, touch targets)
-- ✅ Responsive mobile-first
-- ✅ Animations et transitions fluides
-
-## Documentation
-
-Ce fichier ne couvre que le front. Le reste est à la racine du dépôt :
-
-- [`../README.md`](../README.md) - installation complète, API, pile Docker et intégration continue
-- [`../AMELIORATIONS.md`](../AMELIORATIONS.md) - limites connues et améliorations envisagées
+| `/blog`, `/articles/:id` | Liste et détail des articles |
+| `/login`, `/subscribe` | Connexion, inscription |
+| `/forgot-password` | Demande du lien de réinitialisation |
+| `/reset-password` | Nouveau mot de passe, depuis le lien du mail (`uid`, `token`). Ne pas renommer : les liens déjà envoyés casseraient |
+| `/change-password`, `/delete-account` | Membre connecté seulement ; le visiteur est renvoyé vers la connexion |
+| `/terms`, `/privacy` | Conditions d'utilisation, confidentialité |
+| `/*` | 404 |
 
 ## Structure du projet
 
 ```
 src/
-├── components/                # Composants réutilisables
-│   ├── common/                # Composants métier, liés à un domaine
-│   │   ├── Blog/              # ArticleCard, FormArticle
-│   │   ├── Contact/           # FormContact
-│   │   ├── Home/              # HeroBanner, FeatureBlock, BrandBanner, Slider
-│   │   ├── Login/             # FormLogin
-│   │   ├── Navigation/        # NavBar, DesktopNav, MobileMenu
-│   │   ├── Subscribe/         # FormSubscribe
-│   │   ├── Footer.tsx
-│   │   └── ThemeToggle.tsx
-│   └── ui/                    # Composants génériques, sans métier
-│       ├── Alert/             # ErrorAlert
-│       ├── Button/            # Button, buttonClasses
-│       ├── Input/             # Input, Textarea, FormField
-│       ├── Logo/              # Logo, LogoBanner
-│       ├── Modal/             # Modal
-│       └── Title/             # HeroTitle, SectionTitle, TextCtaLink
-├── pages/                     # Une page par route
-│   ├── Blog/                  # Blog, ArticleDetails
-│   ├── About.tsx
-│   ├── ChangePassword.tsx
-│   ├── Contact.tsx
-│   ├── ForgotPassword.tsx
-│   ├── Home.tsx
-│   ├── Login.tsx
-│   ├── NotFound.tsx
-│   ├── Privacy.tsx
-│   ├── ResetPassword.tsx
-│   ├── Subscribe.tsx
-│   └── Terms.tsx
-├── layouts/
-│   └── MainLayout.tsx
-├── hooks/
-│   ├── useForm.ts             # Socle des formulaires : champs, erreurs, envoi
-│   ├── useIsAuthenticated.ts  # État de connexion, et logout
-│   └── useTheme.ts
+├── components/
+│   ├── common/      # métier, par domaine : Blog, Contact, Home, Login, Navigation, Subscribe, Footer, ThemeToggle
+│   └── ui/          # générique, sans métier : Alert, Button, Input, Logo, Modal, Title
+├── pages/           # une page par route
+├── layouts/         # MainLayout
+├── hooks/           # useForm, useIsAuthenticated, useTheme
 ├── lib/
-│   ├── api.ts                 # apiFetch, seul point d'appel réseau
-│   ├── apiErrors.ts           # toFormErrors : refus de l'API -> messages du formulaire
-│   ├── cx.ts                  # Assemblage de classes conditionnelles
-│   ├── navigation.ts          # Liens servis par l'en-tête et le pied de page
-│   ├── tokens.ts              # Lecture et écriture des jetons JWT
-│   └── validationRules.ts     # Règles partagées : email, longueur, complexité et confirmation du mot de passe
-├── types/
-│   ├── article.ts             # Article, ArticleListItem
-│   └── navigation.ts          # NavItem
-├── test/
-│   └── reseau.ts              # Substitut de fetch partagé par les tests
-├── assets/                    # Images et SVG
-│   ├── img/
-│   └── svg/
-├── App.tsx                    # Routeur, sous MainLayout
-├── routes.tsx                 # Routes : chemin et page
-├── main.tsx                   # Point d'entrée
-├── index.css                  # Styles globaux et design system
-└── vite-env.d.ts
+│   ├── api.ts             # apiFetch, seul point d'appel réseau
+│   ├── apiErrors.ts       # toFormErrors : refus de l'API -> messages du formulaire
+│   ├── cx.ts              # assemblage de classes conditionnelles
+│   ├── navigation.ts      # liens de l'en-tête et du pied de page
+│   ├── tokens.ts          # seul accès aux jetons JWT
+│   └── validationRules.ts # règles partagées entre formulaires
+├── types/           # types partagés
+├── test/reseau.ts   # substitut de fetch partagé par les tests
+├── routes.tsx       # ROUTES : chemin et page, la ligne * en dernier
+├── App.tsx          # routeur, sous MainLayout
+└── index.css        # thème et classes maison
+e2e/                 # parcours Playwright
 ```
 
-Les tests Vitest (`*.test.ts`, `*.test.tsx`) vivent à côté de leur source ; ce qu'ils
-partagent est dans `test/`, importé explicitement par chacun. Le parcours
-Playwright est hors de `src/`, dans `e2e/`.
+Un test Vitest (`*.test.ts(x)`) vit à côté de sa source.
 
-## Composants UI disponibles
+## Conventions
 
-### Input
-```tsx
-import { Input } from "./components/ui/Input";
-
-<Input
-  label="Email"
-  type="email"
-  error={errors.email}
-  helperText="Nous ne partagerons jamais votre email"
-  required
-  fullWidth
-/>
-```
-
-### Button
-```tsx
-import Button from "./components/ui/Button/Button";
-
-<Button variant="primary" size="lg" fullWidth>
-  Créer mon compte
-</Button>
-```
-
-### Textarea
-```tsx
-import { Textarea } from "./components/ui/Input";
-
-<Textarea
-  label="Message"
-  minRows={5}
-  error={errors.message}
-  required
-  fullWidth
-/>
-```
-
-## Scripts disponibles
-
-| Commande | Description |
-|----------|-------------|
-| `npm run dev` | Lance le serveur de développement sur http://localhost:5173 |
-| `npm run build` | Vérifie les types (`tsc -b`), puis build de production dans `/dist` |
-| `npm run preview` | Preview du build de production |
-| `npm run lint` | Vérification ESLint |
-| `npm test` | Lance la suite Vitest, sans base ni conteneur |
-| `npm run test:e2e` | Lance le parcours Playwright contre la pile de développement de Compose ; identifiants dans `E2E_EMAIL` et `E2E_PASSWORD` |
+- **Réseau** : tout passe par `apiFetch<T>()`. Une liste revient paginée
+  (`{count, next, previous, results}`), jamais en tableau.
+- **Jetons** : seul `lib/tokens.ts` écrit dans `localStorage`, sinon `useIsAuthenticated` n'est
+  pas prévenu.
+- **Formulaires** : `useForm` porte champs, erreurs et envoi ; les règles sont une fonction pure
+  hors du composant, passée à `submit(e, { rules, fields, send })`. Un refus de l'API passe par
+  `toFormErrors` ; un libellé propre au formulaire par les options `unauthorized` (le `401`) ou
+  `translate`. Modèle : `FormContact.tsx`.
+- **Liens de navigation** : dans `lib/navigation.ts`, jamais réécrits dans `NavBar`, `MobileMenu`
+  ou `Footer`.
+- **Boutons** : aucune classe CSS, tout vient de `buttonClasses()`, y compris pour un lien-bouton.
+- **Tests** : aucune globale. Chaque fichier importe `describe`/`it`/`expect` de `vitest`, et un
+  test rendu inscrit `afterEach(cleanup)`. Couper le réseau à `globalThis.fetch`, jamais à
+  `apiFetch`.
 
 ## Design System
 
-### Classes CSS custom
+### Classes maison
 
-**Boutons :** aucune classe CSS. Le style vient de `buttonClasses()`
-(`src/components/ui/Button/buttonClasses.ts`), qu'appellent le composant `Button` et les
-liens-boutons écrits à la main.
+Dans `index.css` : `.form-label`, `.form-label-required`, `.form-input` (`.error`, `.success`),
+`.form-textarea`, `.form-error-message`, `.form-helper-text`, `.form-alert-error`,
+`.form-alert-success`, `.nav-link` (`.active`), `.footer`, `.footer-link`, `.touch-target`,
+`.focus-ring-primary`, `.container-custom`, `.embla__viewport`, `.embla__container`,
+`.embla__slide`, `.marquee-mask`, `.marquee-track`.
 
-**Formulaires :**
-- `.form-label` - Label de formulaire
-- `.form-label-required` - Ajoute l'astérisque rouge d'un champ obligatoire
-- `.form-input` - Input/Textarea de formulaire, avec les états `.form-input.error` et `.form-input.success`
-- `.form-textarea` - Hauteur minimale et redimensionnement vertical d'un textarea
-- `.form-error-message` - Message d'erreur (rouge)
-- `.form-helper-text` - Texte d'aide (gris)
-
-**Alertes de formulaire :**
-- `.form-alert-error` - Message d'ensemble d'un refus, encadré dès qu'il a du texte
-- `.form-alert-success` - Message de succès, même comportement
-
-**Navigation :**
-- `.nav-link` - Lien de navigation
-- `.nav-link.active` - Lien actif (violet)
-
-**Pied de page :**
-- `.footer` - Fond et bordure haute du pied de page
-- `.footer-link` - Lien du pied de page, violet au survol
-
-**Accessibilité :**
-- `.touch-target` - Cible tactile d'au moins 44 × 44 px
-- `.focus-ring-primary` - Anneau de focus violet
-
-**Utilitaires :**
-- `.container-custom` - Container responsive (max-width: 80rem)
-
-Les couleurs ne passent par aucune classe écrite à la main : ce sont les utilitaires de
-Tailwind (`bg-surface-alt`, `text-ink-soft`, `border-line`…), tirés des variables ci-dessous,
-et toutes les variantes s'y posent.
-
-**Carrousel :** `.embla__viewport`, `.embla__container`, `.embla__slide` - noms repris de la
-documentation d'Embla.
-
-**Bandeau défilant :** `.marquee-mask`, `.marquee-track` - défilement des logos de l'accueil,
-arrêté quand le système demande moins d'animations.
+Tailwind n'y décline **aucune variante** : `hover:nav-link` ne produit rien, et
+`index.css.test.ts` le refuse.
 
 ### Variables CSS
 
+Valeur claire dans `@theme`, redéfinie sous `.dark`. Une couleur absente de `.dark` garde sa
+valeur claire sans rien signaler. On lit les utilitaires (`bg-surface-alt`, `text-ink-soft`,
+`border-line`), jamais de paire `dark:` ni de `bg-[var(…)]`.
+
 ```css
-/* Couleurs : valeur claire dans @theme, redéfinie sous .dark */
---color-surface              /* fond de page */
---color-surface-alt          /* sections et cartes */
---color-surface-hover        /* fond au survol */
---color-field                /* fond de champ */
---color-field-focus          /* fond de champ actif */
---color-ink                  /* titres, étiquettes */
---color-ink-soft             /* descriptions */
---color-ink-faint            /* indications */
---color-ink-muted            /* désactivé */
---color-ink-caption          /* titres de colonne du pied de page, même valeur en sombre */
---color-line                 /* bordures */
---color-line-strong          /* bordures appuyées et champs */
---color-accent               /* violet */
---color-accent-hover
---color-success
---color-error
-
-/* Texte */
---text-body                  /* 1rem */
---text-body-sm               /* 0.875rem */
-
-/* Radius */
---radius-button              /* 0.5rem */
---radius-input               /* 0.5rem */
-
-/* Shadows */
---shadow-glow-primary
---shadow-focus-primary
---shadow-focus-error
---shadow-focus-success
+--color-surface --color-surface-alt --color-surface-hover   /* fonds */
+--color-field --color-field-focus                           /* champs */
+--color-ink --color-ink-soft --color-ink-faint --color-ink-muted
+--color-ink-caption                                         /* même valeur en sombre */
+--color-line --color-line-strong                            /* bordures */
+--color-accent --color-accent-hover --color-success --color-error
+--text-body --text-body-sm
+--radius-button --radius-input
+--shadow-glow-primary --shadow-focus-primary --shadow-focus-error --shadow-focus-success
 ```
 
-L'ombre `dark-md` de la barre de navigation est aussi déclarée dans `@theme`. Elle n'est lue
-que par la classe `dark:shadow-dark-md`, seule forme sous laquelle son nom s'écrit ici :
-Tailwind balaie aussi ce README, et la variable ou l'utilitaire nus lui feraient émettre une
-règle que rien ne lit.
-
-## Bonnes pratiques implémentées
-
-- ✅ Architecture modulaire et scalable
-- ✅ TypeScript strict avec JSDoc
-- ✅ Composants réutilisables (DRY principle)
-- ✅ Accessibilité (ARIA, labels, focus)
-- ✅ Responsive design mobile-first
-- ✅ Dark mode persisté
-- ✅ Validation formulaires côté client
-- ✅ Images hors écran chargées à la demande (`loading="lazy"` dans `FeatureBlock.tsx` et `LogoBanner.tsx`)
-- ✅ Tree-shaking automatique
-
-## Guide de prise en main
-
-### Ajouter une nouvelle page
-
-1. Créer le composant dans `src/pages/`
-```tsx
-// src/pages/MaPage.tsx
-export default function MaPage() {
-  return (
-    <div className="container-custom mt-32">
-      <h1>Ma nouvelle page</h1>
-    </div>
-  );
-}
-```
-
-2. Ajouter la route dans `routes.tsx`, avant la ligne `*`
-```tsx
-import MaPage from "./pages/MaPage";
-
-// Dans ROUTES
-{ path: "/ma-page", element: <MaPage /> },
-```
-
-3. Optionnel : Ajouter un lien dans `NavBar.tsx`
-```tsx
-// Dans navItems — dans `lib/navigation.ts` si le pied de page le sert aussi
-{ to: "/ma-page", label: "Ma Page" }
-```
-
-### Créer un formulaire
-
-Les sept formulaires du site suivent le même patron : `useForm` porte l'état et le cycle
-d'envoi, une fonction pure hors du composant porte les règles. Sa fonction `submit` valide,
-bloque le bouton, appelle l'API et range un refus entre les champs et le message d'ensemble
-par `toFormErrors` : le formulaire n'écrit que son appel et son succès. Seul
-`ForgotPassword.tsx` n'a pas de règles : il laisse l'API juger l'adresse.
-
-```tsx
-// src/components/common/MonDomaine/MonFormulaire.tsx
-import { Input } from "../../ui/Input";
-import Button from "../../ui/Button/Button";
-import ErrorAlert from "../../ui/Alert/ErrorAlert";
-import { useForm, type FormErrors } from "../../../hooks/useForm";
-import { apiFetch } from "../../../lib/api";
-
-type FormData = {
-  title: string;
-};
-
-const CHAMPS = ["title"] as const;
-
-// Hors du composant : une fonction pure, testable sans rien rendre.
-const reglesDeSaisie = (formData: FormData): FormErrors<FormData> => {
-  const newErrors: FormErrors<FormData> = {};
-  if (!formData.title.trim()) {
-    newErrors.title = "Le titre est requis";
-  }
-  return newErrors;
-};
-
-export default function MonFormulaire() {
-  const { formData, errors, formError, isSubmitting, handleChange, submit } =
-    useForm<FormData>({ title: "" });
-
-  const handleSubmit = (e: React.FormEvent) =>
-    submit(e, {
-      rules: reglesDeSaisie,
-      fields: CHAMPS,
-      send: async (values) => {
-        await apiFetch("/mon-endpoint/", {
-          method: "POST",
-          body: JSON.stringify(values),
-        });
-      },
-    });
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <ErrorAlert message={formError} />
-      <Input
-        label="Titre"
-        name="title"
-        value={formData.title}
-        onChange={handleChange}
-        error={errors.title}
-        required
-        fullWidth
-      />
-      <Button type="submit" variant="primary" disabled={isSubmitting}>
-        {isSubmitting ? "Envoi en cours..." : "Envoyer"}
-      </Button>
-    </form>
-  );
-}
-```
-
-Une règle servie à plusieurs formulaires (email, longueur ou complexité du mot de passe) va dans
-`src/lib/validationRules.ts`. Un message de succès se retire à la frappe suivante par
-l'option `onChange` de `useForm` : voir `FormContact.tsx`. Un refus qui demande un libellé
-propre au formulaire passe par les options `unauthorized` (le `401`, voir `FormLogin.tsx`)
-et `translate` (tout autre cas, voir `FormSubscribe.tsx`).
-
-## Améliorations futures
-
-Elles sont consignées pour tout le dépôt dans [`../AMELIORATIONS.md`](../AMELIORATIONS.md).
-
----
-
-**Projet réalisé dans le cadre d'un examen**
-**Date :** Janvier 2026
+**Tailwind balaie aussi ce README** : toute classe ou variable citée ici sort dans le CSS, même
+sans lecteur. Retirer une variable, c'est retirer sa ligne ici. L'ombre `dark-md` ne s'écrit que
+sous la forme `dark:shadow-dark-md`, son seul usage.
